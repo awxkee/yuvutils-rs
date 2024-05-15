@@ -99,28 +99,25 @@ impl ToIntegerTransform for CbCrForwardTransform<f32> {
 }
 
 pub fn get_forward_transform(
-    range_bgra: u32,
+    range_rgba: u32,
     range_y: u32,
     range_uv: u32,
     kr: f32,
     kb: f32,
 ) -> CbCrForwardTransform<f32> {
     let kg = 1.0f32 - kr - kb;
-    if kg == 0f32 {
-        panic!("1.0f - kr - kg must not be 0");
-    }
 
-    let yr = kr * range_y as f32 / range_bgra as f32;
-    let yg = kg * range_y as f32 / range_bgra as f32;
-    let yb = kb * range_y as f32 / range_bgra as f32;
+    let yr = kr * range_y as f32 / range_rgba as f32;
+    let yg = kg * range_y as f32 / range_rgba as f32;
+    let yb = kb * range_y as f32 / range_rgba as f32;
 
-    let cb_r = -0.5f32 * kr / (1f32 - kb) * range_uv as f32 / range_bgra as f32;
-    let cb_g = -0.5f32 * kg / (1f32 - kb) * range_uv as f32 / range_bgra as f32;
-    let cb_b = 0.5f32 * range_uv as f32 / range_bgra as f32;
+    let cb_r = -0.5f32 * kr / (1f32 - kb) * range_uv as f32 / range_rgba as f32;
+    let cb_g = -0.5f32 * kg / (1f32 - kb) * range_uv as f32 / range_rgba as f32;
+    let cb_b = 0.5f32 * range_uv as f32 / range_rgba as f32;
 
-    let cr_r = 0.5f32 * range_uv as f32 / range_bgra as f32;
-    let cr_g = -0.5f32 * kg / (1f32 - kr) * range_uv as f32 / range_bgra as f32;
-    let cr_b = -0.5f32 * kb / (1f32 - kr) * range_uv as f32 / range_bgra as f32;
+    let cr_r = 0.5f32 * range_uv as f32 / range_rgba as f32;
+    let cr_g = -0.5f32 * kg / (1f32 - kr) * range_uv as f32 / range_rgba as f32;
+    let cr_b = -0.5f32 * kb / (1f32 - kr) * range_uv as f32 / range_rgba as f32;
     return CbCrForwardTransform {
         yr,
         yg,

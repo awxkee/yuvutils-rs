@@ -486,16 +486,7 @@ pub fn yuv_nv12_to_rgb(
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSample::YUV420 as u8 },
     >(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, width, height, range, matrix,
     )
 }
 
@@ -536,16 +527,6 @@ pub fn yuv_nv21_to_rgb(
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSample::YUV420 as u8 },
     >(
-        y_plane,
-        y_stride,
-        vu_plane,
-        vu_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, vu_plane, vu_stride, rgb, rgb_stride, width, height, range, matrix,
     )
 }
-

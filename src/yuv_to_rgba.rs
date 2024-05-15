@@ -269,7 +269,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     }
 }
 
-/// Convert YUV 420 format to RGB format.
+/// Convert YUV 420 planar format to RGB format.
 ///
 /// This function takes YUV 420 planar format data with 8-bit precision,
 /// and converts it to RGB format with 8-bit per channel precision.
@@ -323,7 +323,7 @@ pub fn yuv420_to_rgb(
     )
 }
 
-/// Convert YUV 420 format to RGBA format.
+/// Convert YUV 420 planar format to RGBA format.
 ///
 /// This function takes YUV 420 planar format data with 8-bit precision,
 /// and converts it to RGBA format with 8-bit per channel precision.
@@ -377,7 +377,7 @@ pub fn yuv420_to_rgba(
     )
 }
 
-/// Convert YUV 420 format to BGRA format.
+/// Convert YUV 420 planar format to BGRA format.
 ///
 /// This function takes YUV 420 planar format data with 8-bit precision,
 /// and converts it to BGRA format with 8-bit per channel precision.
@@ -431,7 +431,7 @@ pub fn yuv420_to_bgra(
     )
 }
 
-/// Convert YUV 422 format to RGB format.
+/// Convert YUV 422 planar format to RGB format.
 ///
 /// This function takes YUV 422 data with 8-bit precision,
 /// and converts it to RGB format with 8-bit per channel precision.
@@ -485,7 +485,7 @@ pub fn yuv422_to_rgb(
     )
 }
 
-/// Convert YUV 422 format to RGBA format.
+/// Convert YUV 422 planar format to RGBA format.
 ///
 /// This function takes YUV 422 data with 8-bit precision,
 /// and converts it to RGBA format with 8-bit per channel precision.
@@ -539,7 +539,7 @@ pub fn yuv422_to_rgba(
     )
 }
 
-/// Convert YUV 422 format to BGRA format.
+/// Convert YUV 422 planar format to BGRA format.
 ///
 /// This function takes YUV 422 data with 8-bit precision,
 /// and converts it to BGRA format with 8-bit per channel precision.
@@ -593,7 +593,7 @@ pub fn yuv422_to_bgra(
     )
 }
 
-/// Convert YUV 444 format to RGBA format.
+/// Convert YUV 444 planar format to RGBA format.
 ///
 /// This function takes YUV 444 data with 8-bit precision,
 /// and converts it to RGBA format with 8-bit per channel precision.
@@ -647,7 +647,7 @@ pub fn yuv444_to_rgba(
     )
 }
 
-/// Convert YUV 444 format to BGRA format.
+/// Convert YUV 444 planar format to BGRA format.
 ///
 /// This function takes YUV 444 data with 8-bit precision,
 /// and converts it to BGRA format with 8-bit per channel precision.
@@ -701,7 +701,7 @@ pub fn yuv444_to_bgra(
     )
 }
 
-/// Convert YUV 444 format to RGB format.
+/// Convert YUV 444 planar format to RGB format.
 ///
 /// This function takes YUV 444 data with 8-bit precision,
 /// and converts it to RGB format with 8-bit per channel precision.

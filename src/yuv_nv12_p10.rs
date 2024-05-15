@@ -329,7 +329,7 @@ fn yuv_nv12_p10_to_bgra_impl<
     }
 }
 
-/// Convert YUV NV12 format with P010 pixel format to BGRA format (Little-Endian).
+/// Convert YUV NV12 format with 10-bit (Little-Endian) pixel format to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
 /// and converts it to BGRA format with big-endian byte order.
@@ -381,7 +381,7 @@ pub fn yuv_nv12_p10_to_bgra(
     );
 }
 
-/// Convert YUV NV16 format with P010 pixel format to BGRA format (Little-Endian).
+/// Convert YUV NV16 format with 10-bit (Little-Endian) pixel format to BGRA format .
 ///
 /// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
 /// and converts it to BGRA format with big-endian byte order.
@@ -433,7 +433,7 @@ pub fn yuv_nv16_p10_to_bgra(
     );
 }
 
-/// Convert YUV NV12 format with P010 pixel format to BGRA format (Big-Endian).
+/// Convert YUV NV12 format with 10-bit (Big-Endian) pixel format to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
 /// and converts it to BGRA format with big-endian byte order.
@@ -485,7 +485,7 @@ pub fn yuv_nv12_p10_to_bgra_be(
     );
 }
 
-/// Convert YUV NV16 format with P010 pixel format to BGRA format (Big-Endian).
+/// Convert YUV NV16 format with 10-bit (Big-Endian) pixel format to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
 /// and converts it to BGRA format with big-endian byte order.
@@ -537,7 +537,7 @@ pub fn yuv_nv16_p10_to_bgra_be(
     );
 }
 
-/// Convert YUV NV12 format with P010 pixel format (MSB) to BGRA format.
+/// Convert YUV NV12 format with 10-bit pixel format (MSB) to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
 /// and converts it to BGRA format with 8-bit per channel precision.
@@ -589,7 +589,7 @@ pub fn yuv_nv12_p10_msb_to_bgra(
     );
 }
 
-/// Convert YUV NV16 format with P010 pixel format (MSB) to BGRA format.
+/// Convert YUV NV16 format with 10-bit pixel format (MSB) to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
 /// and converts it to BGRA format with 8-bit per channel precision.

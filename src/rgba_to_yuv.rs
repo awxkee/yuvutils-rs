@@ -1,10 +1,9 @@
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
-    uint8x16_t, vcombine_u16, vcombine_u8, vdupq_n_s16, vdupq_n_s32, vget_low_s16,
-    vget_low_u8, vld3q_u8, vld4q_u8, vmaxq_s32, vmlal_high_s16, vmlal_s16,
-    vmovl_high_u8, vmovl_u8, vpaddlq_u8, vqmovn_u16, vqshrun_n_s32,
-    vreinterpretq_s16_u16, vshrn_n_u16, vst1_u8, vst1q_u8,
+    uint8x16_t, vcombine_u16, vcombine_u8, vdupq_n_s16, vdupq_n_s32, vget_low_s16, vget_low_u8,
+    vld3q_u8, vld4q_u8, vmaxq_s32, vmlal_high_s16, vmlal_s16, vmovl_high_u8, vmovl_u8, vpaddlq_u8,
+    vqmovn_u16, vqshrun_n_s32, vreinterpretq_s16_u16, vshrn_n_u16, vst1_u8, vst1q_u8,
 };
 
 use crate::yuv_support::{
@@ -269,7 +268,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     }
 }
 
-/// Convert RGB image data to YUV422 planar format.
+/// Convert RGB image data to YUV 422 planar format.
 ///
 /// This function performs RGB to YUV conversion and stores the result in YUV422 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -309,22 +308,12 @@ pub fn rgb_to_yuv422(
     matrix: YuvStandardMatrix,
 ) {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
     );
 }
 
-/// Convert RGBA image data to YUV422 planar format.
+/// Convert RGBA image data to YUV 422 planar format.
 ///
 /// This function performs RGBA to YUV conversion and stores the result in YUV422 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -379,7 +368,7 @@ pub fn rgba_to_yuv422(
     );
 }
 
-/// Convert BGRA image data to YUV422 planar format.
+/// Convert BGRA image data to YUV 422 planar format.
 ///
 /// This function performs BGRA to YUV conversion and stores the result in YUV422 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -434,7 +423,7 @@ pub fn bgra_to_yuv422(
     );
 }
 
-/// Convert RGB image data to YUV420 planar format.
+/// Convert RGB image data to YUV 420 planar format.
 ///
 /// This function performs RGB to YUV conversion and stores the result in YUV420 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -474,22 +463,12 @@ pub fn rgb_to_yuv420(
     matrix: YuvStandardMatrix,
 ) {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
     );
 }
 
-/// Convert RGBA image data to YUV420 planar format.
+/// Convert RGBA image data to YUV 420 planar format.
 ///
 /// This function performs RGBA to YUV conversion and stores the result in YUV420 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -544,7 +523,7 @@ pub fn rgba_to_yuv420(
     );
 }
 
-/// Convert BGRA image data to YUV420 planar format.
+/// Convert BGRA image data to YUV 420 planar format.
 ///
 /// This function performs BGRA to YUV conversion and stores the result in YUV420 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -599,7 +578,7 @@ pub fn bgra_to_yuv420(
     );
 }
 
-/// Convert RGB image data to YUV444 planar format.
+/// Convert RGB image data to YUV 444 planar format.
 ///
 /// This function performs RGB to YUV conversion and stores the result in YUV444 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -639,22 +618,12 @@ pub fn rgb_to_yuv444(
     matrix: YuvStandardMatrix,
 ) {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
     );
 }
 
-/// Convert RGBA image data to YUV444 planar format.
+/// Convert RGBA image data to YUV 444 planar format.
 ///
 /// This function performs RGBA to YUV conversion and stores the result in YUV444 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -709,7 +678,7 @@ pub fn rgba_to_yuv444(
     );
 }
 
-/// Convert BGRA image data to YUV444 planar format.
+/// Convert BGRA image data to YUV 444 planar format.
 ///
 /// This function performs BGRA to YUV conversion and stores the result in YUV444 planar format,
 /// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
@@ -741,8 +710,8 @@ pub fn bgra_to_yuv444(
     u_stride: u32,
     v_plane: &mut [u8],
     v_stride: u32,
-    rgba: &[u8],
-    rgba_stride: u32,
+    bgra: &[u8],
+    bgra_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -755,8 +724,8 @@ pub fn bgra_to_yuv444(
         u_stride,
         v_plane,
         v_stride,
-        rgba,
-        rgba_stride,
+        bgra,
+        bgra_stride,
         width,
         height,
         range,
