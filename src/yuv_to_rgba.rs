@@ -55,6 +55,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     for y in 0..height as usize {
         #[allow(unused_variables)]
+        #[allow(unused_mut)]
         let mut cx = 0usize;
 
         let mut uv_x = 0usize;
