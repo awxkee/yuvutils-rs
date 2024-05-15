@@ -1,0 +1,16 @@
+[package]
+name = "yuvutils-rs"
+version = "0.1.0"
+edition = "2021"
+description = "Rust utilities for YUV format handling and conversion."
+readme = "README.md"
+keywords = ["yuv"]
+license = "Apache-2.0 OR BSD-3-Clause"
+authors = ["Radzivon Bartoshyk"]
+documentation = "https://github.com/awxkee/yuvutils-rs"
+categories = ["multimedia::images", "multimedia::video"]
+homepage = "https://github.com/awxkee/yuvutils-rs"
+repository = "https://github.com/awxkee/yuvutils-rs"
+exclude = ["*.jpg"]
+
+[dependencies]
