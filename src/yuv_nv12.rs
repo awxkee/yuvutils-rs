@@ -157,12 +157,12 @@ fn yuv_nv12_to_rgbx<
                     }
                     YuvSourceChannels::Rgba => {
                         let dst_pack: uint8x16x4_t =
-                            uint8x16x4_t(b_values, g_values, r_values, v_alpha);
+                            uint8x16x4_t(r_values, g_values, b_values, v_alpha);
                         vst4q_u8(bgra_ptr.add(dst_shift), dst_pack);
                     }
                     YuvSourceChannels::Bgra => {
                         let dst_pack: uint8x16x4_t =
-                            uint8x16x4_t(r_values, g_values, b_values, v_alpha);
+                            uint8x16x4_t(b_values, g_values, r_values, v_alpha);
                         vst4q_u8(bgra_ptr.add(dst_shift), dst_pack);
                     }
                 }

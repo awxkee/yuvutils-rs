@@ -7,7 +7,7 @@ pub struct CbCrInverseTransform<T> {
     pub g_coeff_2: T,
 }
 
-impl <T>CbCrInverseTransform<T> {
+impl<T> CbCrInverseTransform<T> {
     pub fn new(
         y_coef: T,
         cr_coef: T,
@@ -184,7 +184,7 @@ pub struct YuvBias {
     pub kb: f32,
 }
 
-pub fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
+pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
     return match matrix {
         YuvStandardMatrix::Bt601 => YuvBias {
             kr: 0.299f32,

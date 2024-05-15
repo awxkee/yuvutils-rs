@@ -1,12 +1,12 @@
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
-    int16x4_t, int16x8_t, uint16x4x2_t, uint8x8x4_t, vcombine_s16, vdup_n_s16, vdup_n_u8,
-    vdupq_n_s16, vget_low_s16, vld1q_u16, vld2_u16, vmaxq_s16, vmlal_s16, vmull_high_s16,
-    vmull_s16, vreinterpret_s16_u16, vreinterpret_u16_u8, vreinterpret_u8_u16,
-    vreinterpretq_s16_u16, vqshrun_n_s16, vreinterpretq_u16_u8, vreinterpretq_u8_u16,
-    vrev16_u8, vrev16q_u8, vshr_n_u16, vshrn_n_s32, vshrq_n_u16, vst4_u8, vsub_s16, vsubq_s16,
-    vzip1_s16, vzip2_s16, uint8x8x3_t, vst3_u8,
+    int16x4_t, int16x8_t, uint16x4x2_t, uint8x8x3_t, uint8x8x4_t, vcombine_s16, vdup_n_s16,
+    vdup_n_u8, vdupq_n_s16, vget_low_s16, vld1q_u16, vld2_u16, vmaxq_s16, vmlal_s16,
+    vmull_high_s16, vmull_s16, vqshrun_n_s16, vreinterpret_s16_u16, vreinterpret_u16_u8,
+    vreinterpret_u8_u16, vreinterpretq_s16_u16, vreinterpretq_u16_u8, vreinterpretq_u8_u16,
+    vrev16_u8, vrev16q_u8, vshr_n_u16, vshrn_n_s32, vshrq_n_u16, vst3_u8, vst4_u8, vsub_s16,
+    vsubq_s16, vzip1_s16, vzip2_s16,
 };
 use std::slice;
 
@@ -172,18 +172,12 @@ fn yuv_nv12_p10_to_bgra_impl<
                     v_g_coeff_2,
                 ));
 
-                let r_values = vqshrun_n_s16::<2>(vmaxq_s16(
-                    vcombine_s16(r_low, r_high),
-                    v_min_values,
-                ));
-                let g_values = vqshrun_n_s16::<2>(vmaxq_s16(
-                    vcombine_s16(g_low, g_high),
-                    v_min_values,
-                ));
-                let b_values = vqshrun_n_s16::<2>(vmaxq_s16(
-                    vcombine_s16(b_low, b_high),
-                    v_min_values,
-                ));
+                let r_values =
+                    vqshrun_n_s16::<2>(vmaxq_s16(vcombine_s16(r_low, r_high), v_min_values));
+                let g_values =
+                    vqshrun_n_s16::<2>(vmaxq_s16(vcombine_s16(g_low, g_high), v_min_values));
+                let b_values =
+                    vqshrun_n_s16::<2>(vmaxq_s16(vcombine_s16(b_low, b_high), v_min_values));
 
                 match destination_channels {
                     YuvSourceChannels::Rgb => {
@@ -191,11 +185,13 @@ fn yuv_nv12_p10_to_bgra_impl<
                         vst3_u8(dst_ptr.add(dst_offest + x * channels), dst_pack);
                     }
                     YuvSourceChannels::Rgba => {
-                        let dst_pack: uint8x8x4_t = uint8x8x4_t(r_values, g_values, b_values, v_alpha);
+                        let dst_pack: uint8x8x4_t =
+                            uint8x8x4_t(r_values, g_values, b_values, v_alpha);
                         vst4_u8(dst_ptr.add(dst_offest + x * channels), dst_pack);
                     }
                     YuvSourceChannels::Bgra => {
-                        let dst_pack: uint8x8x4_t = uint8x8x4_t(b_values, g_values, r_values, v_alpha);
+                        let dst_pack: uint8x8x4_t =
+                            uint8x8x4_t(b_values, g_values, r_values, v_alpha);
                         vst4_u8(dst_ptr.add(dst_offest + x * channels), dst_pack);
                     }
                 }
@@ -340,7 +336,10 @@ fn yuv_nv12_p10_to_bgra_impl<
 ///
 /// # Arguments
 ///
-/// * `yuv_data` - A slice containing YUV NV12 data with P010 pixel format (Little-Endian).
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth (Little-Endian).
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth (Little-Endian).
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -389,7 +388,10 @@ pub fn yuv_nv12_p10_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `yuv_data` - A slice containing YUV NV16 data with P010 pixel format (Little-Endian).
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth (Little-Endian).
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth (Little-Endian).
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -438,7 +440,10 @@ pub fn yuv_nv16_p10_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `yuv_data` - A slice containing YUV NV12 data with P010 pixel format (Big-Endian).
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth (Big-Endian).
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth (Big-Endian).
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -487,7 +492,10 @@ pub fn yuv_nv12_p10_to_bgra_be(
 ///
 /// # Arguments
 ///
-/// * `yuv_data` - A slice containing YUV NV16 data with P010 pixel format (Big-Endian).
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth (Big-Endian).
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth (Big-Endian).
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -536,7 +544,10 @@ pub fn yuv_nv16_p10_to_bgra_be(
 ///
 /// # Arguments
 ///
-/// * `yuv_data` - A slice containing YUV NV12 data with P010 pixel format.
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -585,7 +596,10 @@ pub fn yuv_nv12_p10_msb_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `yuv_data` - A slice containing YUV NV16 data with P010 pixel format.
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
