@@ -171,7 +171,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     }
                     YuvSourceChannels::Bgra => {
                         let dst_pack: uint8x16x4_t =
-                            uint8x16x4_t(g_values, g_values, r_values, v_alpha);
+                            uint8x16x4_t(b_values, g_values, r_values, v_alpha);
                         vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
                     }
                 }
