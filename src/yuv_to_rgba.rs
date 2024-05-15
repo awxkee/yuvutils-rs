@@ -58,11 +58,11 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut cx = 0usize;
 
-        let mut uv_x = 0usize;
-
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         #[cfg(target_feature = "neon")]
         unsafe {
+            let mut uv_x = 0usize;
+
             let y_ptr = y_plane.as_ptr();
             let u_ptr = u_plane.as_ptr();
             let v_ptr = v_plane.as_ptr();
