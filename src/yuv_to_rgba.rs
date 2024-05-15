@@ -58,10 +58,13 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut cx = 0usize;
 
+        #[allow(unused_variables)]
+        #[allow(unused_mut)]
+        let mut uv_x = 0usize;
+
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         #[cfg(target_feature = "neon")]
         unsafe {
-            let mut uv_x = 0usize;
 
             let y_ptr = y_plane.as_ptr();
             let u_ptr = u_plane.as_ptr();
@@ -191,15 +194,15 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             let y_value = (y_plane[y_offset + x] as i32 - bias_y) * y_coef;
 
             let u_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + x / 2,
-                YuvChromaSample::YUV444 => u_offset + x,
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + uv_x,
+                YuvChromaSample::YUV444 => u_offset + uv_x,
             };
 
             let cb_value = u_plane[u_pos] as i32 - bias_uv;
 
             let v_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + x / 2,
-                YuvChromaSample::YUV444 => v_offset + x,
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + uv_x,
+                YuvChromaSample::YUV444 => v_offset + uv_x,
             };
 
             let cr_value = v_plane[v_pos] as i32 - bias_uv;
