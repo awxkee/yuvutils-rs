@@ -65,7 +65,6 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         #[cfg(target_feature = "neon")]
         unsafe {
-
             let y_ptr = y_plane.as_ptr();
             let u_ptr = u_plane.as_ptr();
             let v_ptr = v_plane.as_ptr();
@@ -167,12 +166,12 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     }
                     YuvSourceChannels::Rgba => {
                         let dst_pack: uint8x16x4_t =
-                            uint8x16x4_t(b_values, g_values, r_values, v_alpha);
+                            uint8x16x4_t(r_values, g_values, b_values, v_alpha);
                         vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
                     }
                     YuvSourceChannels::Bgra => {
                         let dst_pack: uint8x16x4_t =
-                            uint8x16x4_t(r_values, g_values, b_values, v_alpha);
+                            uint8x16x4_t(g_values, g_values, r_values, v_alpha);
                         vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
                     }
                 }
@@ -308,18 +307,8 @@ pub fn yuv420_to_rgb(
     matrix: YuvStandardMatrix,
 ) {
     yuv_to_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
     )
 }
 
@@ -470,18 +459,8 @@ pub fn yuv422_to_rgb(
     matrix: YuvStandardMatrix,
 ) {
     yuv_to_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
     )
 }
 
@@ -740,17 +719,7 @@ pub fn yuv444_to_rgb(
     matrix: YuvStandardMatrix,
 ) {
     yuv_to_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        rgb,
-        rgb_stride,
-        width,
-        height,
-        range,
-        matrix,
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
     )
 }
