@@ -56,6 +56,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut rgba_offset = 0usize;
 
     for y in 0..height as usize {
+        #[allow(unused_variables)]
         let mut cx = 0usize;
 
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
