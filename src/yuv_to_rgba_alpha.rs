@@ -1,3 +1,5 @@
+#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
     uint8x16_t, uint8x16x4_t, uint8x8_t, vcombine_u8, vdup_n_u8, vdupq_n_s16, vdupq_n_u16,
     vdupq_n_u8, vget_high_u8, vget_low_u8, vld1_u8, vld1q_u8, vmaxq_s16, vmlal_high_u8, vmlal_u8,
