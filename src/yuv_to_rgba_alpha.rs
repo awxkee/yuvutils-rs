@@ -15,8 +15,8 @@ use crate::{YuvRange, YuvStandardMatrix};
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[cfg(target_feature = "neon")]
 unsafe fn premutiply_vector(v: uint8x16_t, a_values: uint8x16_t) -> uint8x16_t {
-    let mut acc_hi = vdupq_n_u16(255);
-    let mut acc_lo = vdupq_n_u16(255);
+    let mut acc_hi = vdupq_n_u16(127);
+    let mut acc_lo = vdupq_n_u16(127);
     acc_hi = vmlal_high_u8(acc_hi, v, a_values);
     acc_lo = vmlal_u8(acc_lo, vget_low_u8(v), vget_low_u8(a_values));
     let hi = vqshrn_n_u16::<8>(acc_hi);
@@ -243,9 +243,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let a_value = a_plane[a_offset + x];
             if premultiply_alpha {
-                r = (r * a_value as i32 + 255) >> 8;
-                g = (g * a_value as i32 + 255) >> 8;
-                b = (b * a_value as i32 + 255) >> 8;
+                r = (r * a_value as i32 + 127) >> 8;
+                g = (g * a_value as i32 + 127) >> 8;
+                b = (b * a_value as i32 + 127) >> 8;
             }
 
             rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
@@ -271,9 +271,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
                     let a_value = a_plane[a_offset + next_px];
                     if premultiply_alpha {
-                        r = (r * a_value as i32 + 255) >> 8;
-                        g = (g * a_value as i32 + 255) >> 8;
-                        b = (b * a_value as i32 + 255) >> 8;
+                        r = (r * a_value as i32 + 127) >> 8;
+                        g = (g * a_value as i32 + 127) >> 8;
+                        b = (b * a_value as i32 + 127) >> 8;
                     }
 
                     rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
