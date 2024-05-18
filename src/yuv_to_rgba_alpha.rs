@@ -243,9 +243,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let a_value = a_plane[a_offset + x];
             if premultiply_alpha {
-                r = (r * a_value as i32 + 127) >> 8;
-                g = (g * a_value as i32 + 127) >> 8;
-                b = (b * a_value as i32 + 127) >> 8;
+                r = (r * a_value as i32 + 127i32) >> 8;
+                g = (g * a_value as i32 + 127i32) >> 8;
+                b = (b * a_value as i32 + 127i32) >> 8;
             }
 
             rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
@@ -271,9 +271,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
                     let a_value = a_plane[a_offset + next_px];
                     if premultiply_alpha {
-                        r = (r * a_value as i32 + 127) >> 8;
-                        g = (g * a_value as i32 + 127) >> 8;
-                        b = (b * a_value as i32 + 127) >> 8;
+                        r = (r * a_value as i32 + 127i32) >> 8;
+                        g = (g * a_value as i32 + 127i32) >> 8;
+                        b = (b * a_value as i32 + 127i32) >> 8;
                     }
 
                     rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
