@@ -14,6 +14,7 @@ use crate::{YuvRange, YuvStandardMatrix};
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[cfg(target_feature = "neon")]
+#[inline(always)]
 unsafe fn premutiply_vector(v: uint8x16_t, a_values: uint8x16_t) -> uint8x16_t {
     let initial = vdupq_n_u16(127);
     let acc_hi = vqaddq_u16(initial, vmull_high_u8(v, a_values));
