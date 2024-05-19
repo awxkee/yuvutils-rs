@@ -1,29 +1,46 @@
 mod rgba_to_yuv;
-mod yuv_nv12;
-mod yuv_nv12_p10;
+mod yuv_nv_to_rgba;
+mod yuv_nv_p10_to_rgba;
 mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod rgb_to_y;
 mod y_to_rgb;
 mod yuv_p10_rgba;
+mod rgba_to_nv;
 
 pub use yuv_support::YuvStandardMatrix;
 pub use yuv_support::YuvRange;
 
-pub use yuv_nv12_p10::yuv_nv12_p10_to_bgra_be;
-pub use yuv_nv12_p10::yuv_nv16_p10_to_bgra_be;
-pub use yuv_nv12_p10::yuv_nv12_p10_to_bgra;
-pub use yuv_nv12_p10::yuv_nv16_p10_to_bgra;
-pub use yuv_nv12_p10::yuv_nv12_p10_msb_to_bgra;
-pub use yuv_nv12_p10::yuv_nv16_p10_msb_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra_be;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra_be;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_msb_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_msb_to_bgra;
 
-pub use yuv_nv12::yuv_nv12_to_bgra;
-pub use yuv_nv12::yuv_nv21_to_bgra;
-pub use yuv_nv12::yuv_nv12_to_rgba;
-pub use yuv_nv12::yuv_nv21_to_rgba;
-pub use yuv_nv12::yuv_nv12_to_rgb;
-pub use yuv_nv12::yuv_nv21_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv12_to_bgra;
+pub use yuv_nv_to_rgba::yuv_nv21_to_bgra;
+pub use yuv_nv_to_rgba::yuv_nv12_to_rgba;
+pub use yuv_nv_to_rgba::yuv_nv21_to_rgba;
+pub use yuv_nv_to_rgba::yuv_nv12_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv21_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv24_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv24_to_rgba;
+pub use yuv_nv_to_rgba::yuv_nv24_to_bgra;
+pub use yuv_nv_to_rgba::yuv_nv42_to_rgba;
+pub use yuv_nv_to_rgba::yuv_nv42_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv42_to_bgra;
+
+pub use rgba_to_nv::rgb_to_yuv_nv_16;
+pub use rgba_to_nv::rgba_to_yuv_nv16;
+pub use rgba_to_nv::bgra_to_yuv_nv16;
+pub use rgba_to_nv::rgb_to_yuv_nv12;
+pub use rgba_to_nv::rgba_to_yuv_nv12;
+pub use rgba_to_nv::bgra_to_yuv_nv12;
+pub use rgba_to_nv::rgb_to_yuv_nv24;
+pub use rgba_to_nv::rgba_to_yuv_nv24;
+pub use rgba_to_nv::bgra_to_yuv_nv24;
 
 pub use yuv_to_rgba::yuv420_to_rgb;
 pub use yuv_to_rgba::yuv420_to_rgba;

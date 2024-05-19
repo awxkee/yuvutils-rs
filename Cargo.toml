@@ -1,6 +1,6 @@
 [package]
 name = "yuvutils-rs"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2021"
 description = "Rust utilities for YUV format handling and conversion."
 readme = "README.md"
