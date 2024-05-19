@@ -6,6 +6,7 @@ mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod rgb_to_y;
 mod y_to_rgb;
+mod yuv_p10_rgba;
 
 pub use yuv_support::YuvStandardMatrix;
 pub use yuv_support::YuvRange;
@@ -57,3 +58,16 @@ pub use rgb_to_y::rgba_to_yuv400;
 pub use y_to_rgb::yuv400_to_rgb;
 pub use y_to_rgb::yuv400_to_rgba;
 pub use y_to_rgb::yuv400_to_bgra;
+
+pub use yuv_p10_rgba::yuv420_p10_to_bgra;
+pub use yuv_p10_rgba::yuv422_p10_to_bgra;
+pub use yuv_p10_rgba::yuv420_p10_to_bgra_be;
+pub use yuv_p10_rgba::yuv422_p10_to_bgra_be;
+pub use yuv_p10_rgba::yuv420_p10_to_rgba;
+pub use yuv_p10_rgba::yuv422_p10_to_rgba;
+pub use yuv_p10_rgba::yuv420_p10_to_rgba_be;
+pub use yuv_p10_rgba::yuv422_p10_to_rgba_be;
+pub use yuv_p10_rgba::yuv444_p10_to_rgba;
+pub use yuv_p10_rgba::yuv444_p10_to_rgba_be;
+pub use yuv_p10_rgba::yuv444_p10_to_bgra;
+pub use yuv_p10_rgba::yuv444_p10_to_bgra_be;

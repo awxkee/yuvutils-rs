@@ -61,7 +61,7 @@ fn yuv_nv12_p10_to_bgra_impl<
 
     let mut y_offset = 0usize;
     let mut uv_offset = 0usize;
-    let mut dst_offest = 0usize;
+    let mut dst_offset = 0usize;
 
     let y_src_ptr = y_plane.as_ptr() as *const u8;
     let uv_src_ptr = uv_plane.as_ptr() as *const u8;
@@ -182,17 +182,17 @@ fn yuv_nv12_p10_to_bgra_impl<
                 match destination_channels {
                     YuvSourceChannels::Rgb => {
                         let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);
-                        vst3_u8(dst_ptr.add(dst_offest + x * channels), dst_pack);
+                        vst3_u8(dst_ptr.add(dst_offset + x * channels), dst_pack);
                     }
                     YuvSourceChannels::Rgba => {
                         let dst_pack: uint8x8x4_t =
                             uint8x8x4_t(r_values, g_values, b_values, v_alpha);
-                        vst4_u8(dst_ptr.add(dst_offest + x * channels), dst_pack);
+                        vst4_u8(dst_ptr.add(dst_offset + x * channels), dst_pack);
                     }
                     YuvSourceChannels::Bgra => {
                         let dst_pack: uint8x8x4_t =
                             uint8x8x4_t(b_values, g_values, r_values, v_alpha);
-                        vst4_u8(dst_ptr.add(dst_offest + x * channels), dst_pack);
+                        vst4_u8(dst_ptr.add(dst_offset + x * channels), dst_pack);
                     }
                 }
 
@@ -262,7 +262,7 @@ fn yuv_nv12_p10_to_bgra_impl<
 
             let px = x * channels;
 
-            let rgb_offset = dst_offest + px;
+            let rgb_offset = dst_offset + px;
 
             bgra[rgb_offset + destination_channels.get_b_channel_offset()] = b as u8;
             bgra[rgb_offset + destination_channels.get_g_channel_offset()] = g as u8;
@@ -301,7 +301,7 @@ fn yuv_nv12_p10_to_bgra_impl<
                 let g = g_u16.min(255).max(0);
 
                 let px = x * channels;
-                let rgb_offset = dst_offest + px;
+                let rgb_offset = dst_offset + px;
                 bgra[rgb_offset + destination_channels.get_b_channel_offset()] = b as u8;
                 bgra[rgb_offset + destination_channels.get_g_channel_offset()] = g as u8;
                 bgra[rgb_offset + destination_channels.get_r_channel_offset()] = r as u8;
@@ -324,15 +324,15 @@ fn yuv_nv12_p10_to_bgra_impl<
             }
         }
 
-        dst_offest += bgra_stride as usize;
+        dst_offset += bgra_stride as usize;
         y_offset += y_stride as usize;
     }
 }
 
 /// Convert YUV NV12 format with 10-bit (Little-Endian) pixel format to BGRA format.
 ///
-/// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
-/// and converts it to BGRA format with big-endian byte order.
+/// This function takes YUV NV16 data with 10-bit precision stored in Little-Endian.
+/// and converts it to BGRA format with 8-bit precision.
 ///
 /// # Arguments
 ///
@@ -383,8 +383,8 @@ pub fn yuv_nv12_p10_to_bgra(
 
 /// Convert YUV NV16 format with 10-bit (Little-Endian) pixel format to BGRA format .
 ///
-/// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
-/// and converts it to BGRA format with big-endian byte order.
+/// This function takes YUV NV16 data with 10-bit precision stored in Little-Endian.
+/// and converts it to BGRA format with 8-bit precision.
 ///
 /// # Arguments
 ///
@@ -436,7 +436,7 @@ pub fn yuv_nv16_p10_to_bgra(
 /// Convert YUV NV12 format with 10-bit (Big-Endian) pixel format to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
-/// and converts it to BGRA format with big-endian byte order.
+/// and converts it to BGRA format with 8-bit precision.
 ///
 /// # Arguments
 ///
@@ -488,7 +488,7 @@ pub fn yuv_nv12_p10_to_bgra_be(
 /// Convert YUV NV16 format with 10-bit (Big-Endian) pixel format to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision stored in Big-Endian.
-/// and converts it to BGRA format with big-endian byte order.
+/// and converts it to BGRA format with 8-bit precision.
 ///
 /// # Arguments
 ///
@@ -540,7 +540,8 @@ pub fn yuv_nv16_p10_to_bgra_be(
 /// Convert YUV NV12 format with 10-bit pixel format (MSB) to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
-/// and converts it to BGRA format with 8-bit per channel precision.
+/// and converts it to BGRA format with 8-bit precision.
+/// This format is used by apple and corresponds to kCVPixelFormatType_420YpCbCr10BiPlanarFullRange/kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
 ///
 /// # Arguments
 ///
@@ -592,7 +593,8 @@ pub fn yuv_nv12_p10_msb_to_bgra(
 /// Convert YUV NV16 format with 10-bit pixel format (MSB) to BGRA format.
 ///
 /// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
-/// and converts it to BGRA format with 8-bit per channel precision.
+/// and converts it to BGRA format with 8-bit precision.
+/// This format is used by apple and corresponds to kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange
 ///
 /// # Arguments
 ///
