@@ -134,9 +134,10 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 
         for x in cx..width as usize {
             let px = x * channels;
-            let r = rgba[rgba_offset + px + source_channels.get_r_channel_offset()] as i32;
-            let g = rgba[rgba_offset + px + source_channels.get_g_channel_offset()] as i32;
-            let b = rgba[rgba_offset + px + source_channels.get_b_channel_offset()] as i32;
+            let dst_offset = rgba_offset + px;
+            let r = rgba[dst_offset + source_channels.get_r_channel_offset()] as i32;
+            let g = rgba[dst_offset + source_channels.get_g_channel_offset()] as i32;
+            let b = rgba[dst_offset + source_channels.get_b_channel_offset()] as i32;
             let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
             y_plane[y_offset + x] = y as u8;
         }

@@ -459,7 +459,7 @@ pub fn yuv422_p10_to_bgra(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv420_p10_to_bgra_be(
+pub fn yuv420_p10_be_to_bgra(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
@@ -519,7 +519,7 @@ pub fn yuv420_p10_to_bgra_be(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv422_p10_to_bgra_be(
+pub fn yuv422_p10_be_to_bgra(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
@@ -699,7 +699,7 @@ pub fn yuv422_p10_to_rgba(
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv420_p10_to_rgba_be(
+pub fn yuv420_p10_be_to_rgba(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
@@ -759,7 +759,7 @@ pub fn yuv420_p10_to_rgba_be(
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv422_p10_to_rgba_be(
+pub fn yuv422_p10_be_to_rgba(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
@@ -879,7 +879,7 @@ pub fn yuv444_p10_to_rgba(
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv444_p10_to_rgba_be(
+pub fn yuv444_p10_be_to_rgba(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
@@ -999,7 +999,7 @@ pub fn yuv444_p10_to_bgra(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv444_p10_to_bgra_be(
+pub fn yuv444_p10_be_to_bgra(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],

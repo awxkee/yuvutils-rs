@@ -12,12 +12,14 @@ mod rgba_to_nv;
 pub use yuv_support::YuvStandardMatrix;
 pub use yuv_support::YuvRange;
 
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra_be;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra_be;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_be_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_be_to_bgra;
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra;
 pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra;
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_msb_to_bgra;
 pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_msb_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_msb_to_rgba;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_msb_to_rgba;
 
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgra;
 pub use yuv_nv_to_rgba::yuv_nv21_to_bgra;
@@ -32,7 +34,7 @@ pub use yuv_nv_to_rgba::yuv_nv42_to_rgba;
 pub use yuv_nv_to_rgba::yuv_nv42_to_rgb;
 pub use yuv_nv_to_rgba::yuv_nv42_to_bgra;
 
-pub use rgba_to_nv::rgb_to_yuv_nv_16;
+pub use rgba_to_nv::rgb_to_yuv_nv16;
 pub use rgba_to_nv::rgba_to_yuv_nv16;
 pub use rgba_to_nv::bgra_to_yuv_nv16;
 pub use rgba_to_nv::rgb_to_yuv_nv12;
@@ -78,13 +80,13 @@ pub use y_to_rgb::yuv400_to_bgra;
 
 pub use yuv_p10_rgba::yuv420_p10_to_bgra;
 pub use yuv_p10_rgba::yuv422_p10_to_bgra;
-pub use yuv_p10_rgba::yuv420_p10_to_bgra_be;
-pub use yuv_p10_rgba::yuv422_p10_to_bgra_be;
+pub use yuv_p10_rgba::yuv420_p10_be_to_bgra;
+pub use yuv_p10_rgba::yuv422_p10_be_to_bgra;
 pub use yuv_p10_rgba::yuv420_p10_to_rgba;
 pub use yuv_p10_rgba::yuv422_p10_to_rgba;
-pub use yuv_p10_rgba::yuv420_p10_to_rgba_be;
-pub use yuv_p10_rgba::yuv422_p10_to_rgba_be;
+pub use yuv_p10_rgba::yuv420_p10_be_to_rgba;
+pub use yuv_p10_rgba::yuv422_p10_be_to_rgba;
 pub use yuv_p10_rgba::yuv444_p10_to_rgba;
-pub use yuv_p10_rgba::yuv444_p10_to_rgba_be;
+pub use yuv_p10_rgba::yuv444_p10_be_to_rgba;
 pub use yuv_p10_rgba::yuv444_p10_to_bgra;
-pub use yuv_p10_rgba::yuv444_p10_to_bgra_be;
+pub use yuv_p10_rgba::yuv444_p10_be_to_bgra;

@@ -39,7 +39,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         kr_kb.kb,
     );
     let transform = transform_precise.to_integers(8);
-    let precision_scale = (1 << 8) as f32;
+    let precision_scale = (1i32 << 8i32) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
     let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
 
@@ -253,8 +253,9 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             }
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                    if x + 1 < width as usize {
-                        let next_px = (x + 1) * channels;
+                    let next_x = x + 1;
+                    if next_x < width as usize {
+                        let next_px = next_x * channels;
                         let r = rgba[rgba_offset + next_px + source_channels.get_r_channel_offset()]
                             as i32;
                         let g = rgba[rgba_offset + next_px + source_channels.get_g_channel_offset()]
@@ -263,7 +264,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                             as i32;
                         let y_1 =
                             (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-                        y_plane[y_offset + x + 1] = y_1 as u8;
+                        y_plane[y_offset + next_x] = y_1 as u8;
                     }
                 }
                 _ => {}
@@ -310,7 +311,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn rgb_to_yuv_nv_16(
+pub fn rgb_to_yuv_nv16(
     y_plane: &mut [u8],
     y_stride: u32,
     uv_plane: &mut [u8],
@@ -481,7 +482,7 @@ pub fn rgb_to_yuv_nv12(
     );
 }
 
-/// Convert RGBA image data to YUV NV16 bi-planar format.
+/// Convert RGBA image data to YUV NV12 bi-planar format.
 ///
 /// This function performs RGBA to YUV conversion and stores the result in YUV NV12 bi-planar format,
 /// with plane for Y (luminance), and bi-plane UV (chrominance) components.
@@ -534,7 +535,7 @@ pub fn rgba_to_yuv_nv12(
     );
 }
 
-/// Convert BGRA image data to YUV NV16 bi-planar format.
+/// Convert BGRA image data to YUV NV12 bi-planar format.
 ///
 /// This function performs BGRA to YUV conversion and stores the result in YUV NV12 bi-planar format,
 /// with plane for Y (luminance), and bi-plane UV (chrominance) components.

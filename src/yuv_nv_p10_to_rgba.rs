@@ -489,7 +489,7 @@ pub fn yuv_nv16_p10_to_bgra(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv_nv12_p10_to_bgra_be(
+pub fn yuv_nv12_p10_be_to_bgra(
     y_plane: &[u16],
     y_stride: u32,
     uv_plane: &[u16],
@@ -541,7 +541,7 @@ pub fn yuv_nv12_p10_to_bgra_be(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv_nv16_p10_to_bgra_be(
+pub fn yuv_nv16_p10_be_to_bgra(
     y_plane: &[u16],
     y_stride: u32,
     uv_plane: &[u16],
@@ -577,7 +577,7 @@ pub fn yuv_nv16_p10_to_bgra_be(
 ///
 /// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
 /// and converts it to BGRA format with 8-bit precision.
-/// This format is used by apple and corresponds to kCVPixelFormatType_420YpCbCr10BiPlanarFullRange/kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
+/// This format is used by Apple and corresponds to kCVPixelFormatType_420YpCbCr10BiPlanarFullRange/kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
 ///
 /// # Arguments
 ///
@@ -630,7 +630,7 @@ pub fn yuv_nv12_p10_msb_to_bgra(
 ///
 /// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
 /// and converts it to BGRA format with 8-bit precision.
-/// This format is used by apple and corresponds to kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange
+/// This format is used by Apple and corresponds to kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange
 ///
 /// # Arguments
 ///
@@ -661,6 +661,113 @@ pub fn yuv_nv16_p10_msb_to_bgra(
 ) {
     yuv_nv12_p10_to_bgra_impl::<
         { YuvSourceChannels::Bgra as u8 },
+        { YuvNVOrder::UV as u8 },
+        { YuvChromaSample::YUV422 as u8 },
+        { YuvEndian::LittleEndian as u8 },
+        { YuvBytesPosition::MostSignificantBytes as u8 },
+    >(
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        bgra,
+        bgra_stride,
+        width,
+        height,
+        range,
+        matrix,
+    );
+}
+
+
+/// Convert YUV NV12 format with 10-bit pixel format (MSB) to RGBA format.
+///
+/// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
+/// and converts it to RGBA format with 8-bit precision.
+/// This format is used by Apple and corresponds to kCVPixelFormatType_420YpCbCr10BiPlanarFullRange/kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
+///
+/// # Arguments
+///
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `bgra_data` - A mutable slice to store the converted RGBA data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input RGBA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv12_p10_msb_to_rgba(
+    y_plane: &[u16],
+    y_stride: u32,
+    uv_plane: &[u16],
+    uv_stride: u32,
+    bgra: &mut [u8],
+    bgra_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_p10_to_bgra_impl::<
+        { YuvSourceChannels::Rgba as u8 },
+        { YuvNVOrder::UV as u8 },
+        { YuvChromaSample::YUV420 as u8 },
+        { YuvEndian::LittleEndian as u8 },
+        { YuvBytesPosition::MostSignificantBytes as u8 },
+    >(
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        bgra,
+        bgra_stride,
+        width,
+        height,
+        range,
+        matrix,
+    );
+}
+
+/// Convert YUV NV16 format with 10-bit pixel format (MSB) to RGBA format.
+///
+/// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
+/// and converts it to RGBA format with 8-bit precision.
+/// This format is used by Apple and corresponds to kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange
+///
+/// # Arguments
+///
+/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) with 10 bit depth stored in Most Significant Bytes of u16.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `bgra_data` - A mutable slice to store the converted RGBA data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input RGBA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv16_p10_msb_to_rgba(
+    y_plane: &[u16],
+    y_stride: u32,
+    uv_plane: &[u16],
+    uv_stride: u32,
+    bgra: &mut [u8],
+    bgra_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_p10_to_bgra_impl::<
+        { YuvSourceChannels::Rgba as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSample::YUV422 as u8 },
         { YuvEndian::LittleEndian as u8 },
