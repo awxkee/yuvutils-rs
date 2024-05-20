@@ -139,9 +139,16 @@ unsafe fn avx2_process_row(
             v_min_values,
         ));
 
-        let r_values = _mm256_packus_epi16(r_low, r_high);
-        let g_values = _mm256_packus_epi16(g_low, g_high);
-        let b_values = _mm256_packus_epi16(b_low, b_high);
+        let r_low_u8 = _mm256_castsi128_si256(demote_to_avx256_to_128(r_low));
+        let r_high_u8 = demote_to_avx256_to_128(r_high);
+        let g_low_u8 = _mm256_castsi128_si256(demote_to_avx256_to_128(g_low));
+        let g_high_u8 = demote_to_avx256_to_128(g_high);
+        let b_low_u8 = _mm256_castsi128_si256(demote_to_avx256_to_128(b_low));
+        let b_high_u8 = demote_to_avx256_to_128(b_high);
+
+        let r_values = _mm256_inserti128_si256::<1>(r_low_u8, r_high_u8);
+        let g_values = _mm256_inserti128_si256::<1>(g_low_u8, g_high_u8);
+        let b_values = _mm256_inserti128_si256::<1>(b_low_u8, b_high_u8);
 
         let dst_shift = rgba_offset + cx * channels;
 
