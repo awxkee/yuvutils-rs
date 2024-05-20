@@ -438,7 +438,7 @@ pub fn bgra_to_yuv_nv16(
     );
 }
 
-/// Convert RGB image data to YUV NV16 bi-planar format.
+/// Convert RGB image data to YUV NV12 bi-planar format.
 ///
 /// This function performs RGB to YUV conversion and stores the result in YUV NV12 bi-planar format,
 /// with plane for Y (luminance), and bi-plane UV (chrominance) components.
