@@ -3,14 +3,6 @@ use std::arch::x86_64::*;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn demote_to_avx256_to_128(data: __m256i) -> __m128i {
-    let lo_lane = _mm256_castsi256_si128(data);
-    let hi_lane = _mm256_extracti128_si256::<1>(data);
-    return _mm_packus_epi16(lo_lane, hi_lane);
-}
-
-#[cfg(target_arch = "x86_64")]
-#[inline(always)]
 pub unsafe fn store_u8_rgb_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, use_transient: bool) {
     let rg_lo = _mm256_unpacklo_epi8(r, g);
     let rg_hi = _mm256_unpackhi_epi8(r, g);
