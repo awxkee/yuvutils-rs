@@ -6,12 +6,12 @@ use std::arch::aarch64::{
     vmulq_s16, vqaddq_s16, vqshrun_n_s16, vreinterpretq_s16_u16, vst3q_u8, vst4q_u8, vsubq_s16,
     vsubq_u8, vzip1_u8, vzip2_u8,
 };
-#[cfg(
-    all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "avx2"
-    )
-)]
+// #[cfg(
+//     all(
+//         any(target_arch = "x86", target_arch = "x86_64"),
+//         target_feature = "avx2"
+//     )
+// )]
 use std::arch::x86_64::*;
 
 use crate::yuv_support::{
@@ -19,15 +19,16 @@ use crate::yuv_support::{
     YuvChromaSample, YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 
+#[allow(dead_code)]
 struct ProcessedOffset {
     pub cx: usize,
     pub ux: usize,
 }
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "avx2"
-))]
+// #[cfg(any(
+//     target_arch = "x86_64",
+//     target_feature = "avx2"
+// ))]
 #[inline(always)]
 #[allow(dead_code)]
 unsafe fn avx2_process_row(
@@ -57,8 +58,7 @@ unsafe fn avx2_process_row(
 
     let y_corr = _mm256_set1_epi8(range.bias_y as i8);
     let uv_corr = _mm256_set1_epi16(range.bias_uv as i16);
-    let v_luma_coeff = _mm256_set1_epi8(transform.y_coef as i8);
-    let v_luma_coeff_16 = _mm256_set1_epi16(transform.y_coef as i16);
+    let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm256_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
     let v_min_values = _mm256_set1_epi16(0);
@@ -97,7 +97,7 @@ unsafe fn avx2_process_row(
 
         let u_high = _mm256_sub_epi16(_mm256_cvtepu8_epi16(u_high_u8), uv_corr);
         let v_high = _mm256_sub_epi16(_mm256_cvtepu8_epi16(v_high_u8), uv_corr);
-        let y_high = _mm256_mulhi_epi16(
+        let y_high = _mm256_mullo_epi16(
             _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(y_values)),
             v_luma_coeff,
         );
@@ -111,7 +111,7 @@ unsafe fn avx2_process_row(
             v_min_values,
         ));
         let g_high = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-            _mm256_add_epi16(
+            _mm256_adds_epi16(
                 y_high,
                 _mm256_adds_epi16(
                     _mm256_mullo_epi16(v_high, v_g_coeff_1),
@@ -125,7 +125,7 @@ unsafe fn avx2_process_row(
         let v_low = _mm256_sub_epi16(_mm256_cvtepu8_epi16(v_low_u8), uv_corr);
         let y_low = _mm256_mullo_epi16(
             _mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values)),
-            v_luma_coeff_16,
+            v_luma_coeff,
         );
 
         let r_low = _mm256_srai_epi16::<6>(_mm256_max_epi16(
@@ -155,30 +155,53 @@ unsafe fn avx2_process_row(
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                let rg_low = _mm256_unpacklo_epi32(r_values, g_values); // [r0, g0, r1, g1, r2, g2, r3, g3]
-                let rg_high = _mm256_unpackhi_epi32(r_values, g_values); // [r4, g4, r5, g5, r6, g6, r7, g7]
-                let b0 = _mm256_unpacklo_epi32(b_values, _mm256_setzero_si256()); // [b0, 0, b1, 0, b2, 0, b3, 0]
-                let b1 = _mm256_unpackhi_epi32(b_values, _mm256_setzero_si256()); // [b4, 0, b5, 0, b6, 0, b7, 0]
+                let rg_lo = _mm256_unpacklo_epi8(r_values, g_values);
+                let rg_hi = _mm256_unpackhi_epi8(r_values, g_values);
+                let zero = _mm256_setzero_si256();
+                let b0_lo = _mm256_unpacklo_epi8(b_values, zero);
+                let b0_hi = _mm256_unpackhi_epi8(b_values, zero);
 
-                // Step 2: Unpack 16-bit integers to 8-bit integers (low and high parts)
-                let rgb0 = _mm256_unpacklo_epi16(rg_low, b0); // [r0, g0, b0, 0, r1, g1, b1, 0]
-                let rgb1 = _mm256_unpackhi_epi16(rg_low, b0); // [r2, g2, b2, 0, r3, g3, b3, 0]
-                let rgb2 = _mm256_unpacklo_epi16(rg_high, b1); // [r4, g4, b4, 0, r5, g5, b5, 0]
-                let rgb3 = _mm256_unpackhi_epi16(rg_high, b1); // [r6, g6, b6, 0, r7, g7, b7, 0]
+                let rgb0_lo = _mm256_unpacklo_epi16(rg_lo, b0_lo);
+                let rgb0_hi = _mm256_unpackhi_epi16(rg_lo, b0_lo);
+                let rgb1_lo = _mm256_unpacklo_epi16(rg_hi, b0_hi);
+                let rgb1_hi = _mm256_unpackhi_epi16(rg_hi, b0_hi);
 
-                // Pack the result into RGB format, stripping the zeroed bytes
-                let result0 = _mm256_packus_epi16(rgb0, rgb1); // [r0, g0, b0, r1, g1, b1, r2, g2, b2, r3, g3, b3, r4, g4, b4, r5, g5, b5, r6, g6, b6, r7, g7, b7]
-                let result1 = _mm256_packus_epi16(rgb2, rgb3); // similarly packed second half
+                let shuffle_mask = _mm256_setr_epi8(
+                    0, 1, 2,
+                    4, 5, 6,
+                    8, 9, 10,
+                    12, 13, 14,
+                    16, 17, 18,
+                    20, 21, 22,
+                    24,25, 26,
+                    28, 29, 30,
+                    -1, -1, -1,
+                    -1,-1,-1,
+                    -1,-1,
+                );
 
-                // Store the interleaved result in memory
-                _mm256_storeu_si256(rgba_ptr.add(dst_shift) as *mut __m256i, result0);
-                _mm256_storeu_si256(rgba_ptr.add(dst_shift + 32) as *mut __m256i, result1);
+                let rgb0 = _mm256_shuffle_epi8(rgb0_lo, shuffle_mask);
+                let rgb1 = _mm256_shuffle_epi8(rgb0_hi, shuffle_mask);
+                let rgb2 = _mm256_shuffle_epi8(rgb1_lo, shuffle_mask);
+                let rgb3 = _mm256_shuffle_epi8(rgb1_hi, shuffle_mask);
+
+                _mm256_storeu_si256(rgba_ptr.add(dst_shift) as *mut __m256i, rgb0);
+                _mm256_storeu_si256(rgba_ptr.add(dst_shift + 24) as *mut __m256i, rgb1);
+                _mm256_storeu_si256(rgba_ptr.add(dst_shift + 48) as *mut __m256i, rgb2);
+                // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
+                if cx + 35 < width {
+                    _mm256_storeu_si256(rgba_ptr.add(dst_shift + 72) as *mut __m256i, rgb3);
+                } else {
+                    let mut transient: [u8; 32] = [0u8; 32];
+                    _mm256_storeu_si256(transient.as_mut_ptr() as *mut __m256i, rgb3);
+                    std::ptr::copy_nonoverlapping(transient.as_ptr(), rgba_ptr.add(dst_shift + 72), 24);
+                }
             }
             YuvSourceChannels::Rgba => {
-                let rg_low = _mm256_unpacklo_epi32(r_values, g_values); // [r0, g0, r1, g1, r2, g2, r3, g3]
-                let rg_high = _mm256_unpackhi_epi32(r_values, g_values); // [r4, g4, r5, g5, r6, g6, r7, g7]
-                let ba_low = _mm256_unpacklo_epi32(b_values, v_alpha); // [b0, a0, b1, a1, b2, a2, b3, a3]
-                let ba_high = _mm256_unpackhi_epi32(b_values, v_alpha); // [b4, a4, b5, a5, b6, a6, b7, a7]
+                let rg_low = _mm256_unpacklo_epi8(r_values, g_values); // [r0, g0, r1, g1, r2, g2, r3, g3]
+                let rg_high = _mm256_unpackhi_epi8(r_values, g_values); // [r4, g4, r5, g5, r6, g6, r7, g7]
+                let ba_low = _mm256_unpacklo_epi8(b_values, v_alpha); // [b0, a0, b1, a1, b2, a2, b3, a3]
+                let ba_high = _mm256_unpackhi_epi8(b_values, v_alpha); // [b4, a4, b5, a5, b6, a6, b7, a7]
 
                 // Step 2: Unpack 16-bit integers to 8-bit integers (low and high parts)
                 let rgba0 = _mm256_unpacklo_epi16(rg_low, ba_low); // [r0, g0, b0, a0, r1, g1, b1, a1]
@@ -191,7 +214,23 @@ unsafe fn avx2_process_row(
                 _mm256_storeu_si256(rgba_ptr.add(dst_shift + 64) as *mut __m256i, rgba2);
                 _mm256_storeu_si256(rgba_ptr.add(dst_shift + 96) as *mut __m256i, rgba3);
             }
-            YuvSourceChannels::Bgra => {}
+            YuvSourceChannels::Bgra => {
+                let rg_low = _mm256_unpacklo_epi8(b_values, g_values); // [r0, g0, r1, g1, r2, g2, r3, g3]
+                let rg_high = _mm256_unpackhi_epi8(b_values, g_values); // [r4, g4, r5, g5, r6, g6, r7, g7]
+                let ba_low = _mm256_unpacklo_epi8(r_values, v_alpha); // [b0, a0, b1, a1, b2, a2, b3, a3]
+                let ba_high = _mm256_unpackhi_epi8(r_values, v_alpha); // [b4, a4, b5, a5, b6, a6, b7, a7]
+
+                // Step 2: Unpack 16-bit integers to 8-bit integers (low and high parts)
+                let rgba0 = _mm256_unpacklo_epi16(rg_low, ba_low); // [r0, g0, b0, a0, r1, g1, b1, a1]
+                let rgba1 = _mm256_unpackhi_epi16(rg_low, ba_low); // [r2, g2, b2, a2, r3, g3, b3, a3]
+                let rgba2 = _mm256_unpacklo_epi16(rg_high, ba_high); // [r4, g4, b4, a4, r5, g5, b5, a5]
+                let rgba3 = _mm256_unpackhi_epi16(rg_high, ba_high); //
+
+                _mm256_storeu_si256(rgba_ptr.add(dst_shift) as *mut __m256i, rgba0);
+                _mm256_storeu_si256(rgba_ptr.add(dst_shift + 32) as *mut __m256i, rgba1);
+                _mm256_storeu_si256(rgba_ptr.add(dst_shift + 64) as *mut __m256i, rgba2);
+                _mm256_storeu_si256(rgba_ptr.add(dst_shift + 96) as *mut __m256i, rgba3);
+            }
         }
 
         cx += 32;
@@ -207,7 +246,7 @@ unsafe fn avx2_process_row(
     }
 
     return ProcessedOffset {
-        cx: channels,
+        cx: cx,
         ux: uv_x,
     };
 }
@@ -263,10 +302,10 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut uv_x = 0usize;
 
-        #[cfg(all(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_feature = "avx2"
-        ))]
+        // #[cfg(all(
+        //     any(target_arch = "x86", target_arch = "x86_64"),
+        //     target_feature = "avx2"
+        // ))]
         unsafe {
             let processed = avx2_process_row(
                     &range,
