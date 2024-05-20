@@ -152,17 +152,17 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 );
 
                 let r_high = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                    _mm256_add_epi16(y_high, _mm256_mullo_epi16(v_high, v_cr_coeff)),
+                    _mm256_adds_epi16(y_high, _mm256_mullo_epi16(v_high, v_cr_coeff)),
                     v_min_values,
                 ));
                 let b_high = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                    _mm256_add_epi16(y_high, _mm256_mullo_epi16(u_high, v_cb_coeff)),
+                    _mm256_adds_epi16(y_high, _mm256_mullo_epi16(u_high, v_cb_coeff)),
                     v_min_values,
                 ));
                 let g_high = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                    _mm256_add_epi16(
+                    _mm256_adds_epi16(
                         y_high,
-                        _mm256_add_epi16(
+                        _mm256_adds_epi16(
                             _mm256_mullo_epi16(v_high, v_g_coeff_1),
                             _mm256_mullo_epi16(u_high, v_g_coeff_2),
                         ),
@@ -193,7 +193,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     _mm256_max_epi16(
                         _mm256_adds_epi16(
                             y_low,
-                            _mm256_add_epi16(
+                            _mm256_adds_epi16(
                                 _mm256_mullo_epi16(v_low, v_g_coeff_1),
                                 _mm256_mullo_epi16(u_low, v_g_coeff_2),
                             ),
