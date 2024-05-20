@@ -8,6 +8,8 @@ mod rgb_to_y;
 mod y_to_rgb;
 mod yuv_p10_rgba;
 mod rgba_to_nv;
+mod internals;
+mod intel_simd_support;
 
 pub use yuv_support::YuvStandardMatrix;
 pub use yuv_support::YuvRange;

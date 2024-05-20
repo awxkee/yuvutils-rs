@@ -14,3 +14,4 @@ repository = "https://github.com/awxkee/yuvutils-rs"
 exclude = ["*.jpg"]
 
 [dependencies]
+
