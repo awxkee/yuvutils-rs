@@ -334,7 +334,7 @@ unsafe fn sse42_process_row(
                     r_values,
                     g_values,
                     b_values,
-                    cx + 18 < width,
+                    cx + 18 >= width,
                 );
             }
             YuvSourceChannels::Rgba => {
