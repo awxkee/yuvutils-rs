@@ -436,7 +436,7 @@ fn yuv_nv12_to_rgbx<
     #[cfg(target_arch = "x86_64")]
     {
         if std::arch::is_x86_feature_detected!("avx2") {
-            x86_runner = None;
+            x86_runner = Some(avx2_process_row);
         } else if std::arch::is_x86_feature_detected!("sse4.1")
         {
             x86_runner = Some(sse42_process_row);
