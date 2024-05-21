@@ -169,10 +169,10 @@ unsafe fn avx2_process_row(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                uv_x += 16;
+                uv_x += 32;
             }
             YuvChromaSample::YUV444 => {
-                uv_x += 32;
+                uv_x += 64;
             }
         }
     }

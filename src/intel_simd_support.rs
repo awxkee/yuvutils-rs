@@ -51,8 +51,10 @@ pub unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 pub unsafe fn avx2_interleave_even_2_epi8(a: __m256i, b: __m256i) -> __m256i {
+    let mask_a = _mm256_set1_epi16(0xF00);
+    let masked_a = _mm256_and_si256(a, mask_a);
     let b_s = _mm256_srli_epi16::<8>(b);
-    return _mm256_or_si256(a, b_s);
+    return _mm256_or_si256(masked_a, b_s);
 }
 
 #[cfg(target_arch = "x86_64")]
