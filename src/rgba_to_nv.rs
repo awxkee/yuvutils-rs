@@ -1,11 +1,6 @@
 #[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
-use std::arch::aarch64::{
-    uint8x16_t, uint8x16x2_t, uint8x8x2_t, vcombine_u16, vcombine_u8, vdupq_n_s16, vdupq_n_s32,
-    vget_low_s16, vget_low_u8, vld3q_u8, vld4q_u8, vmaxq_s32, vmlal_high_s16, vmlal_s16,
-    vmovl_high_u8, vmovl_u8, vpaddlq_u8, vqmovn_u16, vqshrun_n_s32, vreinterpretq_s16_u16,
-    vshrn_n_u16, vst1q_u8, vst2_u8, vst2q_u8,
-};
+use std::arch::aarch64::*;
 
 use crate::yuv_support::{
     get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvChromaSample,

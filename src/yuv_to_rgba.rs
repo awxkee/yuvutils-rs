@@ -63,10 +63,10 @@ unsafe fn avx2_process_row(
                 let u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
 
-                u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
-                v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
-                u_low_u8 = _mm_unpacklo_epi8(u_values, u_values);
-                v_low_u8 = _mm_unpacklo_epi8(v_values, v_values);
+                u_high_u8 = sse_interleave_even(_mm_unpackhi_epi8(u_values, u_values));
+                v_high_u8 = sse_interleave_odd(_mm_unpackhi_epi8(v_values, v_values));
+                u_low_u8 = sse_interleave_even(_mm_unpacklo_epi8(u_values, u_values));
+                v_low_u8 = sse_interleave_odd(_mm_unpacklo_epi8(v_values, v_values));
             }
             YuvChromaSample::YUV444 => {
                 let u_values = _mm256_loadu_si256(u_ptr.add(u_offset + uv_x) as *const __m256i);
@@ -86,15 +86,15 @@ unsafe fn avx2_process_row(
             v_luma_coeff,
         );
 
-        let r_high = _mm256_srli_epi16::<6>(_mm256_max_epi16(
+        let r_high = _mm256_srai_epi16::<6>(_mm256_max_epi16(
             _mm256_adds_epi16(y_high, _mm256_mullo_epi16(v_high, v_cr_coeff)),
             v_min_values,
         ));
-        let b_high = _mm256_srli_epi16::<6>(_mm256_max_epi16(
+        let b_high = _mm256_srai_epi16::<6>(_mm256_max_epi16(
             _mm256_adds_epi16(y_high, _mm256_mullo_epi16(u_high, v_cb_coeff)),
             v_min_values,
         ));
-        let g_high = _mm256_srli_epi16::<6>(_mm256_max_epi16(
+        let g_high = _mm256_srai_epi16::<6>(_mm256_max_epi16(
             _mm256_adds_epi16(
                 y_high,
                 _mm256_adds_epi16(
@@ -112,15 +112,15 @@ unsafe fn avx2_process_row(
             v_luma_coeff,
         );
 
-        let r_low = _mm256_srli_epi16::<6>(_mm256_max_epi16(
+        let r_low = _mm256_srai_epi16::<6>(_mm256_max_epi16(
             _mm256_adds_epi16(y_low, _mm256_mullo_epi16(v_low, v_cr_coeff)),
             v_min_values,
         ));
-        let b_low = _mm256_srli_epi16::<6>(_mm256_max_epi16(
+        let b_low = _mm256_srai_epi16::<6>(_mm256_max_epi16(
             _mm256_adds_epi16(y_low, _mm256_mullo_epi16(u_low, v_cb_coeff)),
             v_min_values,
         ));
-        let g_low = _mm256_srli_epi16::<6>(_mm256_max_epi16(
+        let g_low = _mm256_srai_epi16::<6>(_mm256_max_epi16(
             _mm256_adds_epi16(
                 y_low,
                 _mm256_adds_epi16(
@@ -141,7 +141,7 @@ unsafe fn avx2_process_row(
             YuvSourceChannels::Rgb => {
                 // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
                 let ptr = rgba_ptr.add(dst_shift);
-                store_u8_rgb_avx2(ptr, r_values, g_values, b_values, cx + 35 < width);
+                store_u8_rgb_avx2(ptr, r_values, g_values, b_values, cx + 35 >= width);
             }
             YuvSourceChannels::Rgba => {
                 store_u8_rgba_avx2(
@@ -434,8 +434,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     {
         if std::arch::is_x86_feature_detected!("avx2") {
             x86_runner = Some(avx2_process_row);
-        } else if std::arch::is_x86_feature_detected!("sse4.2")
-            || std::arch::is_x86_feature_detected!("sse4.1")
+        } else if std::arch::is_x86_feature_detected!("sse4.1")
         {
             x86_runner = Some(sse42_process_row);
         } else {
