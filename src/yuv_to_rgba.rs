@@ -7,12 +7,7 @@ use crate::internals::ProcessedOffset;
 use crate::yuv_support::*;
 #[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
-use std::arch::aarch64::{
-    uint8x16x3_t, uint8x16x4_t, uint8x8_t, vcombine_u8, vdup_n_u8, vdupq_n_s16, vdupq_n_u8,
-    vget_high_u8, vget_low_u8, vld1_u8, vld1q_u8, vmaxq_s16, vmovl_u8, vmull_high_u8, vmull_u8,
-    vmulq_s16, vqaddq_s16, vqshrun_n_s16, vreinterpretq_s16_u16, vst3q_u8, vst4q_u8, vsubq_s16,
-    vsubq_u8, vzip1_u8, vzip2_u8,
-};
+use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 #[allow(unused_imports)]
 use std::arch::x86_64::*;
