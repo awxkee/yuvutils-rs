@@ -85,8 +85,8 @@ unsafe fn avx2_process_row<
                 let uv_values_l = _mm256_loadu_si256(uv_ptr.add(offset) as *const __m256i);
                 let uv_values_h = _mm256_loadu_si256(uv_ptr.add(offset + 32) as *const __m256i);
 
-                let full_u = avx2_interleave_even_2_epi8(uv_values_l, uv_values_h);
-                let full_v = avx2_interleave_odd_2_epi8(uv_values_l, uv_values_h);
+                let full_v = avx2_interleave_even_2_epi8(uv_values_l, uv_values_h);
+                let full_u = avx2_interleave_odd_2_epi8(uv_values_l, uv_values_h);
 
                 match order {
                     YuvNVOrder::UV => {
