@@ -30,12 +30,6 @@ pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn avx2_concat(vec1: __m128i, vec2: __m128i) -> __m256i {
-    return _mm256_inserti128_si256::<1>(_mm256_castsi128_si256(vec1), vec2);
-}
-
-#[cfg(target_arch = "x86_64")]
-#[inline(always)]
 pub unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
     #[rustfmt::skip]
         let shuffle = _mm256_setr_epi8(0, 0, 2, 2,
