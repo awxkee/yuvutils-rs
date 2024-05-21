@@ -1,23 +1,25 @@
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
-use std::arch::aarch64::*;
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 #[cfg(target_arch = "x86_64")]
 #[allow(unused_imports)]
 use crate::intel_simd_support::*;
 #[allow(unused_imports)]
 use crate::internals::*;
 use crate::yuv_support::*;
+#[cfg(target_arch = "aarch64")]
+#[cfg(target_feature = "neon")]
+use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 #[allow(dead_code)]
-unsafe fn avx2_process_row(
-    order: YuvNVOrder,
+unsafe fn avx2_process_row<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
-    chroma_subsampling: &YuvChromaSample,
     y_plane: &[u8],
     uv_plane: &[u8],
     rgba: &mut [u8],
@@ -27,9 +29,11 @@ unsafe fn avx2_process_row(
     uv_offset: usize,
     rgba_offset: usize,
     channels: usize,
-    destination_channels: YuvSourceChannels,
     width: usize,
 ) -> ProcessedOffset {
+    let order: YuvNVOrder = UV_ORDER.into();
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
     let mut cx = start_cx;
     let mut uv_x = start_ux;
     let y_ptr = y_plane.as_ptr();
@@ -61,10 +65,20 @@ unsafe fn avx2_process_row(
                 let u_values = avx2_interleave_even(uv_values);
                 let v_values = avx2_interleave_odd(uv_values);
 
-                u_high_u8 = _mm256_extracti128_si256::<1>(u_values);
-                v_high_u8 = _mm256_extracti128_si256::<1>(v_values);
-                u_low_u8 =  _mm256_castsi256_si128(u_values);
-                v_low_u8 =_mm256_castsi256_si128(v_values);
+                match order {
+                    YuvNVOrder::UV => {
+                        u_high_u8 = _mm256_extracti128_si256::<1>(u_values);
+                        v_high_u8 = _mm256_extracti128_si256::<1>(v_values);
+                        u_low_u8 = _mm256_castsi256_si128(u_values);
+                        v_low_u8 = _mm256_castsi256_si128(v_values);
+                    }
+                    YuvNVOrder::VU => {
+                        u_high_u8 = _mm256_extracti128_si256::<1>(v_values);
+                        v_high_u8 = _mm256_extracti128_si256::<1>(u_values);
+                        u_low_u8 = _mm256_castsi256_si128(v_values);
+                        v_low_u8 = _mm256_castsi256_si128(u_values);
+                    }
+                }
             }
             YuvChromaSample::YUV444 => {
                 let offset = uv_offset + uv_x;
@@ -74,10 +88,20 @@ unsafe fn avx2_process_row(
                 let full_u = avx2_interleave_even_2_epi8(uv_values_l, uv_values_h);
                 let full_v = avx2_interleave_odd_2_epi8(uv_values_l, uv_values_h);
 
-                u_high_u8 = _mm256_extracti128_si256::<1>(full_u);
-                v_high_u8 = _mm256_extracti128_si256::<1>(full_v);
-                u_low_u8 = _mm256_castsi256_si128(full_u);
-                v_low_u8 = _mm256_castsi256_si128(full_v);
+                match order {
+                    YuvNVOrder::UV => {
+                        u_high_u8 = _mm256_extracti128_si256::<1>(full_u);
+                        v_high_u8 = _mm256_extracti128_si256::<1>(full_v);
+                        u_low_u8 = _mm256_castsi256_si128(full_u);
+                        v_low_u8 = _mm256_castsi256_si128(full_v);
+                    }
+                    YuvNVOrder::VU => {
+                        u_high_u8 = _mm256_extracti128_si256::<1>(full_v);
+                        v_high_u8 = _mm256_extracti128_si256::<1>(full_u);
+                        u_low_u8 = _mm256_castsi256_si128(full_v);
+                        v_low_u8 = _mm256_castsi256_si128(full_u);
+                    }
+                }
             }
         }
 
@@ -183,11 +207,13 @@ unsafe fn avx2_process_row(
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 #[allow(dead_code)]
-unsafe fn sse42_process_row(
-    order: YuvNVOrder,
+unsafe fn sse42_process_row<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
-    chroma_subsampling: &YuvChromaSample,
     y_plane: &[u8],
     uv_plane: &[u8],
     rgba: &mut [u8],
@@ -197,9 +223,11 @@ unsafe fn sse42_process_row(
     uv_offset: usize,
     rgba_offset: usize,
     channels: usize,
-    destination_channels: YuvSourceChannels,
     width: usize,
 ) -> ProcessedOffset {
+    let order: YuvNVOrder = UV_ORDER.into();
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
@@ -370,7 +398,6 @@ unsafe fn sse42_process_row(
     return ProcessedOffset { cx, ux: uv_x };
 }
 
-
 fn yuv_nv12_to_rgbx<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
@@ -388,9 +415,9 @@ fn yuv_nv12_to_rgbx<
     matrix: YuvStandardMatrix,
 ) {
     let order: YuvNVOrder = UV_ORDER.into();
-    let range = get_yuv_range(8, range);
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
+    let range = get_yuv_range(8, range);
     let channels = destination_channels.get_channels_count();
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
@@ -415,33 +442,16 @@ fn yuv_nv12_to_rgbx<
     };
 
     #[cfg(target_arch = "x86_64")]
-    let x86_runner: Option<unsafe fn(
-        order: YuvNVOrder,
-        range: &YuvChromaRange,
-        transform: &CbCrInverseTransform<i32>,
-        chroma_subsampling: &YuvChromaSample,
-        y_plane: &[u8],
-        uv_plane: &[u8],
-        rgba: &mut [u8],
-        start_cx: usize,
-        start_ux: usize,
-        y_offset: usize,
-        uv_offset: usize,
-        rgba_offset: usize,
-        channels: usize,
-        destination_channels: YuvSourceChannels,
-        width: usize,
-    ) -> ProcessedOffset>;
+    let mut use_avx2 = false;
+    #[cfg(target_arch = "x86_64")]
+    let mut use_sse = false;
 
     #[cfg(target_arch = "x86_64")]
     {
         if std::arch::is_x86_feature_detected!("avx2") {
-            x86_runner = Some(avx2_process_row);
-        } else if std::arch::is_x86_feature_detected!("sse4.1")
-        {
-            x86_runner = Some(sse42_process_row);
-        } else {
-            x86_runner = None;
+            use_avx2 = true;
+        } else if std::arch::is_x86_feature_detected!("sse4.1") {
+            use_sse = true;
         }
     }
 
@@ -456,24 +466,40 @@ fn yuv_nv12_to_rgbx<
 
         #[cfg(all(target_arch = "x86_64"))]
         unsafe {
-            if let Some(runner) = x86_runner {
-                let processed = runner(
-                    order,
-                    &range,
-                    &inverse_transform,
-                    &chroma_subsampling,
-                    y_plane,
-                    uv_plane,
-                    bgra,
-                    cx,
-                    ux,
-                    y_offset,
-                    uv_offset,
-                    dst_offset,
-                    channels,
-                    destination_channels,
-                    width as usize,
-                );
+            if use_avx2 {
+                let processed =
+                    avx2_process_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        y_plane,
+                        uv_plane,
+                        bgra,
+                        cx,
+                        ux,
+                        y_offset,
+                        uv_offset,
+                        dst_offset,
+                        channels,
+                        width as usize,
+                    );
+                cx += processed.cx;
+                ux += processed.ux;
+            } else if use_sse {
+                let processed =
+                    sse42_process_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        y_plane,
+                        uv_plane,
+                        bgra,
+                        cx,
+                        ux,
+                        y_offset,
+                        uv_offset,
+                        dst_offset,
+                        channels,
+                        width as usize,
+                    );
                 cx += processed.cx;
                 ux += processed.ux;
             }

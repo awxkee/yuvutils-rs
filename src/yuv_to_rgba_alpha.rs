@@ -26,10 +26,9 @@ unsafe fn premutiply_vector(v: uint8x16_t, a_values: uint8x16_t) -> uint8x16_t {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 #[allow(dead_code)]
-unsafe fn sse42_process_row(
+unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
-    chroma_subsampling: &YuvChromaSample,
     y_plane: &[u8],
     u_plane: &[u8],
     v_plane: &[u8],
@@ -43,10 +42,12 @@ unsafe fn sse42_process_row(
     a_offset: usize,
     rgba_offset: usize,
     channels: usize,
-    destination_channels: YuvSourceChannels,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
+    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
@@ -239,10 +240,9 @@ unsafe fn sse42_process_row(
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 #[allow(dead_code)]
-unsafe fn avx2_process_row(
+unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
-    chroma_subsampling: &YuvChromaSample,
     y_plane: &[u8],
     u_plane: &[u8],
     v_plane: &[u8],
@@ -256,10 +256,12 @@ unsafe fn avx2_process_row(
     a_offset: usize,
     rgba_offset: usize,
     channels: usize,
-    destination_channels: YuvSourceChannels,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
+    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+
     let mut cx = start_cx;
     let mut uv_x = start_ux;
     let y_ptr = y_plane.as_ptr();
@@ -493,38 +495,16 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
 
     #[cfg(target_arch = "x86_64")]
-    let x86_runner: Option<
-        unsafe fn(
-            range: &YuvChromaRange,
-            transform: &CbCrInverseTransform<i32>,
-            chroma_subsampling: &YuvChromaSample,
-            y_plane: &[u8],
-            u_plane: &[u8],
-            v_plane: &[u8],
-            a_plane: &[u8],
-            rgba: &mut [u8],
-            start_cx: usize,
-            start_ux: usize,
-            y_offset: usize,
-            u_offset: usize,
-            v_offset: usize,
-            a_offset: usize,
-            rgba_offset: usize,
-            channels: usize,
-            destination_channels: YuvSourceChannels,
-            width: usize,
-            use_premultiply: bool,
-        ) -> ProcessedOffset,
-    >;
+    let mut use_avx2 = false;
+    #[cfg(target_arch = "x86_64")]
+    let mut use_sse = false;
 
     #[cfg(target_arch = "x86_64")]
     {
         if std::arch::is_x86_feature_detected!("avx2") {
-            x86_runner = Some(avx2_process_row);
+            use_avx2 = true;
         } else if std::arch::is_x86_feature_detected!("sse4.1") {
-            x86_runner = Some(sse42_process_row);
-        } else {
-            x86_runner = None;
+            use_sse = true;
         }
     }
 
@@ -539,11 +519,10 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(all(target_arch = "x86_64"))]
         unsafe {
-            if let Some(runner) = x86_runner {
-                let processed = runner(
+            if use_avx2 {
+                let processed = avx2_process_row::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
                     &inverse_transform,
-                    &chroma_subsampling,
                     y_plane,
                     u_plane,
                     v_plane,
@@ -557,7 +536,28 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     a_offset,
                     rgba_offset,
                     channels,
-                    destination_channels,
+                    width as usize,
+                    premultiply_alpha,
+                );
+                cx += processed.cx;
+                uv_x += processed.ux;
+            } else if use_sse {
+                let processed = sse42_process_row::<DESTINATION_CHANNELS, SAMPLING>(
+                    &range,
+                    &inverse_transform,
+                    y_plane,
+                    u_plane,
+                    v_plane,
+                    a_plane,
+                    rgba,
+                    cx,
+                    uv_x,
+                    y_offset,
+                    u_offset,
+                    v_offset,
+                    a_offset,
+                    rgba_offset,
+                    channels,
                     width as usize,
                     premultiply_alpha,
                 );

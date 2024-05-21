@@ -2,6 +2,8 @@
 use std::arch::x86_64::*;
 
 #[cfg(target_arch = "x86_64")]
+#[inline(always)]
+#[allow(dead_code)]
 const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
     // Checked: we want to reinterpret the bits
     ((z << 6) | (y << 4) | (x << 2) | w) as i32
@@ -51,7 +53,7 @@ pub unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 pub unsafe fn avx2_interleave_even_2_epi8(a: __m256i, b: __m256i) -> __m256i {
-    let mask_a = _mm256_set1_epi16(0xF00);
+    let mask_a = _mm256_slli_epi16::<8>(_mm256_srli_epi16::<8>(a));
     let masked_a = _mm256_and_si256(a, mask_a);
     let b_s = _mm256_srli_epi16::<8>(b);
     return _mm256_or_si256(masked_a, b_s);
