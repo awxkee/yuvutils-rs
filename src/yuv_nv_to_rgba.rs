@@ -324,7 +324,7 @@ unsafe fn sse42_process_row<
         let u_low = _mm_sub_epi16(_mm_cvtepu8_epi16(u_low_u8), uv_corr);
         let v_low = _mm_sub_epi16(_mm_cvtepu8_epi16(v_low_u8), uv_corr);
         let y_low = _mm_mullo_epi16(
-            _mm_cvtepu8_epi16(_mm_srli_si128::<0>(y_values)),
+            _mm_cvtepu8_epi16(y_values),
             v_luma_coeff,
         );
 

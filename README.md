@@ -4,6 +4,8 @@ Fast and simple YUV approximation conversion in pure Rust. At most the same as l
 
 Mostly implemented AVX2, SSE, NEON
 
+X86_64 targets with SSE and AVX uses runtime dispatch to detect available cpu features.
+
 ### RGB to YCbCr
 
 ```rust
