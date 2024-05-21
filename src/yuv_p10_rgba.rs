@@ -1,4 +1,4 @@
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
     int16x4_t, int16x8_t, uint8x8x3_t, uint8x8x4_t, vcombine_s16, vdup_n_s16, vdup_n_u8,
@@ -79,7 +79,7 @@ fn yuv_p10_to_rgbx_impl<
         let v_ld_ptr = unsafe { v_src_ptr.offset(v_offset as isize) as *const u16 };
         let v_ld = unsafe { slice::from_raw_parts(v_ld_ptr, width as usize) };
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        #[cfg(target_arch = "aarch64")]
         #[cfg(target_feature = "neon")]
         unsafe {
             let dst_ptr = rgba.as_mut_ptr();

@@ -5,7 +5,7 @@
     )
 )]
 use core::arch::x86_64::*;
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
     uint8x16_t, uint8x16x4_t, uint8x8_t, vcombine_u8, vdup_n_u8, vdupq_n_s16, vdupq_n_u16,
@@ -19,7 +19,7 @@ use crate::yuv_support::{
 };
 use crate::{YuvRange, YuvStandardMatrix};
 
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 #[inline(always)]
 unsafe fn premutiply_vector(v: uint8x16_t, a_values: uint8x16_t) -> uint8x16_t {
@@ -273,7 +273,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        #[cfg(target_arch = "aarch64")]
         #[cfg(target_feature = "neon")]
         unsafe {
             let y_ptr = y_plane.as_ptr();

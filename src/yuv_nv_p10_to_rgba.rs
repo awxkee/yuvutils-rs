@@ -1,4 +1,4 @@
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
     int16x4_t, int16x8_t, uint16x4x2_t, uint16x8x2_t, uint8x8x3_t, uint8x8x4_t, vcombine_s16,
@@ -91,7 +91,7 @@ fn yuv_nv12_p10_to_bgra_impl<
         };
         let uv_ld = unsafe { slice::from_raw_parts(uv_ld_ptr, uv_length) };
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        #[cfg(target_arch = "aarch64")]
         #[cfg(target_feature = "neon")]
         unsafe {
             let dst_ptr = bgra.as_mut_ptr();

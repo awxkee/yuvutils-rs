@@ -1,4 +1,4 @@
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
     uint8x16_t, uint8x16x2_t, uint8x8x2_t, vcombine_u16, vcombine_u8, vdupq_n_s16, vdupq_n_s32,
@@ -59,7 +59,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         let mut cx = 0usize;
         let mut ux = 0usize;
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        #[cfg(target_arch = "aarch64")]
         #[cfg(target_feature = "neon")]
         unsafe {
             let y_ptr = y_plane.as_mut_ptr();

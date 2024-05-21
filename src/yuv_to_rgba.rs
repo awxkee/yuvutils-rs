@@ -3,7 +3,9 @@
 use crate::intel_simd_support::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[allow(unused_imports)]
+use crate::yuv_support::*;
+#[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
     uint8x16x3_t, uint8x16x4_t, uint8x8_t, vcombine_u8, vdup_n_u8, vdupq_n_s16, vdupq_n_u8,
@@ -14,11 +16,6 @@ use std::arch::aarch64::{
 #[cfg(target_arch = "x86_64")]
 #[allow(unused_imports)]
 use std::arch::x86_64::*;
-
-use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, CbCrInverseTransform, YuvChromaRange,
-    YuvChromaSample, YuvRange, YuvSourceChannels, YuvStandardMatrix,
-};
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
@@ -53,7 +50,7 @@ unsafe fn avx2_process_row(
     let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm256_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
-    let v_min_values = _mm256_set1_epi16(0);
+    let v_min_values = _mm256_setzero_si256();
     let v_g_coeff_1 = _mm256_set1_epi16(-1 * transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm256_set1_epi16(-1 * transform.g_coeff_2 as i16);
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
@@ -113,8 +110,8 @@ unsafe fn avx2_process_row(
             v_min_values,
         ));
 
-        let u_low = _mm256_sub_epi16(_mm256_cvtepu8_epi16(u_low_u8), uv_corr);
-        let v_low = _mm256_sub_epi16(_mm256_cvtepu8_epi16(v_low_u8), uv_corr);
+        let u_low = _mm256_subs_epi16(_mm256_cvtepu8_epi16(u_low_u8), uv_corr);
+        let v_low = _mm256_subs_epi16(_mm256_cvtepu8_epi16(v_low_u8), uv_corr);
         let y_low = _mm256_mullo_epi16(
             _mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values)),
             v_luma_coeff,
@@ -139,21 +136,15 @@ unsafe fn avx2_process_row(
             v_min_values,
         ));
 
-        let r_low_u8 = _mm256_castsi128_si256(demote_to_avx256_to_128(r_low));
-        let r_high_u8 = demote_to_avx256_to_128(r_high);
-        let g_low_u8 = _mm256_castsi128_si256(demote_to_avx256_to_128(g_low));
-        let g_high_u8 = demote_to_avx256_to_128(g_high);
-        let b_low_u8 = _mm256_castsi128_si256(demote_to_avx256_to_128(b_low));
-        let b_high_u8 = demote_to_avx256_to_128(b_high);
-
-        let r_values = _mm256_inserti128_si256::<1>(r_low_u8, r_high_u8);
-        let g_values = _mm256_inserti128_si256::<1>(g_low_u8, g_high_u8);
-        let b_values = _mm256_inserti128_si256::<1>(b_low_u8, b_high_u8);
+        let r_values = demote_i16_to_u8(r_low, r_high);
+        let g_values = demote_i16_to_u8(g_low, g_high);
+        let b_values = demote_i16_to_u8(b_low, b_high);
 
         let dst_shift = rgba_offset + cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
+                // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
                 let ptr = rgba_ptr.add(dst_shift);
                 store_u8_rgb_avx2(ptr, r_values, g_values, b_values, cx + 35 < width);
             }
@@ -241,8 +232,26 @@ unsafe fn sse42_process_row(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
-                let v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
+                let (u_values, v_values);
+                if cx + 24 < width {
+                    u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
+                    v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
+                } else {
+                    let mut transient_u: [u8; 16] = [0u8; 16];
+                    let mut transient_v: [u8; 16] = [0u8; 16];
+                    std::ptr::copy_nonoverlapping(
+                        u_ptr.add(u_offset + uv_x),
+                        transient_u.as_mut_ptr(),
+                        8,
+                    );
+                    std::ptr::copy_nonoverlapping(
+                        v_ptr.add(u_offset + uv_x),
+                        transient_v.as_mut_ptr(),
+                        8,
+                    );
+                    u_values = _mm_loadu_si128(transient_u.as_ptr() as *const __m128i);
+                    v_values = _mm_loadu_si128(transient_v.as_ptr() as *const __m128i);
+                }
 
                 u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
                 v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
@@ -384,12 +393,11 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
     let inverse_transform = transform.to_integers(6);
-    let precision_scale: i32 = 1i32 << 6i32;
-    let cr_coef = (transform.cr_coef * precision_scale as f32).round() as i32;
-    let cb_coef = (transform.cb_coef * precision_scale as f32).round() as i32;
-    let y_coef = (transform.y_coef * precision_scale as f32).round() as i32;
-    let g_coef_1 = (transform.g_coeff_1 * precision_scale as f32).round() as i32;
-    let g_coef_2 = (transform.g_coeff_2 * precision_scale as f32).round() as i32;
+    let cr_coef = inverse_transform.cr_coef;
+    let cb_coef = inverse_transform.cb_coef;
+    let y_coef = inverse_transform.y_coef;
+    let g_coef_1 = inverse_transform.g_coeff_1;
+    let g_coef_2 = inverse_transform.g_coeff_2;
 
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
@@ -405,15 +413,38 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         YuvChromaSample::YUV444 => 1usize,
     };
 
-    let mut is_avx2_found = false;
-    let mut is_sse42_foud = false;
+    #[cfg(target_arch = "x86_64")]
+    let x86_runner: Option<
+        unsafe fn(
+            range: &YuvChromaRange,
+            transform: &CbCrInverseTransform<i32>,
+            chroma_subsampling: &YuvChromaSample,
+            y_plane: &[u8],
+            u_plane: &[u8],
+            v_plane: &[u8],
+            rgba: &mut [u8],
+            start_cx: usize,
+            start_ux: usize,
+            y_offset: usize,
+            u_offset: usize,
+            v_offset: usize,
+            rgba_offset: usize,
+            channels: usize,
+            destination_channels: YuvSourceChannels,
+            width: usize,
+        ) -> ProcessedOffset,
+    >;
 
     #[cfg(target_arch = "x86_64")]
     {
         if std::arch::is_x86_feature_detected!("avx2") {
-            is_avx2_found = true;
-        } else if std::arch::is_x86_feature_detected!("sse4.2") {
-            is_sse42_foud = true;
+            x86_runner = Some(avx2_process_row);
+        } else if std::arch::is_x86_feature_detected!("sse4.2")
+            || std::arch::is_x86_feature_detected!("sse4.1")
+        {
+            x86_runner = Some(sse42_process_row);
+        } else {
+            x86_runner = None;
         }
     }
 
@@ -428,29 +459,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(all(target_arch = "x86_64"))]
         unsafe {
-            if is_avx2_found {
-                let processed = avx2_process_row(
-                    &range,
-                    &inverse_transform,
-                    &chroma_subsampling,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    rgba_offset,
-                    channels,
-                    destination_channels,
-                    width as usize,
-                );
-                cx += processed.cx;
-                uv_x += processed.ux;
-            } else if is_sse42_foud {
-                let processed = sse42_process_row(
+            if let Some(runner) = x86_runner {
+                let processed = runner(
                     &range,
                     &inverse_transform,
                     &chroma_subsampling,
@@ -473,7 +483,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        #[cfg(target_arch = "aarch64")]
         #[cfg(target_feature = "neon")]
         unsafe {
             let y_ptr = y_plane.as_ptr();

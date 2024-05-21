@@ -3,6 +3,7 @@ use std::arch::x86_64::*;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
+#[allow(dead_code)]
 pub unsafe fn demote_to_avx256_to_128(data: __m256i) -> __m128i {
     let lo_lane = _mm256_castsi256_si128(data);
     let hi_lane = _mm256_extracti128_si256::<1>(data);
@@ -11,7 +12,42 @@ pub unsafe fn demote_to_avx256_to_128(data: __m256i) -> __m128i {
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn store_u8_rgb_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, use_transient: bool) {
+#[allow(dead_code)]
+pub unsafe fn demote_i16_to_u8(s_1: __m256i, s_2: __m256i) -> __m256i {
+    let c = _mm256_packus_epi16(s_1, s_2);
+    let v = _mm256_permute4x64_epi64::<0x88>(c);
+    return v;
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
+    #[rustfmt::skip]
+    let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 
+                                8, 8, 10, 10, 12, 12, 14, 14);
+    let new_lane = _mm_shuffle_epi8(x, shuffle);
+    return new_lane;
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
+    #[rustfmt::skip]
+    let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7,
+                                9, 9, 11, 11, 13, 13, 15, 15);
+    let new_lane = _mm_shuffle_epi8(x, shuffle);
+    return new_lane;
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn store_u8_rgb_avx2(
+    ptr: *mut u8,
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+    use_transient: bool,
+) {
     let rg_lo = _mm256_unpacklo_epi8(r, g);
     let rg_hi = _mm256_unpackhi_epi8(r, g);
     let zero = _mm256_setzero_si256();
@@ -24,8 +60,8 @@ pub unsafe fn store_u8_rgb_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i
     let rgb1_hi = _mm256_unpackhi_epi16(rg_hi, b0_hi);
 
     let shuffle_mask = _mm256_setr_epi8(
-        0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28,
-        29, 30, -1, -1, -1, -1, -1, -1, -1, -1,
+        0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30, -1,
+        -1, -1, -1, -1, -1, -1, -1,
     );
 
     let rgb0 = _mm256_shuffle_epi8(rgb0_lo, shuffle_mask);
@@ -36,17 +72,12 @@ pub unsafe fn store_u8_rgb_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i
     _mm256_storeu_si256(ptr as *mut __m256i, rgb0);
     _mm256_storeu_si256(ptr.add(24) as *mut __m256i, rgb1);
     _mm256_storeu_si256(ptr.add(48) as *mut __m256i, rgb2);
-    // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
     if use_transient {
         _mm256_storeu_si256(ptr.add(72) as *mut __m256i, rgb3);
     } else {
         let mut transient: [u8; 32] = [0u8; 32];
         _mm256_storeu_si256(transient.as_mut_ptr() as *mut __m256i, rgb3);
-        std::ptr::copy_nonoverlapping(
-            transient.as_ptr(),
-            ptr.add(72),
-            24,
-        );
+        std::ptr::copy_nonoverlapping(transient.as_ptr(), ptr.add(72), 24);
     }
 }
 

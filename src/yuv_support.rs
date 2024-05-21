@@ -203,7 +203,7 @@ pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum YuvNVOrder {
     UV = 0,
     VU = 1,

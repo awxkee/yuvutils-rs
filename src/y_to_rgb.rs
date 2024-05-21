@@ -1,4 +1,4 @@
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::{
     uint8x16x3_t, uint8x16x4_t, vcombine_u8, vdup_n_u8, vdupq_n_s16, vdupq_n_u8, vget_low_u8,
@@ -39,7 +39,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         #[allow(unused_mut)]
         let mut cx = 0usize;
 
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        #[cfg(target_arch = "aarch64")]
         #[cfg(target_feature = "neon")]
         unsafe {
             let y_ptr = y_plane.as_ptr();
