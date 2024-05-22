@@ -104,33 +104,23 @@ unsafe fn avx_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let y_h = avx2_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
-        let y_yuv = _mm256_permute4x64_epi64::<MASK>(_mm256_packus_epi16(y_l, y_h));
+        let y_yuv = demote_i16_to_u8(y_l, y_h);
 
         let cb_h = avx2_rgb_to_ycbcr(r_high, g_high, b_high, uv_bias, v_cb_r, v_cb_g, v_cb_b);
         let cr_h = avx2_rgb_to_ycbcr(r_high, g_high, b_high, uv_bias, v_cr_r, v_cr_g, v_cr_b);
 
-        let cb = _mm256_permute4x64_epi64::<MASK>(_mm256_packus_epi16(cb_l, cb_h));
+        let cb = demote_i16_to_u8(cb_l, cb_h);
 
-        let cr = _mm256_permute4x64_epi64::<MASK>(_mm256_packus_epi16(cr_l, cr_h));
+        let cr = demote_i16_to_u8(cr_l, cr_h);
 
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = _mm256_avg_epu8(cb, cb);
-                let cr_h = _mm256_avg_epu8(cr, cr);
-                std::ptr::copy_nonoverlapping(
-                    &cb_h as *const _ as *const u8,
-                    u_ptr.add(uv_x),
-                    16,
-                );
-                std::ptr::copy_nonoverlapping(
-                    &cr_h as *const _ as *const u8,
-                    v_ptr.add(uv_x),
-                    16,
-                );
+                let cb_h = _mm256_castsi256_si128(_mm256_avg_epu8(cb, cb));
+                let cr_h = _mm256_castsi256_si128(_mm256_avg_epu8(cr, cr));
+                _mm_storeu_si128(u_ptr.add(uv_x) as *mut _ as *mut __m128i, cb_h);
+                _mm_storeu_si128(v_ptr.add(uv_x) as *mut _ as *mut __m128i, cr_h);
                 uv_x += 16;
             }
             YuvChromaSample::YUV444 => {
