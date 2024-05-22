@@ -41,12 +41,12 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     v_offset: usize,
     a_offset: usize,
     rgba_offset: usize,
-    channels: usize,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;
     let mut uv_x = start_ux;
@@ -255,12 +255,12 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     v_offset: usize,
     a_offset: usize,
     rgba_offset: usize,
-    channels: usize,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;
     let mut uv_x = start_ux;
@@ -535,7 +535,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     v_offset,
                     a_offset,
                     rgba_offset,
-                    channels,
                     width as usize,
                     premultiply_alpha,
                 );
@@ -557,7 +556,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     v_offset,
                     a_offset,
                     rgba_offset,
-                    channels,
                     width as usize,
                     premultiply_alpha,
                 );

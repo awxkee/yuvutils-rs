@@ -20,6 +20,60 @@ pub unsafe fn demote_i16_to_u8(s_1: __m256i, s_2: __m256i) -> __m256i {
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn sse_promote_i16_toi32(s: __m128i) -> __m128i {
+    _mm_cvtepi16_epi32(_mm_srli_si128::<8>(s))
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn sse_rgb_to_ycbcr(
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    bias: __m128i,
+    coeff_r: __m128i,
+    coeff_g: __m128i,
+    coeff_b: __m128i,
+) -> __m128i {
+    let r_l = _mm_cvtepi16_epi32(r);
+    let g_l = _mm_cvtepi16_epi32(g);
+    let b_l = _mm_cvtepi16_epi32(b);
+
+    let min_acceptable_values = _mm_setzero_si128();
+
+    let vl = _mm_srai_epi32::<8>(_mm_max_epi32(
+        _mm_add_epi32(
+            bias,
+            _mm_add_epi32(
+                _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_l), _mm_mullo_epi32(coeff_g, g_l)),
+                _mm_mullo_epi32(coeff_b, b_l),
+            ),
+        ),
+        min_acceptable_values,
+    ));
+
+    let r_h = sse_promote_i16_toi32(r);
+    let g_h = sse_promote_i16_toi32(g);
+    let b_h = sse_promote_i16_toi32(b);
+
+    let vh = _mm_srai_epi32::<8>(_mm_max_epi32(
+        _mm_add_epi32(
+            bias,
+            _mm_add_epi32(
+                _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_h), _mm_mullo_epi32(coeff_g, g_h)),
+                _mm_mullo_epi32(coeff_b, b_h),
+            ),
+        ),
+        min_acceptable_values,
+    ));
+
+    _mm_packus_epi32(vl, vh)
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
 pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     #[rustfmt::skip]
         let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
@@ -142,7 +196,7 @@ pub unsafe fn avx2_interleave(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let v13 = _mm256_unpackhi_epi16(a, b);
     return (
         _mm256_permute2x128_si256::<0x20>(v02, v13),
-        _mm256_permute2x128_si256::<0x31>(v02, v13)
+        _mm256_permute2x128_si256::<0x31>(v02, v13),
     );
 }
 
@@ -153,7 +207,7 @@ pub unsafe fn avx2_interleave_u8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let v13 = _mm256_unpackhi_epi8(a, b);
     return (
         _mm256_permute2x128_si256::<0x20>(v02, v13),
-        _mm256_permute2x128_si256::<0x31>(v02, v13)
+        _mm256_permute2x128_si256::<0x31>(v02, v13),
     );
 }
 
@@ -189,6 +243,76 @@ pub unsafe fn store_u8_rgba_sse(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i
     _mm_storeu_si128(ptr.add(16) as *mut __m128i, rgba_0_hi);
     _mm_storeu_si128(ptr.add(32) as *mut __m128i, rgba_1_lo);
     _mm_storeu_si128(ptr.add(48) as *mut __m128i, rgba_1_hi);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn sse_deinterleave_rgba(
+    rgba0: __m128i,
+    rgba1: __m128i,
+    rgba2: __m128i,
+    rgba3: __m128i,
+) -> (__m128i, __m128i, __m128i, __m128i) {
+    let t0 = _mm_unpacklo_epi8(rgba0, rgba1); // r1 R1 g1 G1 b1 B1 a1 A1 r2 R2 g2 G2 b2 B2 a2 A2
+    let t1 = _mm_unpackhi_epi8(rgba0, rgba1);
+    let t2 = _mm_unpacklo_epi8(rgba2, rgba3); // r4 R4 g4 G4 b4 B4 a4 A4 r5 R5 g5 G5 b5 B5 a5 A5
+    let t3 = _mm_unpackhi_epi8(rgba2, rgba3);
+
+    let t4 = _mm_unpacklo_epi16(t0, t2); // r1 R1 r4 R4 g1 G1 G4 g4 G4 b1 B1 b4 B4 a1 A1 a4 A4
+    let t5 = _mm_unpackhi_epi16(t0, t2);
+    let t6 = _mm_unpacklo_epi16(t1, t3);
+    let t7 = _mm_unpackhi_epi16(t1, t3);
+
+    let l1 = _mm_unpacklo_epi32(t4, t6); // r1 R1 r4 R4 g1 G1 G4 g4 G4 b1 B1 b4 B4 a1 A1 a4 A4
+    let l2 = _mm_unpackhi_epi32(t4, t6);
+    let l3 = _mm_unpacklo_epi32(t5, t7);
+    let l4 = _mm_unpackhi_epi32(t5, t7);
+
+    #[rustfmt::skip]
+        let shuffle = _mm_setr_epi8(
+        0, 4, 8, 12,
+        1, 5, 9, 13,
+        2, 6, 10, 14,
+        3, 7, 11, 15,
+    );
+
+    let r1 = _mm_shuffle_epi8(_mm_unpacklo_epi32(l1, l3), shuffle);
+    let r2 = _mm_shuffle_epi8(_mm_unpackhi_epi32(l1, l3), shuffle);
+    let r3 = _mm_shuffle_epi8(_mm_unpacklo_epi32(l2, l4), shuffle);
+    let r4 = _mm_shuffle_epi8(_mm_unpackhi_epi32(l2, l4), shuffle);
+
+    (r1, r2, r3, r4)
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn sse_deinterleave_rgb(
+    rgb0: __m128i,
+    rgb1: __m128i,
+    rgb2: __m128i,
+) -> (__m128i, __m128i, __m128i) {
+    let idx = _mm_setr_epi8(0, 3, 6, 9, 12, 15, 2, 5, 8, 11, 14, 1, 4, 7, 10, 13);
+
+    let r6b5g5_0 = _mm_shuffle_epi8(rgb0, idx);
+    let g6r5b5_1 = _mm_shuffle_epi8(rgb1, idx);
+    let b6g5r5_2 = _mm_shuffle_epi8(rgb2, idx);
+
+    let mask010 = _mm_setr_epi8(0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0);
+    let mask001 = _mm_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1);
+
+    let b2g2b1 = _mm_blendv_epi8(b6g5r5_2, g6r5b5_1, mask001);
+    let b2b0b1 = _mm_blendv_epi8(b2g2b1, r6b5g5_0, mask010);
+
+    let r0r1b1 = _mm_blendv_epi8(r6b5g5_0, g6r5b5_1, mask010);
+    let r0r1r2 = _mm_blendv_epi8(r0r1b1, b6g5r5_2, mask001);
+
+    let g1r1g0 = _mm_blendv_epi8(g6r5b5_1, r6b5g5_0, mask001);
+    let g1g2g0 = _mm_blendv_epi8(g1r1g0, b6g5r5_2, mask010);
+
+    let g0g1g2 = _mm_alignr_epi8::<11>(g1g2g0, g1g2g0);
+    let b0b1b2 = _mm_alignr_epi8::<6>(b2b0b1, b2b0b1);
+
+    (r0r1r2, g0g1g2, b0b1b2)
 }
 
 #[cfg(target_arch = "x86_64")]

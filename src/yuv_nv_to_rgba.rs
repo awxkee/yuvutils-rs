@@ -28,12 +28,13 @@ unsafe fn avx2_process_row<
     y_offset: usize,
     uv_offset: usize,
     rgba_offset: usize,
-    channels: usize,
     width: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
+    let channels = destination_channels.get_channels_count();
+
     let mut cx = start_cx;
     let mut uv_x = start_ux;
     let y_ptr = y_plane.as_ptr();
@@ -222,12 +223,13 @@ unsafe fn sse42_process_row<
     y_offset: usize,
     uv_offset: usize,
     rgba_offset: usize,
-    channels: usize,
     width: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
+    let channels = destination_channels.get_channels_count();
+
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
@@ -479,7 +481,6 @@ fn yuv_nv12_to_rgbx<
                         y_offset,
                         uv_offset,
                         dst_offset,
-                        channels,
                         width as usize,
                     );
                 cx += processed.cx;
@@ -497,7 +498,6 @@ fn yuv_nv12_to_rgbx<
                         y_offset,
                         uv_offset,
                         dst_offset,
-                        channels,
                         width as usize,
                     );
                 cx += processed.cx;
