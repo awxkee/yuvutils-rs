@@ -104,7 +104,7 @@ unsafe fn avx_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let y_h = avx2_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
+        const MASK: i32 = shuffle(0, 2, 1, 3);
 
         let y_yuv = _mm256_permute4x64_epi64::<MASK>(_mm256_packus_epi16(y_l, y_h));
 

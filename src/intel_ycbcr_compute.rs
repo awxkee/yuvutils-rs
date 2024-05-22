@@ -40,7 +40,7 @@ pub unsafe fn avx2_rgb_to_ycbcr(
     ));
 
     let k = _mm256_packus_epi32(vl, vh);
-    const MASK: i32 = shuffle(3, 1, 2, 0);
+    const MASK: i32 = shuffle(0, 2, 1, 3);
     _mm256_permute4x64_epi64::<MASK>(k)
 }
 
