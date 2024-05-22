@@ -4,7 +4,7 @@ use std::arch::x86_64::*;
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 #[allow(dead_code)]
-const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
+pub const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
     // Checked: we want to reinterpret the bits
     ((z << 6) | (y << 4) | (x << 2) | w) as i32
 }
@@ -23,45 +23,6 @@ pub unsafe fn demote_i16_to_u8(s_1: __m256i, s_2: __m256i) -> __m256i {
 #[allow(dead_code)]
 pub unsafe fn sse_promote_i16_toi32(s: __m128i) -> __m128i {
     _mm_cvtepi16_epi32(_mm_srli_si128::<8>(s))
-}
-
-#[cfg(target_arch = "x86_64")]
-#[inline(always)]
-#[allow(dead_code)]
-pub unsafe fn sse_rgb_to_ycbcr(
-    r: __m128i,
-    g: __m128i,
-    b: __m128i,
-    bias: __m128i,
-    coeff_r: __m128i,
-    coeff_g: __m128i,
-    coeff_b: __m128i,
-) -> __m128i {
-    let r_l = _mm_cvtepi16_epi32(r);
-    let g_l = _mm_cvtepi16_epi32(g);
-    let b_l = _mm_cvtepi16_epi32(b);
-
-    let vl = _mm_srai_epi32::<8>(_mm_add_epi32(
-        bias,
-        _mm_add_epi32(
-            _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_l), _mm_mullo_epi32(coeff_g, g_l)),
-            _mm_mullo_epi32(coeff_b, b_l),
-        ),
-    ));
-
-    let r_h = sse_promote_i16_toi32(r);
-    let g_h = sse_promote_i16_toi32(g);
-    let b_h = sse_promote_i16_toi32(b);
-
-    let vh = _mm_srai_epi32::<8>(_mm_add_epi32(
-        bias,
-        _mm_add_epi32(
-            _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_h), _mm_mullo_epi32(coeff_g, g_h)),
-            _mm_mullo_epi32(coeff_b, b_h),
-        ),
-    ));
-
-    _mm_packus_epi32(vl, vh)
 }
 
 #[cfg(target_arch = "x86_64")]

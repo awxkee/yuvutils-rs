@@ -10,6 +10,7 @@ mod yuv_p10_rgba;
 mod rgba_to_nv;
 mod internals;
 mod intel_simd_support;
+mod intel_ycbcr_compute;
 
 pub use yuv_support::YuvStandardMatrix;
 pub use yuv_support::YuvRange;
