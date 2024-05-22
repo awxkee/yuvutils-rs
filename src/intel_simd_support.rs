@@ -254,20 +254,30 @@ pub unsafe fn avx2_deinterleave_rgba(
     rgba2: __m256i,
     rgba3: __m256i,
 ) -> (__m256i, __m256i, __m256i, __m256i) {
-    let permute_rgba = _mm256_setr_epi32(0x0, 0x4, 0x1, 0x5, 0x2, 0x6, 0x3, 0x7);
+    let sh = _mm256_setr_epi8(0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15,
+                              0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15);
 
-    let bbgg0 = _mm256_unpacklo_epi32(rgba0, rgba1);
-    let bbgg1 = _mm256_unpacklo_epi32(rgba2, rgba3);
+    let p0 = _mm256_shuffle_epi8(rgba0, sh);
+    let p1 = _mm256_shuffle_epi8(rgba1, sh);
+    let p2 = _mm256_shuffle_epi8(rgba2, sh);
+    let p3 = _mm256_shuffle_epi8(rgba3, sh);
 
-    let row1 = _mm256_permutevar8x32_epi32(_mm256_unpacklo_epi64(bbgg0, bbgg1), permute_rgba);
-    let row2 = _mm256_permutevar8x32_epi32(_mm256_unpackhi_epi64(bbgg0, bbgg1), permute_rgba);
+    let p01l = _mm256_unpacklo_epi32(p0, p1);
+    let p01h = _mm256_unpackhi_epi32(p0, p1);
+    let p23l = _mm256_unpacklo_epi32(p2, p3);
+    let p23h = _mm256_unpackhi_epi32(p2, p3);
 
-    let rraa0 = _mm256_unpackhi_epi32(rgba0, rgba1);
-    let rraa1 = _mm256_unpackhi_epi32(rgba2, rgba3);
+    let pll = _mm256_permute2x128_si256::<32>(p01l, p23l);
+    let plh = _mm256_permute2x128_si256::<49>(p01l, p23l);
+    let phl = _mm256_permute2x128_si256::<32>(p01h, p23h);
+    let phh = _mm256_permute2x128_si256::<49>(p01h, p23h);
 
-    let row3 = _mm256_permutevar8x32_epi32(_mm256_unpacklo_epi64(rraa0, rraa1), permute_rgba);
-    let row4 = _mm256_permutevar8x32_epi32(_mm256_unpackhi_epi64(rraa0, rraa1), permute_rgba);
-    (row1, row2, row3, row4)
+    let b0 = _mm256_unpacklo_epi32(pll, plh);
+    let g0 = _mm256_unpackhi_epi32(pll, plh);
+    let r0 = _mm256_unpacklo_epi32(phl, phh);
+    let a0 = _mm256_unpackhi_epi32(phl, phh);
+
+    (b0, g0, r0, a0)
 }
 
 #[cfg(target_arch = "x86_64")]
