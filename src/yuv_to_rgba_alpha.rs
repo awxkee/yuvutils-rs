@@ -194,7 +194,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                store_u8_rgb_sse(
+                sse_store_rgb_u8(
                     rgba_ptr.add(dst_shift),
                     r_values,
                     g_values,
@@ -202,7 +202,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 );
             }
             YuvSourceChannels::Rgba => {
-                store_u8_rgba_sse(
+                sse_store_rgba(
                     rgba_ptr.add(dst_shift),
                     r_values,
                     g_values,
@@ -211,7 +211,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 );
             }
             YuvSourceChannels::Bgra => {
-                store_u8_rgba_sse(
+                sse_store_rgba(
                     rgba_ptr.add(dst_shift),
                     b_values,
                     g_values,
@@ -407,7 +407,7 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             YuvSourceChannels::Rgb => {
                 // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
                 let ptr = rgba_ptr.add(dst_shift);
-                store_u8_rgb_avx2(ptr, r_values, g_values, b_values);
+                avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
                 store_u8_rgba_avx2(

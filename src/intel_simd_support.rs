@@ -42,26 +42,24 @@ pub unsafe fn sse_rgb_to_ycbcr(
     let b_l = _mm_cvtepi16_epi32(b);
 
     let vl = _mm_srai_epi32::<8>(_mm_add_epi32(
-            bias,
-            _mm_add_epi32(
-                _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_l), _mm_mullo_epi32(coeff_g, g_l)),
-                _mm_mullo_epi32(coeff_b, b_l),
-            ),
+        bias,
+        _mm_add_epi32(
+            _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_l), _mm_mullo_epi32(coeff_g, g_l)),
+            _mm_mullo_epi32(coeff_b, b_l),
         ),
-    );
+    ));
 
     let r_h = sse_promote_i16_toi32(r);
     let g_h = sse_promote_i16_toi32(g);
     let b_h = sse_promote_i16_toi32(b);
 
     let vh = _mm_srai_epi32::<8>(_mm_add_epi32(
-            bias,
-            _mm_add_epi32(
-                _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_h), _mm_mullo_epi32(coeff_g, g_h)),
-                _mm_mullo_epi32(coeff_b, b_h),
-            ),
-        )
-    );
+        bias,
+        _mm_add_epi32(
+            _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_h), _mm_mullo_epi32(coeff_g, g_h)),
+            _mm_mullo_epi32(coeff_b, b_h),
+        ),
+    ));
 
     _mm_packus_epi32(vl, vh)
 }
@@ -138,7 +136,11 @@ pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn store_u8_rgb_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i) {
+pub unsafe fn avx2_interleave_rgb(
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+) -> (__m256i, __m256i, __m256i) {
     let permute_0_r_row = _mm256_setr_epi8(
         0x0, -1, -1, 0x1, -1, -1, 0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1,
         0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1,
@@ -199,6 +201,118 @@ pub unsafe fn store_u8_rgb_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i
             _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0xEE>(b), permute_2_b_row),
         ),
     );
+    (rgb1, rgb2, rgb3)
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx2_deinterleave_rgb(
+    rgb0: __m256i,
+    rgb1: __m256i,
+    rgb2: __m256i,
+) -> (__m256i, __m256i, __m256i) {
+    let row1_permute_0 = _mm256_setr_epi8(
+        0x0, 0x3, 0x6, 0x9, 0xC, 0xF, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, 0x2, 0x5, 0x8, 0xB, 0xE, -1, -1, -1, -1, -1,
+    );
+    let row1_permute_1 = _mm256_setr_epi8(
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0x1, 0x4, 0x7, 0xA, 0xD, 0x0, 0x3, 0x6, 0x9,
+        0xC, 0xF, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    );
+    let row1_permute_2 = _mm256_setr_epi8(
+        -1, -1, -1, -1, -1, -1, 0x2, 0x5, 0x8, 0xB, 0xE, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, 0x1, 0x4, 0x7, 0xA, 0xD,
+    );
+
+    let b0 = _mm256_shuffle_epi8(rgb0, row1_permute_0);
+    let b2 = _mm256_shuffle_epi8(rgb2, row1_permute_2);
+    let r = _mm256_or_si256(
+        _mm256_permute2x128_si256::<0x20>(b0, b2),
+        _mm256_or_si256(
+            _mm256_shuffle_epi8(rgb1, row1_permute_1),
+            _mm256_permute2x128_si256::<0x31>(b0, b2),
+        ),
+    );
+
+    let row2_permute_0 = _mm256_setr_epi8(
+        0x1, 0x4, 0x7, 0xA, 0xD, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        0x0, 0x3, 0x6, 0x9, 0xC, 0xF, -1, -1, -1, -1, -1,
+    );
+    let row2_permute_1 = _mm256_setr_epi8(
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0x2, 0x5, 0x8, 0xB, 0xE, 0x1, 0x4, 0x7, 0xA,
+        0xD, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    );
+    let row2_permute_2 = _mm256_setr_epi8(
+        -1, -1, -1, -1, -1, 0x0, 0x3, 0x6, 0x9, 0xC, 0xF, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, 0x2, 0x5, 0x8, 0xB, 0xE,
+    );
+
+    let g0 = _mm256_shuffle_epi8(rgb0, row2_permute_0);
+    let g2 = _mm256_shuffle_epi8(rgb2, row2_permute_2);
+    let g = _mm256_or_si256(
+        _mm256_permute2x128_si256::<0x20>(g0, g2),
+        _mm256_or_si256(
+            _mm256_shuffle_epi8(rgb1, row2_permute_1),
+            _mm256_permute2x128_si256::<0x31>(g0, g2),
+        ),
+    );
+
+    let row3_permute_0 = _mm256_setr_epi8(
+        0x2, 0x5, 0x8, 0xB, 0xE, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        0x1, 0x4, 0x7, 0xA, 0xD, -1, -1, -1, -1, -1, -1,
+    );
+    let row3_permute_1 = _mm256_setr_epi8(
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0x0, 0x3, 0x6, 0x9, 0xC, 0xF, 0x2, 0x5, 0x8, 0xB,
+        0xE, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    );
+    let row3_permute_2 = _mm256_setr_epi8(
+        -1, -1, -1, -1, -1, 0x1, 0x4, 0x7, 0xA, 0xD, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, 0x0, 0x3, 0x6, 0x9, 0xC, 0xF,
+    );
+
+    let r0 = _mm256_shuffle_epi8(rgb0, row3_permute_0);
+    let r2 = _mm256_shuffle_epi8(rgb2, row3_permute_2);
+    let b = _mm256_or_si256(
+        _mm256_permute2x128_si256::<0x20>(r0, r2),
+        _mm256_or_si256(
+            _mm256_shuffle_epi8(rgb1, row3_permute_1),
+            _mm256_permute2x128_si256::<0x31>(r0, r2),
+        ),
+    );
+
+    (r, g, b)
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx2_deinterleave_rgba(
+    rgba0: __m256i,
+    rgba1: __m256i,
+    rgba2: __m256i,
+    rgba3: __m256i,
+) -> (__m256i, __m256i, __m256i, __m256i) {
+    let permute_rgba = _mm256_setr_epi32(0x0, 0x4, 0x1, 0x5, 0x2, 0x6, 0x3, 0x7);
+
+    let bbgg0 = _mm256_unpacklo_epi32(rgba0, rgba1);
+    let bbgg1 = _mm256_unpacklo_epi32(rgba2, rgba3);
+
+    let row1 = _mm256_permutevar8x32_epi32(_mm256_unpacklo_epi64(bbgg0, bbgg1), permute_rgba);
+    let row2 = _mm256_permutevar8x32_epi32(_mm256_unpackhi_epi64(bbgg0, bbgg1), permute_rgba);
+
+    let rraa0 = _mm256_unpackhi_epi32(rgba0, rgba1);
+    let rraa1 = _mm256_unpackhi_epi32(rgba2, rgba3);
+
+    let row3 = _mm256_permutevar8x32_epi32(_mm256_unpacklo_epi64(rraa0, rraa1), permute_rgba);
+    let row4 = _mm256_permutevar8x32_epi32(_mm256_unpackhi_epi64(rraa0, rraa1), permute_rgba);
+    (row1, row2, row3, row4)
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn avx2_store_u8_rgb(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i) {
+    let (rgb1, rgb2, rgb3) = avx2_interleave_rgb(r, g, b);
 
     _mm256_storeu_si256(ptr as *mut __m256i, rgb1);
     _mm256_storeu_si256(ptr.add(32) as *mut __m256i, rgb2);
@@ -244,7 +358,12 @@ pub unsafe fn store_u8_rgba_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn store_u8_rgba_sse(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a: __m128i) {
+pub unsafe fn sse_interleave_rgba(
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    a: __m128i,
+) -> (__m128i, __m128i, __m128i, __m128i) {
     let rg_lo = _mm_unpacklo_epi8(r, g);
     let rg_hi = _mm_unpackhi_epi8(r, g);
     let ba_lo = _mm_unpacklo_epi8(b, a);
@@ -254,11 +373,17 @@ pub unsafe fn store_u8_rgba_sse(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i
     let rgba_0_hi = _mm_unpackhi_epi16(rg_lo, ba_lo);
     let rgba_1_lo = _mm_unpacklo_epi16(rg_hi, ba_hi);
     let rgba_1_hi = _mm_unpackhi_epi16(rg_hi, ba_hi);
+    (rgba_0_lo, rgba_0_hi, rgba_1_lo, rgba_1_hi)
+}
 
-    _mm_storeu_si128(ptr as *mut __m128i, rgba_0_lo);
-    _mm_storeu_si128(ptr.add(16) as *mut __m128i, rgba_0_hi);
-    _mm_storeu_si128(ptr.add(32) as *mut __m128i, rgba_1_lo);
-    _mm_storeu_si128(ptr.add(48) as *mut __m128i, rgba_1_hi);
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a: __m128i) {
+    let (row1, row2, row3, row4) = sse_interleave_rgba(r, g, b, a);
+    _mm_storeu_si128(ptr as *mut __m128i, row1);
+    _mm_storeu_si128(ptr.add(16) as *mut __m128i, row2);
+    _mm_storeu_si128(ptr.add(32) as *mut __m128i, row3);
+    _mm_storeu_si128(ptr.add(48) as *mut __m128i, row4);
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -333,7 +458,11 @@ pub unsafe fn sse_deinterleave_rgb(
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn store_u8_rgb_sse(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
+pub unsafe fn sse_interleave_rgb(
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+) -> (__m128i, __m128i, __m128i) {
     let sh_a = _mm_setr_epi8(0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15, 10, 5);
     let sh_b = _mm_setr_epi8(5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15, 10);
     let sh_c = _mm_setr_epi8(10, 5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15);
@@ -346,7 +475,13 @@ pub unsafe fn store_u8_rgb_sse(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
     let v0 = _mm_blendv_epi8(_mm_blendv_epi8(a0, b0, m1), c0, m0);
     let v1 = _mm_blendv_epi8(_mm_blendv_epi8(b0, c0, m1), a0, m0);
     let v2 = _mm_blendv_epi8(_mm_blendv_epi8(c0, a0, m1), b0, m0);
+    (v0, v1, v2)
+}
 
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
+    let (v0, v1, v2) = sse_interleave_rgb(r, g, b);
     _mm_storeu_si128(ptr as *mut __m128i, v0);
     _mm_storeu_si128(ptr.add(16) as *mut __m128i, v1);
     _mm_storeu_si128(ptr.add(32) as *mut __m128i, v2);
