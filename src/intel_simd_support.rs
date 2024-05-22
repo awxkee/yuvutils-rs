@@ -41,33 +41,27 @@ pub unsafe fn sse_rgb_to_ycbcr(
     let g_l = _mm_cvtepi16_epi32(g);
     let b_l = _mm_cvtepi16_epi32(b);
 
-    let min_acceptable_values = _mm_setzero_si128();
-
-    let vl = _mm_srai_epi32::<8>(_mm_max_epi32(
-        _mm_add_epi32(
+    let vl = _mm_srai_epi32::<8>(_mm_add_epi32(
             bias,
             _mm_add_epi32(
                 _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_l), _mm_mullo_epi32(coeff_g, g_l)),
                 _mm_mullo_epi32(coeff_b, b_l),
             ),
         ),
-        min_acceptable_values,
-    ));
+    );
 
     let r_h = sse_promote_i16_toi32(r);
     let g_h = sse_promote_i16_toi32(g);
     let b_h = sse_promote_i16_toi32(b);
 
-    let vh = _mm_srai_epi32::<8>(_mm_max_epi32(
-        _mm_add_epi32(
+    let vh = _mm_srai_epi32::<8>(_mm_add_epi32(
             bias,
             _mm_add_epi32(
                 _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_h), _mm_mullo_epi32(coeff_g, g_h)),
                 _mm_mullo_epi32(coeff_b, b_h),
             ),
-        ),
-        min_acceptable_values,
-    ));
+        )
+    );
 
     _mm_packus_epi32(vl, vh)
 }
@@ -144,50 +138,71 @@ pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn store_u8_rgb_avx2(
-    ptr: *mut u8,
-    r: __m256i,
-    g: __m256i,
-    b: __m256i,
-    use_transient: bool,
-) {
-    let zero = _mm256_setzero_si256();
-    let (rg_low, rg_high) = avx2_interleave_u8(r, g);
-    let (ba_low, ba_high) = avx2_interleave_u8(b, zero);
-
-    let (rgba0, rgba1) = avx2_interleave(rg_low, ba_low);
-    let (rgba2, rgba3) = avx2_interleave(rg_high, ba_high);
-
-    #[rustfmt::skip]
-        let shuffle_mask = _mm256_setr_epi8(
-        0, 1, 2,
-        4, 5, 6,
-        8, 9, 10,
-        12, 13, 14,
-        16, 17, 18,
-        20, 21, 22,
-        24, 25, 26,
-        28, 29, 30,
-        -1, -1, -1, -1,
-        -1, -1, -1, -1,
+pub unsafe fn store_u8_rgb_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i) {
+    let permute_0_r_row = _mm256_setr_epi8(
+        0x0, -1, -1, 0x1, -1, -1, 0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1,
+        0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1,
+    );
+    let permute_0_g_row = _mm256_setr_epi8(
+        -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1,
+        -1, 0xA, -1, -1, 0xB, -1, -1, 0xC, -1, -1, 0xD,
+    );
+    let permute_0_b_row = _mm256_setr_epi8(
+        -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1, -1, 0xB, -1, -1, 0xC,
+        -1, -1, 0xD, -1, -1, 0xE, -1, -1, 0xF, -1, -1,
     );
 
-    let rgb0 = _mm256_shuffle_epi8(rgba0, shuffle_mask);
-    let rgb1 = _mm256_shuffle_epi8(rgba1, shuffle_mask);
-    let rgb2 = _mm256_shuffle_epi8(rgba2, shuffle_mask);
-    let rgb3 = _mm256_shuffle_epi8(rgba3, shuffle_mask);
+    let permute_1_r_row = _mm256_setr_epi8(
+        -1, 0x0, -1, -1, 0x1, -1, -1, 0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1,
+        -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA,
+    );
+    let permute_1_g_row = _mm256_setr_epi8(
+        -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9,
+        -1, -1, 0xA, -1, -1, 0xB, -1, -1, 0xC, -1, -1,
+    );
+    let permute_1_b_row = _mm256_setr_epi8(
+        0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1, -1, 0xB, -1, -1,
+        0xC, -1, -1, 0xD, -1, -1, 0xE, -1, -1, 0xF, -1,
+    );
 
-    _mm256_storeu_si256(ptr as *mut __m256i, rgb0);
-    _mm256_storeu_si256(ptr.add(24) as *mut __m256i, rgb1);
-    _mm256_storeu_si256(ptr.add(48) as *mut __m256i, rgb2);
-    if use_transient {
-        _mm256_storeu_si256(ptr.add(72) as *mut __m256i, rgb3);
-    } else {
-        // let mut transient: [u8; 32] = [0u8; 32];
-        // _mm256_storeu_si256(transient.as_mut_ptr() as *mut __m256i, rgb3);
-        // std::ptr::copy_nonoverlapping(transient.as_ptr(), ptr.add(72), 24);
-        std::ptr::copy_nonoverlapping(&rgb3 as *const _ as *const u8, ptr.add(72), 24);
-    }
+    let permute_2_r_row = _mm256_setr_epi8(
+        -1, -1, 0x0, -1, -1, 0x1, -1, -1, 0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6,
+        -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1,
+    );
+    let permute_2_g_row = _mm256_setr_epi8(
+        0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1,
+        0x9, -1, -1, 0xA, -1, -1, 0xB, -1, -1, 0xC, -1,
+    );
+    let permute_2_b_row = _mm256_setr_epi8(
+        -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1, -1, 0xB, -1,
+        -1, 0xC, -1, -1, 0xD, -1, -1, 0xE, -1, -1, 0xF,
+    );
+
+    let rgb1 = _mm256_or_si256(
+        _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x44>(r), permute_0_r_row),
+        _mm256_or_si256(
+            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x44>(g), permute_1_r_row),
+            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x44>(b), permute_2_r_row),
+        ),
+    );
+    let rgb2 = _mm256_or_si256(
+        _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x99>(r), permute_0_g_row),
+        _mm256_or_si256(
+            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x99>(g), permute_1_g_row),
+            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x99>(b), permute_2_g_row),
+        ),
+    );
+    let rgb3 = _mm256_or_si256(
+        _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0xEE>(r), permute_0_b_row),
+        _mm256_or_si256(
+            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0xEE>(g), permute_1_b_row),
+            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0xEE>(b), permute_2_b_row),
+        ),
+    );
+
+    _mm256_storeu_si256(ptr as *mut __m256i, rgb1);
+    _mm256_storeu_si256(ptr.add(32) as *mut __m256i, rgb2);
+    _mm256_storeu_si256(ptr.add(64) as *mut __m256i, rgb3);
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -318,41 +333,21 @@ pub unsafe fn sse_deinterleave_rgb(
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn store_u8_rgb_sse(
-    ptr: *mut u8,
-    r: __m128i,
-    g: __m128i,
-    b: __m128i,
-    use_transient: bool,
-) {
-    #[rustfmt::skip]
-        let shuffle = _mm_setr_epi8(0, 1, 2,
-                                    4, 5, 6,
-                                    8, 9, 10,
-                                    12, 13, 14,
-                                    -1, -1, -1, -1);
-    let zeros = _mm_setzero_si128();
-    let rg_lo = _mm_unpacklo_epi8(r, g);
-    let rg_hi = _mm_unpackhi_epi8(r, g);
-    let ba_lo = _mm_unpacklo_epi8(b, zeros);
-    let ba_hi = _mm_unpackhi_epi8(b, zeros);
+pub unsafe fn store_u8_rgb_sse(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
+    let sh_a = _mm_setr_epi8(0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15, 10, 5);
+    let sh_b = _mm_setr_epi8(5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15, 10);
+    let sh_c = _mm_setr_epi8(10, 5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15);
+    let a0 = _mm_shuffle_epi8(r, sh_a);
+    let b0 = _mm_shuffle_epi8(g, sh_b);
+    let c0 = _mm_shuffle_epi8(b, sh_c);
 
-    let rgba_0_lo = _mm_unpacklo_epi16(rg_lo, ba_lo);
-    let rgba_0_hi = _mm_unpackhi_epi16(rg_lo, ba_lo);
-    let rgba_1_lo = _mm_unpacklo_epi16(rg_hi, ba_hi);
-    let rgba_1_hi = _mm_unpackhi_epi16(rg_hi, ba_hi);
+    let m0 = _mm_setr_epi8(0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0);
+    let m1 = _mm_setr_epi8(0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0);
+    let v0 = _mm_blendv_epi8(_mm_blendv_epi8(a0, b0, m1), c0, m0);
+    let v1 = _mm_blendv_epi8(_mm_blendv_epi8(b0, c0, m1), a0, m0);
+    let v2 = _mm_blendv_epi8(_mm_blendv_epi8(c0, a0, m1), b0, m0);
 
-    let rgb0 = _mm_shuffle_epi8(rgba_0_lo, shuffle);
-    let rgb1 = _mm_shuffle_epi8(rgba_0_hi, shuffle);
-    let rgb2 = _mm_shuffle_epi8(rgba_1_lo, shuffle);
-    let rgb3 = _mm_shuffle_epi8(rgba_1_hi, shuffle);
-
-    _mm_storeu_si128(ptr as *mut __m128i, rgb0);
-    _mm_storeu_si128(ptr.add(12) as *mut __m128i, rgb1);
-    _mm_storeu_si128(ptr.add(24) as *mut __m128i, rgb2);
-    if use_transient {
-        _mm_storeu_si128(ptr.add(36) as *mut __m128i, rgb3);
-    } else {
-        std::ptr::copy(&rgb3 as *const _ as *const u8, ptr.add(36), 12);
-    }
+    _mm_storeu_si128(ptr as *mut __m128i, v0);
+    _mm_storeu_si128(ptr.add(16) as *mut __m128i, v1);
+    _mm_storeu_si128(ptr.add(32) as *mut __m128i, v2);
 }
