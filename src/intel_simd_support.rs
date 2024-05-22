@@ -183,9 +183,10 @@ pub unsafe fn store_u8_rgb_avx2(
     if use_transient {
         _mm256_storeu_si256(ptr.add(72) as *mut __m256i, rgb3);
     } else {
-        let mut transient: [u8; 32] = [0u8; 32];
-        _mm256_storeu_si256(transient.as_mut_ptr() as *mut __m256i, rgb3);
-        std::ptr::copy_nonoverlapping(transient.as_ptr(), ptr.add(72), 24);
+        // let mut transient: [u8; 32] = [0u8; 32];
+        // _mm256_storeu_si256(transient.as_mut_ptr() as *mut __m256i, rgb3);
+        // std::ptr::copy_nonoverlapping(transient.as_ptr(), ptr.add(72), 24);
+        std::ptr::copy_nonoverlapping(&rgb3 as *const _ as *const u8, ptr.add(72), 24);
     }
 }
 
@@ -352,8 +353,6 @@ pub unsafe fn store_u8_rgb_sse(
     if use_transient {
         _mm_storeu_si128(ptr.add(36) as *mut __m128i, rgb3);
     } else {
-        let mut transient: [u8; 16] = [0u8; 16];
-        _mm_storeu_si128(transient.as_mut_ptr() as *mut __m128i, rgb3);
-        std::ptr::copy(transient.as_ptr(), ptr.add(36), 12);
+        std::ptr::copy(&rgb3 as *const _ as *const u8, ptr.add(36), 12);
     }
 }

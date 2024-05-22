@@ -119,12 +119,12 @@ unsafe fn sse_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let cr_h = _mm_avg_epu8(cr, cr);
                 std::ptr::copy_nonoverlapping(
                     &cb_h as *const _ as *const u8,
-                    u_ptr.add(uv_x) as *mut u8,
+                    u_ptr.add(uv_x),
                     8,
                 );
                 std::ptr::copy_nonoverlapping(
                     &cr_h as *const _ as *const u8,
-                    v_ptr.add(uv_x) as *mut u8,
+                    v_ptr.add(uv_x),
                     8,
                 );
                 uv_x += 8;
@@ -190,7 +190,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     #[cfg(target_arch = "x86_64")]
     {
-        if is_x86_feature_detected!("sse4.1") && is_x86_feature_detected!("ssse3") {
+        if is_x86_feature_detected!("sse4.1") {
             use_sse = true;
         }
     }

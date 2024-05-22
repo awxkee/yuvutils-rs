@@ -638,8 +638,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             if chroma_subsampling == YuvChromaSample::YUV420
                 || chroma_subsampling == YuvChromaSample::YUV422
             {
-                if x + 1 < width as usize {
-                    let y_value = (y_plane[y_offset + x + 1] as i32 - bias_y) * y_coef;
+                let next_x = x + 1;
+                if next_x < width as usize {
+                    let y_value = (y_plane[y_offset + next_x] as i32 - bias_y) * y_coef;
 
                     let r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
                     let b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
@@ -647,7 +648,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         .min(255)
                         .max(0);
 
-                    let next_px = (x + 1) * channels;
+                    let next_px = next_x * channels;
 
                     let rgba_shift = rgba_offset + next_px;
 
