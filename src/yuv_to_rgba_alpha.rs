@@ -85,20 +85,8 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
                     v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
                 } else {
-                    let mut transient_u: [u8; 16] = [0u8; 16];
-                    let mut transient_v: [u8; 16] = [0u8; 16];
-                    std::ptr::copy_nonoverlapping(
-                        u_ptr.add(u_offset + uv_x),
-                        transient_u.as_mut_ptr(),
-                        8,
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        v_ptr.add(u_offset + uv_x),
-                        transient_v.as_mut_ptr(),
-                        8,
-                    );
-                    u_values = _mm_loadu_si128(transient_u.as_ptr() as *const __m128i);
-                    v_values = _mm_loadu_si128(transient_v.as_ptr() as *const __m128i);
+                    u_values = _mm_loadu_si64(u_ptr.add(u_offset + uv_x));
+                    v_values = _mm_loadu_si64(v_ptr.add(v_offset + uv_x));
                 }
 
                 u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
@@ -294,10 +282,10 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 let u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
 
-                u_high_u8 = sse_interleave_even(_mm_unpackhi_epi8(u_values, u_values));
-                v_high_u8 = sse_interleave_odd(_mm_unpackhi_epi8(v_values, v_values));
-                u_low_u8 = sse_interleave_even(_mm_unpacklo_epi8(u_values, u_values));
-                v_low_u8 = sse_interleave_odd(_mm_unpacklo_epi8(v_values, v_values));
+                u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
+                v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
+                u_low_u8 = _mm_unpacklo_epi8(u_values, u_values);
+                v_low_u8 = _mm_unpacklo_epi8(v_values, v_values);
             }
             YuvChromaSample::YUV444 => {
                 let u_values = _mm256_loadu_si256(u_ptr.add(u_offset + uv_x) as *const __m256i);
