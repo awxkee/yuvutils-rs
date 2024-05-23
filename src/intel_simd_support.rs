@@ -453,7 +453,7 @@ pub unsafe fn avx2_pairwise_add(v: __m256i) -> __m256i {
 #[inline(always)]
 pub unsafe fn sse_pairwise_add(v: __m128i) -> __m128i {
     let evens = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
-    let odds = _mm_setr_epi8(1, 3, 5, 7, 9, 11, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    let odds = _mm_setr_epi8(1, 3, 5, 7, 9, 11, 13, 15, -1, -1, -1, -1, -1, -1, -1, -1);
 
     let evens_16 = _mm_cvtepu8_epi16(_mm_shuffle_epi8(v, evens));
     let odds_16 = _mm_cvtepu8_epi16(_mm_shuffle_epi8(v, odds));
