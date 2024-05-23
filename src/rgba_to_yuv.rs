@@ -64,8 +64,8 @@ unsafe fn avx_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         match source_channels {
             YuvSourceChannels::Rgb => {
                 let row_1 = _mm256_loadu_si256(rgba_ptr.add(px) as *const __m256i);
-                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 16) as *const __m256i);
-                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
+                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
+                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 64) as *const __m256i);
 
                 let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
                 r_values = it1;
@@ -74,9 +74,9 @@ unsafe fn avx_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
                 let row_1 = _mm256_loadu_si256(rgba_ptr.add(px) as *const __m256i);
-                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 16) as *const __m256i);
-                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
-                let row_4 = _mm256_loadu_si256(rgba_ptr.add(px + 48) as *const __m256i);
+                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
+                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 64) as *const __m256i);
+                let row_4 = _mm256_loadu_si256(rgba_ptr.add(px + 96) as *const __m256i);
 
                 let (it1, it2, it3, _) = avx2_deinterleave_rgba(row_1, row_2, row_3, row_4);
                 if source_channels == YuvSourceChannels::Rgba {
