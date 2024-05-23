@@ -80,14 +80,11 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3,
+                                                        4, 4, 5, 5, 6, 6, 7, 7);
                 let (u_values, v_values);
-                if cx + 24 < width {
-                    u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
-                    v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
-                } else {
-                    u_values = _mm_loadu_si64(u_ptr.add(u_offset + uv_x));
-                    v_values = _mm_loadu_si64(v_ptr.add(v_offset + uv_x));
-                }
+                u_values = _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(u_offset + uv_x)), reshuffle);
+                v_values = _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(v_offset + uv_x)), reshuffle);
 
                 u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
                 v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
@@ -481,9 +478,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
 
     #[cfg(target_arch = "x86_64")]
-    let mut use_avx2 = false;
+        let mut use_avx2 = false;
     #[cfg(target_arch = "x86_64")]
-    let mut use_sse = false;
+        let mut use_sse = false;
 
     #[cfg(target_arch = "x86_64")]
     {
@@ -496,12 +493,12 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     for y in 0..height as usize {
         #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut cx = 0usize;
+            #[allow(unused_mut)]
+            let mut cx = 0usize;
 
         #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut uv_x = 0usize;
+            #[allow(unused_mut)]
+            let mut uv_x = 0usize;
 
         #[cfg(all(target_arch = "x86_64"))]
         unsafe {

@@ -30,7 +30,7 @@ pub unsafe fn sse_promote_i16_toi32(s: __m128i) -> __m128i {
 pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     #[rustfmt::skip]
         let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
-                                        8, 8, 10, 10, 12, 12, 14, 14);
+                                    8, 8, 10, 10, 12, 12, 14, 14);
     let new_lane = _mm_shuffle_epi8(x, shuffle);
     return new_lane;
 }
@@ -90,7 +90,7 @@ pub unsafe fn avx2_interleave_odd(x: __m256i) -> __m256i {
 pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
     #[rustfmt::skip]
         let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7,
-                                        9, 9, 11, 11, 13, 13, 15, 15);
+                                    9, 9, 11, 11, 13, 13, 15, 15);
     let new_lane = _mm_shuffle_epi8(x, shuffle);
     return new_lane;
 }
@@ -420,4 +420,13 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
     _mm_storeu_si128(ptr as *mut __m128i, v0);
     _mm_storeu_si128(ptr.add(16) as *mut __m128i, v1);
     _mm_storeu_si128(ptr.add(32) as *mut __m128i, v2);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn pairwise_add(v: __m256i) -> __m256i {
+    let mask = _mm256_setr_epi8(1,3,5,7,9, 11, 13, 15,17,19, 21, 23,
+    25, 27,29, 31,-1, -1, -1, -1, -1, -1,-1, -1,-1,-1,-1,
+                                -1,-1,-1,-1,-1);
+    return _mm256_avg_epu8(v, _mm256_shuffle_epi8(v, mask));
 }
