@@ -424,9 +424,33 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn pairwise_add(v: __m256i) -> __m256i {
-    let mask = _mm256_setr_epi8(1,3,5,7,9, 11, 13, 15,17,19, 21, 23,
-    25, 27,29, 31,-1, -1, -1, -1, -1, -1,-1, -1,-1,-1,-1,
-                                -1,-1,-1,-1,-1);
-    return _mm256_avg_epu8(v, _mm256_shuffle_epi8(v, mask));
+pub unsafe fn avx2_pairwise_add(v: __m256i) -> __m256i {
+    let evens = _mm256_setr_epi8(
+        0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1,
+    );
+    let odds = _mm256_setr_epi8(
+        1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1,
+    );
+
+    let evens_16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(_mm256_shuffle_epi8(v, evens)));
+    let odds_16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(_mm256_shuffle_epi8(v, odds)));
+    let sums = _mm256_avg_epu16(evens_16, odds_16);
+    let packed_lo = _mm256_packus_epi16(sums, sums);
+    const MASK: i32 = shuffle(3, 1, 2, 0);
+    return _mm256_permute4x64_epi64::<MASK>(packed_lo);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+pub unsafe fn sse_pairwise_add(v: __m128i) -> __m128i {
+    let evens = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
+    let odds = _mm_setr_epi8(1, 3, 5, 7, 9, 11, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+
+    let evens_16 = _mm_cvtepu8_epi16(_mm_shuffle_epi8(v, evens));
+    let odds_16 = _mm_cvtepu8_epi16(_mm_shuffle_epi8(v, odds));
+    let sums = _mm_avg_epu16(evens_16, odds_16);
+    let packed = _mm_packus_epi16(sums, sums);
+    packed
 }
