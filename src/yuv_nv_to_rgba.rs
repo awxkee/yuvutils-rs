@@ -171,7 +171,7 @@ unsafe fn avx2_process_row<
                 avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
-                store_u8_rgba_avx2(
+                avx2_store_u8_rgba(
                     rgba_ptr.add(dst_shift),
                     r_values,
                     g_values,
@@ -180,7 +180,7 @@ unsafe fn avx2_process_row<
                 );
             }
             YuvSourceChannels::Bgra => {
-                store_u8_rgba_avx2(
+                avx2_store_u8_rgba(
                     rgba_ptr.add(dst_shift),
                     b_values,
                     g_values,

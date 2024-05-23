@@ -174,12 +174,12 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         if use_premultiply {
             let a_h = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(a_values));
             let a_l = _mm_cvtepu8_epi16(a_values);
-            let r_h_16 = _mm_srli_epi16::<8>(_mm_adds_epi16(_mm_mullo_epi16(r_high, a_h), h_round));
-            let r_l_16 = _mm_srli_epi16::<8>(_mm_adds_epi16(_mm_mullo_epi16(r_low, a_l), h_round));
-            let g_h_16 = _mm_srli_epi16::<8>(_mm_adds_epi16(_mm_mullo_epi16(g_high, a_h), h_round));
-            let g_l_16 = _mm_srli_epi16::<8>(_mm_adds_epi16(_mm_mullo_epi16(g_low, a_l), h_round));
-            let b_h_16 = _mm_srli_epi16::<8>(_mm_adds_epi16(_mm_mullo_epi16(b_high, a_h), h_round));
-            let b_l_16 = _mm_srli_epi16::<8>(_mm_adds_epi16(_mm_mullo_epi16(b_low, a_l), h_round));
+            let r_h_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(r_high, a_h), h_round));
+            let r_l_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(r_low, a_l), h_round));
+            let g_h_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(g_high, a_h), h_round));
+            let g_l_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(g_low, a_l), h_round));
+            let b_h_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(b_high, a_h), h_round));
+            let b_l_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(b_low, a_l), h_round));
 
             r_values = _mm_packus_epi16(r_l_16, r_h_16);
             g_values = _mm_packus_epi16(g_l_16, g_h_16);
@@ -367,27 +367,27 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         if use_premultiply {
             let a_high = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(a_values));
             let a_low = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(a_values));
-            let r_l = _mm256_srli_epi16::<8>(_mm256_adds_epi16(
+            let r_l = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
                 _mm256_mullo_epi16(r_low, a_low),
                 v_round_add,
             ));
-            let r_h = _mm256_srli_epi16::<8>(_mm256_adds_epi16(
+            let r_h = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
                 _mm256_mullo_epi16(r_high, a_high),
                 v_round_add,
             ));
-            let g_l = _mm256_srli_epi16::<8>(_mm256_adds_epi16(
+            let g_l = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
                 _mm256_mullo_epi16(g_low, a_low),
                 v_round_add,
             ));
-            let g_h = _mm256_srli_epi16::<8>(_mm256_adds_epi16(
+            let g_h = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
                 _mm256_mullo_epi16(g_high, a_high),
                 v_round_add,
             ));
-            let b_l = _mm256_srli_epi16::<8>(_mm256_adds_epi16(
+            let b_l = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
                 _mm256_mullo_epi16(b_low, a_low),
                 v_round_add,
             ));
-            let b_h = _mm256_srli_epi16::<8>(_mm256_adds_epi16(
+            let b_h = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
                 _mm256_mullo_epi16(b_high, a_high),
                 v_round_add,
             ));
@@ -405,12 +405,11 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
                 let ptr = rgba_ptr.add(dst_shift);
                 avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
-                store_u8_rgba_avx2(
+                avx2_store_u8_rgba(
                     rgba_ptr.add(dst_shift),
                     r_values,
                     g_values,
@@ -419,7 +418,7 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 );
             }
             YuvSourceChannels::Bgra => {
-                store_u8_rgba_avx2(
+                avx2_store_u8_rgba(
                     rgba_ptr.add(dst_shift),
                     b_values,
                     g_values,

@@ -278,7 +278,7 @@ pub unsafe fn avx2_interleave_u8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn store_u8_rgba_avx2(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, a: __m256i) {
+pub unsafe fn avx2_store_u8_rgba(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, a: __m256i) {
     let (rg_low, rg_high) = avx2_interleave_u8(r, g);
     let (ba_low, ba_high) = avx2_interleave_u8(b, a);
 
