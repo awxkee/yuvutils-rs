@@ -139,7 +139,11 @@ pub unsafe fn avx2_interleave_rgb(
     let p1 = _mm256_blendv_epi8(_mm256_blendv_epi8(g0, r0, m0), b0, m1);
     let p2 = _mm256_blendv_epi8(_mm256_blendv_epi8(r0, b0, m0), g0, m1);
 
-    (p0, p1, p2)
+    let bgr0 = _mm256_permute2x128_si256::<32>(p0, p1);
+    let bgr1 = _mm256_permute2x128_si256::<48>(p2, p0);
+    let bgr2 = _mm256_permute2x128_si256::<49>(p1, p2);
+
+    (bgr0, bgr1, bgr2)
 }
 
 #[cfg(target_arch = "x86_64")]
