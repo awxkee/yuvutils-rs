@@ -66,8 +66,6 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let v_g_coeff_1 = _mm_set1_epi16(-1 * transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm_set1_epi16(-1 * transform.g_coeff_2 as i16);
 
-    let h_round = _mm_set1_epi16(127);
-
     while cx + 16 < width {
         let y_values = _mm_subs_epi8(
             _mm_loadu_si128(y_ptr.add(y_offset + cx) as *const __m128i),
@@ -80,8 +78,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3,
-                                                        4, 4, 5, 5, 6, 6, 7, 7);
+                let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
                 let (u_values, v_values);
                 u_values = _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(u_offset + uv_x)), reshuffle);
                 v_values = _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(v_offset + uv_x)), reshuffle);
@@ -130,10 +127,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         let u_low = _mm_sub_epi16(_mm_cvtepu8_epi16(u_low_u8), uv_corr);
         let v_low = _mm_sub_epi16(_mm_cvtepu8_epi16(v_low_u8), uv_corr);
-        let y_low = _mm_mullo_epi16(
-            _mm_cvtepu8_epi16(y_values),
-            v_luma_coeff,
-        );
+        let y_low = _mm_mullo_epi16(_mm_cvtepu8_epi16(y_values), v_luma_coeff);
 
         let r_low = _mm_srai_epi16::<6>(_mm_max_epi16(
             _mm_adds_epi16(y_low, _mm_mullo_epi16(v_low, v_cr_coeff)),
@@ -159,12 +153,12 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         if use_premultiply {
             let a_h = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(a_values));
             let a_l = _mm_cvtepu8_epi16(a_values);
-            let r_h_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(r_high, a_h), h_round));
-            let r_l_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(r_low, a_l), h_round));
-            let g_h_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(g_high, a_h), h_round));
-            let g_l_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(g_low, a_l), h_round));
-            let b_h_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(b_high, a_h), h_round));
-            let b_l_16 = _mm_srli_epi16::<8>(_mm_adds_epu16(_mm_mullo_epi16(b_low, a_l), h_round));
+            let r_h_16 = sse_div_by255(_mm_mullo_epi16(r_high, a_h));
+            let r_l_16 = sse_div_by255(_mm_mullo_epi16(r_low, a_l));
+            let g_h_16 = sse_div_by255(_mm_mullo_epi16(g_high, a_h));
+            let g_l_16 = sse_div_by255(_mm_mullo_epi16(g_low, a_l));
+            let b_h_16 = sse_div_by255(_mm_mullo_epi16(b_high, a_h));
+            let b_l_16 = sse_div_by255(_mm_mullo_epi16(b_low, a_l));
 
             r_values = _mm_packus_epi16(r_l_16, r_h_16);
             g_values = _mm_packus_epi16(g_l_16, g_h_16);
@@ -179,12 +173,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                );
+                sse_store_rgb_u8(rgba_ptr.add(dst_shift), r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
                 sse_store_rgba(
@@ -262,7 +251,6 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let v_min_values = _mm256_setzero_si256();
     let v_g_coeff_1 = _mm256_set1_epi16(-1 * transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm256_set1_epi16(-1 * transform.g_coeff_2 as i16);
-    let v_round_add = _mm256_set1_epi16(127);
 
     while cx + 32 < width {
         let y_values = _mm256_subs_epi8(
@@ -352,30 +340,13 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         if use_premultiply {
             let a_high = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(a_values));
             let a_low = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(a_values));
-            let r_l = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
-                _mm256_mullo_epi16(r_low, a_low),
-                v_round_add,
-            ));
-            let r_h = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
-                _mm256_mullo_epi16(r_high, a_high),
-                v_round_add,
-            ));
-            let g_l = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
-                _mm256_mullo_epi16(g_low, a_low),
-                v_round_add,
-            ));
-            let g_h = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
-                _mm256_mullo_epi16(g_high, a_high),
-                v_round_add,
-            ));
-            let b_l = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
-                _mm256_mullo_epi16(b_low, a_low),
-                v_round_add,
-            ));
-            let b_h = _mm256_srli_epi16::<8>(_mm256_adds_epu16(
-                _mm256_mullo_epi16(b_high, a_high),
-                v_round_add,
-            ));
+
+            let r_l = avx2_div_by255(_mm256_mullo_epi16(r_low, a_low));
+            let r_h = avx2_div_by255(_mm256_mullo_epi16(r_high, a_high));
+            let g_l = avx2_div_by255(_mm256_mullo_epi16(g_low, a_low));
+            let g_h = avx2_div_by255(_mm256_mullo_epi16(g_high, a_high));
+            let b_l = avx2_div_by255(_mm256_mullo_epi16(b_low, a_low));
+            let b_h = avx2_div_by255(_mm256_mullo_epi16(b_high, a_high));
 
             r_values = demote_i16_to_u8(r_l, r_h);
             g_values = demote_i16_to_u8(g_l, g_h);
@@ -478,9 +449,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
 
     #[cfg(target_arch = "x86_64")]
-        let mut use_avx2 = false;
+    let mut use_avx2 = false;
     #[cfg(target_arch = "x86_64")]
-        let mut use_sse = false;
+    let mut use_sse = false;
 
     #[cfg(target_arch = "x86_64")]
     {
@@ -493,12 +464,12 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     for y in 0..height as usize {
         #[allow(unused_variables)]
-            #[allow(unused_mut)]
-            let mut cx = 0usize;
+        #[allow(unused_mut)]
+        let mut cx = 0usize;
 
         #[allow(unused_variables)]
-            #[allow(unused_mut)]
-            let mut uv_x = 0usize;
+        #[allow(unused_mut)]
+        let mut uv_x = 0usize;
 
         #[cfg(all(target_arch = "x86_64"))]
         unsafe {

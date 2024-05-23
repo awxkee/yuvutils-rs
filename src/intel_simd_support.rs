@@ -454,3 +454,25 @@ pub unsafe fn sse_pairwise_add(v: __m128i) -> __m128i {
     let packed = _mm_packus_epi16(sums, sums);
     packed
 }
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
+    let rounding = _mm256_set1_epi16(1 << 7);
+    let x = _mm256_add_epi16(v, rounding);
+    let multiplier = _mm256_set1_epi16(-32640);
+    let r = _mm256_mulhi_epu16(x, multiplier);
+    return _mm256_srli_epi16::<7>(r);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
+    let rounding = _mm_set1_epi16(1 << 7);
+    let x = _mm_add_epi16(v, rounding);
+    let multiplier = _mm_set1_epi16(-32640);
+    let r = _mm_mulhi_epu16(x, multiplier);
+    return _mm_srli_epi16::<7>(r);
+}
