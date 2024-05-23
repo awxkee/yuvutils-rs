@@ -271,28 +271,6 @@ pub unsafe fn avx2_store_u8_rgb(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-pub unsafe fn avx2_interleave(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
-    let v02 = _mm256_unpacklo_epi16(a, b);
-    let v13 = _mm256_unpackhi_epi16(a, b);
-    return (
-        _mm256_permute2x128_si256::<0x20>(v02, v13),
-        _mm256_permute2x128_si256::<0x31>(v02, v13),
-    );
-}
-
-#[cfg(target_arch = "x86_64")]
-#[inline(always)]
-pub unsafe fn avx2_interleave_u8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
-    let v02 = _mm256_unpacklo_epi8(a, b);
-    let v13 = _mm256_unpackhi_epi8(a, b);
-    return (
-        _mm256_permute2x128_si256::<0x20>(v02, v13),
-        _mm256_permute2x128_si256::<0x31>(v02, v13),
-    );
-}
-
-#[cfg(target_arch = "x86_64")]
-#[inline(always)]
 pub unsafe fn avx2_store_u8_rgba(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, a: __m256i) {
     let bg0 = _mm256_unpacklo_epi8(r, g);
     let bg1 = _mm256_unpackhi_epi8(r, g);
