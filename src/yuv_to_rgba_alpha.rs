@@ -1,3 +1,10 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
 #[cfg(target_arch = "x86_64")]
 use crate::intel_simd_support::*;
 #[allow(unused_imports)]
@@ -10,18 +17,7 @@ use core::arch::x86_64::*;
 #[cfg(target_arch = "aarch64")]
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::*;
-
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
-#[inline(always)]
-unsafe fn premutiply_vector(v: uint8x16_t, a_values: uint8x16_t) -> uint8x16_t {
-    let initial = vdupq_n_u16(127);
-    let acc_hi = vqaddq_u16(initial, vmull_high_u8(v, a_values));
-    let acc_lo = vqaddq_u16(initial, vmull_u8(vget_low_u8(v), vget_low_u8(a_values)));
-    let hi = vqshrn_n_u16::<8>(acc_hi);
-    let lo = vqshrn_n_u16::<8>(acc_lo);
-    vcombine_u8(lo, hi)
-}
+use crate::neon_simd_support::neon_premultiply_alpha;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
@@ -617,9 +613,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 let dst_shift = rgba_offset + cx * channels;
 
                 if premultiply_alpha {
-                    r_values = premutiply_vector(r_values, a_values);
-                    g_values = premutiply_vector(g_values, a_values);
-                    b_values = premutiply_vector(b_values, a_values);
+                    r_values = neon_premultiply_alpha(r_values, a_values);
+                    g_values = neon_premultiply_alpha(g_values, a_values);
+                    b_values = neon_premultiply_alpha(b_values, a_values);
                 }
 
                 match destination_channels {
@@ -680,9 +676,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let a_value = a_plane[a_offset + x];
             if premultiply_alpha {
-                r = (r * a_value as i32 + 127i32) >> 8;
-                g = (g * a_value as i32 + 127i32) >> 8;
-                b = (b * a_value as i32 + 127i32) >> 8;
+                r = (r * a_value as i32) / 255;
+                g = (g * a_value as i32) / 255;
+                b = (b * a_value as i32) / 255;
             }
 
             rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
@@ -709,9 +705,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
                     let a_value = a_plane[a_offset + next_x];
                     if premultiply_alpha {
-                        r = (r * a_value as i32 + 127i32) >> 8;
-                        g = (g * a_value as i32 + 127i32) >> 8;
-                        b = (b * a_value as i32 + 127i32) >> 8;
+                        r = (r * a_value as i32) / 255;
+                        g = (g * a_value as i32) / 255;
+                        b = (b * a_value as i32) / 255;
                     }
 
                     rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;

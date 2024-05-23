@@ -1,3 +1,10 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
 mod rgba_to_yuv;
 mod yuv_nv_to_rgba;
 mod yuv_nv_p10_to_rgba;
@@ -11,6 +18,7 @@ mod rgba_to_nv;
 mod internals;
 mod intel_simd_support;
 mod intel_ycbcr_compute;
+mod neon_simd_support;
 
 pub use yuv_support::YuvStandardMatrix;
 pub use yuv_support::YuvRange;
