@@ -109,67 +109,37 @@ pub unsafe fn avx2_interleave_rgb(
     g: __m256i,
     b: __m256i,
 ) -> (__m256i, __m256i, __m256i) {
-    let permute_0_r_row = _mm256_setr_epi8(
-        0x0, -1, -1, 0x1, -1, -1, 0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1,
-        0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1,
+    let sh_b = _mm256_setr_epi8(
+        0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15, 10, 5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14,
+        9, 4, 15, 10, 5,
     );
-    let permute_0_g_row = _mm256_setr_epi8(
-        -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1,
-        -1, 0xA, -1, -1, 0xB, -1, -1, 0xC, -1, -1, 0xD,
+    let sh_g = _mm256_setr_epi8(
+        5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15, 10, 5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3,
+        14, 9, 4, 15, 10,
     );
-    let permute_0_b_row = _mm256_setr_epi8(
-        -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1, -1, 0xB, -1, -1, 0xC,
-        -1, -1, 0xD, -1, -1, 0xE, -1, -1, 0xF, -1, -1,
-    );
-
-    let permute_1_r_row = _mm256_setr_epi8(
-        -1, 0x0, -1, -1, 0x1, -1, -1, 0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1,
-        -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA,
-    );
-    let permute_1_g_row = _mm256_setr_epi8(
-        -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9,
-        -1, -1, 0xA, -1, -1, 0xB, -1, -1, 0xC, -1, -1,
-    );
-    let permute_1_b_row = _mm256_setr_epi8(
-        0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1, -1, 0xB, -1, -1,
-        0xC, -1, -1, 0xD, -1, -1, 0xE, -1, -1, 0xF, -1,
+    let sh_r = _mm256_setr_epi8(
+        10, 5, 0, 11, 6, 1, 12, 7, 2, 13, 8, 3, 14, 9, 4, 15, 10, 5, 0, 11, 6, 1, 12, 7, 2, 13, 8,
+        3, 14, 9, 4, 15,
     );
 
-    let permute_2_r_row = _mm256_setr_epi8(
-        -1, -1, 0x0, -1, -1, 0x1, -1, -1, 0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6,
-        -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1,
+    let b0 = _mm256_shuffle_epi8(r, sh_b);
+    let g0 = _mm256_shuffle_epi8(g, sh_g);
+    let r0 = _mm256_shuffle_epi8(b, sh_r);
+
+    let m0 = _mm256_setr_epi8(
+        0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+        0, 0, -1, 0, 0,
     );
-    let permute_2_g_row = _mm256_setr_epi8(
-        0x2, -1, -1, 0x3, -1, -1, 0x4, -1, -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1,
-        0x9, -1, -1, 0xA, -1, -1, 0xB, -1, -1, 0xC, -1,
-    );
-    let permute_2_b_row = _mm256_setr_epi8(
-        -1, 0x5, -1, -1, 0x6, -1, -1, 0x7, -1, -1, 0x8, -1, -1, 0x9, -1, -1, 0xA, -1, -1, 0xB, -1,
-        -1, 0xC, -1, -1, 0xD, -1, -1, 0xE, -1, -1, 0xF,
+    let m1 = _mm256_setr_epi8(
+        0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+        -1, 0, 0, -1, 0,
     );
 
-    let rgb1 = _mm256_or_si256(
-        _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x44>(r), permute_0_r_row),
-        _mm256_or_si256(
-            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x44>(g), permute_1_r_row),
-            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x44>(b), permute_2_r_row),
-        ),
-    );
-    let rgb2 = _mm256_or_si256(
-        _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x99>(r), permute_0_g_row),
-        _mm256_or_si256(
-            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x99>(g), permute_1_g_row),
-            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0x99>(b), permute_2_g_row),
-        ),
-    );
-    let rgb3 = _mm256_or_si256(
-        _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0xEE>(r), permute_0_b_row),
-        _mm256_or_si256(
-            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0xEE>(g), permute_1_b_row),
-            _mm256_shuffle_epi8(_mm256_permute4x64_epi64::<0xEE>(b), permute_2_b_row),
-        ),
-    );
-    (rgb1, rgb2, rgb3)
+    let p0 = _mm256_blendv_epi8(_mm256_blendv_epi8(b0, g0, m0), r0, m1);
+    let p1 = _mm256_blendv_epi8(_mm256_blendv_epi8(g0, r0, m0), b0, m1);
+    let p2 = _mm256_blendv_epi8(_mm256_blendv_epi8(r0, b0, m0), g0, m1);
+
+    (p0, p1, p2)
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -274,7 +244,7 @@ pub unsafe fn avx2_store_u8_rgb(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i
 pub unsafe fn avx2_store_u8_rgba(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, a: __m256i) {
     let bg0 = _mm256_unpacklo_epi8(r, g);
     let bg1 = _mm256_unpackhi_epi8(r, g);
-    let ra0 = _mm256_unpacklo_epi8(b,a);
+    let ra0 = _mm256_unpacklo_epi8(b, a);
     let ra1 = _mm256_unpackhi_epi8(b, a);
 
     let rgba0_ = _mm256_unpacklo_epi16(bg0, ra0);
