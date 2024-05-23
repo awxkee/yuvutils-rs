@@ -5,8 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 use std::slice;
 
@@ -91,8 +90,7 @@ fn yuv_nv12_p10_to_bgra_impl<
         };
         let uv_ld = unsafe { slice::from_raw_parts(uv_ld_ptr, uv_length) };
 
-        #[cfg(target_arch = "aarch64")]
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let dst_ptr = bgra.as_mut_ptr();
 

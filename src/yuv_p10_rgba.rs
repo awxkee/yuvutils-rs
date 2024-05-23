@@ -5,16 +5,8 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
-use std::arch::aarch64::{
-    int16x4_t, int16x8_t, uint8x8x3_t, uint8x8x4_t, vcombine_s16, vdup_n_s16, vdup_n_u8,
-    vdupq_n_s16, vget_low_s16, vld1_u16, vld1q_u16, vmaxq_s16, vmlal_s16, vmull_high_s16,
-    vmull_s16, vqshrun_n_s16, vreinterpret_s16_u16, vreinterpret_u16_u8, vreinterpret_u8_u16,
-    vreinterpretq_s16_u16, vreinterpretq_u16_u8, vreinterpretq_u8_u16, vrev16_u8, vrev16q_u8,
-    vshr_n_u16, vshrn_n_s32, vshrq_n_u16, vst3_u8, vst4_u8, vsub_s16, vsubq_s16, vzip1_s16,
-    vzip2_s16,
-};
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use std::arch::aarch64::*;
 use std::slice;
 
 use crate::yuv_support::{
@@ -86,8 +78,7 @@ fn yuv_p10_to_rgbx_impl<
         let v_ld_ptr = unsafe { v_src_ptr.offset(v_offset as isize) as *const u16 };
         let v_ld = unsafe { slice::from_raw_parts(v_ld_ptr, width as usize) };
 
-        #[cfg(target_arch = "aarch64")]
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let dst_ptr = rgba.as_mut_ptr();
 

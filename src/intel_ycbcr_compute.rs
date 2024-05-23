@@ -5,10 +5,10 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 #[allow(unused_imports)]
 use crate::intel_simd_support::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
@@ -29,7 +29,10 @@ pub unsafe fn avx2_rgb_to_ycbcr(
     let vl = _mm256_srai_epi32::<8>(_mm256_add_epi32(
         bias,
         _mm256_add_epi32(
-            _mm256_add_epi32(_mm256_mullo_epi32(coeff_r, r_l), _mm256_mullo_epi32(coeff_g, g_l)),
+            _mm256_add_epi32(
+                _mm256_mullo_epi32(coeff_r, r_l),
+                _mm256_mullo_epi32(coeff_g, g_l),
+            ),
             _mm256_mullo_epi32(coeff_b, b_l),
         ),
     ));
@@ -41,7 +44,10 @@ pub unsafe fn avx2_rgb_to_ycbcr(
     let vh = _mm256_srai_epi32::<8>(_mm256_add_epi32(
         bias,
         _mm256_add_epi32(
-            _mm256_add_epi32(_mm256_mullo_epi32(coeff_r, r_h), _mm256_mullo_epi32(coeff_g, g_h)),
+            _mm256_add_epi32(
+                _mm256_mullo_epi32(coeff_r, r_h),
+                _mm256_mullo_epi32(coeff_g, g_h),
+            ),
             _mm256_mullo_epi32(coeff_b, b_h),
         ),
     ));

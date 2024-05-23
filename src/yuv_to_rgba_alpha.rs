@@ -9,6 +9,8 @@
 use crate::intel_simd_support::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon_simd_support::*;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
 use crate::{YuvRange, YuvStandardMatrix};
@@ -16,8 +18,6 @@ use crate::{YuvRange, YuvStandardMatrix};
 use core::arch::x86_64::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon_simd_support::*;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
@@ -445,9 +445,9 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
 
     #[cfg(target_arch = "x86_64")]
-        let mut use_avx2 = false;
+    let mut use_avx2 = false;
     #[cfg(target_arch = "x86_64")]
-        let mut use_sse = false;
+    let mut use_sse = false;
 
     #[cfg(target_arch = "x86_64")]
     {
@@ -460,12 +460,12 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     for y in 0..height as usize {
         #[allow(unused_variables)]
-            #[allow(unused_mut)]
-            let mut cx = 0usize;
+        #[allow(unused_mut)]
+        let mut cx = 0usize;
 
         #[allow(unused_variables)]
-            #[allow(unused_mut)]
-            let mut uv_x = 0usize;
+        #[allow(unused_mut)]
+        let mut uv_x = 0usize;
 
         #[cfg(all(target_arch = "x86_64"))]
         unsafe {
@@ -514,8 +514,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
 
-        #[cfg(target_arch = "aarch64")]
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let y_ptr = y_plane.as_ptr();
             let u_ptr = u_plane.as_ptr();

@@ -11,8 +11,7 @@ use crate::intel_simd_support::*;
 #[allow(unused_imports)]
 use crate::internals::*;
 use crate::yuv_support::*;
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -511,8 +510,7 @@ fn yuv_nv12_to_rgbx<
             }
         }
 
-        #[cfg(target_arch = "aarch64")]
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let y_ptr = y_plane.as_ptr();
             let uv_ptr = uv_plane.as_ptr();

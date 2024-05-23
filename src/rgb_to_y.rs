@@ -5,14 +5,183 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
+#[cfg(target_arch = "x86_64")]
+use crate::intel_simd_support::*;
+#[cfg(target_arch = "x86_64")]
+use crate::intel_ycbcr_compute::*;
+#[allow(unused_imports)]
+use crate::internals::ProcessedOffset;
+use crate::yuv_support::*;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
-use crate::yuv_support::{
-    get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvRange,
-    YuvSourceChannels, YuvStandardMatrix,
-};
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+unsafe fn avx_row<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: *mut u8,
+    rgba: &[u8],
+    y_offset: usize,
+    rgba_offset: usize,
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let channels = source_channels.get_channels_count();
+
+    let y_ptr = y_plane.add(y_offset);
+    let rgba_ptr = rgba.as_ptr().add(rgba_offset);
+
+    let mut cx = start_cx;
+
+    let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
+
+    while cx + 32 < width {
+        let y_bias = _mm256_set1_epi32(bias_y);
+        let v_yr = _mm256_set1_epi32(transform.yr);
+        let v_yg = _mm256_set1_epi32(transform.yg);
+        let v_yb = _mm256_set1_epi32(transform.yb);
+
+        let (r_values, g_values, b_values);
+
+        let px = cx * channels;
+
+        match source_channels {
+            YuvSourceChannels::Rgb => {
+                let row_1 = _mm256_loadu_si256(rgba_ptr.add(px) as *const __m256i);
+                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
+                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 64) as *const __m256i);
+
+                let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            }
+            YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+                let row_1 = _mm256_loadu_si256(rgba_ptr.add(px) as *const __m256i);
+                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
+                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 64) as *const __m256i);
+                let row_4 = _mm256_loadu_si256(rgba_ptr.add(px + 96) as *const __m256i);
+
+                let (it1, it2, it3, _) = avx2_deinterleave_rgba(row_1, row_2, row_3, row_4);
+                if source_channels == YuvSourceChannels::Rgba {
+                    r_values = it1;
+                    g_values = it2;
+                    b_values = it3;
+                } else {
+                    r_values = it3;
+                    g_values = it2;
+                    b_values = it1;
+                }
+            }
+        }
+
+        let r_low = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
+        let r_high = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(r_values));
+        let g_low = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
+        let g_high = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(g_values));
+        let b_low = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values));
+        let b_high = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(b_values));
+
+        let y_l = avx2_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
+
+        let y_h = avx2_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
+
+        let y_yuv = demote_i16_to_u8(y_l, y_h);
+
+        _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
+
+        cx += 32;
+    }
+
+    return cx;
+}
+
+#[cfg(target_arch = "x86_64")]
+#[inline(always)]
+unsafe fn sse_row<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: *mut u8,
+    rgba: &[u8],
+    y_offset: usize,
+    rgba_offset: usize,
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let channels = source_channels.get_channels_count();
+
+    let y_ptr = y_plane.add(y_offset);
+    let rgba_ptr = rgba.as_ptr().add(rgba_offset);
+
+    let mut cx = start_cx;
+
+    let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
+
+    while cx + 16 < width {
+        let y_bias = _mm_set1_epi32(bias_y);
+        let v_yr = _mm_set1_epi32(transform.yr);
+        let v_yg = _mm_set1_epi32(transform.yg);
+        let v_yb = _mm_set1_epi32(transform.yb);
+
+        let (r_values, g_values, b_values);
+
+        let px = cx * channels;
+
+        match source_channels {
+            YuvSourceChannels::Rgb => {
+                let row_1 = _mm_loadu_si128(rgba_ptr.add(px) as *const __m128i);
+                let row_2 = _mm_loadu_si128(rgba_ptr.add(px + 16) as *const __m128i);
+                let row_3 = _mm_loadu_si128(rgba_ptr.add(px + 32) as *const __m128i);
+
+                let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, row_3);
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            }
+            YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+                let row_1 = _mm_loadu_si128(rgba_ptr.add(px) as *const __m128i);
+                let row_2 = _mm_loadu_si128(rgba_ptr.add(px + 16) as *const __m128i);
+                let row_3 = _mm_loadu_si128(rgba_ptr.add(px + 32) as *const __m128i);
+                let row_4 = _mm_loadu_si128(rgba_ptr.add(px + 48) as *const __m128i);
+
+                let (it1, it2, it3, _) = sse_deinterleave_rgba(row_1, row_2, row_3, row_4);
+                if source_channels == YuvSourceChannels::Rgba {
+                    r_values = it1;
+                    g_values = it2;
+                    b_values = it3;
+                } else {
+                    r_values = it3;
+                    g_values = it2;
+                    b_values = it1;
+                }
+            }
+        }
+
+        let r_low = _mm_cvtepu8_epi16(r_values);
+        let r_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(r_values));
+        let g_low = _mm_cvtepu8_epi16(g_values);
+        let g_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(g_values));
+        let b_low = _mm_cvtepu8_epi16(b_values);
+        let b_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(b_values));
+
+        let y_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
+
+        let y_h = sse_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
+
+        let y_yuv = _mm_packus_epi16(y_l, y_h);
+
+        _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, y_yuv);
+
+        cx += 16;
+    }
+
+    return cx;
+}
 
 // Chroma subsampling always assumed as YUV 400
 fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
@@ -41,6 +210,20 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     let precision_scale = (1 << 8) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
 
+    #[cfg(target_arch = "x86_64")]
+    let mut use_sse = false;
+    #[cfg(target_arch = "x86_64")]
+    let mut use_avx = false;
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            use_avx = true;
+        } else if is_x86_feature_detected!("sse4.1") {
+            use_sse = true;
+        }
+    }
+
     let mut y_offset = 0usize;
     let mut rgba_offset = 0usize;
 
@@ -48,6 +231,35 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         #[allow(unused_variables)]
         #[allow(unused_mut)]
         let mut cx = 0usize;
+
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            if use_avx {
+                let processed_offset = avx_row::<ORIGIN_CHANNELS>(
+                    &transform,
+                    &range,
+                    y_plane.as_mut_ptr(),
+                    &rgba,
+                    y_offset,
+                    rgba_offset,
+                    cx,
+                    width as usize,
+                );
+                cx += processed_offset;
+            } else if use_sse {
+                let processed_offset = sse_row::<ORIGIN_CHANNELS>(
+                    &transform,
+                    &range,
+                    y_plane.as_mut_ptr(),
+                    &rgba,
+                    y_offset,
+                    rgba_offset,
+                    cx,
+                    width as usize,
+                );
+                cx += processed_offset;
+            }
+        }
 
         #[cfg(target_arch = "aarch64")]
         #[cfg(target_feature = "neon")]

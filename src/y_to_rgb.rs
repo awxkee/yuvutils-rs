@@ -5,8 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 
 use crate::yuv_support::{
@@ -42,8 +41,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         #[allow(unused_mut)]
         let mut cx = 0usize;
 
-        #[cfg(target_arch = "aarch64")]
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let y_ptr = y_plane.as_ptr();
             let rgba_ptr = rgba.as_mut_ptr();

@@ -12,8 +12,7 @@ use crate::intel_simd_support::*;
 use crate::internals::ProcessedOffset;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 #[allow(unused_imports)]
@@ -301,10 +300,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         let u_low = _mm_sub_epi16(_mm_cvtepu8_epi16(u_low_u8), uv_corr);
         let v_low = _mm_sub_epi16(_mm_cvtepu8_epi16(v_low_u8), uv_corr);
-        let y_low = _mm_mullo_epi16(
-            _mm_cvtepu8_epi16(y_values),
-            v_luma_coeff,
-        );
+        let y_low = _mm_mullo_epi16(_mm_cvtepu8_epi16(y_values), v_luma_coeff);
 
         let r_low = _mm_srai_epi16::<6>(_mm_max_epi16(
             _mm_adds_epi16(y_low, _mm_mullo_epi16(v_low, v_cr_coeff)),
@@ -333,12 +329,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                );
+                sse_store_rgb_u8(rgba_ptr.add(dst_shift), r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
                 sse_store_rgba(
@@ -480,8 +471,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
 
-        #[cfg(target_arch = "aarch64")]
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let y_ptr = y_plane.as_ptr();
             let u_ptr = u_plane.as_ptr();

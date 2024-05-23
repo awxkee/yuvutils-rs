@@ -8,16 +8,15 @@
 #[allow(unused_imports)]
 use crate::intel_simd_support::*;
 #[allow(unused_imports)]
+use crate::intel_ycbcr_compute::*;
+#[allow(unused_imports)]
 use crate::internals::*;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-#[allow(unused_imports)]
-use crate::intel_ycbcr_compute::*;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
@@ -250,16 +249,8 @@ unsafe fn sse_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                 let cb_h = sse_pairwise_add(cb);
                 let cr_h = sse_pairwise_add(cr);
-                std::ptr::copy_nonoverlapping(
-                    &cb_h as *const _ as *const u8,
-                    u_ptr.add(uv_x),
-                    8,
-                );
-                std::ptr::copy_nonoverlapping(
-                    &cr_h as *const _ as *const u8,
-                    v_ptr.add(uv_x),
-                    8,
-                );
+                std::ptr::copy_nonoverlapping(&cb_h as *const _ as *const u8, u_ptr.add(uv_x), 8);
+                std::ptr::copy_nonoverlapping(&cr_h as *const _ as *const u8, v_ptr.add(uv_x), 8);
                 uv_x += 8;
             }
             YuvChromaSample::YUV444 => {
@@ -319,7 +310,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut rgba_offset = 0usize;
 
     #[cfg(target_arch = "x86_64")]
-        let mut use_sse = false;
+    let mut use_sse = false;
     #[cfg(target_arch = "x86_64")]
     let mut use_avx = false;
 
@@ -334,11 +325,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     for y in 0..height as usize {
         #[allow(unused_variables)]
-            #[allow(unused_mut)]
-            let mut cx = 0usize;
+        #[allow(unused_mut)]
+        let mut cx = 0usize;
         #[allow(unused_variables)]
-            #[allow(unused_mut)]
-            let mut ux = 0usize;
+        #[allow(unused_mut)]
+        let mut ux = 0usize;
 
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -381,8 +372,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
 
-        #[cfg(target_arch = "aarch64")]
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let y_ptr = y_plane.as_mut_ptr();
             let u_ptr = u_plane.as_mut_ptr();
