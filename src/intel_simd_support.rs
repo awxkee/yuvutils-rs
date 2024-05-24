@@ -36,8 +36,8 @@ pub unsafe fn sse_promote_i16_toi32(s: __m128i) -> __m128i {
 #[inline(always)]
 pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     #[rustfmt::skip]
-        let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
-                                    8, 8, 10, 10, 12, 12, 14, 14);
+    let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
+                                     8, 8, 10, 10, 12, 12, 14, 14);
     let new_lane = _mm_shuffle_epi8(x, shuffle);
     return new_lane;
 }
@@ -46,7 +46,7 @@ pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
 #[inline(always)]
 pub unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
     #[rustfmt::skip]
-        let shuffle = _mm256_setr_epi8(0, 0, 2, 2,
+    let shuffle = _mm256_setr_epi8(0, 0, 2, 2,
                                        4, 4, 6, 6,
                                        8, 8, 10, 10,
                                        12, 12, 14, 14,
@@ -80,7 +80,7 @@ pub unsafe fn avx2_interleave_odd_2_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[inline(always)]
 pub unsafe fn avx2_interleave_odd(x: __m256i) -> __m256i {
     #[rustfmt::skip]
-        let shuffle = _mm256_setr_epi8(1, 1, 3, 3,
+    let shuffle = _mm256_setr_epi8(1, 1, 3, 3,
                                        5, 5, 7, 7,
                                        9, 9, 11, 11,
                                        13, 13, 15, 15,
@@ -157,30 +157,63 @@ pub unsafe fn avx2_deinterleave_rgb(
     let s02_low = _mm256_permute2x128_si256::<32>(rgb0, rgb2);
     let s02_high = _mm256_permute2x128_si256::<49>(rgb0, rgb2);
 
+    #[rustfmt::skip]
     let m0 = _mm256_setr_epi8(
-        0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
         0, 0, -1, 0, 0,
-    );
-    let m1 = _mm256_setr_epi8(
-        0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+        -1, 0, 0, -1, 0,
         0, -1, 0, 0, -1,
+        0, 0, -1, 0, 0,
+        -1, 0, 0, -1, 0,
+        0, -1, 0, 0, -1,
+        0, 0,
+    );
+
+    #[rustfmt::skip]
+    let m1 = _mm256_setr_epi8(
+        0, -1, 0, 0, -1,
+        0, 0, -1, 0, 0,
+        -1, 0, 0, -1, 0,
+        0, -1, 0, 0, -1,
+        0, 0, -1, 0, 0,
+        -1, 0, 0, -1, 0,
+        0, -1,
     );
 
     let b0 = _mm256_blendv_epi8(_mm256_blendv_epi8(s02_low, s02_high, m0), rgb1, m1);
     let g0 = _mm256_blendv_epi8(_mm256_blendv_epi8(s02_high, s02_low, m1), rgb1, m0);
     let r0 = _mm256_blendv_epi8(_mm256_blendv_epi8(rgb1, s02_low, m0), s02_high, m1);
 
+    #[rustfmt::skip]
     let sh_b = _mm256_setr_epi8(
-        0, 3, 6, 9, 12, 15, 2, 5, 8, 11, 14, 1, 4, 7, 10, 13, 0, 3, 6, 9, 12, 15, 2, 5, 8, 11, 14,
-        1, 4, 7, 10, 13,
+        0, 3, 6, 9, 12,
+        15, 2, 5, 8, 11,
+        14, 1, 4, 7, 10,
+        13, 0, 3, 6, 9,
+        12, 15, 2, 5, 8,
+        11, 14, 1, 4, 7,
+        10, 13,
     );
+
+    #[rustfmt::skip]
     let sh_g = _mm256_setr_epi8(
-        1, 4, 7, 10, 13, 0, 3, 6, 9, 12, 15, 2, 5, 8, 11, 14, 1, 4, 7, 10, 13, 0, 3, 6, 9, 12, 15,
-        2, 5, 8, 11, 14,
+        1, 4, 7, 10, 13,
+        0, 3, 6, 9, 12,
+        15, 2, 5, 8, 11,
+        14, 1, 4, 7, 10,
+        13, 0, 3, 6, 9,
+        12, 15, 2, 5, 8,
+        11, 14,
     );
+
+    #[rustfmt::skip]
     let sh_r = _mm256_setr_epi8(
-        2, 5, 8, 11, 14, 1, 4, 7, 10, 13, 0, 3, 6, 9, 12, 15, 2, 5, 8, 11, 14, 1, 4, 7, 10, 13, 0,
-        3, 6, 9, 12, 15,
+        2, 5, 8, 11, 14,
+        1, 4, 7, 10, 13,
+        0, 3, 6, 9, 12,
+        15, 2, 5, 8, 11,
+        14, 1, 4, 7, 10,
+        13, 0, 3, 6, 9,
+        12, 15,
     );
     let b0 = _mm256_shuffle_epi8(b0, sh_b);
     let g0 = _mm256_shuffle_epi8(g0, sh_g);
@@ -205,9 +238,14 @@ pub unsafe fn avx2_deinterleave_rgba(
     rgba2: __m256i,
     rgba3: __m256i,
 ) -> (__m256i, __m256i, __m256i, __m256i) {
+    #[rustfmt::skip]
     let sh = _mm256_setr_epi8(
-        0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15, 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10,
-        14, 3, 7, 11, 15,
+        0, 4, 8, 12, 1, 5,
+        9, 13, 2, 6, 10, 14,
+        3, 7, 11, 15, 0, 4,
+        8, 12, 1, 5, 9, 13,
+        2, 6, 10, 14, 3, 7,
+        11, 15,
     );
 
     let p0 = _mm256_shuffle_epi8(rgba0, sh);
@@ -321,11 +359,10 @@ pub unsafe fn sse_deinterleave_rgba(
     let l4 = _mm_unpackhi_epi32(t5, t7);
 
     #[rustfmt::skip]
-        let shuffle = _mm_setr_epi8(
-        0, 4, 8, 12,
-        1, 5, 9, 13,
-        2, 6, 10, 14,
-        3, 7, 11, 15,
+    let shuffle = _mm_setr_epi8(0, 4, 8, 12,
+                                        1, 5, 9, 13,
+                                        2, 6, 10, 14,
+                                        3, 7, 11, 15,
     );
 
     let r1 = _mm_shuffle_epi8(_mm_unpacklo_epi32(l1, l3), shuffle);
@@ -343,14 +380,26 @@ pub unsafe fn sse_deinterleave_rgb(
     rgb1: __m128i,
     rgb2: __m128i,
 ) -> (__m128i, __m128i, __m128i) {
-    let idx = _mm_setr_epi8(0, 3, 6, 9, 12, 15, 2, 5, 8, 11, 14, 1, 4, 7, 10, 13);
+    #[rustfmt::skip]
+    let idx = _mm_setr_epi8(0, 3, 6, 9,
+                                    12, 15, 2, 5, 8,
+                                    11, 14, 1, 4, 7,
+                                    10, 13);
 
     let r6b5g5_0 = _mm_shuffle_epi8(rgb0, idx);
     let g6r5b5_1 = _mm_shuffle_epi8(rgb1, idx);
     let b6g5r5_2 = _mm_shuffle_epi8(rgb2, idx);
 
-    let mask010 = _mm_setr_epi8(0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0);
-    let mask001 = _mm_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1);
+    #[rustfmt::skip]
+    let mask010 = _mm_setr_epi8(0, 0, 0, 0,
+                                        0, 0, -1, -1, -1,
+                                        -1, -1, 0, 0, 0,
+                                        0, 0);
+
+    #[rustfmt::skip]
+    let mask001 = _mm_setr_epi8(0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0,
+                                    -1, -1, -1, -1, -1);
 
     let b2g2b1 = _mm_blendv_epi8(b6g5r5_2, g6r5b5_1, mask001);
     let b2b0b1 = _mm_blendv_epi8(b2g2b1, r6b5g5_0, mask010);
@@ -401,19 +450,9 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 pub unsafe fn avx2_pairwise_add(v: __m256i) -> __m256i {
-    let evens = _mm256_setr_epi8(
-        0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1,
-    );
-    let odds = _mm256_setr_epi8(
-        1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1,
-    );
-
-    let evens_16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(_mm256_shuffle_epi8(v, evens)));
-    let odds_16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(_mm256_shuffle_epi8(v, odds)));
-    let sums = _mm256_avg_epu16(evens_16, odds_16);
-    let packed_lo = _mm256_packus_epi16(sums, sums);
+    let sums = _mm256_maddubs_epi16(v, _mm256_set1_epi8(1));
+    let shifted = _mm256_srli_epi16::<1>(sums);
+    let packed_lo = _mm256_packus_epi16(shifted, shifted);
     const MASK: i32 = shuffle(3, 1, 2, 0);
     return _mm256_permute4x64_epi64::<MASK>(packed_lo);
 }
@@ -421,13 +460,9 @@ pub unsafe fn avx2_pairwise_add(v: __m256i) -> __m256i {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 pub unsafe fn sse_pairwise_add(v: __m128i) -> __m128i {
-    let evens = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
-    let odds = _mm_setr_epi8(1, 3, 5, 7, 9, 11, 13, 15, -1, -1, -1, -1, -1, -1, -1, -1);
-
-    let evens_16 = _mm_cvtepu8_epi16(_mm_shuffle_epi8(v, evens));
-    let odds_16 = _mm_cvtepu8_epi16(_mm_shuffle_epi8(v, odds));
-    let sums = _mm_avg_epu16(evens_16, odds_16);
-    let packed = _mm_packus_epi16(sums, sums);
+    let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
+    let shifted = _mm_srli_epi16::<1>(sums);
+    let packed = _mm_packus_epi16(shifted, shifted);
     packed
 }
 
