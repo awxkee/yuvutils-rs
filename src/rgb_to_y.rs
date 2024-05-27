@@ -90,7 +90,7 @@ unsafe fn avx_row<const ORIGIN_CHANNELS: u8>(
 
         let y_h = avx2_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
 
-        let y_yuv = demote_i16_to_u8(y_l, y_h);
+        let y_yuv = avx2_pack_u16(y_l, y_h);
 
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 

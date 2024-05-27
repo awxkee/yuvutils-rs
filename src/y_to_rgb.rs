@@ -108,10 +108,7 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8>(
     return cx;
 }
 
-use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, CbCrInverseTransform, YuvChromaRange,
-    YuvRange, YuvSourceChannels, YuvStandardMatrix,
-};
+use crate::yuv_support::*;
 
 // Chroma subsampling always assumed as 400
 fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
@@ -154,8 +151,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         let mut cx = 0usize;
 
         #[cfg(all(target_arch = "x86_64"))]
+        #[cfg(feature = "nightly_avx512")]
         unsafe {
-            #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
                 let processed = avx512_process_row::<DESTINATION_CHANNELS>(
                     &range,

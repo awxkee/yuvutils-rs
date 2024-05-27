@@ -8,7 +8,6 @@
 #[cfg(target_arch = "x86_64")]
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86_64::*;
-use crate::intel_simd_support::shuffle;
 
 #[cfg(all(target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -293,7 +292,19 @@ pub unsafe fn avx512_deinterleave_rgba(
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
-pub unsafe fn avx2_rgb_to_ycbcr(
+pub unsafe fn avx512_pairwise_add(v: __m512i) -> __m512i {
+    let sums = _mm512_maddubs_epi16(v, _mm512_set1_epi8(1));
+    let shifted = _mm512_srli_epi16::<1>(sums);
+    let packed_lo = _mm512_packus_epi16(shifted, shifted);
+    let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
+    return _mm512_permutexvar_epi64(mask, packed_lo);
+}
+
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx512_rgb_to_ycbcr(
     r: __m512i,
     g: __m512i,
     b: __m512i,
@@ -333,6 +344,6 @@ pub unsafe fn avx2_rgb_to_ycbcr(
     ));
 
     let packed = _mm512_packus_epi32(vl, vh);
-    let idx = _mm512_set_epi64(7, 5, 3, 1, 6, 4, 2, 0);
-    _mm512_permutexvar_epi64(idx, packed)
+    let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
+    _mm512_permutexvar_epi64(mask, packed)
 }

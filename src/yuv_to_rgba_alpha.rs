@@ -540,13 +540,13 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             let b_l = avx2_div_by255(_mm256_mullo_epi16(b_low, a_low));
             let b_h = avx2_div_by255(_mm256_mullo_epi16(b_high, a_high));
 
-            r_values = demote_i16_to_u8(r_l, r_h);
-            g_values = demote_i16_to_u8(g_l, g_h);
-            b_values = demote_i16_to_u8(b_l, b_h);
+            r_values = avx2_pack_u16(r_l, r_h);
+            g_values = avx2_pack_u16(g_l, g_h);
+            b_values = avx2_pack_u16(b_l, b_h);
         } else {
-            r_values = demote_i16_to_u8(r_low, r_high);
-            g_values = demote_i16_to_u8(g_low, g_high);
-            b_values = demote_i16_to_u8(b_low, b_high);
+            r_values = avx2_pack_u16(r_low, r_high);
+            g_values = avx2_pack_u16(g_low, g_high);
+            b_values = avx2_pack_u16(b_low, b_high);
         }
 
         let dst_shift = rgba_offset + cx * channels;
@@ -672,27 +672,30 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(all(target_arch = "x86_64"))]
         unsafe {
-            if _use_avx512 {
-                let processed = avx512_process_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    a_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    a_offset,
-                    rgba_offset,
-                    width as usize,
-                    premultiply_alpha,
-                );
-                cx += processed.cx;
-                uv_x += processed.ux;
+            #[cfg(feature = "nightly_avx512")]
+            {
+                if _use_avx512 {
+                    let processed = avx512_process_row::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        y_plane,
+                        u_plane,
+                        v_plane,
+                        a_plane,
+                        rgba,
+                        cx,
+                        uv_x,
+                        y_offset,
+                        u_offset,
+                        v_offset,
+                        a_offset,
+                        rgba_offset,
+                        width as usize,
+                        premultiply_alpha,
+                    );
+                    cx += processed.cx;
+                    uv_x += processed.ux;
+                }
             }
 
             if _use_avx2 {

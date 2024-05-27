@@ -310,9 +310,9 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             v_min_values,
         ));
 
-        let r_values = demote_i16_to_u8(r_low, r_high);
-        let g_values = demote_i16_to_u8(g_low, g_high);
-        let b_values = demote_i16_to_u8(b_low, b_high);
+        let r_values = avx2_pack_u16(r_low, r_high);
+        let g_values = avx2_pack_u16(g_low, g_high);
+        let b_values = avx2_pack_u16(b_low, b_high);
 
         let dst_shift = rgba_offset + cx * channels;
 
