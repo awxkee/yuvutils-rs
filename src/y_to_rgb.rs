@@ -5,11 +5,112 @@
  * // license that can be found in the LICENSE file.
  */
 
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+use crate::avx512_utils::*;
+#[cfg(all(target_arch = "x86_64"))]
+#[allow(unused_imports)]
+use crate::intel_simd_support::shuffle;
+#[cfg(all(target_arch = "x86_64"))]
+#[allow(unused_imports)]
+use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
+#[cfg(all(target_arch = "x86_64"))]
+#[allow(unused_imports)]
+use std::arch::x86_64::*;
+
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+#[inline(always)]
+#[allow(dead_code)]
+unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    y_offset: usize,
+    rgba_offset: usize,
+    width: usize,
+) -> usize {
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = destination_channels.get_channels_count();
+
+    let mut cx = start_cx;
+    let y_ptr = y_plane.as_ptr();
+    let rgba_ptr = rgba.as_mut_ptr();
+
+    let y_corr = _mm512_set1_epi8(range.bias_y as i8);
+    let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
+    let v_min_values = _mm512_setzero_si512();
+    let v_alpha = _mm512_set1_epi8(255u8 as i8);
+
+    while cx + 64 < width {
+        let y_values = _mm512_subs_epi8(
+            _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
+            y_corr,
+        );
+
+        let y_high = _mm512_mullo_epi16(
+            _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(y_values)),
+            v_luma_coeff,
+        );
+
+        let r_high = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_high, v_min_values));
+        let b_high = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_high, v_min_values));
+        let g_high = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_high, v_min_values));
+
+        let y_low = _mm512_mullo_epi16(
+            _mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values)),
+            v_luma_coeff,
+        );
+
+        let r_low = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_low, v_min_values));
+        let b_low = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_low, v_min_values));
+        let g_low = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_low, v_min_values));
+
+        let r_values = avx512_pack_u16(r_low, r_high);
+        let g_values = avx512_pack_u16(g_low, g_high);
+        let b_values = avx512_pack_u16(b_low, b_high);
+
+        let dst_shift = rgba_offset + cx * channels;
+
+        match destination_channels {
+            YuvSourceChannels::Rgb => {
+                // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
+                let ptr = rgba_ptr.add(dst_shift);
+                avx512_rgb_u8(ptr, r_values, g_values, b_values);
+            }
+            YuvSourceChannels::Rgba => {
+                avx512_rgba_u8(
+                    rgba_ptr.add(dst_shift),
+                    r_values,
+                    g_values,
+                    b_values,
+                    v_alpha,
+                );
+            }
+            YuvSourceChannels::Bgra => {
+                avx512_rgba_u8(
+                    rgba_ptr.add(dst_shift),
+                    b_values,
+                    g_values,
+                    r_values,
+                    v_alpha,
+                );
+            }
+        }
+
+        cx += 64;
+    }
+
+    return cx;
+}
 
 use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, YuvRange, YuvSourceChannels, YuvStandardMatrix,
+    get_inverse_transform, get_kr_kb, get_yuv_range, CbCrInverseTransform, YuvChromaRange,
+    YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 
 // Chroma subsampling always assumed as 400
@@ -28,18 +129,47 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    let precision_scale: i32 = 1i32 << 6i32;
-    let y_coef = (transform.y_coef * precision_scale as f32).round() as i32;
+    let integer_transform = transform.to_integers(6);
+    let y_coef = integer_transform.y_coef;
 
     let bias_y = range.bias_y as i32;
 
     let mut y_offset = 0usize;
     let mut rgba_offset = 0usize;
 
+    #[cfg(target_arch = "x86_64")]
+    let mut _use_avx512 = false;
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        #[cfg(feature = "nightly_avx512")]
+        if std::arch::is_x86_feature_detected!("avx512bw") {
+            _use_avx512 = true;
+        }
+    }
+
     for _ in 0..height as usize {
         #[allow(unused_variables)]
         #[allow(unused_mut)]
         let mut cx = 0usize;
+
+        #[cfg(all(target_arch = "x86_64"))]
+        unsafe {
+            #[cfg(feature = "nightly_avx512")]
+            if _use_avx512 {
+                let processed = avx512_process_row::<DESTINATION_CHANNELS>(
+                    &range,
+                    &integer_transform,
+                    y_plane,
+                    rgba,
+                    cx,
+                    y_offset,
+                    rgba_offset,
+                    width as usize,
+                );
+                cx += processed;
+            }
+        }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {

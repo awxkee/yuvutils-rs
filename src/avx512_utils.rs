@@ -1,6 +1,14 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
 #[cfg(target_arch = "x86_64")]
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86_64::*;
+use crate::intel_simd_support::shuffle;
 
 #[cfg(all(target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -212,4 +220,119 @@ pub unsafe fn avx512_div_by255(v: __m512i) -> __m512i {
     let multiplier = _mm512_set1_epi16(-32640);
     let r = _mm512_mulhi_epu16(x, multiplier);
     return _mm512_srli_epi16::<7>(r);
+}
+
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx512_deinterleave_rgb(
+    bgr0: __m512i,
+    bgr1: __m512i,
+    bgr2: __m512i,
+) -> (__m512i, __m512i, __m512i) {
+    let mask0 = _v512_set_epu16(
+        61, 58, 55, 52, 49, 46, 43, 40, 37, 34, 63, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30, 27,
+        24, 21, 18, 15, 12, 9, 6, 3, 0,
+    );
+    let b01g1 = _mm512_permutex2var_epi16(bgr0, mask0, bgr1);
+    let r12b2 = _mm512_permutex2var_epi16(bgr1, mask0, bgr2);
+    let g20r0 = _mm512_permutex2var_epi16(bgr2, mask0, bgr0);
+
+    let b0g0 = _mm512_mask_blend_epi32(0xf800, b01g1, r12b2);
+    let r0b1 = _mm512_permutex2var_epi16(
+        bgr1,
+        _v512_set_epu16(
+            42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 29, 26, 23, 20, 17, 14, 11, 8, 5, 2, 53,
+            52, 51, 50, 49, 48, 47, 46, 45, 44, 43,
+        ),
+        g20r0,
+    );
+    let g1r1 = _mm512_alignr_epi32::<11>(r12b2, g20r0);
+    let a = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, b0g0, r0b1);
+    let c = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, r0b1, g1r1);
+    let b = _mm512_shuffle_epi8(
+        _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, g1r1, b0g0),
+        _mm512_set4_epi32(0x0e0f0c0d, 0x0a0b0809, 0x06070405, 0x02030001),
+    );
+    (a, b, c)
+}
+
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx512_deinterleave_rgba(
+    bgra0: __m512i,
+    bgra1: __m512i,
+    bgra2: __m512i,
+    bgra3: __m512i,
+) -> (__m512i, __m512i, __m512i, __m512i) {
+    let mask = _mm512_set4_epi32(0x0f0b0703, 0x0e0a0602, 0x0d090501, 0x0c080400);
+    let b0g0r0a0 = _mm512_shuffle_epi8(bgra0, mask);
+    let b1g1r1a1 = _mm512_shuffle_epi8(bgra1, mask);
+    let b2g2r2a2 = _mm512_shuffle_epi8(bgra2, mask);
+    let b3g3r3a3 = _mm512_shuffle_epi8(bgra3, mask);
+
+    let mask0 = _v512_set_epu32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    let mask1 = _v512_set_epu32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
+
+    let br01 = _mm512_permutex2var_epi32(b0g0r0a0, mask0, b1g1r1a1);
+    let ga01 = _mm512_permutex2var_epi32(b0g0r0a0, mask1, b1g1r1a1);
+    let br23 = _mm512_permutex2var_epi32(b2g2r2a2, mask0, b3g3r3a3);
+    let ga23 = _mm512_permutex2var_epi32(b2g2r2a2, mask1, b3g3r3a3);
+
+    let a = _mm512_permutex2var_epi32(br01, mask0, br23);
+    let c = _mm512_permutex2var_epi32(br01, mask1, br23);
+    let b = _mm512_permutex2var_epi32(ga01, mask0, ga23);
+    let d = _mm512_permutex2var_epi32(ga01, mask1, ga23);
+    (a, b, c, d)
+}
+
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx2_rgb_to_ycbcr(
+    r: __m512i,
+    g: __m512i,
+    b: __m512i,
+    bias: __m512i,
+    coeff_r: __m512i,
+    coeff_g: __m512i,
+    coeff_b: __m512i,
+) -> __m512i {
+    let r_l = _mm512_cvtepi16_epi32(_mm512_castsi512_si256(r));
+    let g_l = _mm512_cvtepi16_epi32(_mm512_castsi512_si256(g));
+    let b_l = _mm512_cvtepi16_epi32(_mm512_castsi512_si256(b));
+
+    let vl = _mm512_srai_epi32::<8>(_mm512_add_epi32(
+        bias,
+        _mm512_add_epi32(
+            _mm512_add_epi32(
+                _mm512_mullo_epi32(coeff_r, r_l),
+                _mm512_mullo_epi32(coeff_g, g_l),
+            ),
+            _mm512_mullo_epi32(coeff_b, b_l),
+        ),
+    ));
+
+    let r_h = _mm512_cvtepi16_epi32(_mm512_extracti64x4_epi64::<1>(r));
+    let g_h = _mm512_cvtepi16_epi32(_mm512_extracti64x4_epi64::<1>(g));
+    let b_h = _mm512_cvtepi16_epi32(_mm512_extracti64x4_epi64::<1>(b));
+
+    let vh = _mm512_srai_epi32::<8>(_mm512_add_epi32(
+        bias,
+        _mm512_add_epi32(
+            _mm512_add_epi32(
+                _mm512_mullo_epi32(coeff_r, r_h),
+                _mm512_mullo_epi32(coeff_g, g_h),
+            ),
+            _mm512_mullo_epi32(coeff_b, b_h),
+        ),
+    ));
+
+    let packed = _mm512_packus_epi32(vl, vh);
+    let idx = _mm512_set_epi64(7, 5, 3, 1, 6, 4, 2, 0);
+    _mm512_permutexvar_epi64(idx, packed)
 }

@@ -8,6 +8,12 @@ X86 targets with SSE and AVX uses runtime dispatch to detect available cpu featu
 
 Also contains AVX-512 intrinsics. Feature `nightly_avx512` and `nightly` rust channel compiler is required
 
+### Adding to project
+
+```bash
+cargo add yuvutils-rs
+```
+
 ### RGB to YCbCr
 
 ```rust
