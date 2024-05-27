@@ -4,6 +4,9 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
+#![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
+#![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 
 mod intel_simd_support;
 mod intel_ycbcr_compute;
@@ -19,6 +22,7 @@ mod yuv_p10_rgba;
 mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
+mod avx512_utils;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;

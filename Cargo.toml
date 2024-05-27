@@ -15,3 +15,6 @@ exclude = ["*.jpg"]
 
 [dependencies]
 
+[features]
+default = ["nightly_avx512"]
+nightly_avx512 = []
