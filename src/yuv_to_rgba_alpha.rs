@@ -6,7 +6,7 @@
  */
 
 #[cfg(target_arch = "x86_64")]
-use crate::intel_simd_support::*;
+use crate::x86_simd_support::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

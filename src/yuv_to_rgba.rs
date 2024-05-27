@@ -7,7 +7,7 @@
 
 #[cfg(target_arch = "x86_64")]
 #[allow(unused_imports)]
-use crate::intel_simd_support::*;
+use crate::x86_simd_support::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[allow(unused_imports)]

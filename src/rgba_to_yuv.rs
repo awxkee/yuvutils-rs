@@ -6,9 +6,9 @@
  */
 
 #[allow(unused_imports)]
-use crate::intel_simd_support::*;
+use crate::x86_simd_support::*;
 #[allow(unused_imports)]
-use crate::intel_ycbcr_compute::*;
+use crate::x86_ycbcr_compute::*;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[allow(unused_imports)]

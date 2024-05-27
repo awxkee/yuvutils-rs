@@ -8,8 +8,8 @@
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
 #![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 
-mod intel_simd_support;
-mod intel_ycbcr_compute;
+mod x86_simd_support;
+mod x86_ycbcr_compute;
 mod internals;
 mod neon_simd_support;
 mod rgb_to_y;

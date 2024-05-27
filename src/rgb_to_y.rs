@@ -6,9 +6,9 @@
  */
 
 #[cfg(target_arch = "x86_64")]
-use crate::intel_simd_support::*;
+use crate::x86_simd_support::*;
 #[cfg(target_arch = "x86_64")]
-use crate::intel_ycbcr_compute::*;
+use crate::x86_ycbcr_compute::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::*;

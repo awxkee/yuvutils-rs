@@ -10,7 +10,7 @@
 use crate::avx512_utils::*;
 #[cfg(all(target_arch = "x86_64"))]
 #[allow(unused_imports)]
-use crate::intel_simd_support::shuffle;
+use crate::x86_simd_support::shuffle;
 #[cfg(all(target_arch = "x86_64"))]
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
