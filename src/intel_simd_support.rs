@@ -157,67 +157,13 @@ pub unsafe fn avx2_deinterleave_rgb(
     let s02_low = _mm256_permute2x128_si256::<32>(rgb0, rgb2);
     let s02_high = _mm256_permute2x128_si256::<49>(rgb0, rgb2);
 
-    #[rustfmt::skip]
-    let m0 = _mm256_setr_epi8(
-        0, 0, -1, 0, 0,
-        -1, 0, 0, -1, 0,
-        0, -1, 0, 0, -1,
-        0, 0, -1, 0, 0,
-        -1, 0, 0, -1, 0,
-        0, -1, 0, 0, -1,
-        0, 0,
-    );
+    let b0 = _mm256_blend_epi32::<0x92>(_mm256_blend_epi32::<0x24>(s02_low, s02_high), rgb1);
+    let g0 = _mm256_blend_epi32::<0x24>(_mm256_blend_epi32::<0x92>(s02_high, s02_low), rgb1);
+    let r0 = _mm256_blend_epi32::<0x92>(_mm256_blend_epi32::<0x24>(rgb1, s02_low), s02_high);
 
-    #[rustfmt::skip]
-    let m1 = _mm256_setr_epi8(
-        0, -1, 0, 0, -1,
-        0, 0, -1, 0, 0,
-        -1, 0, 0, -1, 0,
-        0, -1, 0, 0, -1,
-        0, 0, -1, 0, 0,
-        -1, 0, 0, -1, 0,
-        0, -1,
-    );
-
-    let b0 = _mm256_blendv_epi8(_mm256_blendv_epi8(s02_low, s02_high, m0), rgb1, m1);
-    let g0 = _mm256_blendv_epi8(_mm256_blendv_epi8(s02_high, s02_low, m1), rgb1, m0);
-    let r0 = _mm256_blendv_epi8(_mm256_blendv_epi8(rgb1, s02_low, m0), s02_high, m1);
-
-    #[rustfmt::skip]
-    let sh_b = _mm256_setr_epi8(
-        0, 3, 6, 9, 12,
-        15, 2, 5, 8, 11,
-        14, 1, 4, 7, 10,
-        13, 0, 3, 6, 9,
-        12, 15, 2, 5, 8,
-        11, 14, 1, 4, 7,
-        10, 13,
-    );
-
-    #[rustfmt::skip]
-    let sh_g = _mm256_setr_epi8(
-        1, 4, 7, 10, 13,
-        0, 3, 6, 9, 12,
-        15, 2, 5, 8, 11,
-        14, 1, 4, 7, 10,
-        13, 0, 3, 6, 9,
-        12, 15, 2, 5, 8,
-        11, 14,
-    );
-
-    #[rustfmt::skip]
-    let sh_r = _mm256_setr_epi8(
-        2, 5, 8, 11, 14,
-        1, 4, 7, 10, 13,
-        0, 3, 6, 9, 12,
-        15, 2, 5, 8, 11,
-        14, 1, 4, 7, 10,
-        13, 0, 3, 6, 9,
-        12, 15,
-    );
-    let b0 = _mm256_shuffle_epi8(b0, sh_b);
-    let g0 = _mm256_shuffle_epi8(g0, sh_g);
-    let r0 = _mm256_shuffle_epi8(r0, sh_r);
+    let b0 = _mm256_shuffle_epi32::<0x6c>(b0);
+    let g0 = _mm256_shuffle_epi32::<0xb1>(g0);
+    let r0 = _mm256_shuffle_epi32::<0xc6>(r0);
     (b0, g0, r0)
 }
 
