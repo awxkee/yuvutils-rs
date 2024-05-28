@@ -292,7 +292,7 @@ pub unsafe fn avx512_deinterleave_rgba(
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
-pub unsafe fn avx512_pairwise_add(v: __m512i) -> __m512i {
+pub unsafe fn avx512_pairwise_widen_avg(v: __m512i) -> __m512i {
     let sums = _mm512_maddubs_epi16(v, _mm512_set1_epi8(1));
     let shifted = _mm512_srli_epi16::<1>(sums);
     let packed_lo = _mm512_packus_epi16(shifted, shifted);

@@ -128,8 +128,8 @@ unsafe fn avx512_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = _mm512_castsi512_si256(avx512_pairwise_add(cb));
-                let cr_h = _mm512_castsi512_si256(avx512_pairwise_add(cr));
+                let cb_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(cb));
+                let cr_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(cr));
                 _mm256_storeu_si256(u_ptr.add(uv_x) as *mut _ as *mut __m256i, cb_h);
                 _mm256_storeu_si256(v_ptr.add(uv_x) as *mut _ as *mut __m256i, cr_h);
                 uv_x += 32;
@@ -252,8 +252,8 @@ unsafe fn avx_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = _mm256_castsi256_si128(avx2_pairwise_add(cb));
-                let cr_h = _mm256_castsi256_si128(avx2_pairwise_add(cr));
+                let cb_h = _mm256_castsi256_si128(avx2_pairwise_widen_avg(cb));
+                let cr_h = _mm256_castsi256_si128(avx2_pairwise_widen_avg(cr));
                 _mm_storeu_si128(u_ptr.add(uv_x) as *mut _ as *mut __m128i, cb_h);
                 _mm_storeu_si128(v_ptr.add(uv_x) as *mut _ as *mut __m128i, cr_h);
                 uv_x += 16;
@@ -376,8 +376,8 @@ unsafe fn sse_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = sse_pairwise_add(cb);
-                let cr_h = sse_pairwise_add(cr);
+                let cb_h = sse_pairwise_widen_avg(cb);
+                let cr_h = sse_pairwise_widen_avg(cr);
                 std::ptr::copy_nonoverlapping(&cb_h as *const _ as *const u8, u_ptr.add(uv_x), 8);
                 std::ptr::copy_nonoverlapping(&cr_h as *const _ as *const u8, v_ptr.add(uv_x), 8);
                 uv_x += 8;
