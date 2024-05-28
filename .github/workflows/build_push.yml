@@ -25,6 +25,6 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: rustup target add aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu
       - run: cargo build --target aarch64-unknown-linux-gnu
-      - run: cargo build --feature nightly_avx512 --target x86_64-unknown-linux-gnu
+      - run: cargo build --features "nightly_avx512" --target x86_64-unknown-linux-gnu
       - name: Test release pipeline
         run: cargo publish --dry-run
