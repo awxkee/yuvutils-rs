@@ -58,8 +58,6 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8>(
         );
 
         let r_high = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_high, v_min_values));
-        let b_high = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_high, v_min_values));
-        let g_high = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_high, v_min_values));
 
         let y_low = _mm512_mullo_epi16(
             _mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values)),
@@ -67,12 +65,8 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8>(
         );
 
         let r_low = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_low, v_min_values));
-        let b_low = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_low, v_min_values));
-        let g_low = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_low, v_min_values));
 
         let r_values = avx512_pack_u16(r_low, r_high);
-        let g_values = avx512_pack_u16(g_low, g_high);
-        let b_values = avx512_pack_u16(b_low, b_high);
 
         let dst_shift = rgba_offset + cx * channels;
 
@@ -80,22 +74,22 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8>(
             YuvSourceChannels::Rgb => {
                 // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
                 let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, r_values, g_values, b_values);
+                avx512_rgb_u8(ptr, r_values, r_values, r_values);
             }
             YuvSourceChannels::Rgba => {
                 avx512_rgba_u8(
                     rgba_ptr.add(dst_shift),
                     r_values,
-                    g_values,
-                    b_values,
+                    r_values,
+                    r_values,
                     v_alpha,
                 );
             }
             YuvSourceChannels::Bgra => {
                 avx512_rgba_u8(
                     rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
+                    r_values,
+                    r_values,
                     r_values,
                     v_alpha,
                 );

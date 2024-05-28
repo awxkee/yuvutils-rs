@@ -176,7 +176,6 @@ unsafe fn avx512_process_row<
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
                 let ptr = rgba_ptr.add(dst_shift);
                 avx512_rgb_u8(ptr, r_values, g_values, b_values);
             }
@@ -371,7 +370,6 @@ unsafe fn avx2_process_row<
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
                 let ptr = rgba_ptr.add(dst_shift);
                 avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
             }
