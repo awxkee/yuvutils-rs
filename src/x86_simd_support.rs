@@ -449,6 +449,7 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
+#[allow(dead_code)]
 pub unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
     let sums = _mm256_maddubs_epi16(v, _mm256_set1_epi8(1));
     let shifted = _mm256_srli_epi16::<1>(sums);
@@ -459,6 +460,7 @@ pub unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
+#[allow(dead_code)]
 pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
     let shifted = _mm_srli_epi16::<1>(sums);

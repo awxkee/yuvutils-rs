@@ -149,7 +149,8 @@ unsafe fn avx512_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-unsafe fn avx_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+#[allow(dead_code)]
+unsafe fn avx2_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: *mut u8,
@@ -451,10 +452,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
         }
-
+        #[cfg(target_feature = "avx2")]
         if is_x86_feature_detected!("avx2") {
             _use_avx = true;
-        } else if is_x86_feature_detected!("sse4.1") {
+        }
+        if is_x86_feature_detected!("sse4.1") {
             _use_sse = true;
         }
     }
@@ -492,8 +494,9 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 }
             }
 
+            #[cfg(target_feature = "avx2")]
             if _use_avx {
-                let processed_offset = avx_row::<ORIGIN_CHANNELS, SAMPLING>(
+                let processed_offset = avx2_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &range,
                     y_plane.as_mut_ptr(),
@@ -510,7 +513,9 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 );
                 cx += processed_offset.cx;
                 ux += processed_offset.ux;
-            } else if _use_sse {
+            }
+
+            if _use_sse {
                 let processed_offset = sse_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &range,

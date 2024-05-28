@@ -658,10 +658,11 @@ fn yuv_nv12_to_rgbx<
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
         }
-
+        #[cfg(target_feature = "avx2")]
         if std::arch::is_x86_feature_detected!("avx2") {
             _use_avx2 = true;
-        } else if std::arch::is_x86_feature_detected!("sse4.1") {
+        }
+        if std::arch::is_x86_feature_detected!("sse4.1") {
             _use_sse = true;
         }
     }
@@ -697,6 +698,7 @@ fn yuv_nv12_to_rgbx<
                 ux += processed.ux;
             }
 
+            #[cfg(target_feature = "avx2")]
             if _use_avx2 {
                 let processed =
                     avx2_process_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
@@ -714,7 +716,9 @@ fn yuv_nv12_to_rgbx<
                     );
                 cx += processed.cx;
                 ux += processed.ux;
-            } else if _use_sse {
+            }
+
+            if _use_sse {
                 let processed =
                     sse42_process_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                         &range,

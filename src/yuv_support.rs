@@ -180,6 +180,7 @@ pub enum YuvStandardMatrix {
     Bt709,
     Bt2020,
     Smpte240,
+    Bt470_6
 }
 
 #[derive(Copy, Clone)]
@@ -205,6 +206,10 @@ pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
         YuvStandardMatrix::Smpte240 => YuvBias {
             kr: 0.087f32,
             kb: 0.212f32,
+        },
+        YuvStandardMatrix::Bt470_6 => YuvBias {
+            kr: 0.2220f32,
+            kb: 0.0713f32,
         },
     };
 }

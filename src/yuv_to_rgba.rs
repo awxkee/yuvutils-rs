@@ -592,10 +592,11 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
         }
-
+        #[cfg(target_feature = "avx2")]
         if std::arch::is_x86_feature_detected!("avx2") {
             _use_avx2 = true;
-        } else if std::arch::is_x86_feature_detected!("sse4.1") {
+        }
+        if std::arch::is_x86_feature_detected!("sse4.1") {
             _use_sse = true;
         }
     }
@@ -632,6 +633,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 uv_x += processed.ux;
             }
 
+            #[cfg(target_feature = "avx2")]
             if _use_avx2 {
                 let processed = avx2_process_row::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
@@ -650,7 +652,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 );
                 cx += processed.cx;
                 uv_x += processed.ux;
-            } else if _use_sse {
+            }
+            if _use_sse {
                 let processed = sse42_process_row::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
                     &inverse_transform,

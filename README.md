@@ -8,6 +8,9 @@ X86 targets with SSE and AVX uses runtime dispatch to detect available cpu featu
 
 Also contains AVX-512 intrinsics. Feature `nightly_avx512` and `nightly` rust channel compiler is required
 
+rustc `avx2`, `avx512f` features should be set when you expect than code will run on supported device. 
+SSE 4.1 target feature settings is not required but preferred.
+
 ### Adding to project
 
 ```bash
