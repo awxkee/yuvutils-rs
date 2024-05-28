@@ -7,6 +7,9 @@
 
 #[cfg(target_arch = "x86_64")]
 #[cfg(feature = "nightly_avx512")]
+use crate::avx512_setr::*;
+#[cfg(target_arch = "x86_64")]
+#[cfg(feature = "nightly_avx512")]
 use std::arch::x86_64::*;
 
 #[cfg(all(target_arch = "x86_64"))]
@@ -24,98 +27,6 @@ pub unsafe fn avx512_combine(lo: __m256i, hi: __m256i) -> __m512i {
 pub unsafe fn avx512_pack_u16(lo: __m512i, hi: __m512i) -> __m512i {
     let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
     _mm512_permutexvar_epi64(mask, _mm512_packus_epi16(lo, hi))
-}
-
-#[cfg(all(target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-#[inline(always)]
-#[allow(dead_code)]
-unsafe fn _v512_set_epu32(
-    a15: i64,
-    a14: i64,
-    a13: i64,
-    a12: i64,
-    a11: i64,
-    a10: i64,
-    a9: i64,
-    a8: i64,
-    a7: i64,
-    a6: i64,
-    a5: i64,
-    a4: i64,
-    a3: i64,
-    a2: i64,
-    a1: i64,
-    a0: i64,
-) -> __m512i {
-    _mm512_set_epi64(
-        ((a15) << 32) | (a14),
-        ((a13) << 32) | (a12),
-        ((a11) << 32) | (a10),
-        ((a9) << 32) | (a8),
-        ((a7) << 32) | (a6),
-        ((a5) << 32) | (a4),
-        ((a3) << 32) | (a2),
-        ((a1) << 32) | (a0),
-    )
-}
-
-#[cfg(all(target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-#[inline(always)]
-#[allow(dead_code)]
-unsafe fn _v512_set_epu16(
-    a31: i64,
-    a30: i64,
-    a29: i64,
-    a28: i64,
-    a27: i64,
-    a26: i64,
-    a25: i64,
-    a24: i64,
-    a23: i64,
-    a22: i64,
-    a21: i64,
-    a20: i64,
-    a19: i64,
-    a18: i64,
-    a17: i64,
-    a16: i64,
-    a15: i64,
-    a14: i64,
-    a13: i64,
-    a12: i64,
-    a11: i64,
-    a10: i64,
-    a9: i64,
-    a8: i64,
-    a7: i64,
-    a6: i64,
-    a5: i64,
-    a4: i64,
-    a3: i64,
-    a2: i64,
-    a1: i64,
-    a0: i64,
-) -> __m512i {
-    _v512_set_epu32(
-        ((a31) << 16) | (a30),
-        ((a29) << 16) | (a28),
-        ((a27) << 16) | (a26),
-        ((a25) << 16) | (a24),
-        ((a23) << 16) | (a22),
-        ((a21) << 16) | (a20),
-        ((a19) << 16) | (a18),
-        ((a17) << 16) | (a16),
-        ((a15) << 16) | (a14),
-        ((a13) << 16) | (a12),
-        ((a11) << 16) | (a10),
-        ((a9) << 16) | (a8),
-        ((a7) << 16) | (a6),
-        ((a5) << 16) | (a4),
-        ((a3) << 16) | (a2),
-        ((a1) << 16) | (a0),
-    )
 }
 
 #[cfg(all(target_arch = "x86_64"))]
@@ -346,4 +257,26 @@ pub unsafe fn avx512_rgb_to_ycbcr(
     let packed = _mm512_packus_epi32(vl, vh);
     let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
     _mm512_permutexvar_epi64(mask, packed)
+}
+
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx512_interleave_odd_epi8(a: __m512i, b: __m512i) -> __m512i {
+    let mask_a = _mm512_set1_epi16(0x00FF);
+    let masked_a = _mm512_slli_epi16::<8>(_mm512_and_si512(a, mask_a));
+    let b_s = _mm512_and_si512(b, mask_a);
+    return _mm512_or_si512(masked_a, b_s);
+}
+
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn avx512_interleave_even_epi8(a: __m512i, b: __m512i) -> __m512i {
+    let mask_a = _mm512_slli_epi16::<8>(_mm512_srli_epi16::<8>(a));
+    let masked_a = _mm512_and_si512(a, mask_a);
+    let b_s = _mm512_srli_epi16::<8>(b);
+    return _mm512_or_si512(masked_a, b_s);
 }

@@ -23,6 +23,7 @@ mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod avx512_utils;
+mod avx512_setr;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
