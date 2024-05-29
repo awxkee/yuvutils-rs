@@ -42,3 +42,25 @@ yuv422_to_rgb(&y_plane, y_stride,
               width, height, 
               YuvRange::Full, YuvStandardMatrix::Bt709);
 ```
+
+### RGB To YCgCo
+
+```rust
+rgb_to_ycgco420(&mut y_plane, y_stride,
+              &mut cg_plane, cg_width,
+              &mut cg_plane, cg_width,
+              &rgb, rgb_stride,
+              width, height, 
+              YuvRange::TV);
+```
+
+### YCgCo to RGB
+
+```rust
+ycgco420_to_rgb(&y_plane, y_stride, 
+                &cg_plane, cg_stride,
+                &co_plane, co_stride,
+                &mut rgb, rgb_stride,
+                width, height, 
+                YuvRange::TV);
+```
