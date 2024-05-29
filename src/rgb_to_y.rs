@@ -342,7 +342,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     cx,
                     width as usize,
                 );
-                cx += processed_offset;
+                cx = processed_offset;
             }
             #[cfg(target_feature = "avx2")]
             if _use_avx {
@@ -356,7 +356,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     cx,
                     width as usize,
                 );
-                cx += processed_offset;
+                cx = processed_offset;
             }
             if _use_sse {
                 let processed_offset = sse_row::<ORIGIN_CHANNELS>(
@@ -369,7 +369,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     cx,
                     width as usize,
                 );
-                cx += processed_offset;
+                cx = processed_offset;
             }
         }
 

@@ -489,8 +489,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                         ux,
                         width as usize,
                     );
-                    cx += processed_offset.cx;
-                    ux += processed_offset.ux;
+                    cx = processed_offset.cx;
+                    ux = processed_offset.ux;
                 }
             }
 
@@ -511,8 +511,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ux,
                     width as usize,
                 );
-                cx += processed_offset.cx;
-                ux += processed_offset.ux;
+                cx = processed_offset.cx;
+                ux = processed_offset.ux;
             }
 
             if _use_sse {
@@ -531,8 +531,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ux,
                     width as usize,
                 );
-                cx += processed_offset.cx;
-                ux += processed_offset.ux;
+                cx = processed_offset.cx;
+                ux = processed_offset.ux;
             }
         }
 

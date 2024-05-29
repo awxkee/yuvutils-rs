@@ -6,6 +6,10 @@ Mostly implemented AVX-512, AVX2, SSE, NEON
 
 X86 targets with SSE and AVX uses runtime dispatch to detect available cpu features.
 
+Supports:
+- [x] YCbCr ( aka YUV )
+- [x] YCgCo
+
 Also contains AVX-512 intrinsics. Feature `nightly_avx512` and `nightly` rust channel compiler is required
 
 rustc `avx2`, `avx512f` features should be set when you expect than code will run on supported device. 

@@ -24,6 +24,8 @@ mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod avx512_utils;
 mod avx512_setr;
+mod rgb_to_ycgco;
+mod ycgco_to_rgb;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
@@ -106,3 +108,23 @@ pub use yuv_p10_rgba::yuv444_p10_be_to_bgra;
 pub use yuv_p10_rgba::yuv444_p10_be_to_rgba;
 pub use yuv_p10_rgba::yuv444_p10_to_bgra;
 pub use yuv_p10_rgba::yuv444_p10_to_rgba;
+
+pub use rgb_to_ycgco::bgra_to_ycgco420;
+pub use rgb_to_ycgco::bgra_to_ycgco422;
+pub use rgb_to_ycgco::bgra_to_ycgco444;
+pub use rgb_to_ycgco::rgb_to_ycgco420;
+pub use rgb_to_ycgco::rgb_to_ycgco422;
+pub use rgb_to_ycgco::rgb_to_ycgco444;
+pub use rgb_to_ycgco::rgba_to_ycgco420;
+pub use rgb_to_ycgco::rgba_to_ycgco422;
+pub use rgb_to_ycgco::rgba_to_ycgco444;
+
+pub use ycgco_to_rgb::ycgco420_to_bgra;
+pub use ycgco_to_rgb::ycgco420_to_rgb;
+pub use ycgco_to_rgb::ycgco420_to_rgba;
+pub use ycgco_to_rgb::ycgco422_to_bgra;
+pub use ycgco_to_rgb::ycgco422_to_rgb;
+pub use ycgco_to_rgb::ycgco422_to_rgba;
+pub use ycgco_to_rgb::ycgco444_to_bgra;
+pub use ycgco_to_rgb::ycgco444_to_rgb;
+pub use ycgco_to_rgb::ycgco444_to_rgba;

@@ -629,8 +629,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     rgba_offset,
                     width as usize,
                 );
-                cx += processed.cx;
-                uv_x += processed.ux;
+                cx = processed.cx;
+                uv_x = processed.ux;
             }
 
             #[cfg(target_feature = "avx2")]
@@ -650,8 +650,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     rgba_offset,
                     width as usize,
                 );
-                cx += processed.cx;
-                uv_x += processed.ux;
+                cx = processed.cx;
+                uv_x = processed.ux;
             }
             if _use_sse {
                 let processed = sse42_process_row::<DESTINATION_CHANNELS, SAMPLING>(
@@ -669,8 +669,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     rgba_offset,
                     width as usize,
                 );
-                cx += processed.cx;
-                uv_x += processed.ux;
+                cx = processed.cx;
+                uv_x = processed.ux;
             }
         }
 

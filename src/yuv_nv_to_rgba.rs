@@ -694,8 +694,8 @@ fn yuv_nv12_to_rgbx<
                         dst_offset,
                         width as usize,
                     );
-                cx += processed.cx;
-                ux += processed.ux;
+                cx = processed.cx;
+                ux = processed.ux;
             }
 
             #[cfg(target_feature = "avx2")]
@@ -714,8 +714,8 @@ fn yuv_nv12_to_rgbx<
                         dst_offset,
                         width as usize,
                     );
-                cx += processed.cx;
-                ux += processed.ux;
+                cx = processed.cx;
+                ux = processed.ux;
             }
 
             if _use_sse {
@@ -733,8 +733,8 @@ fn yuv_nv12_to_rgbx<
                         dst_offset,
                         width as usize,
                     );
-                cx += processed.cx;
-                ux += processed.ux;
+                cx = processed.cx;
+                ux = processed.ux;
             }
         }
 

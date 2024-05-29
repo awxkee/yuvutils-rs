@@ -158,7 +158,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                     rgba_offset,
                     width as usize,
                 );
-                cx += processed;
+                cx = processed;
             }
         }
 
