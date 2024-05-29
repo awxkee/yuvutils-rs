@@ -13,6 +13,7 @@ use crate::avx512_rgb_to_yuv::*;
 use crate::avx512_utils::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon_ycgco::neon_rgb_to_ycgco;
 #[cfg(target_arch = "x86_64")]
 #[allow(unused_imports)]
