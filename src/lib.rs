@@ -26,6 +26,7 @@ mod avx512_utils;
 mod avx512_setr;
 mod rgb_to_ycgco;
 mod ycgco_to_rgb;
+mod avx512_rgb_to_yuv;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
