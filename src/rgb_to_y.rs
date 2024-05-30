@@ -5,22 +5,24 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 use crate::avx512_utils::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::x86_simd_support::*;
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::x86_ycbcr_compute::*;
 use crate::yuv_support::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+#[cfg(target_arch = "x86")]
+use std::arch::x86::*;
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
@@ -105,7 +107,7 @@ unsafe fn avx512_row<const ORIGIN_CHANNELS: u8>(
     return cx;
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
 unsafe fn avx2_row<const ORIGIN_CHANNELS: u8>(
@@ -189,7 +191,7 @@ unsafe fn avx2_row<const ORIGIN_CHANNELS: u8>(
     return cx;
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 unsafe fn sse_row<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
@@ -299,14 +301,14 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     let precision_scale = (1 << 8) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = false;
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx = false;
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx512 = false;
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
@@ -328,7 +330,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         #[allow(unused_mut)]
         let mut cx = 0usize;
 
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx {

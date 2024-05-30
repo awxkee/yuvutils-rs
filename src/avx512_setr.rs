@@ -5,11 +5,14 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(target_arch = "x86_64")]
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86_64::*;
+#[cfg(target_arch = "x86")]
+#[cfg(feature = "nightly_avx512")]
+use std::arch::x86::*;
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
@@ -43,7 +46,7 @@ pub unsafe fn _v512_set_epu32(
     )
 }
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
@@ -101,7 +104,7 @@ pub unsafe fn _v512_set_epu16(
     )
 }
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]

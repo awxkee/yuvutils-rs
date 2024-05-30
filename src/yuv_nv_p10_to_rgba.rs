@@ -588,7 +588,8 @@ pub fn yuv_nv16_p10_be_to_bgra(
 ///
 /// This function takes YUV NV16 data with 10-bit precision and MSB ordering,
 /// and converts it to BGRA format with 8-bit precision.
-/// This format is used by Apple and corresponds to kCVPixelFormatType_420YpCbCr10BiPlanarFullRange/kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
+/// This format is used by Apple and corresponds to kCVPixelFormatType_420YpCbCr10BiPlanarFullRange/kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange.
+/// This format corresponds to android `YCBCR_P010`(https://developer.android.com/reference/android/graphics/ImageFormat#YCBCR_P010)
 ///
 /// # Arguments
 ///

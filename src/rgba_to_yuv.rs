@@ -5,7 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 use crate::avx512_utils::*;
 #[allow(unused_imports)]
@@ -20,8 +20,10 @@ use crate::yuv_support::*;
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+#[cfg(target_arch = "x86")]
+use std::arch::x86::*;
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
@@ -147,7 +149,7 @@ unsafe fn avx512_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     return ProcessedOffset { cx, ux: uv_x };
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
 unsafe fn avx2_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
@@ -272,7 +274,7 @@ unsafe fn avx2_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     return ProcessedOffset { cx, ux: uv_x };
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 unsafe fn sse_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
@@ -439,14 +441,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut v_offset = 0usize;
     let mut rgba_offset = 0usize;
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = false;
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx = false;
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx512 = false;
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         #[cfg(feature = "nightly_avx512")]
         if std::arch::is_x86_feature_detected!("avx512bw") {
@@ -469,7 +471,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut ux = 0usize;
 
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             #[cfg(feature = "nightly_avx512")]
             {

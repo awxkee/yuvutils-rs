@@ -5,23 +5,24 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx512_utils::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[allow(unused_imports)]
 use crate::x86_simd_support::*;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86")]
+use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
-#[allow(unused_imports)]
 use std::arch::x86_64::*;
 
-#[cfg(all(target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
@@ -193,7 +194,7 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
     return ProcessedOffset { cx, ux: uv_x };
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
 unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
@@ -360,7 +361,7 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     return ProcessedOffset { cx, ux: uv_x };
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
 unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
@@ -410,26 +411,9 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let (u_values, v_values);
-                if cx + 24 < width {
-                    u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
-                    v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
-                } else {
-                    let mut transient_u: [u8; 16] = [0u8; 16];
-                    let mut transient_v: [u8; 16] = [0u8; 16];
-                    std::ptr::copy_nonoverlapping(
-                        u_ptr.add(u_offset + uv_x),
-                        transient_u.as_mut_ptr(),
-                        8,
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        v_ptr.add(u_offset + uv_x),
-                        transient_v.as_mut_ptr(),
-                        8,
-                    );
-                    u_values = _mm_loadu_si128(transient_u.as_ptr() as *const __m128i);
-                    v_values = _mm_loadu_si128(transient_v.as_ptr() as *const __m128i);
-                }
+                let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
+                let u_values = _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(uv_x)), reshuffle);
+                let v_values = _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(uv_x)), reshuffle);
 
                 u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
                 v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
@@ -582,14 +566,14 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         YuvChromaSample::YUV444 => 1usize,
     };
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx2 = false;
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = false;
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx512 = false;
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         #[cfg(feature = "nightly_avx512")]
         if std::arch::is_x86_feature_detected!("avx512bw") {
@@ -613,7 +597,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut uv_x = 0usize;
 
-        #[cfg(all(target_arch = "x86_64"))]
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {

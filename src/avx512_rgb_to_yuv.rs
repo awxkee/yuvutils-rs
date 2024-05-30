@@ -8,8 +8,11 @@
 #[cfg(target_arch = "x86_64")]
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86_64::*;
+#[cfg(target_arch = "x86")]
+#[cfg(feature = "nightly_avx512")]
+use std::arch::x86::*;
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
 #[cfg(feature = "nightly_avx512")]
