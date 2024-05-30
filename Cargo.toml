@@ -1,10 +1,10 @@
 [package]
 name = "yuvutils-rs"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"
-keywords = ["yuv", "ycbcr", "yuv2rgb"]
+keywords = ["yuv", "ycbcr", "yuv2rgb", "rgb2yuv"]
 license = "Apache-2.0 OR BSD-3-Clause"
 authors = ["Radzivon Bartoshyk"]
 documentation = "https://github.com/awxkee/yuvutils-rs"

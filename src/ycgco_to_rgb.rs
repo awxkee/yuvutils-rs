@@ -73,7 +73,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let co_value = (co_plane[v_pos] as i32 - bias_uv) * range_reduction_uv;
 
-            let t =  y_value - cg_value;
+            let t = y_value - cg_value;
 
             let r = ((t + co_value) >> 6).min(255).max(0);
             let b = ((t - co_value) >> 6).min(255).max(0);
@@ -171,8 +171,8 @@ pub fn ycgco420_to_rgb(
     range: YuvRange,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width, height,
-        range,
+        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
+        height, range,
     )
 }
 
@@ -315,8 +315,8 @@ pub fn ycgco422_to_rgb(
     range: YuvRange,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width, height,
-        range,
+        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
+        height, range,
     )
 }
 
@@ -561,7 +561,7 @@ pub fn ycgco444_to_rgb(
     range: YuvRange,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width, height,
-        range,
+        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
+        height, range,
     )
 }
