@@ -10,18 +10,18 @@
 use crate::avx512_utils::*;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[allow(unused_imports)]
-use crate::x86_simd_support::shuffle;
+use crate::internals::ProcessedOffset;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[allow(unused_imports)]
-use crate::internals::ProcessedOffset;
+use crate::x86_simd_support::shuffle;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
-#[cfg(target_arch = "x86_64")]
-#[allow(unused_imports)]
-use std::arch::x86_64::*;
 #[cfg(target_arch = "x86")]
 #[allow(unused_imports)]
 use std::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
+#[allow(unused_imports)]
+use std::arch::x86_64::*;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -213,7 +213,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         }
 
         for x in cx..width as usize {
-            let y_value = (y_plane[y_offset + x] as i32 - bias_y) * y_coef;
+            let y_value =
+                (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
 
             let r = (y_value >> 6).min(255i32).max(0);
 
@@ -221,11 +222,18 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
             let rgba_shift = rgba_offset + px;
 
-            rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
-            rgba[rgba_shift + destination_channels.get_g_channel_offset()] = r as u8;
-            rgba[rgba_shift + destination_channels.get_b_channel_offset()] = r as u8;
-            if destination_channels.has_alpha() {
-                rgba[rgba_shift + destination_channels.get_a_channel_offset()] = 255;
+            unsafe {
+                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_r_channel_offset()) =
+                    r as u8;
+                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_g_channel_offset()) =
+                    r as u8;
+                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_b_channel_offset()) =
+                    r as u8;
+                if destination_channels.has_alpha() {
+                    *rgba.get_unchecked_mut(
+                        rgba_shift + destination_channels.get_a_channel_offset(),
+                    ) = 255;
+                }
             }
         }
 
