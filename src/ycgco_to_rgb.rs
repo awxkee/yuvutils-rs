@@ -5,6 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
+#[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
