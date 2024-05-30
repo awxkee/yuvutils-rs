@@ -5,21 +5,21 @@
  * // license that can be found in the LICENSE file.
  */
 
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+use crate::avx512_utils::*;
+#[allow(unused_imports)]
+use crate::internals::*;
 #[allow(unused_imports)]
 use crate::x86_simd_support::*;
 #[allow(unused_imports)]
 use crate::x86_ycbcr_compute::*;
-#[allow(unused_imports)]
-use crate::internals::*;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-#[cfg(all(target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-use crate::avx512_utils::*;
 
 #[cfg(all(target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -695,36 +695,55 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         for x in (cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
-            let r = rgba[rgba_offset + px + source_channels.get_r_channel_offset()] as i32;
-            let g = rgba[rgba_offset + px + source_channels.get_g_channel_offset()] as i32;
-            let b = rgba[rgba_offset + px + source_channels.get_b_channel_offset()] as i32;
+            let rgba_shift = rgba_offset + px;
+            let r =
+                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset()) }
+                    as i32;
+            let g =
+                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset()) }
+                    as i32;
+            let b =
+                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset()) }
+                    as i32;
             let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
             let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
             let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
-            y_plane[y_offset + x] = y_0 as u8;
+            unsafe {
+                *y_plane.get_unchecked_mut(y_offset + x) = y_0 as u8;
+            }
             let u_pos = match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + ux,
                 YuvChromaSample::YUV444 => u_offset + ux,
             };
-            u_plane[u_pos] = cb as u8;
+            unsafe {
+                *u_plane.get_unchecked_mut(u_pos) = cb as u8;
+            }
             let v_pos = match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + ux,
                 YuvChromaSample::YUV444 => v_offset + ux,
             };
-            v_plane[v_pos] = cr as u8;
+            unsafe {
+                *v_plane.get_unchecked_mut(v_pos) = cr as u8;
+            }
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
-                        let r = rgba[rgba_offset + next_px + source_channels.get_r_channel_offset()]
-                            as i32;
-                        let g = rgba[rgba_offset + next_px + source_channels.get_g_channel_offset()]
-                            as i32;
-                        let b = rgba[rgba_offset + next_px + source_channels.get_b_channel_offset()]
-                            as i32;
+                        let rgba_shift = rgba_offset + next_px;
+                        let r = unsafe {
+                            *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset())
+                        } as i32;
+                        let g = unsafe {
+                            *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset())
+                        } as i32;
+                        let b = unsafe {
+                            *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset())
+                        } as i32;
                         let y_1 =
                             (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-                        y_plane[y_offset + x + 1] = y_1 as u8;
+                        unsafe {
+                            *y_plane.get_unchecked_mut(y_offset + x + 1) = y_1 as u8;
+                        }
                     }
                 }
                 _ => {}

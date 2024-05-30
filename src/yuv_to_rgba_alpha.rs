@@ -5,12 +5,15 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(target_arch = "x86_64")]
-use crate::x86_simd_support::*;
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+use crate::avx512_utils::*;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon_simd_support::*;
+#[cfg(target_arch = "x86_64")]
+use crate::x86_simd_support::*;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
 use crate::{YuvRange, YuvStandardMatrix};
@@ -18,9 +21,6 @@ use crate::{YuvRange, YuvStandardMatrix};
 use core::arch::x86_64::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
-#[cfg(all(target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-use crate::avx512_utils::*;
 
 #[cfg(all(target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -78,7 +78,7 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
                 let v_values = _mm256_loadu_si256(v_ptr.add(v_offset + uv_x) as *const __m256i);
 
                 let (u_low, u_high) = avx2_zip(u_values, u_values);
-                let (v_low, v_high)= avx2_zip(v_values, v_values);
+                let (v_low, v_high) = avx2_zip(v_values, v_values);
 
                 u_high_u8 = u_high;
                 v_high_u8 = v_high;
@@ -878,21 +878,22 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         }
 
         for x in (cx..width as usize).step_by(iterator_step) {
-            let y_value = (y_plane[y_offset + x] as i32 - bias_y) * y_coef;
+            let y_value =
+                (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
 
             let u_pos = match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + uv_x,
                 YuvChromaSample::YUV444 => u_offset + uv_x,
             };
 
-            let cb_value = u_plane[u_pos] as i32 - bias_uv;
+            let cb_value = unsafe { *u_plane.get_unchecked(u_pos) } as i32 - bias_uv;
 
             let v_pos = match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + uv_x,
                 YuvChromaSample::YUV444 => v_offset + uv_x,
             };
 
-            let cr_value = v_plane[v_pos] as i32 - bias_uv;
+            let cr_value = unsafe { *v_plane.get_unchecked(v_pos) } as i32 - bias_uv;
 
             let mut r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
             let mut b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
@@ -904,24 +905,32 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let rgba_shift = rgba_offset + px;
 
-            let a_value = a_plane[a_offset + x];
+            let a_value = unsafe { *a_plane.get_unchecked(a_offset + x) };
             if premultiply_alpha {
                 r = (r * a_value as i32) / 255;
                 g = (g * a_value as i32) / 255;
                 b = (b * a_value as i32) / 255;
             }
 
-            rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
-            rgba[rgba_shift + destination_channels.get_g_channel_offset()] = g as u8;
-            rgba[rgba_shift + destination_channels.get_b_channel_offset()] = b as u8;
-            rgba[rgba_shift + destination_channels.get_a_channel_offset()] = a_value;
+            unsafe {
+                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_r_channel_offset()) =
+                    r as u8;
+                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_g_channel_offset()) =
+                    g as u8;
+                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_b_channel_offset()) =
+                    b as u8;
+                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_a_channel_offset()) =
+                    a_value;
+            }
 
             if chroma_subsampling == YuvChromaSample::YUV420
                 || chroma_subsampling == YuvChromaSample::YUV422
             {
                 let next_x = x + 1;
                 if x + 1 < width as usize {
-                    let y_value = (y_plane[y_offset + x + 1] as i32 - bias_y) * y_coef;
+                    let y_value = (unsafe { *y_plane.get_unchecked(y_offset + x + 1) } as i32
+                        - bias_y)
+                        * y_coef;
 
                     let mut r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
                     let mut b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
@@ -933,17 +942,27 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
                     let rgba_shift = rgba_offset + next_px;
 
-                    let a_value = a_plane[a_offset + next_x];
+                    let a_value = unsafe { *a_plane.get_unchecked(a_offset + next_x) };
                     if premultiply_alpha {
                         r = (r * a_value as i32) / 255;
                         g = (g * a_value as i32) / 255;
                         b = (b * a_value as i32) / 255;
                     }
 
-                    rgba[rgba_shift + destination_channels.get_r_channel_offset()] = r as u8;
-                    rgba[rgba_shift + destination_channels.get_g_channel_offset()] = g as u8;
-                    rgba[rgba_shift + destination_channels.get_b_channel_offset()] = b as u8;
-                    rgba[rgba_shift + destination_channels.get_a_channel_offset()] = a_value;
+                    unsafe {
+                        *rgba.get_unchecked_mut(
+                            rgba_shift + destination_channels.get_r_channel_offset(),
+                        ) = r as u8;
+                        *rgba.get_unchecked_mut(
+                            rgba_shift + destination_channels.get_g_channel_offset(),
+                        ) = g as u8;
+                        *rgba.get_unchecked_mut(
+                            rgba_shift + destination_channels.get_b_channel_offset(),
+                        ) = b as u8;
+                        *rgba.get_unchecked_mut(
+                            rgba_shift + destination_channels.get_a_channel_offset(),
+                        ) = a_value;
+                    }
                 }
             }
 

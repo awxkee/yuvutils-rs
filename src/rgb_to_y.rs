@@ -5,20 +5,20 @@
  * // license that can be found in the LICENSE file.
  */
 
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+use crate::avx512_utils::*;
+#[allow(unused_imports)]
+use crate::internals::ProcessedOffset;
 #[cfg(target_arch = "x86_64")]
 use crate::x86_simd_support::*;
 #[cfg(target_arch = "x86_64")]
 use crate::x86_ycbcr_compute::*;
-#[allow(unused_imports)]
-use crate::internals::ProcessedOffset;
 use crate::yuv_support::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-#[cfg(all(target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-use crate::avx512_utils::*;
 
 #[cfg(all(target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -462,11 +462,16 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         for x in cx..width as usize {
             let px = x * channels;
             let dst_offset = rgba_offset + px;
-            let r = rgba[dst_offset + source_channels.get_r_channel_offset()] as i32;
-            let g = rgba[dst_offset + source_channels.get_g_channel_offset()] as i32;
-            let b = rgba[dst_offset + source_channels.get_b_channel_offset()] as i32;
-            let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-            y_plane[y_offset + x] = y as u8;
+            unsafe {
+                let r =
+                    *rgba.get_unchecked(dst_offset + source_channels.get_r_channel_offset()) as i32;
+                let g =
+                    *rgba.get_unchecked(dst_offset + source_channels.get_g_channel_offset()) as i32;
+                let b =
+                    *rgba.get_unchecked(dst_offset + source_channels.get_b_channel_offset()) as i32;
+                let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
+                *y_plane.get_unchecked_mut(y_offset + x) = y as u8;
+            }
         }
 
         y_offset += y_stride as usize;

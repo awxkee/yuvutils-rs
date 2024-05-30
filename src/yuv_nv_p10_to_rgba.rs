@@ -238,9 +238,9 @@ fn yuv_nv12_p10_to_bgra_impl<
             let mut cr_value: i32;
             match endianness {
                 YuvEndian::BigEndian => {
-                    let mut y_vl = u16::from_be(y_ld[x]) as i32;
-                    let mut cb_vl = u16::from_be(uv_ld[ux]) as i32;
-                    let mut cr_vl = u16::from_be(uv_ld[ux + 1]) as i32;
+                    let mut y_vl = u16::from_be(unsafe { *y_ld.get_unchecked(x) }) as i32;
+                    let mut cb_vl = u16::from_be(unsafe { *uv_ld.get_unchecked(ux) }) as i32;
+                    let mut cr_vl = u16::from_be(unsafe { *uv_ld.get_unchecked(ux + 1) }) as i32;
                     if bytes_position == YuvBytesPosition::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -252,9 +252,9 @@ fn yuv_nv12_p10_to_bgra_impl<
                     cr_value = cr_vl;
                 }
                 YuvEndian::LittleEndian => {
-                    let mut y_vl = u16::from_le(y_ld[x]) as i32;
-                    let mut cb_vl = u16::from_le(uv_ld[ux]) as i32;
-                    let mut cr_vl = u16::from_le(uv_ld[ux + 1]) as i32;
+                    let mut y_vl = u16::from_le(unsafe { *y_ld.get_unchecked(x) }) as i32;
+                    let mut cb_vl = u16::from_le(unsafe { *uv_ld.get_unchecked(ux) }) as i32;
+                    let mut cr_vl = u16::from_le(unsafe { *uv_ld.get_unchecked(ux + 1) }) as i32;
                     if bytes_position == YuvBytesPosition::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -292,11 +292,18 @@ fn yuv_nv12_p10_to_bgra_impl<
 
             let rgb_offset = dst_offset + px;
 
-            bgra[rgb_offset + destination_channels.get_b_channel_offset()] = b as u8;
-            bgra[rgb_offset + destination_channels.get_g_channel_offset()] = g as u8;
-            bgra[rgb_offset + destination_channels.get_r_channel_offset()] = r as u8;
-            if destination_channels.has_alpha() {
-                bgra[rgb_offset + destination_channels.get_a_channel_offset()] = 255;
+            unsafe {
+                *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_b_channel_offset()) =
+                    b as u8;
+                *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_g_channel_offset()) =
+                    g as u8;
+                *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_r_channel_offset()) =
+                    r as u8;
+                if destination_channels.has_alpha() {
+                    *bgra.get_unchecked_mut(
+                        rgb_offset + destination_channels.get_a_channel_offset(),
+                    ) = 255;
+                }
             }
 
             if chroma_subsampling == YuvChromaSample::YUV422
@@ -307,14 +314,16 @@ fn yuv_nv12_p10_to_bgra_impl<
                     let y_value: i32;
                     match endianness {
                         YuvEndian::BigEndian => {
-                            let mut y_vl = u16::from_be(y_ld[next_px]) as i32;
+                            let mut y_vl =
+                                u16::from_be(unsafe { *y_ld.get_unchecked(next_px) }) as i32;
                             if bytes_position == YuvBytesPosition::MostSignificantBytes {
                                 y_vl = y_vl >> 6;
                             }
                             y_value = (y_vl - bias_y) * y_coef;
                         }
                         YuvEndian::LittleEndian => {
-                            let mut y_vl = u16::from_le(y_ld[next_px]) as i32;
+                            let mut y_vl =
+                                u16::from_le(unsafe { *y_ld.get_unchecked(next_px) }) as i32;
                             if bytes_position == YuvBytesPosition::MostSignificantBytes {
                                 y_vl = y_vl >> 6;
                             }
@@ -332,11 +341,18 @@ fn yuv_nv12_p10_to_bgra_impl<
 
                     let px = next_px * channels;
                     let rgb_offset = dst_offset + px;
-                    bgra[rgb_offset + destination_channels.get_b_channel_offset()] = b as u8;
-                    bgra[rgb_offset + destination_channels.get_g_channel_offset()] = g as u8;
-                    bgra[rgb_offset + destination_channels.get_r_channel_offset()] = r as u8;
-                    if destination_channels.has_alpha() {
-                        bgra[rgb_offset + destination_channels.get_a_channel_offset()] = 255;
+                    unsafe {
+                        *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_b_channel_offset()) =
+                            b as u8;
+                        *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_g_channel_offset()) =
+                            g as u8;
+                        *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_r_channel_offset()) =
+                            r as u8;
+                        if destination_channels.has_alpha() {
+                            *bgra.get_unchecked_mut(
+                                rgb_offset + destination_channels.get_a_channel_offset(),
+                            ) = 255;
+                        }
                     }
                 }
             }
@@ -673,7 +689,6 @@ pub fn yuv_nv16_p10_msb_to_bgra(
         matrix,
     );
 }
-
 
 /// Convert YUV NV12 format with 10-bit pixel format (MSB) to RGBA format.
 ///

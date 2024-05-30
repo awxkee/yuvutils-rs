@@ -230,38 +230,53 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
         for x in (cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
-            let r = rgba[rgba_offset + px + source_channels.get_r_channel_offset()] as i32;
-            let g = rgba[rgba_offset + px + source_channels.get_g_channel_offset()] as i32;
-            let b = rgba[rgba_offset + px + source_channels.get_b_channel_offset()] as i32;
+            let rgba_shift = rgba_offset + px;
+            let r =
+                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset()) }
+                    as i32;
+            let g =
+                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset()) }
+                    as i32;
+            let b =
+                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset()) }
+                    as i32;
             let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
             let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
             let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
-            y_plane[y_offset + x] = y_0 as u8;
+            unsafe {
+                *y_plane.get_unchecked_mut(y_offset + x) = y_0 as u8;
+            }
             let uv_pos = uv_offset + ux;
             match order {
-                YuvNVOrder::UV => {
-                    uv_plane[uv_pos] = cb as u8;
-                    uv_plane[uv_pos + 1] = cr as u8;
-                }
-                YuvNVOrder::VU => {
-                    uv_plane[uv_pos] = cr as u8;
-                    uv_plane[uv_pos + 1] = cb as u8;
-                }
+                YuvNVOrder::UV => unsafe {
+                    *uv_plane.get_unchecked_mut(uv_pos) = cb as u8;
+                    *uv_plane.get_unchecked_mut(uv_pos + 1) = cr as u8;
+                },
+                YuvNVOrder::VU => unsafe {
+                    *uv_plane.get_unchecked_mut(uv_pos) = cr as u8;
+                    *uv_plane.get_unchecked_mut(uv_pos + 1) = cb as u8;
+                },
             }
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                     let next_x = x + 1;
                     if next_x < width as usize {
                         let next_px = next_x * channels;
-                        let r = rgba[rgba_offset + next_px + source_channels.get_r_channel_offset()]
-                            as i32;
-                        let g = rgba[rgba_offset + next_px + source_channels.get_g_channel_offset()]
-                            as i32;
-                        let b = rgba[rgba_offset + next_px + source_channels.get_b_channel_offset()]
-                            as i32;
+                        let rgba_shift = rgba_offset + next_px;
+                        let r = unsafe {
+                            *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset())
+                        } as i32;
+                        let g = unsafe {
+                            *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset())
+                        } as i32;
+                        let b = unsafe {
+                            *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset())
+                        } as i32;
                         let y_1 =
                             (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-                        y_plane[y_offset + next_x] = y_1 as u8;
+                        unsafe {
+                            *y_plane.get_unchecked_mut(y_offset + next_x) = y_1 as u8;
+                        }
                     }
                 }
                 _ => {}

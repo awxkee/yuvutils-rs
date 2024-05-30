@@ -5,19 +5,19 @@
  * // license that can be found in the LICENSE file.
  */
 
+#[cfg(all(target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+use crate::avx512_utils::*;
+#[allow(unused_imports)]
+use crate::internals::*;
 #[cfg(target_arch = "x86_64")]
 #[allow(unused_imports)]
 use crate::x86_simd_support::*;
-#[allow(unused_imports)]
-use crate::internals::*;
 use crate::yuv_support::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-#[cfg(all(target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-use crate::avx512_utils::*;
 
 #[cfg(all(target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -528,10 +528,7 @@ unsafe fn sse42_process_row<
 
         let u_low = _mm_sub_epi16(_mm_cvtepu8_epi16(u_low_u8), uv_corr);
         let v_low = _mm_sub_epi16(_mm_cvtepu8_epi16(v_low_u8), uv_corr);
-        let y_low = _mm_mullo_epi16(
-            _mm_cvtepu8_epi16(y_values),
-            v_luma_coeff,
-        );
+        let y_low = _mm_mullo_epi16(_mm_cvtepu8_epi16(y_values), v_luma_coeff);
 
         let r_low = _mm_srai_epi16::<6>(_mm_max_epi16(
             _mm_adds_epi16(y_low, _mm_mullo_epi16(v_low, v_cr_coeff)),
@@ -560,12 +557,7 @@ unsafe fn sse42_process_row<
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                );
+                sse_store_rgb_u8(rgba_ptr.add(dst_shift), r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
                 sse_store_rgba(
@@ -866,7 +858,8 @@ fn yuv_nv12_to_rgbx<
         }
 
         for x in (cx..width as usize).step_by(iterator_step) {
-            let y_value = (y_plane[y_offset + x] as i32 - bias_y) * y_coef;
+            let y_value =
+                (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
             let cb_value: i32;
             let cr_value: i32;
             let cb_pos = uv_offset + ux;
@@ -874,12 +867,12 @@ fn yuv_nv12_to_rgbx<
 
             match order {
                 YuvNVOrder::UV => {
-                    cb_value = uv_plane[cb_pos] as i32 - bias_uv;
-                    cr_value = uv_plane[cr_pos] as i32 - bias_uv;
+                    cb_value = unsafe { *uv_plane.get_unchecked(cb_pos) } as i32 - bias_uv;
+                    cr_value = unsafe { *uv_plane.get_unchecked(cr_pos) } as i32 - bias_uv;
                 }
                 YuvNVOrder::VU => {
-                    cb_value = uv_plane[cr_pos] as i32 - bias_uv;
-                    cr_value = uv_plane[cb_pos] as i32 - bias_uv;
+                    cb_value = unsafe { *uv_plane.get_unchecked(cr_pos) } as i32 - bias_uv;
+                    cr_value = unsafe { *uv_plane.get_unchecked(cb_pos) } as i32 - bias_uv;
                 }
             }
 
@@ -893,11 +886,18 @@ fn yuv_nv12_to_rgbx<
 
             let dst_shift = dst_offset + px;
 
-            bgra[dst_shift + destination_channels.get_b_channel_offset()] = b as u8;
-            bgra[dst_shift + destination_channels.get_g_channel_offset()] = g as u8;
-            bgra[dst_shift + destination_channels.get_r_channel_offset()] = r as u8;
-            if destination_channels.has_alpha() {
-                bgra[dst_shift + destination_channels.get_a_channel_offset()] = 255;
+            unsafe {
+                *bgra.get_unchecked_mut(dst_shift + destination_channels.get_b_channel_offset()) =
+                    b as u8;
+                *bgra.get_unchecked_mut(dst_shift + destination_channels.get_g_channel_offset()) =
+                    g as u8;
+                *bgra.get_unchecked_mut(dst_shift + destination_channels.get_r_channel_offset()) =
+                    r as u8;
+                if destination_channels.has_alpha() {
+                    *bgra.get_unchecked_mut(
+                        dst_shift + destination_channels.get_a_channel_offset(),
+                    ) = 255;
+                }
             }
 
             if chroma_subsampling == YuvChromaSample::YUV422
@@ -905,7 +905,9 @@ fn yuv_nv12_to_rgbx<
             {
                 let next_px = x + 1;
                 if next_px < width as usize {
-                    let y_value = (y_plane[y_offset + next_px] as i32 - bias_y) * y_coef;
+                    let y_value = (unsafe { *y_plane.get_unchecked(y_offset + next_px) } as i32
+                        - bias_y)
+                        * y_coef;
 
                     let r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
                     let b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
@@ -915,11 +917,21 @@ fn yuv_nv12_to_rgbx<
 
                     let next_px = next_px * channels;
                     let dst_shift = dst_offset + next_px;
-                    bgra[dst_shift + destination_channels.get_b_channel_offset()] = b as u8;
-                    bgra[dst_shift + destination_channels.get_g_channel_offset()] = g as u8;
-                    bgra[dst_shift + destination_channels.get_r_channel_offset()] = r as u8;
-                    if destination_channels.has_alpha() {
-                        bgra[dst_shift + destination_channels.get_a_channel_offset()] = 255;
+                    unsafe {
+                        *bgra.get_unchecked_mut(
+                            dst_shift + destination_channels.get_b_channel_offset(),
+                        ) = b as u8;
+                        *bgra.get_unchecked_mut(
+                            dst_shift + destination_channels.get_g_channel_offset(),
+                        ) = g as u8;
+                        *bgra.get_unchecked_mut(
+                            dst_shift + destination_channels.get_r_channel_offset(),
+                        ) = r as u8;
+                        if destination_channels.has_alpha() {
+                            *bgra.get_unchecked_mut(
+                                dst_shift + destination_channels.get_a_channel_offset(),
+                            ) = 255;
+                        }
                     }
                 }
             }
