@@ -1007,6 +1007,106 @@ pub fn yuv_nv12_to_bgra(
     )
 }
 
+/// Convert YUV NV16 format to BGRA format.
+///
+/// This function takes YUV NV16 data with 8-bit precision,
+/// and converts it to BGRA format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) plane data.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv16_to_bgra(
+    y_plane: &[u8],
+    y_stride: u32,
+    uv_plane: &[u8],
+    uv_stride: u32,
+    bgra: &mut [u8],
+    bgra_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_to_rgbx::<
+        { YuvNVOrder::UV as u8 },
+        { YuvSourceChannels::Bgra as u8 },
+        { YuvChromaSample::YUV422 as u8 },
+    >(
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        bgra,
+        bgra_stride,
+        width,
+        height,
+        range,
+        matrix,
+    )
+}
+
+/// Convert YUV NV61 format to BGRA format.
+///
+/// This function takes YUV NV61 data with 8-bit precision,
+/// and converts it to BGRA format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `vu_plane` - A slice to load the VU (chrominance) plane data.
+/// * `vu_stride` - The stride (bytes per row) for the VU plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv61_to_bgra(
+    y_plane: &[u8],
+    y_stride: u32,
+    vu_plane: &[u8],
+    vu_stride: u32,
+    bgra: &mut [u8],
+    bgra_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_to_rgbx::<
+        { YuvNVOrder::VU as u8 },
+        { YuvSourceChannels::Bgra as u8 },
+        { YuvChromaSample::YUV422 as u8 },
+    >(
+        y_plane,
+        y_stride,
+        vu_plane,
+        vu_stride,
+        bgra,
+        bgra_stride,
+        width,
+        height,
+        range,
+        matrix,
+    )
+}
+
 /// Convert YUV NV21 format to BGRA format.
 ///
 /// This function takes YUV NV12 data with 8-bit precision,
@@ -1050,6 +1150,106 @@ pub fn yuv_nv21_to_bgra(
         vu_stride,
         bgra,
         bgra_stride,
+        width,
+        height,
+        range,
+        matrix,
+    )
+}
+
+/// Convert YUV NV16 format to RGBA format.
+///
+/// This function takes YUV NV16 data with 8-bit precision,
+/// and converts it to RGBA format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) plane data.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `rgba_data` - A mutable slice to store the converted RGBA data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv16_to_rgba(
+    y_plane: &[u8],
+    y_stride: u32,
+    uv_plane: &[u8],
+    uv_stride: u32,
+    rgba: &mut [u8],
+    rgba_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_to_rgbx::<
+        { YuvNVOrder::UV as u8 },
+        { YuvSourceChannels::Rgba as u8 },
+        { YuvChromaSample::YUV422 as u8 },
+    >(
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        rgba,
+        rgba_stride,
+        width,
+        height,
+        range,
+        matrix,
+    )
+}
+
+/// Convert YUV NV61 format to RGBA format.
+///
+/// This function takes YUV NV61 data with 8-bit precision,
+/// and converts it to RGBA format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) plane data.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `rgba_data` - A mutable slice to store the converted RGBA data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv61_to_rgba(
+    y_plane: &[u8],
+    y_stride: u32,
+    uv_plane: &[u8],
+    uv_stride: u32,
+    rgba: &mut [u8],
+    rgba_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_to_rgbx::<
+        { YuvNVOrder::VU as u8 },
+        { YuvSourceChannels::Rgba as u8 },
+        { YuvChromaSample::YUV422 as u8 },
+    >(
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        rgba,
+        rgba_stride,
         width,
         height,
         range,
@@ -1193,6 +1393,88 @@ pub fn yuv_nv12_to_rgb(
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSample::YUV420 as u8 },
+    >(
+        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, width, height, range, matrix,
+    )
+}
+
+/// Convert YUV NV16 format to RGB format.
+///
+/// This function takes YUV NV16 data with 8-bit precision,
+/// and converts it to RGB format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) plane data.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `rgb_data` - A mutable slice to store the converted RGB data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv16_to_rgb(
+    y_plane: &[u8],
+    y_stride: u32,
+    uv_plane: &[u8],
+    uv_stride: u32,
+    rgb: &mut [u8],
+    rgb_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_to_rgbx::<
+        { YuvNVOrder::UV as u8 },
+        { YuvSourceChannels::Rgb as u8 },
+        { YuvChromaSample::YUV422 as u8 },
+    >(
+        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, width, height, range, matrix,
+    )
+}
+
+/// Convert YUV NV61 format to RGB format.
+///
+/// This function takes YUV NV61 data with 8-bit precision,
+/// and converts it to RGB format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `uv_plane` - A slice to load the UV (chrominance) plane data.
+/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `rgb_data` - A mutable slice to store the converted RGB data.
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn yuv_nv61_to_rgb(
+    y_plane: &[u8],
+    y_stride: u32,
+    uv_plane: &[u8],
+    uv_stride: u32,
+    rgb: &mut [u8],
+    rgb_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    yuv_nv12_to_rgbx::<
+        { YuvNVOrder::VU as u8 },
+        { YuvSourceChannels::Rgb as u8 },
+        { YuvChromaSample::YUV422 as u8 },
     >(
         y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, width, height, range, matrix,
     )

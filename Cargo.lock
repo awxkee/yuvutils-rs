@@ -4,4 +4,4 @@ version = 3
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.2.5"
+version = "0.2.6"
