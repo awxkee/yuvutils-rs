@@ -7,13 +7,14 @@
 
 #[cfg(feature = "nightly_avx512")]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx512_utils::*;
-#[allow(unused_imports)]
+use crate::avx512_utils::{avx512_div_by255, avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8};
 use crate::internals::ProcessedOffset;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon_simd_support::neon_premultiply_alpha;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::x86_simd_support::*;
-#[allow(unused_imports)]
-use crate::yuv_support::*;
+use crate::yuv_support::{get_yuv_range, YuvChromaRange, YuvChromaSample, YuvSourceChannels};
+use crate::YuvRange;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86")]
@@ -29,15 +30,18 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
     range: &YuvChromaRange,
     y_plane: &[u8],
     cg_plane: &[u8],
-    v_plane: &[u8],
+    co_plane: &[u8],
+    a_plane: &[u8],
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
     y_offset: usize,
     u_offset: usize,
     v_offset: usize,
+    a_offset: usize,
     rgba_offset: usize,
     width: usize,
+    premultiply_alpha: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -50,7 +54,8 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
 
     let y_ptr = y_plane.as_ptr().add(y_offset);
     let u_ptr = cg_plane.as_ptr().add(u_offset);
-    let v_ptr = v_plane.as_ptr().add(v_offset);
+    let v_ptr = co_plane.as_ptr().add(v_offset);
+    let a_ptr = a_plane.as_ptr().add(a_offset);
     let rgba_ptr = rgba.as_mut_ptr().add(rgba_offset);
 
     let max_colors = 2i32.pow(8) - 1i32;
@@ -70,6 +75,7 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
 
     while cx + 64 < width {
         let y_values = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
+        let a_values = _mm512_loadu_si512(a_ptr.add(cx) as *const i32);
 
         let u_high_u8;
         let v_high_u8;
@@ -164,9 +170,27 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
             v_min_zeros,
         ));
 
-        let r_values = avx512_pack_u16(r_low, r_high);
-        let g_values = avx512_pack_u16(g_low, g_high);
-        let b_values = avx512_pack_u16(b_low, b_high);
+        let (r_values, g_values, b_values);
+
+        if premultiply_alpha {
+            let a_high = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(a_values));
+            let a_low = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(a_values));
+
+            let r_l = avx512_div_by255(_mm512_mullo_epi16(r_low, a_low));
+            let r_h = avx512_div_by255(_mm512_mullo_epi16(r_high, a_high));
+            let g_l = avx512_div_by255(_mm512_mullo_epi16(g_low, a_low));
+            let g_h = avx512_div_by255(_mm512_mullo_epi16(g_high, a_high));
+            let b_l = avx512_div_by255(_mm512_mullo_epi16(b_low, a_low));
+            let b_h = avx512_div_by255(_mm512_mullo_epi16(b_high, a_high));
+
+            r_values = avx512_pack_u16(r_l, r_h);
+            g_values = avx512_pack_u16(g_l, g_h);
+            b_values = avx512_pack_u16(b_l, b_h);
+        } else {
+            r_values = avx512_pack_u16(r_low, r_high);
+            g_values = avx512_pack_u16(g_low, g_high);
+            b_values = avx512_pack_u16(b_low, b_high);
+        }
 
         let dst_shift = cx * channels;
 
@@ -219,14 +243,17 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &[u8],
     cg_plane: &[u8],
     v_plane: &[u8],
+    a_plane: &[u8],
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
     y_offset: usize,
     u_offset: usize,
     v_offset: usize,
+    a_offset: usize,
     rgba_offset: usize,
     width: usize,
+    premultiply_alpha: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -240,6 +267,7 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let y_ptr = y_plane.as_ptr().add(y_offset);
     let u_ptr = cg_plane.as_ptr().add(u_offset);
     let v_ptr = v_plane.as_ptr().add(v_offset);
+    let a_ptr = a_plane.as_ptr().add(a_offset);
     let rgba_ptr = rgba.as_mut_ptr().add(rgba_offset);
 
     let max_colors = 2i32.pow(8) - 1i32;
@@ -259,6 +287,7 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     while cx + 32 < width {
         let y_values = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);
+        let a_values = _mm256_loadu_si256(a_ptr.add(cx) as *const __m256i);
 
         let u_high_u8;
         let v_high_u8;
@@ -348,9 +377,27 @@ unsafe fn avx2_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             v_min_zeros,
         ));
 
-        let r_values = avx2_pack_u16(r_low, r_high);
-        let g_values = avx2_pack_u16(g_low, g_high);
-        let b_values = avx2_pack_u16(b_low, b_high);
+        let (r_values, g_values, b_values);
+
+        if premultiply_alpha {
+            let a_high = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(a_values));
+            let a_low = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(a_values));
+
+            let r_l = avx2_div_by255(_mm256_mullo_epi16(r_low, a_low));
+            let r_h = avx2_div_by255(_mm256_mullo_epi16(r_high, a_high));
+            let g_l = avx2_div_by255(_mm256_mullo_epi16(g_low, a_low));
+            let g_h = avx2_div_by255(_mm256_mullo_epi16(g_high, a_high));
+            let b_l = avx2_div_by255(_mm256_mullo_epi16(b_low, a_low));
+            let b_h = avx2_div_by255(_mm256_mullo_epi16(b_high, a_high));
+
+            r_values = avx2_pack_u16(r_l, r_h);
+            g_values = avx2_pack_u16(g_l, g_h);
+            b_values = avx2_pack_u16(b_l, b_h);
+        } else {
+            r_values = avx2_pack_u16(r_low, r_high);
+            g_values = avx2_pack_u16(g_low, g_high);
+            b_values = avx2_pack_u16(b_low, b_high);
+        }
 
         let dst_shift = cx * channels;
 
@@ -402,14 +449,17 @@ unsafe fn sse_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &[u8],
     cg_plane: &[u8],
     v_plane: &[u8],
+    a_plane: &[u8],
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
     y_offset: usize,
     u_offset: usize,
     v_offset: usize,
+    a_offset: usize,
     rgba_offset: usize,
     width: usize,
+    premultiply_alpha: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -423,6 +473,7 @@ unsafe fn sse_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let y_ptr = y_plane.as_ptr().add(y_offset);
     let u_ptr = cg_plane.as_ptr().add(u_offset);
     let v_ptr = v_plane.as_ptr().add(v_offset);
+    let a_ptr = a_plane.as_ptr().add(a_offset);
     let rgba_ptr = rgba.as_mut_ptr().add(rgba_offset);
 
     let max_colors = 2i32.pow(8) - 1i32;
@@ -442,6 +493,7 @@ unsafe fn sse_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     while cx + 16 < width {
         let y_values = _mm_loadu_si128(y_ptr.add(cx) as *const __m128i);
+        let a_values = _mm_loadu_si128(a_ptr.add(cx) as *const __m128i);
 
         let u_high_u8;
         let v_high_u8;
@@ -512,9 +564,26 @@ unsafe fn sse_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         let b_low = _mm_srai_epi16::<6>(_mm_max_epi16(_mm_subs_epi16(t_low, co_low), v_min_zeros));
         let g_low = _mm_srai_epi16::<6>(_mm_max_epi16(_mm_adds_epi16(y_low, cg_low), v_min_zeros));
 
-        let r_values = _mm_packus_epi16(r_low, r_high);
-        let g_values = _mm_packus_epi16(g_low, g_high);
-        let b_values = _mm_packus_epi16(b_low, b_high);
+        let (r_values, g_values, b_values);
+
+        if premultiply_alpha {
+            let a_h = _mm_unpackhi_epi8(a_values, v_min_zeros);
+            let a_l = _mm_cvtepu8_epi16(a_values);
+            let r_h_16 = sse_div_by255(_mm_mullo_epi16(r_high, a_h));
+            let r_l_16 = sse_div_by255(_mm_mullo_epi16(r_low, a_l));
+            let g_h_16 = sse_div_by255(_mm_mullo_epi16(g_high, a_h));
+            let g_l_16 = sse_div_by255(_mm_mullo_epi16(g_low, a_l));
+            let b_h_16 = sse_div_by255(_mm_mullo_epi16(b_high, a_h));
+            let b_l_16 = sse_div_by255(_mm_mullo_epi16(b_low, a_l));
+
+            r_values = _mm_packus_epi16(r_l_16, r_h_16);
+            g_values = _mm_packus_epi16(g_l_16, g_h_16);
+            b_values = _mm_packus_epi16(b_l_16, b_h_16);
+        } else {
+            r_values = _mm_packus_epi16(r_low, r_high);
+            g_values = _mm_packus_epi16(g_low, g_high);
+            b_values = _mm_packus_epi16(b_low, b_high);
+        }
 
         let dst_shift = cx * channels;
 
@@ -565,14 +634,17 @@ unsafe fn neon_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &[u8],
     cg_plane: &[u8],
     v_plane: &[u8],
+    a_plane: &[u8],
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
     y_offset: usize,
     u_offset: usize,
     v_offset: usize,
+    a_offset: usize,
     rgba_offset: usize,
     width: usize,
+    premultiply_alpha: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -586,6 +658,7 @@ unsafe fn neon_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let y_ptr = y_plane.as_ptr().add(y_offset);
     let u_ptr = cg_plane.as_ptr().add(u_offset);
     let v_ptr = v_plane.as_ptr().add(v_offset);
+    let a_ptr = a_plane.as_ptr().add(a_offset);
     let rgba_ptr = rgba.as_mut_ptr().add(rgba_offset);
 
     let max_colors = 2i32.pow(8) - 1i32;
@@ -605,6 +678,7 @@ unsafe fn neon_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
+        let a_values = vld1q_u8(a_ptr.add(cx));
 
         let u_high_u8: uint8x8_t;
         let v_high_u8: uint8x8_t;
@@ -665,9 +739,15 @@ unsafe fn neon_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         let b_low = vqshrun_n_s16::<6>(vmaxq_s16(vqsubq_s16(t_low, co_low), v_min_zeros));
         let g_low = vqshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(y_low, cg_low), v_min_zeros));
 
-        let r_values = vcombine_u8(r_low, r_high);
-        let g_values = vcombine_u8(g_low, g_high);
-        let b_values = vcombine_u8(b_low, b_high);
+        let mut r_values = vcombine_u8(r_low, r_high);
+        let mut g_values = vcombine_u8(g_low, g_high);
+        let mut b_values = vcombine_u8(b_low, b_high);
+
+        if premultiply_alpha {
+            r_values = neon_premultiply_alpha(r_values, a_values);
+            g_values = neon_premultiply_alpha(g_values, a_values);
+            b_values = neon_premultiply_alpha(b_values, a_values);
+        }
 
         let dst_shift = cx * channels;
 
@@ -708,11 +788,14 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     cg_stride: u32,
     co_plane: &[u8],
     co_stride: u32,
+    a_plane: &[u8],
+    a_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
+    premultiply_alpha: bool,
 ) {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -724,6 +807,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let mut y_offset = 0usize;
     let mut u_offset = 0usize;
     let mut v_offset = 0usize;
+    let mut a_offset = 0usize;
     let mut rgba_offset = 0usize;
 
     let iterator_step = match chroma_subsampling {
@@ -780,14 +864,17 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     y_plane,
                     cg_plane,
                     co_plane,
+                    a_plane,
                     rgba,
                     cx,
                     uv_x,
                     y_offset,
                     u_offset,
                     v_offset,
+                    a_offset,
                     rgba_offset,
                     width as usize,
+                    premultiply_alpha,
                 );
                 cx = processed.cx;
                 uv_x = processed.ux;
@@ -799,14 +886,17 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     y_plane,
                     cg_plane,
                     co_plane,
+                    a_plane,
                     rgba,
                     cx,
                     uv_x,
                     y_offset,
                     u_offset,
                     v_offset,
+                    a_offset,
                     rgba_offset,
                     width as usize,
+                    premultiply_alpha,
                 );
                 cx = processed.cx;
                 uv_x = processed.ux;
@@ -817,14 +907,17 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     y_plane,
                     cg_plane,
                     co_plane,
+                    a_plane,
                     rgba,
                     cx,
                     uv_x,
                     y_offset,
                     u_offset,
                     v_offset,
+                    a_offset,
                     rgba_offset,
                     width as usize,
+                    premultiply_alpha,
                 );
                 cx = processed.cx;
                 uv_x = processed.ux;
@@ -838,14 +931,17 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 y_plane,
                 cg_plane,
                 co_plane,
+                a_plane,
                 rgba,
                 cx,
                 uv_x,
                 y_offset,
                 u_offset,
                 v_offset,
+                a_offset,
                 rgba_offset,
                 width as usize,
+                premultiply_alpha,
             );
             cx = processed.cx;
             uv_x = processed.ux;
@@ -873,9 +969,16 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let t = y_value - cg_value;
 
-            let r = ((t + co_value) >> 6).min(255).max(0);
-            let b = ((t - co_value) >> 6).min(255).max(0);
-            let g = ((y_value + cg_value) >> 6).min(255).max(0);
+            let mut r = ((t + co_value) >> 6).min(255).max(0);
+            let mut b = ((t - co_value) >> 6).min(255).max(0);
+            let mut g = ((y_value + cg_value) >> 6).min(255).max(0);
+
+            let a_value = unsafe { *a_plane.get_unchecked(a_offset + x) };
+            if premultiply_alpha {
+                r = (r * a_value as i32) / 255;
+                g = (g * a_value as i32) / 255;
+                b = (b * a_value as i32) / 255;
+            }
 
             let px = x * channels;
 
@@ -910,13 +1013,20 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * range_reduction_y;
 
-                    let r = ((t + co_value) >> 6).min(255).max(0);
-                    let b = ((t - co_value) >> 6).min(255).max(0);
-                    let g = ((y_value + cg_value) >> 6).min(255).max(0);
+                    let mut r = ((t + co_value) >> 6).min(255).max(0);
+                    let mut b = ((t - co_value) >> 6).min(255).max(0);
+                    let mut g = ((y_value + cg_value) >> 6).min(255).max(0);
 
                     let next_px = next_x * channels;
 
                     let rgba_shift = rgba_offset + next_px;
+
+                    let a_value = unsafe { *a_plane.get_unchecked(a_offset + next_x) };
+                    if premultiply_alpha {
+                        r = (r * a_value as i32) / 255;
+                        g = (g * a_value as i32) / 255;
+                        b = (b * a_value as i32) / 255;
+                    }
 
                     unsafe {
                         *rgba.get_unchecked_mut(
@@ -937,7 +1047,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         unsafe {
                             *rgba.get_unchecked_mut(
                                 rgba_shift + destination_channels.get_a_channel_offset(),
-                            ) = 255
+                            ) = a_value;
                         };
                     }
                 }
@@ -948,6 +1058,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         y_offset += y_stride as usize;
         rgba_offset += rgba_stride as usize;
+        a_offset += a_stride as usize;
         match chroma_subsampling {
             YuvChromaSample::YUV420 => {
                 if y & 1 == 1 {
@@ -963,48 +1074,6 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     }
 }
 
-/// Convert YCgCo 420 planar format to RGB format.
-///
-/// This function takes YCgCo 420 planar format data with 8-bit precision,
-/// and converts it to RGB format with 8-bit per channel precision.
-///
-/// # Arguments
-///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted RGB data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn ycgco420_to_rgb(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
-    rgb: &mut [u8],
-    rgb_stride: u32,
-    width: u32,
-    height: u32,
-    range: YuvRange,
-) {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
-        height, range,
-    )
-}
-
 /// Convert YCgCo 420 planar format to RGBA format.
 ///
 /// This function takes YCgCo 420 planar format data with 8-bit precision,
@@ -1018,28 +1087,34 @@ pub fn ycgco420_to_rgb(
 /// * `cg_stride` - The stride (bytes per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
 /// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `a_plane` - A slice to load alpha plane to append to result.
+/// * `a_stride` - The stride (bytes per row) for the alpha plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
 /// * `range` - The YUV range (limited or full).
+/// * `premultiply_alpha` - Flag to premultiply alpha or not
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco420_to_rgba(
+pub fn ycgco420_with_alpha_to_rgba(
     y_plane: &[u8],
     y_stride: u32,
     cg_plane: &[u8],
     cg_stride: u32,
     co_plane: &[u8],
     co_stride: u32,
+    a_plane: &[u8],
+    a_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
+    premultiply_alpha: bool,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane,
@@ -1048,11 +1123,14 @@ pub fn ycgco420_to_rgba(
         cg_stride,
         co_plane,
         co_stride,
+        a_plane,
+        a_stride,
         rgba,
         rgba_stride,
         width,
         height,
         range,
+        premultiply_alpha,
     )
 }
 
@@ -1069,28 +1147,34 @@ pub fn ycgco420_to_rgba(
 /// * `cg_stride` - The stride (bytes per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
 /// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `a_plane` - A slice to load alpha plane to append to result.
+/// * `a_stride` - The stride (bytes per row) for the alpha plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
 /// * `range` - The YUV range (limited or full).
+/// * `premultiply_alpha` - Flag to premultiply alpha or not
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco420_to_bgra(
+pub fn ycgco420_with_alpha_to_bgra(
     y_plane: &[u8],
     y_stride: u32,
     cg_plane: &[u8],
     cg_stride: u32,
     co_plane: &[u8],
     co_stride: u32,
+    a_plane: &[u8],
+    a_stride: u32,
     bgra: &mut [u8],
     bgra_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
+    premultiply_alpha: bool,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane,
@@ -1099,53 +1183,14 @@ pub fn ycgco420_to_bgra(
         cg_stride,
         co_plane,
         co_stride,
+        a_plane,
+        a_stride,
         bgra,
         bgra_stride,
         width,
         height,
         range,
-    )
-}
-
-/// Convert YCgCo 422 planar format to RGB format.
-///
-/// This function takes YCgCo 422 data with 8-bit precision,
-/// and converts it to RGB format with 8-bit per channel precision.
-///
-/// # Arguments
-///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted RGB data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn ycgco422_to_rgb(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
-    rgb: &mut [u8],
-    rgb_stride: u32,
-    width: u32,
-    height: u32,
-    range: YuvRange,
-) {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
-        height, range,
+        premultiply_alpha,
     )
 }
 
@@ -1162,28 +1207,34 @@ pub fn ycgco422_to_rgb(
 /// * `cg_stride` - The stride (bytes per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
 /// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `a_plane` - A slice to load alpha plane to append to result.
+/// * `a_stride` - The stride (bytes per row) for the alpha plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted RGBA data.
 /// * `range` - The YUV range (limited or full).
+/// * `premultiply_alpha` - Flag to premultiply alpha or not
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco422_to_rgba(
+pub fn ycgco422_with_alpha_to_rgba(
     y_plane: &[u8],
     y_stride: u32,
     cg_plane: &[u8],
     cg_stride: u32,
     co_plane: &[u8],
     co_stride: u32,
+    a_plane: &[u8],
+    a_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
+    premultiply_alpha: bool,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane,
@@ -1192,11 +1243,14 @@ pub fn ycgco422_to_rgba(
         cg_stride,
         co_plane,
         co_stride,
+        a_plane,
+        a_stride,
         rgba,
         rgba_stride,
         width,
         height,
         range,
+        premultiply_alpha,
     )
 }
 
@@ -1213,28 +1267,34 @@ pub fn ycgco422_to_rgba(
 /// * `cg_stride` - The stride (bytes per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
 /// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `a_plane` - A slice to load alpha plane to append to result.
+/// * `a_stride` - The stride (bytes per row) for the alpha plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
 /// * `range` - The YUV range (limited or full).
+/// * `premultiply_alpha` - Flag to premultiply alpha or not
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco422_to_bgra(
+pub fn ycgco422_with_alpha_to_bgra(
     y_plane: &[u8],
     y_stride: u32,
     cg_plane: &[u8],
     cg_stride: u32,
     co_plane: &[u8],
     co_stride: u32,
+    a_plane: &[u8],
+    a_stride: u32,
     bgra: &mut [u8],
     bgra_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
+    premultiply_alpha: bool,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane,
@@ -1243,11 +1303,14 @@ pub fn ycgco422_to_bgra(
         cg_stride,
         co_plane,
         co_stride,
+        a_plane,
+        a_stride,
         bgra,
         bgra_stride,
         width,
         height,
         range,
+        premultiply_alpha,
     )
 }
 
@@ -1264,28 +1327,34 @@ pub fn ycgco422_to_bgra(
 /// * `cg_stride` - The stride (bytes per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
 /// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `a_plane` - A slice to load alpha plane to append to result.
+/// * `a_stride` - The stride (bytes per row) for the alpha plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
 /// * `range` - The YUV range (limited or full).
+/// * `premultiply_alpha` - Flag to premultiply alpha or not
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco444_to_rgba(
+pub fn ycgco444_with_alpha_to_rgba(
     y_plane: &[u8],
     y_stride: u32,
     cg_plane: &[u8],
     cg_stride: u32,
     co_plane: &[u8],
     co_stride: u32,
+    a_plane: &[u8],
+    a_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
+    premultiply_alpha: bool,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane,
@@ -1294,11 +1363,14 @@ pub fn ycgco444_to_rgba(
         cg_stride,
         co_plane,
         co_stride,
+        a_plane,
+        a_stride,
         rgba,
         rgba_stride,
         width,
         height,
         range,
+        premultiply_alpha,
     )
 }
 
@@ -1315,28 +1387,34 @@ pub fn ycgco444_to_rgba(
 /// * `cg_stride` - The stride (bytes per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
 /// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `a_plane` - A slice to load alpha plane to append to result.
+/// * `a_stride` - The stride (bytes per row) for the alpha plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
 /// * `range` - The YUV range (limited or full).
+/// * `premultiply_alpha` - Flag to premultiply alpha or not
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco444_to_bgra(
+pub fn ycgco444_with_alpha_to_bgra(
     y_plane: &[u8],
     y_stride: u32,
     cg_plane: &[u8],
     cg_stride: u32,
     co_plane: &[u8],
     co_stride: u32,
+    a_plane: &[u8],
+    a_stride: u32,
     bgra: &mut [u8],
     bgra_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
+    premultiply_alpha: bool,
 ) {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane,
@@ -1345,52 +1423,13 @@ pub fn ycgco444_to_bgra(
         cg_stride,
         co_plane,
         co_stride,
+        a_plane,
+        a_stride,
         bgra,
         bgra_stride,
         width,
         height,
         range,
-    )
-}
-
-/// Convert YCgCo 444 planar format to RGB format.
-///
-/// This function takes YCgCo 444 data with 8-bit precision,
-/// and converts it to RGB format with 8-bit per channel precision.
-///
-/// # Arguments
-///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted RGB data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn ycgco444_to_rgb(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
-    rgb: &mut [u8],
-    rgb_stride: u32,
-    width: u32,
-    height: u32,
-    range: YuvRange,
-) {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
-        height, range,
+        premultiply_alpha,
     )
 }

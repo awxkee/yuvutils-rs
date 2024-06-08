@@ -71,6 +71,7 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
             _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
             y_corr,
         );
+        let a_values = _mm512_loadu_si512(a_plane.as_ptr().add(a_offset + cx) as *const i32);
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
@@ -149,8 +150,6 @@ unsafe fn avx512_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
             ),
             v_min_values,
         ));
-
-        let a_values = _mm512_loadu_si512(a_plane.as_ptr().add(a_offset + cx) as *const i32);
 
         let (r_values, g_values, b_values);
 
@@ -404,6 +403,7 @@ unsafe fn sse42_process_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     return ProcessedOffset { cx, ux: uv_x };
 }
 
+#[cfg(target_feature = "avx2")]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]

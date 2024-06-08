@@ -28,6 +28,7 @@ mod rgb_to_ycgco;
 mod ycgco_to_rgb;
 mod avx512_rgb_to_yuv;
 mod neon_ycgco;
+mod ycgco_to_rgb_alpha;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
@@ -136,3 +137,10 @@ pub use ycgco_to_rgb::ycgco422_to_rgba;
 pub use ycgco_to_rgb::ycgco444_to_bgra;
 pub use ycgco_to_rgb::ycgco444_to_rgb;
 pub use ycgco_to_rgb::ycgco444_to_rgba;
+
+pub use ycgco_to_rgb_alpha::ycgco420_with_alpha_to_bgra;
+pub use ycgco_to_rgb_alpha::ycgco420_with_alpha_to_rgba;
+pub use ycgco_to_rgb_alpha::ycgco422_with_alpha_to_bgra;
+pub use ycgco_to_rgb_alpha::ycgco422_with_alpha_to_rgba;
+pub use ycgco_to_rgb_alpha::ycgco444_with_alpha_to_bgra;
+pub use ycgco_to_rgb_alpha::ycgco444_with_alpha_to_rgba;
