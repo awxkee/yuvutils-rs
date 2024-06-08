@@ -8,6 +8,7 @@
 #[cfg(feature = "nightly_avx512")]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx512_utils::{avx512_div_by255, avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8};
+#[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon_simd_support::neon_premultiply_alpha;
