@@ -1,6 +1,5 @@
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8};
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8, shuffle};
 use crate::internals::ProcessedOffset;
-use crate::x86_simd_support::shuffle;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSample, YuvSourceChannels,
 };
