@@ -5,16 +5,14 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-use crate::avx512bw::*;
 #[cfg(target_arch = "x86")]
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86_64::*;
-use crate::avx512bw::avx512_setr::_v512_set_epu16;
+
+use crate::avx512bw::avx512_setr::{_v512_set_epu16, _v512_set_epu32};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
@@ -283,4 +281,22 @@ pub unsafe fn avx512_interleave_even_epi8(a: __m512i, b: __m512i) -> __m512i {
     let masked_a = _mm512_and_si512(a, mask_a);
     let b_s = _mm512_srli_epi16::<8>(b);
     return _mm512_or_si512(masked_a, b_s);
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline(always)]
+pub const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
+    // Checked: we want to reinterpret the bits
+    ((z << 6) | (y << 4) | (x << 2) | w) as i32
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline(always)]
+pub unsafe fn avx2_zip(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
+    const MASK: i32 = shuffle(3, 1, 2, 0);
+    let v0 = _mm256_permute4x64_epi64::<MASK>(a);
+    let v1 = _mm256_permute4x64_epi64::<MASK>(b);
+    let b0 = _mm256_unpacklo_epi8(v0, v1);
+    let b1 = _mm256_unpackhi_epi8(v0, v1);
+    (b0, b1)
 }

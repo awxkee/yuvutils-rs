@@ -293,18 +293,6 @@ pub unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
-pub unsafe fn avx2_zip(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
-    const MASK: i32 = shuffle(3, 1, 2, 0);
-    let v0 = _mm256_permute4x64_epi64::<MASK>(a);
-    let v1 = _mm256_permute4x64_epi64::<MASK>(b);
-    let b0 = _mm256_unpacklo_epi8(v0, v1);
-    let b1 = _mm256_unpackhi_epi8(v0, v1);
-    (b0, b1)
-}
-
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
     let rounding = _mm256_set1_epi16(1 << 7);
     let x = _mm256_adds_epi16(v, rounding);
