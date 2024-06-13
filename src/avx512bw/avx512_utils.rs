@@ -7,13 +7,14 @@
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]
-use crate::avx512_setr::*;
-#[cfg(target_arch = "x86_64")]
-#[cfg(feature = "nightly_avx512")]
-use std::arch::x86_64::*;
+use crate::avx512bw::*;
 #[cfg(target_arch = "x86")]
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
+#[cfg(feature = "nightly_avx512")]
+use std::arch::x86_64::*;
+use crate::avx512bw::avx512_setr::_v512_set_epu16;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]

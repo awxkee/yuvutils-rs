@@ -8,26 +8,30 @@
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
 #![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 
-mod x86_simd_support;
-mod x86_ycbcr_compute;
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    target_feature = "avx2"
+))]
+mod avx2;
+#[cfg(feature = "nightly_avx512")]
+mod avx512bw;
 mod internals;
 mod neon_simd_support;
+mod neon_ycgco;
 mod rgb_to_y;
+mod rgb_to_ycgco;
 mod rgba_to_nv;
 mod rgba_to_yuv;
+mod x86_simd_support;
+mod x86_ycbcr_compute;
 mod y_to_rgb;
+mod ycgco_to_rgb;
 mod yuv_nv_p10_to_rgba;
 mod yuv_nv_to_rgba;
 mod yuv_p10_rgba;
 mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
-mod avx512_utils;
-mod avx512_setr;
-mod rgb_to_ycgco;
-mod ycgco_to_rgb;
-mod avx512_rgb_to_yuv;
-mod neon_ycgco;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
