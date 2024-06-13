@@ -1,8 +1,3 @@
-#![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
-#![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
-#![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
-
-
 mod avx512_rgb_to_yuv;
 mod avx512_setr;
 mod avx512_utils;
