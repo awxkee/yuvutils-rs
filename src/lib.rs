@@ -134,3 +134,10 @@ pub use ycgco_to_rgb::ycgco422_to_rgba;
 pub use ycgco_to_rgb::ycgco444_to_bgra;
 pub use ycgco_to_rgb::ycgco444_to_rgb;
 pub use ycgco_to_rgb::ycgco444_to_rgba;
+
+pub use yuv_nv_to_rgba::yuv_nv16_to_bgra;
+pub use yuv_nv_to_rgba::yuv_nv61_to_bgra;
+pub use yuv_nv_to_rgba::yuv_nv61_to_rgba;
+pub use yuv_nv_to_rgba::yuv_nv16_to_rgba;
+pub use yuv_nv_to_rgba::yuv_nv16_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv61_to_rgb;

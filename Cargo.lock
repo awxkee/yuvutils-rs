@@ -994,7 +994,7 @@ dependencies = [
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.2.5"
+version = "0.2.7"
 
 [[package]]
 name = "zune-core"
