@@ -45,7 +45,7 @@ fn main() {
         width * components,
         width,
         height,
-        YuvRange::TV,
+        YuvRange::Full,
     );
 
     let end_time = Instant::now().sub(start_time);
@@ -63,7 +63,7 @@ fn main() {
         rgba_stride as u32,
         width,
         height,
-        YuvRange::TV,
+        YuvRange::Full,
     );
 
     let end_time = Instant::now().sub(start_time);

@@ -1,5 +1,6 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_ycgcor_row;
+use crate::sse::sse_rgb_to_ycgcor_row;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_support::{get_yuv_range, YuvChromaSample, YuvSourceChannels};
 use crate::YuvRange;
@@ -20,19 +21,36 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
-    let range = get_yuv_range(8, range);
     let precision_scale = (1 << 8) as f32;
+    let range = get_yuv_range(8, range);
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
-    let max_colors = 2i32.pow(8) - 1i32;
-
-    let range_reduction =
-        (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;
+    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
         YuvChromaSample::YUV422 => 2usize,
         YuvChromaSample::YUV444 => 1usize,
     };
+
+    let max_colors = 2i32.pow(8) - 1i32;
+    let range_reduction_y =
+        (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;
+    let range_reduction_uv =
+        (range.range_uv as f32 / max_colors as f32 * precision_scale).round() as i32;
+
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        target_feature = "sse4.1"
+    ))]
+    let mut _use_sse = false;
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        #[cfg(target_feature = "sse4.1")]
+        if std::arch::is_x86_feature_detected!("sse4.1") {
+            _use_sse = true;
+        }
+    }
 
     let mut y_offset = 0usize;
     let mut cg_offset = 0usize;
@@ -46,6 +64,26 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
         let y_ptr = unsafe { (y_plane.as_ptr() as *const u8).add(y_offset) as *mut u16 };
         let cg_ptr = unsafe { (cg_plane.as_ptr() as *const u8).add(cg_offset) as *mut u16 };
         let co_ptr = unsafe { (co_plane.as_ptr() as *const u8).add(co_offset) as *mut u16 };
+
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            #[cfg(target_feature = "sse4.1")]
+            if _use_sse {
+                let processed = sse_rgb_to_ycgcor_row::<ORIGIN_CHANNELS, SAMPLING>(
+                    &range,
+                    y_ptr,
+                    cg_ptr,
+                    co_ptr,
+                    rgba,
+                    rgba_offset,
+                    _cx,
+                    _ux,
+                    width as usize,
+                );
+                _cx = processed.cx;
+                _ux = processed.ux;
+            }
+        }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
@@ -67,32 +105,29 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let rgba_shift = rgba_offset + px;
-            let mut r =
+            let r =
                 unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset()) }
                     as i32;
-            let mut g =
+            let g =
                 unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset()) }
                     as i32;
-            let mut b =
+            let b =
                 unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset()) }
                     as i32;
-            r *= range_reduction;
-            g *= range_reduction;
-            b *= range_reduction;
             let co = r - b;
             let t = b + (co >> 1);
             let cg = g - t;
-            let y_0 = ((t + (cg >> 1)) + bias_y) >> 8;
+            let y_0 = ((t + (cg >> 1)) * range_reduction_y + bias_y) >> 8;
             unsafe {
                 y_ptr.add(x).write_unaligned(y_0 as u16);
             }
             let u_pos = _ux;
-            let corrected_cg = (cg + bias_y) >> 8;
+            let corrected_cg = (cg * range_reduction_uv + bias_uv) >> 8;
             unsafe {
                 cg_ptr.add(u_pos).write_unaligned(corrected_cg as u16);
             };
             let v_pos = _ux;
-            let corrected_co = (co + bias_y) >> 8;
+            let corrected_co = (co * range_reduction_uv + bias_uv) >> 8;
             unsafe {
                 co_ptr.add(v_pos).write_unaligned(corrected_co as u16);
             };
@@ -101,22 +136,19 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
                         let rgba_shift = rgba_offset + next_px;
-                        let mut r = unsafe {
+                        let r = unsafe {
                             *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset())
                         } as i32;
-                        let mut g = unsafe {
+                        let g = unsafe {
                             *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset())
                         } as i32;
-                        let mut b = unsafe {
+                        let b = unsafe {
                             *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset())
                         } as i32;
-                        r *= range_reduction;
-                        g *= range_reduction;
-                        b *= range_reduction;
                         let co = r - b;
                         let t = b + (co >> 1);
                         let cg = g - t;
-                        let y_1 = ((t + (cg >> 1)) + bias_y) >> 8;
+                        let y_1 = ((t + (cg >> 1)) * range_reduction_y + bias_y) >> 8;
                         unsafe {
                             y_ptr.add(x + 1).write_unaligned(y_1 as u16);
                         }

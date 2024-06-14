@@ -13,29 +13,35 @@
     target_feature = "avx2"
 ))]
 mod avx2;
-#[cfg(feature = "nightly_avx512")]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    all(target_feature = "avx512bw", feature = "nightly_avx512")
+))]
 mod avx512bw;
 mod internals;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+mod neon;
 mod rgb_to_y;
 mod rgb_to_ycgco;
+mod rgb_to_ycgco_r;
 mod rgba_to_nv;
 mod rgba_to_yuv;
-mod x86_simd_support;
-mod x86_ycbcr_compute;
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    target_feature = "sse4.1"
+))]
+mod sse;
 mod y_to_rgb;
+mod ycgco_r_to_rgb;
 mod ycgco_to_rgb;
+mod ycgco_to_rgb_alpha;
+mod ycgcor_support;
 mod yuv_nv_p10_to_rgba;
 mod yuv_nv_to_rgba;
 mod yuv_p10_rgba;
 mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
-mod ycgcor_support;
-mod rgb_to_ycgco_r;
-mod ycgco_to_rgb_alpha;
-mod ycgco_r_to_rgb;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-mod neon;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
@@ -140,11 +146,11 @@ pub use ycgco_to_rgb::ycgco444_to_rgb;
 pub use ycgco_to_rgb::ycgco444_to_rgba;
 
 pub use yuv_nv_to_rgba::yuv_nv16_to_bgra;
-pub use yuv_nv_to_rgba::yuv_nv61_to_bgra;
-pub use yuv_nv_to_rgba::yuv_nv61_to_rgba;
-pub use yuv_nv_to_rgba::yuv_nv16_to_rgba;
 pub use yuv_nv_to_rgba::yuv_nv16_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv16_to_rgba;
+pub use yuv_nv_to_rgba::yuv_nv61_to_bgra;
 pub use yuv_nv_to_rgba::yuv_nv61_to_rgb;
+pub use yuv_nv_to_rgba::yuv_nv61_to_rgba;
 
 pub use ycgco_to_rgb_alpha::ycgco420_with_alpha_to_bgra;
 pub use ycgco_to_rgb_alpha::ycgco420_with_alpha_to_rgba;

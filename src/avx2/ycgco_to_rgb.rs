@@ -7,7 +7,6 @@
 
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
-use crate::x86_simd_support::{sse_interleave_even, sse_interleave_odd};
 use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;

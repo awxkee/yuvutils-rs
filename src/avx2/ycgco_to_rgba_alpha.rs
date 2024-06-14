@@ -5,11 +5,8 @@
  * // license that can be found in the LICENSE file.
  */
 
-use crate::avx2::avx2_utils::{
-    avx2_div_by255, avx2_pack_u16, avx2_store_u8_rgb, avx2_store_u8_rgba,
-};
+use crate::avx2::avx2_utils::{avx2_div_by255, avx2_pack_u16, avx2_store_u8_rgb, avx2_store_u8_rgba, sse_interleave_even, sse_interleave_odd};
 use crate::internals::ProcessedOffset;
-use crate::x86_simd_support::{sse_interleave_even, sse_interleave_odd};
 use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;

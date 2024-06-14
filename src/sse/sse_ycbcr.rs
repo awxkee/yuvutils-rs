@@ -5,12 +5,11 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[allow(unused_imports)]
-use crate::x86_simd_support::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
+use crate::sse::sse_support::sse_promote_i16_toi32;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]

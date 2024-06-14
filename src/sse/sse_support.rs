@@ -5,10 +5,10 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
@@ -19,7 +19,6 @@ pub unsafe fn sse_promote_i16_toi32(s: __m128i) -> __m128i {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     #[rustfmt::skip]
     let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
@@ -30,7 +29,6 @@ pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
     #[rustfmt::skip]
         let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7,
@@ -189,7 +187,6 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
     let shifted = _mm_srli_epi16::<1>(sums);
@@ -197,14 +194,31 @@ pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     packed
 }
 
-
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
     let rounding = _mm_set1_epi16(1 << 7);
     let x = _mm_adds_epi16(v, rounding);
     let multiplier = _mm_set1_epi16(-32640);
     let r = _mm_mulhi_epu16(x, multiplier);
     return _mm_srli_epi16::<7>(r);
+}
+
+#[inline(always)]
+#[allow(dead_code)]
+pub unsafe fn sse_pairwise_widen_avg_epi16(v: __m128i) -> __m128i {
+    let zeros = _mm_setzero_si128();
+    let hi_32 = _mm_unpackhi_epi16(v, zeros);
+    let lo_32 = _mm_unpacklo_epi16(v, zeros);
+    let sums = _mm_hadd_epi32(lo_32, hi_32);
+    let shifted = _mm_srli_epi16::<1>(sums);
+    let packed = _mm_packus_epi32(shifted, shifted);
+    packed
+}
+
+#[inline(always)]
+pub unsafe fn sse_pairwise_avg_epi16(a: __m128i, b: __m128i) -> __m128i {
+    let sums = _mm_hadd_epi16(a, b);
+    let shifted = _mm_srli_epi16::<1>(sums);
+    shifted
 }

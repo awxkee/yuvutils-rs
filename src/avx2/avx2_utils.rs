@@ -288,7 +288,6 @@ pub unsafe fn avx2_reshuffle_odd(v: __m256i) -> __m256i {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
     let sums = _mm256_maddubs_epi16(v, _mm256_set1_epi8(1));
     let shifted = _mm256_srli_epi16::<1>(sums);
@@ -299,11 +298,30 @@ pub unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
     let rounding = _mm256_set1_epi16(1 << 7);
     let x = _mm256_adds_epi16(v, rounding);
     let multiplier = _mm256_set1_epi16(-32640);
     let r = _mm256_mulhi_epu16(x, multiplier);
     return _mm256_srli_epi16::<7>(r);
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline(always)]
+pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
+    #[rustfmt::skip]
+    let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
+                                8, 8, 10, 10, 12, 12, 14, 14);
+    let new_lane = _mm_shuffle_epi8(x, shuffle);
+    return new_lane;
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline(always)]
+pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
+    #[rustfmt::skip]
+    let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7,
+                                9, 9, 11, 11, 13, 13, 15, 15);
+    let new_lane = _mm_shuffle_epi8(x, shuffle);
+    return new_lane;
 }
