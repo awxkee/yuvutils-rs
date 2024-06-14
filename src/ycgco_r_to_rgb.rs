@@ -5,6 +5,8 @@
  * // license that can be found in the LICENSE file.
  */
 
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::neon_ycgcor_to_rgb_row;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_support::{get_yuv_range, YuvChromaSample, YuvSourceChannels};
 use crate::YuvRange;
@@ -53,16 +55,36 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
         let cg_ptr = unsafe { (cg_plane.as_ptr() as *const u8).add(u_offset) as *mut u16 };
         let co_ptr = unsafe { (co_plane.as_ptr() as *const u8).add(v_offset) as *mut u16 };
 
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            let offset = neon_ycgcor_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
+                &range,
+                y_ptr,
+                cg_ptr,
+                co_ptr,
+                rgba,
+                _cx,
+                _uv_x,
+                rgba_offset,
+                width as usize,
+            );
+            _cx = offset.cx;
+            _uv_x = offset.ux;
+        }
+
         for x in (_cx..width as usize).step_by(iterator_step) {
-            let y_value = (unsafe { y_ptr.add(x).read_unaligned() as i32 } - bias_y) * range_reduction_y;
+            let y_value =
+                (unsafe { y_ptr.add(x).read_unaligned() as i32 } - bias_y) * range_reduction_y;
 
             let cg_pos = _uv_x;
 
-            let cg_value = (unsafe { cg_ptr.add(cg_pos).read_unaligned() } as i32 - bias_y) * range_reduction_y;
+            let cg_value = (unsafe { cg_ptr.add(cg_pos).read_unaligned() } as i32 - bias_y)
+                * range_reduction_y;
 
             let v_pos = _uv_x;
 
-            let co_value = (unsafe { co_ptr.add(v_pos).read_unaligned() } as i32 - bias_y) * range_reduction_y;
+            let co_value =
+                (unsafe { co_ptr.add(v_pos).read_unaligned() } as i32 - bias_y) * range_reduction_y;
 
             let t = y_value - (cg_value >> 1);
             let g = (t + cg_value) >> 6;

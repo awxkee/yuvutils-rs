@@ -6,6 +6,7 @@
  */
 
 use std::arch::aarch64::*;
+
 #[inline(always)]
 pub unsafe fn neon_rgb_to_ycgco_r(
     r: int16x8_t,
@@ -41,4 +42,28 @@ pub unsafe fn neon_rgb_to_ycgco_r(
         vcombine_u16(vqshrun_n_s32::<8>(cg_l), vqshrun_n_s32::<8>(cg_h)),
         vcombine_u16(vqshrun_n_s32::<8>(co_l), vqshrun_n_s32::<8>(co_h)),
     )
+}
+
+#[inline(always)]
+pub unsafe fn neon_ycgco_r_to_rgb(
+    y: int16x8_t,
+    cg: int16x8_t,
+    co: int16x8_t,
+    y_reduction: int16x8_t,
+    y_bias: int16x8_t,
+) -> (uint8x8_t, uint8x8_t, uint8x8_t) {
+    let y = vsubq_s16(y, y_bias);
+    let cg = vsubq_s16(cg, y_bias);
+    let co = vsubq_s16(co, y_bias);
+    let y_l = vmulq_s16(y, y_reduction);
+    let cg_l = vmulq_s16(cg, y_reduction);
+    let co_l = vmulq_s16(co, y_reduction);
+
+    let t_l = vqsubq_s16(y_l, vshrq_n_s16::<1>(cg_l));
+    let g = vqshrun_n_s16::<6>(vqaddq_s16(t_l, cg_l));
+    let b = vqsubq_s16(t_l, vshrq_n_s16::<1>(co_l));
+    let r = vqshrun_n_s16::<6>(vqaddq_s16(b, co_l));
+    let b = vqshrun_n_s16::<6>(b);
+
+    (r, g, b)
 }
