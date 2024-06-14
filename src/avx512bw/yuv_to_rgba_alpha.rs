@@ -1,3 +1,11 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
+use crate::avx512bw::avx512_utils::*;
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSample, YuvSourceChannels,
@@ -6,7 +14,6 @@ use crate::yuv_support::{
 use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
-use crate::avx512bw::avx512_utils::*;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly_avx512")]

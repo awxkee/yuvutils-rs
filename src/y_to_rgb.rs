@@ -6,13 +6,13 @@
  */
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(feature = "nightly_avx512")]
+use crate::avx512bw::avx512_y_to_rgb_row;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use std::arch::aarch64::*;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-use crate::avx512bw::avx512_y_to_rgb_row;
+use crate::neon::neon_y_to_rgb_row;
 
 use crate::yuv_support::*;
 
@@ -76,49 +76,17 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            let y_ptr = y_plane.as_ptr();
-            let rgba_ptr = rgba.as_mut_ptr();
-
-            let y_corr = vdupq_n_u8(bias_y as u8);
-            let v_luma_coeff = vdupq_n_u8(y_coef as u8);
-            let v_luma_coeff_8 = vdup_n_u8(y_coef as u8);
-            let v_min_values = vdupq_n_s16(0i16);
-            let v_alpha = vdupq_n_u8(255u8);
-
-            while cx + 16 < width as usize {
-                let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
-
-                let y_high = vreinterpretq_s16_u16(vmull_high_u8(y_values, v_luma_coeff));
-
-                let r_high = vqshrun_n_s16::<6>(vmaxq_s16(y_high, v_min_values));
-
-                let y_low = vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_values), v_luma_coeff_8));
-
-                let r_low = vqshrun_n_s16::<6>(vmaxq_s16(y_low, v_min_values));
-
-                let r_values = vcombine_u8(r_low, r_high);
-
-                let dst_shift = rgba_offset + cx * channels;
-
-                match destination_channels {
-                    YuvSourceChannels::Rgb => {
-                        let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, r_values, r_values);
-                        vst3q_u8(rgba_ptr.add(dst_shift), dst_pack);
-                    }
-                    YuvSourceChannels::Rgba => {
-                        let dst_pack: uint8x16x4_t =
-                            uint8x16x4_t(r_values, r_values, r_values, v_alpha);
-                        vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-                    }
-                    YuvSourceChannels::Bgra => {
-                        let dst_pack: uint8x16x4_t =
-                            uint8x16x4_t(r_values, r_values, r_values, v_alpha);
-                        vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-                    }
-                }
-
-                cx += 16;
-            }
+            let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
+                &range,
+                &integer_transform,
+                y_plane,
+                rgba,
+                cx,
+                y_offset,
+                rgba_offset,
+                width as usize,
+            );
+            cx = offset;
         }
 
         for x in cx..width as usize {

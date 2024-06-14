@@ -1,10 +1,17 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8, shuffle};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8, shuffle};
 
 #[cfg(feature = "nightly_avx512")]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

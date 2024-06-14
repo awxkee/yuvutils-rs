@@ -1,3 +1,10 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
 use crate::avx512bw::avx512_utils::{
     avx512_deinterleave_rgb, avx512_deinterleave_rgba, avx512_pack_u16, avx512_pairwise_widen_avg,
     avx512_rgb_to_ycbcr,

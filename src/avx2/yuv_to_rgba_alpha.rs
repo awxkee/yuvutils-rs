@@ -1,3 +1,10 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
