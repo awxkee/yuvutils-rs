@@ -5,12 +5,9 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use std::arch::aarch64::*;
 
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn neon_rgb_to_ycgco(
     r: int16x8_t,
     g: int16x8_t,

@@ -1,3 +1,5 @@
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::neon_rgb_to_ycgcor_row;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_support::{get_yuv_range, YuvChromaSample, YuvSourceChannels};
 use crate::YuvRange;
@@ -44,6 +46,23 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
         let y_ptr = unsafe { (y_plane.as_ptr() as *const u8).add(y_offset) as *mut u16 };
         let cg_ptr = unsafe { (cg_plane.as_ptr() as *const u8).add(cg_offset) as *mut u16 };
         let co_ptr = unsafe { (co_plane.as_ptr() as *const u8).add(co_offset) as *mut u16 };
+
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            let processed = neon_rgb_to_ycgcor_row::<ORIGIN_CHANNELS, SAMPLING>(
+                &range,
+                y_ptr,
+                cg_ptr,
+                co_ptr,
+                rgba,
+                rgba_offset,
+                _cx,
+                _ux,
+                width as usize,
+            );
+            _cx = processed.cx;
+            _ux = processed.ux;
+        }
 
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;

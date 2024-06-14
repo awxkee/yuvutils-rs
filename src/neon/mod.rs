@@ -7,8 +7,10 @@
 
 mod neon_simd_support;
 mod neon_ycgco;
+mod neon_ycgco_r;
 mod rgb_to_y;
 mod rgb_to_ycgco;
+mod rgb_to_ycgco_r;
 mod rgba_to_nv;
 mod rgba_to_yuv;
 mod y_to_rgb;
@@ -22,6 +24,7 @@ mod yuv_to_rgba_alpha;
 
 pub use rgb_to_y::neon_rgb_to_y_row;
 pub use rgb_to_ycgco::neon_rgb_to_ycgco_row;
+pub use rgb_to_ycgco_r::neon_rgb_to_ycgcor_row;
 pub use rgba_to_nv::neon_rgbx_to_nv_row;
 pub use rgba_to_yuv::neon_rgba_to_yuv;
 pub use y_to_rgb::neon_y_to_rgb_row;

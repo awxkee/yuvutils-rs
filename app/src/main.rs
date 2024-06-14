@@ -1,3 +1,5 @@
+use std::ops::Sub;
+use std::time::Instant;
 use image::{ColorType, EncodableLayout, GenericImageView};
 use image::io::Reader as ImageReader;
 
@@ -30,6 +32,8 @@ fn main() {
     let rgba_stride = width as usize * 3;
     let mut rgba = vec![0u8; height as usize * rgba_stride];
 
+    let start_time = Instant::now();
+
     rgb_to_ycgcoro444(
         &mut y_plane,
         y_stride as u32,
@@ -44,6 +48,10 @@ fn main() {
         YuvRange::TV,
     );
 
+    let end_time = Instant::now().sub(start_time);
+    println!("Forward time: {:?}", end_time);
+
+    let start_time = Instant::now();
     ycgcoro444_to_rgb(
         &y_plane,
         y_stride as u32,
@@ -57,6 +65,9 @@ fn main() {
         height,
         YuvRange::TV,
     );
+
+    let end_time = Instant::now().sub(start_time);
+    println!("Backward time: {:?}", end_time);
 
     image::save_buffer(
         "converted.jpg",
