@@ -26,6 +26,7 @@ pub unsafe fn neon_ycgcor_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPL
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let bias_y = range.bias_y as i32;
+    let bias_uv = range.bias_uv as i32;
 
     let mut cx = start_cx;
     let mut uv_x = start_ux;
@@ -40,9 +41,13 @@ pub unsafe fn neon_ycgcor_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPL
 
     let range_reduction_y =
         (max_colors as f32 / range.range_y as f32 * precision_scale).round() as i32;
+    let range_reduction_uv =
+        (max_colors as f32 / range.range_uv as f32 * precision_scale).round() as i32;
 
-    let y_bias = vdupq_n_s16(bias_y as i16);
+    let y_corr = vdupq_n_s16(bias_y as i16);
+    let uv_corr = vdupq_n_s16(bias_uv as i16);
     let y_reduction = vdupq_n_s16(range_reduction_y as i16);
+    let uv_reduction = vdupq_n_s16(range_reduction_uv as i16);
     let v_alpha = vdupq_n_u8(255u8);
 
     while cx + 16 < width {
@@ -76,10 +81,24 @@ pub unsafe fn neon_ycgcor_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPL
             }
         }
 
-        let (r_l, g_l, b_l) =
-            neon_ycgco_r_to_rgb(y_values_lo, u_low_s16, v_low_s16, y_reduction, y_bias);
-        let (r_h, g_h, b_h) =
-            neon_ycgco_r_to_rgb(y_values_hi, u_high_s16, v_high_s16, y_reduction, y_bias);
+        let (r_l, g_l, b_l) = neon_ycgco_r_to_rgb(
+            y_values_lo,
+            u_low_s16,
+            v_low_s16,
+            y_reduction,
+            uv_reduction,
+            y_corr,
+            uv_corr,
+        );
+        let (r_h, g_h, b_h) = neon_ycgco_r_to_rgb(
+            y_values_hi,
+            u_high_s16,
+            v_high_s16,
+            y_reduction,
+            uv_reduction,
+            y_corr,
+            uv_corr,
+        );
 
         let r_values = vcombine_u8(r_l, r_h);
         let g_values = vcombine_u8(g_l, g_h);

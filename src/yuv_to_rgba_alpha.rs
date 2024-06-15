@@ -15,6 +15,10 @@ use crate::avx2::avx2_yuv_to_rgba_alpha;
 use crate::avx512bw::avx512_yuv_to_rgba_alpha;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_to_rgba_alpha;
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    target_feature = "sse4.1"
+))]
 use crate::sse::sse_yuv_to_rgba_alpha_row;
 #[allow(unused_imports)]
 use crate::yuv_support::*;

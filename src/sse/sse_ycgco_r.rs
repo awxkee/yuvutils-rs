@@ -3,18 +3,6 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub unsafe fn print_i16(x: __m128i) {
-    let mut t: [i16; 8] = [0i16; 8];
-    _mm_storeu_si128(t.as_mut_ptr() as * mut __m128i, x);
-    println!("{:?}", t);
-}
-
-pub unsafe fn print_i32(x: __m128i) {
-    let mut t: [i32; 4] = [0i32; 4];
-    _mm_storeu_si128(t.as_mut_ptr() as * mut __m128i, x);
-    println!("{:?}", t);
-}
-
 #[inline]
 pub unsafe fn sse_rgb_to_ycgco_r_epi16(
     r: __m128i,
@@ -26,39 +14,38 @@ pub unsafe fn sse_rgb_to_ycgco_r_epi16(
     uv_range: __m128i,
 ) -> (__m128i, __m128i, __m128i) {
     let zeros = _mm_setzero_si128();
-    let co = _mm_subs_epi16(r, b);
-    let t = _mm_adds_epi16(b, _mm_srai_epi16::<1>(co));
-    let cg = _mm_subs_epi16(g, t);
-    let y_p = _mm_adds_epi16(t, _mm_srai_epi16::<1>(cg));
-    let y_l = _mm_srai_epi32::<8>(_mm_add_epi32(
-        _mm_mullo_epi32(_mm_unpacklo_epi16(y_p, zeros), y_range),
-        y_bias,
-    ));
-    let y_h = _mm_srai_epi32::<8>(_mm_add_epi32(
-        _mm_mullo_epi32(_mm_unpackhi_epi16(y_p, zeros), y_range),
-        y_bias,
-    ));
-    let cg_l = _mm_srai_epi32::<8>(_mm_add_epi32(
-        _mm_mullo_epi32(_mm_unpacklo_epi16(cg, zeros), uv_range),
-        uv_bias,
-    ));
-    let cg_h = _mm_srai_epi32::<8>(_mm_add_epi32(
-        _mm_mullo_epi32(_mm_unpackhi_epi16(cg, zeros), uv_range),
-        uv_bias,
-    ));
+    let r_l = _mm_unpacklo_epi16(r, zeros);
+    let g_l = _mm_unpacklo_epi16(g, zeros);
+    let b_l = _mm_unpacklo_epi16(b, zeros);
 
-    let co_l = _mm_srai_epi32::<8>(_mm_add_epi32(
-        _mm_mullo_epi32(_mm_unpacklo_epi16(co, zeros), uv_range),
-        uv_bias,
-    ));
-    let co_h = _mm_srai_epi32::<8>(_mm_add_epi32(
-        _mm_mullo_epi32(_mm_unpackhi_epi16(co, zeros), uv_range),
-        uv_bias,
-    ));
+    let co_l = _mm_sub_epi32(r_l, b_l);
+    let t_l = _mm_add_epi32(b_l, _mm_srai_epi32::<1>(co_l));
+    let cg_l = _mm_sub_epi32(g_l, t_l);
+    let y_l = _mm_add_epi32(
+        _mm_mullo_epi32(_mm_add_epi32(_mm_srai_epi32::<1>(cg_l), t_l), y_range),
+        y_bias,
+    );
+    let co_l = _mm_add_epi32(_mm_mullo_epi32(co_l, uv_range), uv_bias);
+    let cg_l = _mm_add_epi32(_mm_mullo_epi32(cg_l, uv_range), uv_bias);
+
+    let r_h = _mm_unpackhi_epi16(r, zeros);
+    let g_h = _mm_unpackhi_epi16(g, zeros);
+    let b_h = _mm_unpackhi_epi16(b, zeros);
+
+    let co_h = _mm_sub_epi32(r_h, b_h);
+    let t_h = _mm_add_epi32(b_h, _mm_srai_epi32::<1>(co_h));
+    let cg_h = _mm_sub_epi32(g_h, t_h);
+    let y_h = _mm_add_epi32(
+        _mm_mullo_epi32(_mm_add_epi32(_mm_srai_epi32::<1>(cg_h), t_h), y_range),
+        y_bias,
+    );
+    let co_h = _mm_add_epi32(_mm_mullo_epi32(co_h, uv_range), uv_bias);
+    let cg_h = _mm_add_epi32(_mm_mullo_epi32(cg_h, uv_range), uv_bias);
+
     (
-        _mm_packus_epi32(y_l, y_h),
-        _mm_packus_epi32(cg_l, cg_h),
-        _mm_packus_epi32(co_l, co_h),
+        _mm_packus_epi32(_mm_srai_epi32::<8>(y_l), _mm_srai_epi32::<8>(y_h)),
+        _mm_packus_epi32(_mm_srai_epi32::<8>(cg_l), _mm_srai_epi32::<8>(cg_h)),
+        _mm_packus_epi32(_mm_srai_epi32::<8>(co_l), _mm_srai_epi32::<8>(co_h)),
     )
 }
 

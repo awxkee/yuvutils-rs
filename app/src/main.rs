@@ -6,7 +6,7 @@ use image::io::Reader as ImageReader;
 use yuvutils_rs::{rgb_to_ycgcoro444, ycgcoro444_to_rgb, YuvRange};
 
 fn main() {
-    let img = ImageReader::open("assets/test_image_1.jpg")
+    let img = ImageReader::open("assets/test_image_2.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -45,7 +45,7 @@ fn main() {
         width * components,
         width,
         height,
-        YuvRange::Full,
+        YuvRange::TV,
     );
 
     let end_time = Instant::now().sub(start_time);
@@ -63,7 +63,7 @@ fn main() {
         rgba_stride as u32,
         width,
         height,
-        YuvRange::Full,
+        YuvRange::TV,
     );
 
     let end_time = Instant::now().sub(start_time);

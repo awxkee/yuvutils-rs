@@ -1,5 +1,9 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_ycgcor_row;
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    target_feature = "sse4.1"
+))]
 use crate::sse::sse_rgb_to_ycgcor_row;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_support::{get_yuv_range, YuvChromaSample, YuvSourceChannels};

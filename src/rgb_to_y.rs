@@ -15,6 +15,10 @@ use crate::avx2::avx2_rgb_to_y_row;
 use crate::avx512bw::avx512_row_rgb_to_y;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_y_row;
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    target_feature = "sse4.1"
+))]
 use crate::sse::sse_rgb_to_y;
 use crate::yuv_support::*;
 
@@ -60,6 +64,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
+        #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
         }

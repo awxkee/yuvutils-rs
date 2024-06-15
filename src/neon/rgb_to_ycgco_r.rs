@@ -35,15 +35,20 @@ pub unsafe fn neon_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: 
     let mut uv_x = start_ux;
 
     let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
+    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
 
     let precision_scale = (1 << 8) as f32;
     let max_colors = 2i32.pow(8) - 1i32;
 
     let range_reduction_y =
         (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;
+    let range_reduction_uv =
+        (range.range_uv as f32 / max_colors as f32 * precision_scale).round() as i32;
 
-    let v_range_reduction_y = vdup_n_s16(range_reduction_y as i16);
+    let v_range_reduction_y = vdupq_n_s32(range_reduction_y);
+    let v_range_reduction_uv = vdupq_n_s32(range_reduction_uv);
     let v_bias_y = vdupq_n_s32(bias_y);
+    let v_bias_uv = vdupq_n_s32(bias_uv);
 
     while cx + 16 < width {
         let r_values_u8: uint8x16_t;
@@ -75,15 +80,29 @@ pub unsafe fn neon_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: 
         let g_high = vreinterpretq_s16_u16(vmovl_high_u8(g_values_u8));
         let b_high = vreinterpretq_s16_u16(vmovl_high_u8(b_values_u8));
 
-        let (y_v_high, cg_high, co_high) =
-            neon_rgb_to_ycgco_r(r_high, g_high, b_high, v_range_reduction_y, v_bias_y);
+        let (y_v_high, cg_high, co_high) = neon_rgb_to_ycgco_r(
+            r_high,
+            g_high,
+            b_high,
+            v_range_reduction_y,
+            v_range_reduction_uv,
+            v_bias_y,
+            v_bias_uv,
+        );
 
         let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));
         let b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values_u8)));
 
-        let (y_v_low, cg_low, co_low) =
-            neon_rgb_to_ycgco_r(r_low, g_low, b_low, v_range_reduction_y, v_bias_y);
+        let (y_v_low, cg_low, co_low) = neon_rgb_to_ycgco_r(
+            r_low,
+            g_low,
+            b_low,
+            v_range_reduction_y,
+            v_range_reduction_uv,
+            v_bias_y,
+            v_bias_uv,
+        );
 
         let y_store = uint16x8x2_t(y_v_low, y_v_high);
         vst1q_u16_x2(y_ptr.add(cx), y_store);

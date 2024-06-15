@@ -76,25 +76,25 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
         let cg_ptr = unsafe { (cg_plane.as_ptr() as *const u8).add(u_offset) as *mut u16 };
         let co_ptr = unsafe { (co_plane.as_ptr() as *const u8).add(v_offset) as *mut u16 };
 
-        // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        // unsafe {
-        //     #[cfg(target_feature = "sse4.1")]
-        //     if _use_sse {
-        //         let offset = sse_ycgcor_type_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
-        //             &range,
-        //             y_ptr,
-        //             cg_ptr,
-        //             co_ptr,
-        //             rgba,
-        //             _cx,
-        //             _uv_x,
-        //             rgba_offset,
-        //             width as usize,
-        //         );
-        //         _cx = offset.cx;
-        //         _uv_x = offset.ux;
-        //     }
-        // }
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            #[cfg(target_feature = "sse4.1")]
+            if _use_sse {
+                let offset = sse_ycgcor_type_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
+                    &range,
+                    y_ptr,
+                    cg_ptr,
+                    co_ptr,
+                    rgba,
+                    _cx,
+                    _uv_x,
+                    rgba_offset,
+                    width as usize,
+                );
+                _cx = offset.cx;
+                _uv_x = offset.ux;
+            }
+        }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {

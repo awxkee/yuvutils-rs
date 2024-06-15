@@ -5,7 +5,7 @@ use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::sse::sse_ycgco_r::{print_i16, sse_rgb_to_ycgco_r_epi16};
+use crate::sse::sse_ycgco_r::{sse_rgb_to_ycgco_r_epi16};
 
 #[inline]
 pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
@@ -44,11 +44,12 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
 
     let zeros = _mm_setzero_si128();
 
+    let y_bias = _mm_set1_epi32(bias_y);
+    let uv_bias = _mm_set1_epi32(bias_uv);
+    let v_range_reduction_y = _mm_set1_epi32(range_reduction_y);
+    let v_range_reduction_uv = _mm_set1_epi32(range_reduction_uv);
+
     while cx + 16 < width {
-        let y_bias = _mm_set1_epi32(bias_y);
-        let uv_bias = _mm_set1_epi32(bias_uv);
-        let v_range_reduction_y = _mm_set1_epi32(range_reduction_y);
-        let v_range_reduction_uv = _mm_set1_epi32(range_reduction_uv);
 
         let (r_values, g_values, b_values);
 
