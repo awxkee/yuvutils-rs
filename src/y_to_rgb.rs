@@ -42,12 +42,15 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let mut y_offset = 0usize;
     let mut rgba_offset = 0usize;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        all(target_feature = "avx512bw", feature = "nightly_avx512")
+    ))]
     let mut _use_avx512 = false;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        #[cfg(feature = "nightly_avx512")]
+        #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
         }
@@ -58,8 +61,10 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         #[allow(unused_mut)]
         let mut cx = 0usize;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[cfg(feature = "nightly_avx512")]
+        #[cfg(all(
+            any(target_arch = "x86", target_arch = "x86_64"),
+            all(target_feature = "avx512bw", feature = "nightly_avx512")
+        ))]
         unsafe {
             if _use_avx512 {
                 let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(
