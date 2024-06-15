@@ -49,6 +49,8 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
     let v_g_coeff_1 = _mm_set1_epi16(-1 * transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm_set1_epi16(-1 * transform.g_coeff_2 as i16);
 
+    let zeros = _mm_setzero_si128();
+
     while cx + 16 < width {
         let y_values = _mm_subs_epi8(
             _mm_loadu_si128(y_ptr.add(y_offset + cx) as *const __m128i),
@@ -84,10 +86,7 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
 
         let u_high = _mm_subs_epi16(_mm_cvtepu8_epi16(u_high_u8), uv_corr);
         let v_high = _mm_subs_epi16(_mm_cvtepu8_epi16(v_high_u8), uv_corr);
-        let y_high = _mm_mullo_epi16(
-            _mm_cvtepu8_epi16(_mm_srli_si128::<8>(y_values)),
-            v_luma_coeff,
-        );
+        let y_high = _mm_mullo_epi16(_mm_unpackhi_epi8(y_values, zeros), v_luma_coeff);
 
         let r_high = _mm_srai_epi16::<6>(_mm_max_epi16(
             _mm_adds_epi16(y_high, _mm_mullo_epi16(v_high, v_cr_coeff)),

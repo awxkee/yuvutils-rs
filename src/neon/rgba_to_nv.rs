@@ -8,10 +8,16 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvChromaSample, YuvNVOrder, YuvSourceChannels};
+use crate::yuv_support::{
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSample, YuvNVOrder, YuvSourceChannels,
+};
 
 #[inline(always)]
-pub unsafe fn neon_rgbx_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
+pub unsafe fn neon_rgbx_to_nv_row<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+>(
     y_plane: &mut [u8],
     y_offset: usize,
     uv_plane: &mut [u8],
@@ -96,8 +102,7 @@ pub unsafe fn neon_rgbx_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8,
         y_h_low = vmlal_s16(y_h_low, b_h_low, vget_low_s16(v_yb));
         y_h_low = vmaxq_s32(y_h_low, v_zeros);
 
-        let y_high =
-            vcombine_u16(vqshrun_n_s32::<8>(y_h_low), vqshrun_n_s32::<8>(y_h_high));
+        let y_high = vcombine_u16(vqshrun_n_s32::<8>(y_h_low), vqshrun_n_s32::<8>(y_h_high));
 
         let mut cb_h_high = vmlal_high_s16(uv_bias, r_high, v_cb_r);
         cb_h_high = vmlal_high_s16(cb_h_high, g_high, v_cb_g);
@@ -107,8 +112,7 @@ pub unsafe fn neon_rgbx_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8,
         cb_h_low = vmlal_s16(cb_h_low, g_h_low, vget_low_s16(v_cb_g));
         cb_h_low = vmlal_s16(cb_h_low, b_h_low, vget_low_s16(v_cb_b));
 
-        let cb_high =
-            vcombine_u16(vqshrun_n_s32::<8>(cb_h_low), vqshrun_n_s32::<8>(cb_h_high));
+        let cb_high = vcombine_u16(vqshrun_n_s32::<8>(cb_h_low), vqshrun_n_s32::<8>(cb_h_high));
 
         let mut cr_h_high = vmlal_high_s16(uv_bias, r_high, v_cr_r);
         cr_h_high = vmlal_high_s16(cr_h_high, g_high, v_cr_g);
@@ -118,8 +122,7 @@ pub unsafe fn neon_rgbx_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8,
         cr_h_low = vmlal_s16(cr_h_low, g_h_low, vget_low_s16(v_cr_g));
         cr_h_low = vmlal_s16(cr_h_low, b_h_low, vget_low_s16(v_cr_b));
 
-        let cr_high =
-            vcombine_u16(vqshrun_n_s32::<8>(cr_h_low), vqshrun_n_s32::<8>(cr_h_high));
+        let cr_high = vcombine_u16(vqshrun_n_s32::<8>(cr_h_low), vqshrun_n_s32::<8>(cr_h_high));
 
         let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));
@@ -149,8 +152,7 @@ pub unsafe fn neon_rgbx_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8,
         cb_l_low = vmlal_s16(cb_l_low, g_l_low, vget_low_s16(v_cb_g));
         cb_l_low = vmlal_s16(cb_l_low, b_l_low, vget_low_s16(v_cb_b));
 
-        let cb_low =
-            vcombine_u16(vqshrun_n_s32::<8>(cb_l_low), vqshrun_n_s32::<8>(cb_l_high));
+        let cb_low = vcombine_u16(vqshrun_n_s32::<8>(cb_l_low), vqshrun_n_s32::<8>(cb_l_high));
 
         let mut cr_l_high = vmlal_high_s16(uv_bias, r_low, v_cr_r);
         cr_l_high = vmlal_high_s16(cr_l_high, g_low, v_cr_g);
@@ -160,8 +162,7 @@ pub unsafe fn neon_rgbx_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8,
         cr_l_low = vmlal_s16(cr_l_low, g_l_low, vget_low_s16(v_cr_g));
         cr_l_low = vmlal_s16(cr_l_low, b_l_low, vget_low_s16(v_cr_b));
 
-        let cr_low =
-            vcombine_u16(vqshrun_n_s32::<8>(cr_l_low), vqshrun_n_s32::<8>(cr_l_high));
+        let cr_low = vcombine_u16(vqshrun_n_s32::<8>(cr_l_low), vqshrun_n_s32::<8>(cr_l_high));
 
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
         let cb = vcombine_u8(vqmovn_u16(cb_low), vqmovn_u16(cb_high));
@@ -203,5 +204,5 @@ pub unsafe fn neon_rgbx_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8,
         cx += 16;
     }
 
-    ProcessedOffset { cx, ux, }
+    ProcessedOffset { cx, ux }
 }

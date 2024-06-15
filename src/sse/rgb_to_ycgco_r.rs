@@ -1,11 +1,13 @@
 use crate::internals::ProcessedOffset;
-use crate::sse::sse_support::{sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_avg_epi16};
+use crate::sse::sse_support::{
+    sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_avg_epi16,
+};
+use crate::sse::sse_ycgco_r::sse_rgb_to_ycgco_r_epi16;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::sse::sse_ycgco_r::{sse_rgb_to_ycgco_r_epi16};
 
 #[inline]
 pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
@@ -50,7 +52,6 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
     let v_range_reduction_uv = _mm_set1_epi32(range_reduction_uv);
 
     while cx + 16 < width {
-
         let (r_values, g_values, b_values);
 
         let px = cx * channels;
@@ -118,8 +119,8 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                 let cg_h = sse_pairwise_avg_epi16(cg_l, cg_h);
                 let co_h = sse_pairwise_avg_epi16(co_l, co_h);
-                _mm_storeu_si128(cg_ptr.add(uv_x) as * mut __m128i, cg_h);
-                _mm_storeu_si128(co_ptr.add(uv_x) as * mut __m128i, co_h);
+                _mm_storeu_si128(cg_ptr.add(uv_x) as *mut __m128i, cg_h);
+                _mm_storeu_si128(co_ptr.add(uv_x) as *mut __m128i, co_h);
                 uv_x += 8;
             }
             YuvChromaSample::YUV444 => {

@@ -5,9 +5,8 @@
  * // license that can be found in the LICENSE file.
  */
 
-
-use std::arch::aarch64::*;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
+use std::arch::aarch64::*;
 
 #[inline(always)]
 pub unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
@@ -77,8 +76,7 @@ pub unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
         y_h_low = vmlal_s16(y_h_low, b_h_low, vget_low_s16(v_yb));
         y_h_low = vmaxq_s32(y_h_low, v_zeros);
 
-        let y_high =
-            vcombine_u16(vqshrun_n_s32::<8>(y_h_low), vqshrun_n_s32::<8>(y_h_high));
+        let y_high = vcombine_u16(vqshrun_n_s32::<8>(y_h_low), vqshrun_n_s32::<8>(y_h_high));
 
         let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));

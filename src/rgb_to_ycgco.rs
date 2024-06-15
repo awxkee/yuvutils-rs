@@ -17,8 +17,6 @@ use crate::avx2::avx2_rgb_to_ycgco_row;
 use crate::avx512bw::avx512_rgb_to_ycgco_row;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
-#[allow(unused_imports)]
-use crate::yuv_support::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_ycgco_row;
 #[cfg(all(
@@ -26,6 +24,8 @@ use crate::neon::neon_rgb_to_ycgco_row;
     target_feature = "sse4.1"
 ))]
 use crate::sse::sse_rgb_to_ycgco_row;
+#[allow(unused_imports)]
+use crate::yuv_support::*;
 
 fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &mut [u8],
@@ -65,7 +65,10 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut co_offset = 0usize;
     let mut rgba_offset = 0usize;
 
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "sse4.1"))]
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        target_feature = "sse4.1"
+    ))]
     let mut _use_sse = false;
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx = false;

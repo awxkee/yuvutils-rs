@@ -180,7 +180,7 @@ pub enum YuvStandardMatrix {
     Bt709,
     Bt2020,
     Smpte240,
-    Bt470_6
+    Bt470_6,
 }
 
 #[derive(Copy, Clone)]
