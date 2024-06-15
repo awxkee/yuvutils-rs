@@ -3,10 +3,10 @@ use std::time::Instant;
 use image::{ColorType, EncodableLayout, GenericImageView};
 use image::io::Reader as ImageReader;
 
-use yuvutils_rs::{rgb_to_ycgcoro444, ycgcoro444_to_rgb, YuvRange};
+use yuvutils_rs::{rgb_to_ycgcoro420, rgb_to_ycgcoro444, ycgcoro420_to_rgb, ycgcoro444_to_rgb, YuvRange};
 
 fn main() {
-    let img = ImageReader::open("assets/test_image_2.jpg")
+    let img = ImageReader::open("assets/test_image_1.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -34,7 +34,7 @@ fn main() {
 
     let start_time = Instant::now();
 
-    rgb_to_ycgcoro444(
+    rgb_to_ycgcoro420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,
@@ -52,7 +52,7 @@ fn main() {
     println!("Forward time: {:?}", end_time);
 
     let start_time = Instant::now();
-    ycgcoro444_to_rgb(
+    ycgcoro420_to_rgb(
         &y_plane,
         y_stride as u32,
         &u_plane,

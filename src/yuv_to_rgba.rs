@@ -10,8 +10,10 @@
     target_feature = "avx2"
 ))]
 use crate::avx2::avx2_yuv_to_rgba_row;
-#[cfg(feature = "nightly_avx512")]
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    all(target_feature = "avx512bw", feature = "nightly_avx512")
+))]
 use crate::avx512bw::avx512_yuv_to_rgba;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_to_rgba_row;

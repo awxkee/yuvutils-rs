@@ -5,8 +5,10 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    all(target_feature = "avx512bw", feature = "nightly_avx512")
+))]
 use crate::avx512bw::avx512_y_to_rgb_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[allow(unused_imports)]
