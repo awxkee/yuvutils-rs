@@ -65,6 +65,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             any(target_arch = "x86", target_arch = "x86_64"),
             all(target_feature = "avx512bw", feature = "nightly_avx512")
         ))]
+        #[allow(unused_unsafe)]
         unsafe {
             if _use_avx512 {
                 let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(

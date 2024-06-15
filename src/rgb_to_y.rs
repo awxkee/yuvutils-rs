@@ -89,6 +89,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         let mut cx = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
             if _use_avx {

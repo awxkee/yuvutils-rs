@@ -70,6 +70,7 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
         let co_ptr = unsafe { (co_plane.as_ptr() as *const u8).add(co_offset) as *mut u16 };
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(target_feature = "sse4.1")]
             if _use_sse {
