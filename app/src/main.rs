@@ -6,8 +6,10 @@ use std::ops::Sub;
 use std::time::Instant;
 
 use yuvutils_rs::{
-    rgb_to_ycgcoro444, rgb_to_yuv420, rgb_to_yuv444, ycgcoro444_to_rgb, yuv420_to_rgb,
-    yuv444_to_rgb, yuv444_to_yuyv422, yuyv422_to_yuv444, YuvRange, YuvStandardMatrix,
+    rgb_to_ycgcoro444, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, ycgcoro444_to_rgb,
+    yuv420_to_rgb, yuv420_to_yuyv422, yuv422_to_rgb, yuv422_to_yuyv422, yuv444_to_rgb,
+    yuv444_to_yuyv422, yuyv422_to_yuv420, yuyv422_to_yuv422, yuyv422_to_yuv444, YuvRange,
+    YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -25,7 +27,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let img = ImageReader::open("assets/test_image_2.jpg")
+    let img = ImageReader::open("assets/test_image_3.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -61,7 +63,7 @@ fn main() {
 
     let start_time = Instant::now();
 
-    rgb_to_yuv444(
+    rgb_to_yuv420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,
@@ -97,7 +99,7 @@ fn main() {
 
     let start_time = Instant::now();
 
-    yuv444_to_yuyv422(
+    yuv420_to_yuyv422(
         &y_plane,
         y_stride as u32,
         &u_plane,
@@ -115,7 +117,7 @@ fn main() {
 
     let start_time = Instant::now();
 
-    yuyv422_to_yuv444(
+    yuyv422_to_yuv420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,
@@ -132,7 +134,7 @@ fn main() {
     println!("yuyv422_to_yuv444 time: {:?}", end_time);
 
     let start_time = Instant::now();
-    yuv444_to_rgb(
+    yuv420_to_rgb(
         &y_plane,
         y_stride as u32,
         &u_plane,

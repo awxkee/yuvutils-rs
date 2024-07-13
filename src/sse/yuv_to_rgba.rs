@@ -63,9 +63,13 @@ pub unsafe fn sse_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
-                let u_values = _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(uv_x)), reshuffle);
-                let v_values = _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(uv_x)), reshuffle);
+                #[rustfmt::skip]
+                let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3,
+                                                    4, 4, 5, 5, 6, 6, 7, 7);
+                let u_values =
+                    _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(u_offset + uv_x)), reshuffle);
+                let v_values =
+                    _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(v_offset + uv_x)), reshuffle);
 
                 u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
                 v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);

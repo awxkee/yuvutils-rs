@@ -19,6 +19,7 @@ mod yuv_nv_to_rgba;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
+mod yuy2_to_yuv;
 
 pub use rgb_to_y::sse_rgb_to_y;
 pub use rgb_to_ycgco::sse_rgb_to_ycgco_row;
@@ -31,3 +32,4 @@ pub use yuv_nv_to_rgba::sse_yuv_nv_to_rgba;
 pub use yuv_to_rgba::sse_yuv_to_rgba_row;
 pub use yuv_to_rgba_alpha::sse_yuv_to_rgba_alpha_row;
 pub use yuv_to_yuy2::yuv_to_yuy2_sse_impl;
+pub use yuy2_to_yuv::yuy2_to_yuv_sse_impl;
