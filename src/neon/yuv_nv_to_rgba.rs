@@ -52,7 +52,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width as usize {
+    while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
 
         let u_high_u8: uint8x8_t;

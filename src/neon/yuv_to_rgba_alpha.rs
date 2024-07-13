@@ -5,12 +5,12 @@
  * // license that can be found in the LICENSE file.
  */
 
-use std::arch::aarch64::*;
 use crate::internals::ProcessedOffset;
 use crate::neon::neon_simd_support::neon_premultiply_alpha;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSample, YuvSourceChannels,
 };
+use std::arch::aarch64::*;
 
 #[inline(always)]
 pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
@@ -53,7 +53,7 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
     let v_g_coeff_1 = vdupq_n_s16(-1i16 * transform.g_coeff_1 as i16);
     let v_g_coeff_2 = vdupq_n_s16(-1i16 * transform.g_coeff_2 as i16);
 
-    while cx + 16 < width as usize {
+    while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
         let a_values = vld1q_u8(a_ptr.add(a_offset + cx));
 
@@ -143,13 +143,11 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
                 panic!("Should not be reached");
             }
             YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t =
-                    uint8x16x4_t(r_values, g_values, b_values, a_values);
+                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, a_values);
                 vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
             }
             YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t =
-                    uint8x16x4_t(b_values, g_values, r_values, a_values);
+                let dst_pack: uint8x16x4_t = uint8x16x4_t(b_values, g_values, r_values, a_values);
                 vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
             }
         }

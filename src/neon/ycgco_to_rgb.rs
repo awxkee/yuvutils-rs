@@ -5,9 +5,9 @@
  * // license that can be found in the LICENSE file.
  */
 
-use std::arch::aarch64::*;
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
+use std::arch::aarch64::*;
 
 #[inline(always)]
 pub unsafe fn neon_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(

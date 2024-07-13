@@ -5,14 +5,16 @@
  * // license that can be found in the LICENSE file.
  */
 
+use crate::avx2::avx2_utils::{
+    avx2_deinterleave_rgb, avx2_deinterleave_rgba, avx2_pack_u16, avx2_pairwise_widen_avg,
+};
+use crate::avx2::avx2_ycgco::avx2_rgb_to_ycgco;
+use crate::internals::ProcessedOffset;
+use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::avx2::avx2_utils::{avx2_deinterleave_rgb, avx2_deinterleave_rgba, avx2_pack_u16, avx2_pairwise_widen_avg};
-use crate::avx2::avx2_ycgco::avx2_rgb_to_ycgco;
-use crate::internals::ProcessedOffset;
-use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]

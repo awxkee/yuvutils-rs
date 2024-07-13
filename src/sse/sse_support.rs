@@ -27,7 +27,6 @@ pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     return new_lane;
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
     #[rustfmt::skip]
@@ -37,9 +36,7 @@ pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
     return new_lane;
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_interleave_rgba(
     r: __m128i,
     g: __m128i,
@@ -58,9 +55,7 @@ pub unsafe fn sse_interleave_rgba(
     (rgba_0_lo, rgba_0_hi, rgba_1_lo, rgba_1_hi)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a: __m128i) {
     let (row1, row2, row3, row4) = sse_interleave_rgba(r, g, b, a);
     _mm_storeu_si128(ptr as *mut __m128i, row1);
@@ -69,9 +64,7 @@ pub unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a
     _mm_storeu_si128(ptr.add(48) as *mut __m128i, row4);
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_deinterleave_rgba(
     rgba0: __m128i,
     rgba1: __m128i,
@@ -108,9 +101,7 @@ pub unsafe fn sse_deinterleave_rgba(
     (r1, r2, r3, r4)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_deinterleave_rgb(
     rgb0: __m128i,
     rgb1: __m128i,
@@ -152,7 +143,6 @@ pub unsafe fn sse_deinterleave_rgb(
     (r0r1r2, g0g1g2, b0b1b2)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
 pub unsafe fn sse_interleave_rgb(
@@ -175,9 +165,7 @@ pub unsafe fn sse_interleave_rgb(
     (v0, v1, v2)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
     let (v0, v1, v2) = sse_interleave_rgb(r, g, b);
     _mm_storeu_si128(ptr as *mut __m128i, v0);
@@ -185,7 +173,6 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
     _mm_storeu_si128(ptr.add(32) as *mut __m128i, v2);
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
@@ -205,20 +192,60 @@ pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
 }
 
 #[inline(always)]
-#[allow(dead_code)]
-pub unsafe fn sse_pairwise_widen_avg_epi16(v: __m128i) -> __m128i {
-    let zeros = _mm_setzero_si128();
-    let hi_32 = _mm_unpackhi_epi16(v, zeros);
-    let lo_32 = _mm_unpacklo_epi16(v, zeros);
-    let sums = _mm_hadd_epi32(lo_32, hi_32);
-    let shifted = _mm_srli_epi16::<1>(sums);
-    let packed = _mm_packus_epi32(shifted, shifted);
-    packed
-}
-
-#[inline(always)]
 pub unsafe fn sse_pairwise_avg_epi16(a: __m128i, b: __m128i) -> __m128i {
     let sums = _mm_hadd_epi16(a, b);
     let shifted = _mm_srli_epi16::<1>(sums);
     shifted
+}
+
+#[inline(always)]
+pub unsafe fn _mm_loadu_si128_x2(ptr: *const u8) -> (__m128i, __m128i) {
+    (
+        _mm_loadu_si128(ptr as *const __m128i),
+        _mm_loadu_si128(ptr.add(16) as *const __m128i),
+    )
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Copy, Clone)]
+pub struct __mm128x4(pub __m128i, pub __m128i, pub __m128i, pub __m128i);
+
+#[inline(always)]
+pub unsafe fn _mm_combinel_epi8(a: __m128i, b: __m128i) -> __m128i {
+    let a_low = _mm_castps_si128(_mm_movelh_ps(_mm_castsi128_ps(a), _mm_castsi128_ps(a)));
+    let b_low = _mm_castps_si128(_mm_movelh_ps(_mm_castsi128_ps(b), _mm_castsi128_ps(b)));
+
+    let combined = _mm_unpacklo_epi64(a_low, b_low);
+    combined
+}
+
+#[inline(always)]
+pub unsafe fn _mm_combineh_epi8(a: __m128i, b: __m128i) -> __m128i {
+    let a_low = _mm_castps_si128(_mm_movehl_ps(_mm_castsi128_ps(a), _mm_castsi128_ps(a)));
+    let b_low = _mm_castps_si128(_mm_movehl_ps(_mm_castsi128_ps(b), _mm_castsi128_ps(b)));
+
+    let combined = _mm_unpacklo_epi64(a_low, b_low);
+    combined
+}
+
+#[inline(always)]
+pub unsafe fn _mm_storeu_si128_x4(ptr: *mut u8, vals: __mm128x4) {
+    _mm_storeu_si128(ptr as *mut __m128i, vals.0);
+    _mm_storeu_si128(ptr.add(16) as *mut __m128i, vals.1);
+    _mm_storeu_si128(ptr.add(32) as *mut __m128i, vals.2);
+    _mm_storeu_si128(ptr.add(48) as *mut __m128i, vals.3);
+}
+
+#[inline(always)]
+pub unsafe fn _mm_getlow_epi8(a: __m128i) -> __m128i {
+    let half = _mm_castps_si128(_mm_movelh_ps(
+        _mm_castsi128_ps(a),
+        _mm_castsi128_ps(_mm_setzero_si128()),
+    ));
+    half
+}
+
+#[inline(always)]
+pub unsafe fn _mm_gethigh_epi8(a: __m128i) -> __m128i {
+    _mm_srli_si128::<8>(a)
 }

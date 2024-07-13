@@ -42,6 +42,8 @@ mod yuv_p10_rgba;
 mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
+mod yuv_to_yuy2;
+mod yuy2_to_yuv;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
@@ -161,3 +163,29 @@ pub use ycgco_to_rgb_alpha::ycgco444_with_alpha_to_rgba;
 
 pub use rgb_to_ycgco_r::*;
 pub use ycgco_r_to_rgb::*;
+
+pub use yuv_to_yuy2::yuv420_to_uyvy422;
+pub use yuv_to_yuy2::yuv420_to_vyuy422;
+pub use yuv_to_yuy2::yuv420_to_yuyv422;
+pub use yuv_to_yuy2::yuv420_to_yvyu422;
+pub use yuv_to_yuy2::yuv422_to_uyvy422;
+pub use yuv_to_yuy2::yuv422_to_vyuy422;
+pub use yuv_to_yuy2::yuv422_to_yuyv422;
+pub use yuv_to_yuy2::yuv422_to_yvyu422;
+pub use yuv_to_yuy2::yuv444_to_uyvy422;
+pub use yuv_to_yuy2::yuv444_to_vyuy422;
+pub use yuv_to_yuy2::yuv444_to_yuyv422;
+pub use yuv_to_yuy2::yuv444_to_yvyu422;
+
+pub use yuy2_to_yuv::uyvy422_to_yuv420;
+pub use yuy2_to_yuv::uyvy422_to_yuv422;
+pub use yuy2_to_yuv::uyvy422_to_yuv444;
+pub use yuy2_to_yuv::vyuy422_to_yuv420;
+pub use yuy2_to_yuv::vyuy422_to_yuv422;
+pub use yuy2_to_yuv::vyuy422_to_yuv444;
+pub use yuy2_to_yuv::yuyv422_to_yuv420;
+pub use yuy2_to_yuv::yuyv422_to_yuv422;
+pub use yuy2_to_yuv::yuyv422_to_yuv444;
+pub use yuy2_to_yuv::yvyu422_to_yuv420;
+pub use yuy2_to_yuv::yvyu422_to_yuv422;
+pub use yuy2_to_yuv::yvyu422_to_yuv444;

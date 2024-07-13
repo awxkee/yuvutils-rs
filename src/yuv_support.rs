@@ -140,8 +140,11 @@ pub fn get_forward_transform(
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialOrd, PartialEq)]
+/// Declares YUV range TV (limited) or Full
 pub enum YuvRange {
+    /// Limited range Y ∈ [16 << (depth - 8), 16 << (depth - 8) + 224 << (depth - 8)], UV ∈ [-1 << (depth - 1), -1 << (depth - 1) + 1 << (depth - 1)]
     TV,
+    /// Full range Y ∈ [0, 2^bit_depth - 1], UV ∈ [-1 << (depth - 1), -1 << (depth - 1) + 2^bit_depth - 1]
     Full,
 }
 
@@ -174,16 +177,20 @@ pub fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
+/// Declares standard prebuilt kr, kb or your custom coefficients
 pub enum YuvStandardMatrix {
     Bt601,
     Bt709,
     Bt2020,
     Smpte240,
-    Bt470_6
+    Bt470_6,
+    /// Custom parameters first goes for kr, second for kb.
+    /// Methods will *panic* if 1.0f32 - kr - kb == 0
+    Custom(f32, f32),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct YuvBias {
     pub kr: f32,
     pub kb: f32,
@@ -211,6 +218,7 @@ pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
             kr: 0.2220f32,
             kb: 0.0713f32,
         },
+        YuvStandardMatrix::Custom(kr, kb) => YuvBias { kr, kb },
     };
 }
 
@@ -320,7 +328,7 @@ impl From<u8> for YuvSourceChannels {
 
 impl YuvSourceChannels {
     #[inline(always)]
-    pub fn get_channels_count(&self) -> usize {
+    pub const fn get_channels_count(&self) -> usize {
         match self {
             YuvSourceChannels::Rgb => 3,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => 4,
@@ -328,7 +336,7 @@ impl YuvSourceChannels {
     }
 
     #[inline(always)]
-    pub fn has_alpha(&self) -> bool {
+    pub const fn has_alpha(&self) -> bool {
         match self {
             YuvSourceChannels::Rgb => false,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => true,
@@ -338,7 +346,7 @@ impl YuvSourceChannels {
 
 impl YuvSourceChannels {
     #[inline(always)]
-    pub fn get_r_channel_offset(&self) -> usize {
+    pub const fn get_r_channel_offset(&self) -> usize {
         match self {
             YuvSourceChannels::Rgb => 0,
             YuvSourceChannels::Rgba => 0,
@@ -347,7 +355,7 @@ impl YuvSourceChannels {
     }
 
     #[inline(always)]
-    pub fn get_g_channel_offset(&self) -> usize {
+    pub const fn get_g_channel_offset(&self) -> usize {
         match self {
             YuvSourceChannels::Rgb => 1,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => 1,
@@ -355,7 +363,7 @@ impl YuvSourceChannels {
     }
 
     #[inline(always)]
-    pub fn get_b_channel_offset(&self) -> usize {
+    pub const fn get_b_channel_offset(&self) -> usize {
         match self {
             YuvSourceChannels::Rgb => 2,
             YuvSourceChannels::Rgba => 2,
@@ -363,10 +371,75 @@ impl YuvSourceChannels {
         }
     }
     #[inline(always)]
-    pub fn get_a_channel_offset(&self) -> usize {
+    pub const fn get_a_channel_offset(&self) -> usize {
         match self {
             YuvSourceChannels::Rgb => 0,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => 3,
+        }
+    }
+}
+
+#[repr(usize)]
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum Yuy2Description {
+    YUYV = 0,
+    UYVY = 1,
+    YVYU = 2,
+    VYUY = 3,
+}
+
+impl From<usize> for Yuy2Description {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => Yuy2Description::YUYV,
+            1 => Yuy2Description::UYVY,
+            2 => Yuy2Description::YVYU,
+            3 => Yuy2Description::VYUY,
+            _ => {
+                panic!("Not supported value {}", value)
+            }
+        }
+    }
+}
+
+impl Yuy2Description {
+    #[inline(always)]
+    pub(crate) const fn get_u_position(&self) -> usize {
+        match self {
+            Yuy2Description::YUYV => 1,
+            Yuy2Description::UYVY => 0,
+            Yuy2Description::YVYU => 3,
+            Yuy2Description::VYUY => 2,
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) const fn get_v_position(&self) -> usize {
+        match self {
+            Yuy2Description::YUYV => 3,
+            Yuy2Description::UYVY => 2,
+            Yuy2Description::YVYU => 1,
+            Yuy2Description::VYUY => 0,
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) const fn get_first_y_position(&self) -> usize {
+        match self {
+            Yuy2Description::YUYV => 0,
+            Yuy2Description::UYVY => 1,
+            Yuy2Description::YVYU => 0,
+            Yuy2Description::VYUY => 1,
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) const fn get_second_y_position(&self) -> usize {
+        match self {
+            Yuy2Description::YUYV => 2,
+            Yuy2Description::UYVY => 3,
+            Yuy2Description::YVYU => 2,
+            Yuy2Description::VYUY => 3,
         }
     }
 }
