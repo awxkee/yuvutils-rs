@@ -12,6 +12,8 @@ use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use crate::sse::sse_support::{sse_deinterleave_rgb, sse_deinterleave_rgba};
+use crate::sse::sse_ycbcr::sse_rgb_to_ycbcr;
 
 #[inline(always)]
 pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(

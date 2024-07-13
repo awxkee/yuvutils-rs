@@ -12,7 +12,7 @@
 use crate::avx2::avx2_yuv_nv_to_rgba_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
-    feature = "nightly_avx512"
+    all(target_feature = "avx512bw", feature = "nightly_avx512")
 ))]
 use crate::avx512bw::avx512_yuv_nv_to_rgba;
 #[allow(unused_imports)]
@@ -108,6 +108,7 @@ fn yuv_nv12_to_rgbx<
         let mut ux = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
             if _use_avx512 {

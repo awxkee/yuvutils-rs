@@ -10,8 +10,10 @@
     target_feature = "avx2"
 ))]
 use crate::avx2::avx2_rgba_to_yuv;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    all(target_feature = "avx512bw", feature = "nightly_avx512")
+))]
 use crate::avx512bw::avx512_rgba_to_yuv;
 #[allow(unused_imports)]
 use crate::internals::*;
@@ -109,6 +111,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let mut ux = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
             {

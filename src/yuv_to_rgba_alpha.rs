@@ -12,7 +12,7 @@
 use crate::avx2::avx2_yuv_to_rgba_alpha;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
-    feature = "nightly_avx512"
+    all(target_feature = "avx512bw", feature = "nightly_avx512")
 ))]
 use crate::avx512bw::avx512_yuv_to_rgba_alpha;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -114,6 +114,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         let mut uv_x = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
             {

@@ -49,6 +49,8 @@ pub unsafe fn sse_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
     let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
     let bias_uv = ((range.bias_uv as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
 
+    let zeros = _mm_setzero_si128();
+
     while cx + 16 < width {
         let y_bias = _mm_set1_epi32(bias_y);
         let uv_bias = _mm_set1_epi32(bias_uv);
@@ -97,11 +99,11 @@ pub unsafe fn sse_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
         }
 
         let r_low = _mm_cvtepu8_epi16(r_values);
-        let r_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(r_values));
+        let r_high = _mm_unpackhi_epi8(r_values, zeros);
         let g_low = _mm_cvtepu8_epi16(g_values);
-        let g_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(g_values));
+        let g_high = _mm_unpackhi_epi8(g_values, zeros);
         let b_low = _mm_cvtepu8_epi16(b_values);
-        let b_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(b_values));
+        let b_high = _mm_unpackhi_epi8(b_values, zeros);
 
         let y_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
         let cb_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cb_r, v_cb_g, v_cb_b);

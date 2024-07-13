@@ -10,8 +10,10 @@
     target_feature = "avx2"
 ))]
 use crate::avx2::avx2_ycgco_to_rgb_row;
-#[cfg(feature = "nightly_avx512")]
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    all(target_feature = "avx512bw", feature = "nightly_avx512")
+))]
 use crate::avx512bw::avx512_ycgco_to_rgb_row;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
@@ -103,6 +105,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         let mut uv_x = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
             if _use_avx512 {

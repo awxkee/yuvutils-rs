@@ -57,6 +57,8 @@ pub unsafe fn sse_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     let v_alpha = _mm_set1_epi16(-128);
     let v_min_zeros = _mm_setzero_si128();
 
+    let zeros = _mm_setzero_si128();
+
     while cx + 16 < width {
         let y_values = _mm_loadu_si128(y_ptr.add(cx) as *const __m128i);
 
@@ -89,15 +91,15 @@ pub unsafe fn sse_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         }
 
         let cg_high = _mm_mullo_epi16(
-            _mm_subs_epi16(_mm_cvtepu8_epi16(_mm_srli_si128::<8>(u_high_u8)), uv_corr),
+            _mm_subs_epi16(_mm_unpackhi_epi8(u_high_u8, zeros), uv_corr),
             uv_reduction,
         );
         let co_high = _mm_mullo_epi16(
-            _mm_subs_epi16(_mm_cvtepu8_epi16(_mm_srli_si128::<8>(v_high_u8)), uv_corr),
+            _mm_subs_epi16(_mm_unpackhi_epi8(v_high_u8, zeros), uv_corr),
             uv_reduction,
         );
         let y_high = _mm_mullo_epi16(
-            _mm_sub_epi16(_mm_cvtepu8_epi16(_mm_srli_si128::<8>(y_values)), y_corr),
+            _mm_sub_epi16(_mm_unpackhi_epi8(y_values, zeros), y_corr),
             y_reduction,
         );
 
