@@ -1,3 +1,10 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
 use crate::internals::ProcessedOffset;
 use crate::sse::sse_support::{
     sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_widen_avg,

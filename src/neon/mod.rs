@@ -23,6 +23,7 @@ mod yuv_p10_to_rgba;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
+mod yuy2_to_yuv;
 
 pub use rgb_to_y::neon_rgb_to_y_row;
 pub use rgb_to_ycgco::neon_rgb_to_ycgco_row;
@@ -39,3 +40,4 @@ pub use yuv_p10_to_rgba::neon_yuv_p10_to_rgba_row;
 pub use yuv_to_rgba::neon_yuv_to_rgba_row;
 pub use yuv_to_rgba_alpha::neon_yuv_to_rgba_alpha;
 pub use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
+pub use yuy2_to_yuv::yuy2_to_yuv_neon_impl;

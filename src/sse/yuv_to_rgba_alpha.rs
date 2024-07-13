@@ -1,3 +1,10 @@
+/*
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
+ */
+
 use crate::internals::ProcessedOffset;
 use crate::sse::sse_support::{sse_div_by255, sse_store_rgb_u8, sse_store_rgba};
 use crate::yuv_support::{

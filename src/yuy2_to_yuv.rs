@@ -4,7 +4,9 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+use crate::neon::yuy2_to_yuv_neon_impl;
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 
 fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
@@ -29,8 +31,28 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     for y in 0..height as usize {
         let mut _cx = 0usize;
         let mut _uv_x = 0usize;
+        let mut _yuy2_x = 0usize;
 
-        for x in _cx..width.saturating_sub(1) as usize / 2 {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            let processed = yuy2_to_yuv_neon_impl::<SAMPLING, YUY2_TARGET>(
+                y_plane,
+                y_offset,
+                u_plane,
+                u_offset,
+                v_plane,
+                v_offset,
+                yuy2_store,
+                yuy_offset,
+                width,
+                YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
+            );
+            _cx = processed.cx;
+            _uv_x = processed.uv_x;
+            _yuy2_x = processed.x;
+        }
+
+        for x in _yuy2_x..width.saturating_sub(1) as usize / 2 {
             let u_pos = u_offset + _uv_x;
             let v_pos = v_offset + _uv_x;
             let y_pos = y_offset + _cx;
@@ -544,7 +566,6 @@ pub fn vyuy422_to_yuv422(
         height,
     );
 }
-
 
 /// Convert UYVY format to YUV 444 planar format.
 ///

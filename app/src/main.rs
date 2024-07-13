@@ -5,7 +5,10 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 
-use yuvutils_rs::{rgb_to_ycgcoro444, rgb_to_yuv420, ycgcoro444_to_rgb, yuv420_to_rgb, yuv444_to_yuyv422, yuyv422_to_yuv444, YuvRange, YuvStandardMatrix, rgb_to_yuv444, yuv444_to_rgb};
+use yuvutils_rs::{
+    rgb_to_ycgcoro444, rgb_to_yuv420, rgb_to_yuv444, ycgcoro444_to_rgb, yuv420_to_rgb,
+    yuv444_to_rgb, yuv444_to_yuyv422, yuyv422_to_yuv444, YuvRange, YuvStandardMatrix,
+};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file

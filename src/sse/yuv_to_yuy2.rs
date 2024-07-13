@@ -4,13 +4,16 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+use crate::sse::sse_support::{
+    __mm128x4, _mm_combineh_epi8, _mm_combinel_epi8, _mm_gethigh_epi8, _mm_getlow_epi8,
+    _mm_loadu_si128_x2, _mm_storeu_si128_x4, sse_interleave_rgba,
+};
+use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::sse::sse_support::{__mm128x4, _mm_combineh_epi8, _mm_combinel_epi8, _mm_gethigh_epi8, _mm_getlow_epi8, _mm_loadu_si128_x2, _mm_storeu_si128_x4, sse_interleave_rgba};
-use crate::yuv_support::{YuvChromaSample, Yuy2Description};
-use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 
 pub fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &[u8],
@@ -26,7 +29,6 @@ pub fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 ) -> YuvToYuy2Navigation {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-
 
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;
