@@ -12,6 +12,7 @@ use crate::neon::yuy2_to_yuv_neon_impl;
 ))]
 use crate::sse::yuy2_to_yuv_sse_impl;
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+#[allow(unused_imports)]
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 
 fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
