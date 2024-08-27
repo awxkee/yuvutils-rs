@@ -17,10 +17,7 @@ use crate::avx2::avx2_rgb_to_y_row;
 use crate::avx512bw::avx512_row_rgb_to_y;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_y_row;
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgb_to_y;
 use crate::yuv_support::*;
 
@@ -51,11 +48,10 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     let precision_scale = (1 << 8) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
 
-    #[cfg(all(
+    #[cfg(
         any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "sse4.1"
-    ))]
-    let mut _use_sse = false;
+    )]
+    let mut _use_sse = is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx = false;
     #[cfg(all(
@@ -74,19 +70,13 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         if is_x86_feature_detected!("avx2") {
             _use_avx = true;
         }
-        #[cfg(target_feature = "sse4.1")]
-        if is_x86_feature_detected!("sse4.1") {
-            _use_sse = true;
-        }
     }
 
     let mut y_offset = 0usize;
     let mut rgba_offset = 0usize;
 
     for _ in 0..height as usize {
-        #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut cx = 0usize;
+        let mut _cx = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         #[allow(unused_unsafe)]
@@ -100,10 +90,10 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     &rgba,
                     y_offset,
                     rgba_offset,
-                    cx,
+                    _cx,
                     width as usize,
                 );
-                cx = processed_offset;
+                _cx = processed_offset;
             }
             #[cfg(target_feature = "avx2")]
             if _use_avx {
@@ -114,12 +104,11 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     &rgba,
                     y_offset,
                     rgba_offset,
-                    cx,
+                    _cx,
                     width as usize,
                 );
-                cx = processed_offset;
+                _cx = processed_offset;
             }
-            #[cfg(target_feature = "sse4.1")]
             if _use_sse {
                 let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS>(
                     &transform,
@@ -128,28 +117,28 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     &rgba,
                     y_offset,
                     rgba_offset,
-                    cx,
+                    _cx,
                     width as usize,
                 );
-                cx = processed_offset;
+                _cx = processed_offset;
             }
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS>(
+            _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS>(
                 &transform,
                 &range,
                 y_plane.as_mut_ptr(),
                 &rgba,
                 y_offset,
                 rgba_offset,
-                cx,
+                _cx,
                 width as usize,
             );
         }
 
-        for x in cx..width as usize {
+        for x in _cx..width as usize {
             let px = x * channels;
             let dst_offset = rgba_offset + px;
             unsafe {

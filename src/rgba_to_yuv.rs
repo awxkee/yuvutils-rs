@@ -19,10 +19,9 @@ use crate::avx512bw::avx512_rgba_to_yuv;
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgba_to_yuv;
-#[cfg(all(
+#[cfg(
     any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+)]
 use crate::sse::sse_rgba_to_yuv_row;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -70,11 +69,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut v_offset = 0usize;
     let mut rgba_offset = 0usize;
 
-    #[cfg(all(
+    #[cfg(
         any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "sse4.1"
-    ))]
-    let mut _use_sse = false;
+    )]
+    let mut _use_sse = is_x86_feature_detected!("sse4.1");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         target_feature = "avx2"
@@ -95,10 +93,6 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         #[cfg(target_feature = "avx2")]
         if is_x86_feature_detected!("avx2") {
             _use_avx = true;
-        }
-        #[cfg(target_feature = "sse4.1")]
-        if is_x86_feature_detected!("sse4.1") {
-            _use_sse = true;
         }
     }
 
@@ -157,7 +151,6 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 ux = processed_offset.ux;
             }
 
-            #[cfg(target_feature = "sse4.1")]
             if _use_sse {
                 let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,

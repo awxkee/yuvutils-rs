@@ -17,10 +17,7 @@ use crate::avx2::avx2_ycgco_to_rgba_alpha;
 use crate::avx512bw::avx512_ycgco_to_rgba_alpha;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_ycgco_to_rgb_alpha_row;
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_ycgco_to_rgb_alpha_row;
 use crate::yuv_support::*;
 use crate::YuvRange;

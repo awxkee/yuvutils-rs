@@ -16,7 +16,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     y_plane: *mut u16,

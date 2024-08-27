@@ -7,10 +7,7 @@
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_ycgcor_to_rgb_row;
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_ycgcor_type_to_rgb_row;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_support::{get_yuv_range, YuvChromaSample, YuvSourceChannels};
@@ -54,19 +51,8 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
     let range_reduction_uv =
         (max_colors as f32 / range.range_uv as f32 * precision_scale).round() as i32;
 
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "sse4.1"
-    ))]
-    let mut _use_sse = false;
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(target_feature = "sse4.1")]
-        if std::arch::is_x86_feature_detected!("sse4.1") {
-            _use_sse = true;
-        }
-    }
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
 
     for y in 0..height as usize {
         let mut _cx = 0usize;
@@ -77,9 +63,7 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
         let co_ptr = unsafe { (co_plane.as_ptr() as *const u8).add(v_offset) as *mut u16 };
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[allow(unused_unsafe)]
         unsafe {
-            #[cfg(target_feature = "sse4.1")]
             if _use_sse {
                 let offset = sse_ycgcor_type_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
@@ -133,11 +117,6 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
             let b = t - (co_value >> 1);
             let r = ((b + co_value).max(0) >> 6).min(255);
             let b = (b.max(0) >> 6).min(255);
-
-            // 11 118 169
-            if r == 8 && g == 126 && b == 171 {
-                println!("{} {}", x, y);
-            }
 
             let px = x * channels;
 

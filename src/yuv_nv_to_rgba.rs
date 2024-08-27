@@ -19,10 +19,7 @@ use crate::avx512bw::avx512_yuv_nv_to_rgba;
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_nv_to_rgba_row;
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_nv_to_rgba;
 use crate::yuv_support::*;
 
@@ -71,11 +68,8 @@ fn yuv_nv12_to_rgbx<
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx2 = false;
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "sse4.1"
-    ))]
-    let mut _use_sse = false;
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         target_feature = "avx512bw"
@@ -92,10 +86,6 @@ fn yuv_nv12_to_rgbx<
         if std::arch::is_x86_feature_detected!("avx2") {
             _use_avx2 = true;
         }
-        #[cfg(target_feature = "sse4.1")]
-        if std::arch::is_x86_feature_detected!("sse4.1") {
-            _use_sse = true;
-        }
     }
 
     for y in 0..height as usize {
@@ -108,7 +98,6 @@ fn yuv_nv12_to_rgbx<
         let mut ux = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
             if _use_avx512 {
@@ -150,7 +139,6 @@ fn yuv_nv12_to_rgbx<
                 ux = processed.ux;
             }
 
-            #[cfg(target_feature = "sse4.1")]
             if _use_sse {
                 let processed =
                     sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(

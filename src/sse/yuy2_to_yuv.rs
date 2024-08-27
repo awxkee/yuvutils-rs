@@ -12,7 +12,8 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
+#[target_feature(enable = "sse4.1")]
+pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
     y_offset: usize,
     u_plane: &mut [u8],

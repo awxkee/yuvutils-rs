@@ -188,7 +188,7 @@ pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
     let x = _mm_adds_epi16(v, rounding);
     let multiplier = _mm_set1_epi16(-32640);
     let r = _mm_mulhi_epu16(x, multiplier);
-    return _mm_srli_epi16::<7>(r);
+    _mm_srli_epi16::<7>(r)
 }
 
 #[inline(always)]

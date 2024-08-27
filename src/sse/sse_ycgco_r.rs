@@ -11,6 +11,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_rgb_to_ycgco_r_epi16(
     r: __m128i,
     g: __m128i,
@@ -56,7 +57,8 @@ pub unsafe fn sse_rgb_to_ycgco_r_epi16(
     )
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_ycgco_r_to_rgb_epi16(
     y: __m128i,
     cg: __m128i,

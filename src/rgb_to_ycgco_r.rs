@@ -7,10 +7,7 @@
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_ycgcor_row;
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgb_to_ycgcor_row;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_support::{get_yuv_range, YuvChromaSample, YuvSourceChannels};
@@ -49,19 +46,8 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
     let range_reduction_uv =
         (range.range_uv as f32 / max_colors as f32 * precision_scale).round() as i32;
 
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "sse4.1"
-    ))]
-    let mut _use_sse = false;
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(target_feature = "sse4.1")]
-        if std::arch::is_x86_feature_detected!("sse4.1") {
-            _use_sse = true;
-        }
-    }
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
 
     let mut y_offset = 0usize;
     let mut cg_offset = 0usize;
@@ -77,9 +63,7 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
         let co_ptr = unsafe { (co_plane.as_ptr() as *const u8).add(co_offset) as *mut u16 };
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[allow(unused_unsafe)]
         unsafe {
-            #[cfg(target_feature = "sse4.1")]
             if _use_sse {
                 let processed = sse_rgb_to_ycgcor_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &range,

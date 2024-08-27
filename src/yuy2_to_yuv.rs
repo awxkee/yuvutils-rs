@@ -6,10 +6,7 @@
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuy2_to_yuv_neon_impl;
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuy2_to_yuv_sse_impl;
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
 #[allow(unused_imports)]
@@ -35,19 +32,8 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let mut v_offset = 0usize;
     let mut yuy_offset = 0usize;
 
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "sse4.1"
-    ))]
-    let mut _use_sse = false;
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(target_feature = "sse4.1")]
-        if is_x86_feature_detected!("sse4.1") {
-            _use_sse = true;
-        }
-    }
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
 
     for y in 0..height as usize {
         let mut _cx = 0usize;
@@ -73,11 +59,8 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             _yuy2_x = processed.x;
         }
 
-        #[cfg(all(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_feature = "sse4.1"
-        ))]
-        {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
             if _use_sse {
                 let processed = yuy2_to_yuv_sse_impl::<SAMPLING, YUY2_TARGET>(
                     y_plane,

@@ -26,10 +26,7 @@ mod rgb_to_ycgco;
 mod rgb_to_ycgco_r;
 mod rgba_to_nv;
 mod rgba_to_yuv;
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "sse4.1"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod sse;
 mod y_to_rgb;
 mod ycgco_r_to_rgb;
