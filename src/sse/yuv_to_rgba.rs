@@ -82,10 +82,10 @@ pub unsafe fn sse_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING
                 let u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
 
-                u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
-                v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
-                u_low_u8 = _mm_unpacklo_epi8(u_values, u_values);
-                v_low_u8 = _mm_unpacklo_epi8(v_values, v_values);
+                u_high_u8 = _mm_srli_si128::<8>(u_values);
+                v_high_u8 = _mm_srli_si128::<8>(v_values);
+                u_low_u8 = u_values;
+                v_low_u8 = v_values;
             }
         }
 

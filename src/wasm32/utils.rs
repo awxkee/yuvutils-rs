@@ -6,6 +6,12 @@
  */
 use std::arch::wasm32::*;
 
+#[inline]
+#[target_feature(enable = "simd128")]
+pub unsafe fn v128_load_half(ptr: *const u8) -> v128 {
+    u64x2_replace_lane(i64x2_splat(0), (ptr as *const u64).read_unaligned())
+}
+
 /// Packs two u16x8 into one u8x16 using unsigned saturation
 #[inline]
 #[target_feature(enable = "simd128")]

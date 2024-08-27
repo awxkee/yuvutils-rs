@@ -5,9 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(
-    any(target_arch = "x86", target_arch = "x86_64"),
-)]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_yuv_to_rgba_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
@@ -18,6 +16,8 @@ use crate::avx512bw::avx512_yuv_to_rgba;
 use crate::neon::neon_yuv_to_rgba_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_to_rgba_row;
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+use crate::wasm32::wasm_yuv_to_rgba_row;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
 
@@ -142,6 +142,27 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 cx = processed.cx;
                 uv_x = processed.ux;
             }
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        unsafe {
+            let processed = wasm_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
+                &range,
+                &inverse_transform,
+                y_plane,
+                u_plane,
+                v_plane,
+                rgba,
+                cx,
+                uv_x,
+                y_offset,
+                u_offset,
+                v_offset,
+                rgba_offset,
+                width as usize,
+            );
+            cx = processed.cx;
+            uv_x = processed.ux;
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
