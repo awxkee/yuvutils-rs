@@ -18,9 +18,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-#[inline(always)]
+#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_yuv_nv_to_rgba<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,

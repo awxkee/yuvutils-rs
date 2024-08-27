@@ -10,8 +10,8 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_rgb_to_ycgco(
     r: __m512i,
     g: __m512i,

@@ -12,10 +12,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-#[inline(always)]
-#[allow(dead_code)]
+#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,

@@ -7,7 +7,7 @@
 
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
-    all(target_feature = "avx512bw", feature = "nightly_avx512")
+    feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_y_to_rgb_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -44,17 +44,9 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
-        all(target_feature = "avx512bw", feature = "nightly_avx512")
+        feature = "nightly_avx512"
     ))]
-    let mut _use_avx512 = false;
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
-        if std::arch::is_x86_feature_detected!("avx512bw") {
-            _use_avx512 = true;
-        }
-    }
+    let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
     for _ in 0..height as usize {
         #[allow(unused_variables)]
@@ -63,9 +55,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
         #[cfg(all(
             any(target_arch = "x86", target_arch = "x86_64"),
-            all(target_feature = "avx512bw", feature = "nightly_avx512")
+            feature = "nightly_avx512"
         ))]
-        #[allow(unused_unsafe)]
         unsafe {
             if _use_avx512 {
                 let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(

@@ -12,7 +12,7 @@
 mod avx2;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
-    all(target_feature = "avx512bw", feature = "nightly_avx512")
+    feature = "nightly_avx512"
 ))]
 mod avx512bw;
 mod internals;

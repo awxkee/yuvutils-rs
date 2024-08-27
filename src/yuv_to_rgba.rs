@@ -11,7 +11,7 @@
 use crate::avx2::avx2_yuv_to_rgba_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
-    all(target_feature = "avx512bw", feature = "nightly_avx512")
+    feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_yuv_to_rgba;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -68,17 +68,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "avx512bw"
+        feature = "nightly_avx512"
     ))]
-    let mut _use_avx512 = false;
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
-        if std::arch::is_x86_feature_detected!("avx512bw") {
-            _use_avx512 = true;
-        }
-    }
+    let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
     for y in 0..height as usize {
         #[allow(unused_variables)]
@@ -91,7 +83,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
+            #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
                 let processed = avx512_yuv_to_rgba::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
