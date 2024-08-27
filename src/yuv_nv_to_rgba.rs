@@ -18,6 +18,8 @@ use crate::internals::*;
 use crate::neon::neon_yuv_nv_to_rgba_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_nv_to_rgba;
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+use crate::wasm32::wasm_yuv_nv_to_rgba_row;
 use crate::yuv_support::*;
 
 fn yuv_nv12_to_rgbx<
@@ -147,6 +149,26 @@ fn yuv_nv12_to_rgbx<
         unsafe {
             let processed =
                 neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                    &range,
+                    &inverse_transform,
+                    y_plane,
+                    uv_plane,
+                    bgra,
+                    cx,
+                    ux,
+                    y_offset,
+                    uv_offset,
+                    dst_offset,
+                    width as usize,
+                );
+            cx = processed.cx;
+            ux = processed.ux;
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        unsafe {
+            let processed =
+                wasm_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                     &range,
                     &inverse_transform,
                     y_plane,

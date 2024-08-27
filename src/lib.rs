@@ -38,6 +38,8 @@ mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_yuv;
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+mod wasm32;
 
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;

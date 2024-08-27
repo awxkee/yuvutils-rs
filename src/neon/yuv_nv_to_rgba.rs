@@ -11,7 +11,6 @@ use crate::yuv_support::{
 };
 use std::arch::aarch64::*;
 
-#[inline(always)]
 pub unsafe fn neon_yuv_nv_to_rgba_row<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,

@@ -22,17 +22,18 @@ impl<T> CbCrInverseTransform<T> {
         g_coeff_1: T,
         g_coeff_2: T,
     ) -> CbCrInverseTransform<T> {
-        return CbCrInverseTransform {
+        CbCrInverseTransform {
             y_coef,
             cr_coef,
             cb_coef,
             g_coeff_1,
             g_coeff_2,
-        };
+        }
     }
 }
 
 impl CbCrInverseTransform<f32> {
+    /// Integral transformation adds an error not less than 1%
     pub fn to_integers(&self, precision: u32) -> CbCrInverseTransform<i32> {
         let precision_scale: i32 = 1i32 << (precision as i32);
         let cr_coef = (self.cr_coef * precision_scale as f32).round() as i32;
@@ -50,6 +51,7 @@ impl CbCrInverseTransform<f32> {
     }
 }
 
+/// Transformation RGB to YUV with coefficients as specified in [ITU-R](https://www.itu.int/rec/T-REC-H.273-201612-S)
 pub fn get_inverse_transform(
     range_bgra: u32,
     range_y: u32,
@@ -67,7 +69,7 @@ pub fn get_inverse_transform(
     }
     let g_coeff_1 = (2f32 * ((1f32 - kr) * kr / kg)) * range_uv;
     let g_coeff_2 = (2f32 * ((1f32 - kb) * kb / kg)) * range_uv;
-    return CbCrInverseTransform::new(y_coef, cr_coeff, cb_coeff, g_coeff_1, g_coeff_2);
+    CbCrInverseTransform::new(y_coef, cr_coeff, cb_coeff, g_coeff_1, g_coeff_2)
 }
 
 #[repr(C)]
@@ -91,7 +93,7 @@ pub trait ToIntegerTransform {
 impl ToIntegerTransform for CbCrForwardTransform<f32> {
     fn to_integers(&self, precision: u32) -> CbCrForwardTransform<i32> {
         let scale = (1 << precision) as f32;
-        return CbCrForwardTransform::<i32> {
+        CbCrForwardTransform::<i32> {
             yr: (self.yr * scale).round() as i32,
             yg: (self.yg * scale).round() as i32,
             yb: (self.yb * scale).round() as i32,
@@ -101,10 +103,11 @@ impl ToIntegerTransform for CbCrForwardTransform<f32> {
             cr_r: (self.cr_r * scale).round() as i32,
             cr_g: (self.cr_g * scale).round() as i32,
             cr_b: (self.cr_b * scale).round() as i32,
-        };
+        }
     }
 }
 
+/// Transformation YUV to RGB with coefficients as specified in [ITU-R](https://www.itu.int/rec/T-REC-H.273-201612-S)
 pub fn get_forward_transform(
     range_rgba: u32,
     range_y: u32,
@@ -125,7 +128,7 @@ pub fn get_forward_transform(
     let cr_r = 0.5f32 * range_uv as f32 / range_rgba as f32;
     let cr_g = -0.5f32 * kg / (1f32 - kr) * range_uv as f32 / range_rgba as f32;
     let cr_b = -0.5f32 * kb / (1f32 - kr) * range_uv as f32 / range_rgba as f32;
-    return CbCrForwardTransform {
+    CbCrForwardTransform {
         yr,
         yg,
         yb,
@@ -135,7 +138,7 @@ pub fn get_forward_transform(
         cr_r,
         cr_g,
         cr_b,
-    };
+    }
 }
 
 #[repr(C)]
@@ -158,7 +161,7 @@ pub struct YuvChromaRange {
 }
 
 pub fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
-    return match range {
+    match range {
         YuvRange::TV => YuvChromaRange {
             bias_y: 16 << (depth - 8),
             bias_uv: 1 << (depth - 1),
@@ -173,12 +176,12 @@ pub fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
             range_y: 2f32.powi(depth as i32) as u32 - 1,
             range,
         },
-    };
+    }
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
-/// Declares standard prebuilt kr, kb or your custom coefficients
+/// Declares standard prebuilt YUV conversion matrices, check [JVET](https://www.itu.int/rec/T-REC-H.273-201612-S) information for more info
 pub enum YuvStandardMatrix {
     Bt601,
     Bt709,
@@ -197,7 +200,7 @@ pub struct YuvBias {
 }
 
 pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
-    return match matrix {
+    match matrix {
         YuvStandardMatrix::Bt601 => YuvBias {
             kr: 0.299f32,
             kb: 0.114f32,
@@ -219,7 +222,7 @@ pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
             kb: 0.0713f32,
         },
         YuvStandardMatrix::Custom(kr, kb) => YuvBias { kr, kb },
-    };
+    }
 }
 
 #[repr(u8)]
@@ -403,7 +406,7 @@ impl From<usize> for Yuy2Description {
 }
 
 impl Yuy2Description {
-    #[inline(always)]
+    #[inline]
     pub(crate) const fn get_u_position(&self) -> usize {
         match self {
             Yuy2Description::YUYV => 1,
@@ -413,7 +416,7 @@ impl Yuy2Description {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) const fn get_v_position(&self) -> usize {
         match self {
             Yuy2Description::YUYV => 3,
@@ -433,7 +436,7 @@ impl Yuy2Description {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) const fn get_second_y_position(&self) -> usize {
         match self {
             Yuy2Description::YUYV => 2,
