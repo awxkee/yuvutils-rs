@@ -5,10 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "avx2"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_rgba_to_yuv;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
@@ -19,9 +16,7 @@ use crate::avx512bw::avx512_rgba_to_yuv;
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgba_to_yuv;
-#[cfg(
-    any(target_arch = "x86", target_arch = "x86_64"),
-)]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgba_to_yuv_row;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -69,15 +64,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut v_offset = 0usize;
     let mut rgba_offset = 0usize;
 
-    #[cfg(
-        any(target_arch = "x86", target_arch = "x86_64"),
-    )]
-    let mut _use_sse = is_x86_feature_detected!("sse4.1");
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        target_feature = "avx2"
-    ))]
-    let mut _use_avx = false;
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         target_feature = "avx512bw"
@@ -89,10 +79,6 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
-        }
-        #[cfg(target_feature = "avx2")]
-        if is_x86_feature_detected!("avx2") {
-            _use_avx = true;
         }
     }
 
@@ -130,7 +116,6 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 }
             }
 
-            #[cfg(target_feature = "avx2")]
             if _use_avx {
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,

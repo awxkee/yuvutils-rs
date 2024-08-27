@@ -5,10 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "avx2"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_rgb_to_ycgco_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
@@ -63,9 +60,9 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut rgba_offset = 0usize;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = is_x86_feature_detected!("sse4.1");
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx = false;
+    let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         target_feature = "avx512bw"
@@ -74,10 +71,6 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        #[cfg(target_feature = "avx2")]
-        if is_x86_feature_detected!("avx2") {
-            _use_avx = true;
-        }
         #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
@@ -93,7 +86,6 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let mut ux = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
             if _use_avx512 {
@@ -114,7 +106,6 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 cx = processed_offset.cx;
                 ux = processed_offset.ux;
             }
-            #[cfg(target_feature = "avx2")]
             if _use_avx {
                 let processed_offset = avx2_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &range,

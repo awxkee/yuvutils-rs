@@ -13,7 +13,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[inline(always)]
+#[target_feature(enable = "avx2")]
 pub unsafe fn avx2_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     y_plane: &[u8],

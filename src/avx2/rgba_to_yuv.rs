@@ -18,8 +18,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
+#[target_feature(enable = "avx2")]
 pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,

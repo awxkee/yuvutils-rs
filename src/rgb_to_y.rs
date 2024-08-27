@@ -5,10 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "avx2"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_rgb_to_y_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
@@ -48,12 +45,10 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     let precision_scale = (1 << 8) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
 
-    #[cfg(
-        any(target_arch = "x86", target_arch = "x86_64"),
-    )]
-    let mut _use_sse = is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx = false;
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         target_feature = "avx512bw"
@@ -66,10 +61,6 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
         }
-        #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
-        if is_x86_feature_detected!("avx2") {
-            _use_avx = true;
-        }
     }
 
     let mut y_offset = 0usize;
@@ -79,10 +70,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         let mut _cx = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        #[allow(unused_unsafe)]
         unsafe {
             #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
-            if _use_avx {
+            if _use_avx512 {
                 let processed_offset = avx512_row_rgb_to_y::<ORIGIN_CHANNELS>(
                     &transform,
                     &range,
@@ -95,7 +85,6 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 );
                 _cx = processed_offset;
             }
-            #[cfg(target_feature = "avx2")]
             if _use_avx {
                 let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS>(
                     &transform,

@@ -8,10 +8,7 @@
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
 #![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "avx2"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod avx2;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),

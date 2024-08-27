@@ -11,8 +11,8 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "avx2")]
 pub unsafe fn avx2_rgb_to_ycbcr(
     r: __m256i,
     g: __m256i,

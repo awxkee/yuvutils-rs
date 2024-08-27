@@ -5,10 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    target_feature = "avx2"
-))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_yuv_to_rgba_alpha;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
@@ -73,7 +70,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx2 = false;
+    let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(
@@ -87,10 +84,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         #[cfg(all(feature = "nightly_avx512", target_feature = "avx512bw"))]
         if std::arch::is_x86_feature_detected!("avx512bw") {
             _use_avx512 = true;
-        }
-        #[cfg(target_feature = "avx2")]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            _use_avx2 = true;
         }
     }
 
@@ -130,7 +123,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     uv_x = processed.ux;
                 }
             }
-            #[cfg(target_feature = "avx2")]
             if _use_avx2 {
                 let processed = avx2_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
