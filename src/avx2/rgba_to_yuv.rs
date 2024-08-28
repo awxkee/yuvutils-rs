@@ -6,7 +6,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    avx2_deinterleave_rgb, avx2_deinterleave_rgba, avx2_pack_u16, avx2_pairwise_widen_avg,
+    avx2_deinterleave_rgb, _mm256_deinterleave_rgba_epi8, avx2_pack_u16, avx2_pairwise_widen_avg,
 };
 use crate::avx2::avx2_ycbcr::avx2_rgb_to_ycbcr;
 use crate::internals::ProcessedOffset;
@@ -85,7 +85,7 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let row_3 = _mm256_loadu_si256(source_ptr.add(64) as *const __m256i);
                 let row_4 = _mm256_loadu_si256(source_ptr.add(96) as *const __m256i);
 
-                let (it1, it2, it3, _) = avx2_deinterleave_rgba(row_1, row_2, row_3, row_4);
+                let (it1, it2, it3, _) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
                 if source_channels == YuvSourceChannels::Rgba {
                     r_values = it1;
                     g_values = it2;

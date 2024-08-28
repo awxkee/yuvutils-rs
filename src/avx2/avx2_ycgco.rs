@@ -26,22 +26,22 @@ pub unsafe fn avx2_rgb_to_ycgco(
     let mut g_l = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(g));
     let mut b_l = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(b));
 
-    let hg_0 = _mm256_srai_epi32::<1>(_mm256_mullo_epi32(g_l, y_reduction));
+    let hg_0 = _mm256_srai_epi32::<1>(_mm256_madd_epi16(g_l, y_reduction));
 
     let yl_0 = _mm256_srai_epi32::<8>(_mm256_add_epi32(
         _mm256_add_epi32(
             _mm256_srai_epi32::<2>(_mm256_add_epi32(
-                _mm256_mullo_epi32(r_l, y_reduction),
-                _mm256_mullo_epi32(b_l, y_reduction),
+                _mm256_madd_epi16(r_l, y_reduction),
+                _mm256_madd_epi16(b_l, y_reduction),
             )),
             hg_0,
         ),
         y_bias,
     ));
 
-    r_l = _mm256_mullo_epi32(r_l, uv_reduction);
-    g_l = _mm256_mullo_epi32(g_l, uv_reduction);
-    b_l = _mm256_mullo_epi32(b_l, uv_reduction);
+    r_l = _mm256_madd_epi16(r_l, uv_reduction);
+    g_l = _mm256_madd_epi16(g_l, uv_reduction);
+    b_l = _mm256_madd_epi16(b_l, uv_reduction);
 
     let cg_l = _mm256_srai_epi32::<8>(_mm256_add_epi32(
         _mm256_sub_epi32(
@@ -60,22 +60,22 @@ pub unsafe fn avx2_rgb_to_ycgco(
     let mut g_h = _mm256_cvtepi16_epi32(_mm256_extracti128_si256::<1>(g));
     let mut b_h = _mm256_cvtepi16_epi32(_mm256_extracti128_si256::<1>(b));
 
-    let hg_1 = _mm256_srai_epi32::<1>(_mm256_mullo_epi32(g_h, y_reduction));
+    let hg_1 = _mm256_srai_epi32::<1>(_mm256_madd_epi16(g_h, y_reduction));
 
     let yh_0 = _mm256_srai_epi32::<8>(_mm256_add_epi32(
         _mm256_add_epi32(
             _mm256_srai_epi32::<2>(_mm256_add_epi32(
-                _mm256_mullo_epi32(r_h, y_reduction),
-                _mm256_mullo_epi32(b_h, y_reduction),
+                _mm256_madd_epi16(r_h, y_reduction),
+                _mm256_madd_epi16(b_h, y_reduction),
             )),
             hg_1,
         ),
         y_bias,
     ));
 
-    r_h = _mm256_mullo_epi32(r_h, uv_reduction);
-    g_h = _mm256_mullo_epi32(g_h, uv_reduction);
-    b_h = _mm256_mullo_epi32(b_h, uv_reduction);
+    r_h = _mm256_madd_epi16(r_h, uv_reduction);
+    g_h = _mm256_madd_epi16(g_h, uv_reduction);
+    b_h = _mm256_madd_epi16(b_h, uv_reduction);
 
     let cg_h = _mm256_srai_epi32::<8>(_mm256_add_epi32(
         _mm256_sub_epi32(

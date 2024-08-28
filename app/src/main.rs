@@ -1,4 +1,3 @@
-use std::arch::x86_64::*;
 use image::io::Reader as ImageReader;
 use image::{ColorType, EncodableLayout, GenericImageView};
 use std::fs::File;

@@ -76,10 +76,6 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 _uv_x = processed.uv_x;
                 _yuy2_x = processed.x;
             }
-        }
-
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
             if _use_sse {
                 let processed = yuv_to_yuy2_sse_impl::<SAMPLING, YUY2_TARGET>(
                     y_plane,

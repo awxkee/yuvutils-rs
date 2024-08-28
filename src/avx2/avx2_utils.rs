@@ -26,7 +26,18 @@ pub unsafe fn avx2_pack_u16(s_1: __m256i, s_2: __m256i) -> __m256i {
 
 #[inline]
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_deinterleave_rgba(
+pub unsafe fn _mm256_interleave_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
+    let xy_l = _mm256_unpacklo_epi8(a, b);
+    let xy_h = _mm256_unpackhi_epi8(a, b);
+
+    let xy0 = _mm256_permute2x128_si256::<32>(xy_l, xy_h);
+    let xy1 = _mm256_permute2x128_si256::<49>(xy_l, xy_h);
+    (xy0, xy1)
+}
+
+#[inline]
+#[target_feature(enable = "avx2")]
+pub unsafe fn _mm256_deinterleave_rgba_epi8(
     rgba0: __m256i,
     rgba1: __m256i,
     rgba2: __m256i,
@@ -77,7 +88,13 @@ pub unsafe fn avx2_store_u8_rgb(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i
 
 #[inline]
 #[target_feature(enable = "avx2")]
-pub unsafe fn _mm256_store_interleaved_epi8(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, a: __m256i) {
+pub unsafe fn _mm256_store_interleaved_epi8(
+    ptr: *mut u8,
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+    a: __m256i,
+) {
     let bg0 = _mm256_unpacklo_epi8(r, g);
     let bg1 = _mm256_unpackhi_epi8(r, g);
     let ra0 = _mm256_unpacklo_epi8(b, a);
@@ -297,9 +314,10 @@ pub unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
 #[inline]
 #[target_feature(enable = "avx2")]
 pub unsafe fn _mm256_deinterleave_x2_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
-
-    let sh = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15,
-                              0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15);
+    let sh = _mm256_setr_epi8(
+        0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15, 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5,
+        7, 9, 11, 13, 15,
+    );
     let p0 = _mm256_shuffle_epi8(a, sh);
     let p1 = _mm256_shuffle_epi8(b, sh);
     let pl = _mm256_permute2x128_si256::<32>(p0, p1);
