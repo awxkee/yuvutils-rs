@@ -15,7 +15,8 @@ use crate::avx512bw::avx512_y_to_rgb_row;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_y_to_rgb_row;
-
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+use crate::wasm32::wasm_y_to_rgb_row;
 use crate::yuv_support::*;
 
 // Chroma subsampling always assumed as 400
@@ -76,6 +77,21 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
+                &range,
+                &integer_transform,
+                y_plane,
+                rgba,
+                cx,
+                y_offset,
+                rgba_offset,
+                width as usize,
+            );
+            cx = offset;
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        unsafe {
+            let offset = wasm_y_to_rgb_row::<DESTINATION_CHANNELS>(
                 &range,
                 &integer_transform,
                 y_plane,

@@ -204,11 +204,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let cr_value = unsafe { *v_plane.get_unchecked(v_pos) } as i32 - bias_uv;
 
-            let r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
-            let b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
-            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 6)
-                .min(255)
-                .max(0);
+            let r = ((y_value + cr_coef * cr_value) >> 6).clamp(0, 255);
+            let b = ((y_value + cb_coef * cb_value) >> 6).clamp(0, 255);
+            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 6).clamp(0, 255);
 
             let px = x * channels;
 
