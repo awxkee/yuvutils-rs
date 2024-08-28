@@ -1,3 +1,4 @@
+use std::arch::x86_64::*;
 use image::io::Reader as ImageReader;
 use image::{ColorType, EncodableLayout, GenericImageView};
 use std::fs::File;
@@ -27,6 +28,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
+
     let img = ImageReader::open("assets/test_image_3.jpg")
         .unwrap()
         .decode()
@@ -35,14 +37,6 @@ fn main() {
 
     let width = dimensions.0;
     let height = dimensions.1;
-
-    let yuyu2 = read_file_bytes("assets/output_video.yuv").unwrap();
-    let shift = (width - 1) as usize * 4;
-    let drain = &yuyu2[shift..];
-    println!("{}", drain[0]);
-    println!("{}", drain[1]);
-    println!("{}", drain[2]);
-    println!("{}", drain[3]);
 
     let src_bytes = img.as_bytes();
     let components = match img.color() {

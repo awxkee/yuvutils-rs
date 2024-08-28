@@ -52,15 +52,15 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     while cx + 32 < width {
         let y_bias = _mm256_set1_epi32(bias_y);
         let uv_bias = _mm256_set1_epi32(bias_uv);
-        let v_yr = _mm256_set1_epi32(transform.yr);
-        let v_yg = _mm256_set1_epi32(transform.yg);
-        let v_yb = _mm256_set1_epi32(transform.yb);
-        let v_cb_r = _mm256_set1_epi32(transform.cb_r);
-        let v_cb_g = _mm256_set1_epi32(transform.cb_g);
-        let v_cb_b = _mm256_set1_epi32(transform.cb_b);
-        let v_cr_r = _mm256_set1_epi32(transform.cr_r);
-        let v_cr_g = _mm256_set1_epi32(transform.cr_g);
-        let v_cr_b = _mm256_set1_epi32(transform.cr_b);
+        let v_yr = _mm256_set1_epi16(transform.yr as i16);
+        let v_yg = _mm256_set1_epi16(transform.yg as i16);
+        let v_yb = _mm256_set1_epi16(transform.yb as i16);
+        let v_cb_r = _mm256_set1_epi16(transform.cb_r as i16);
+        let v_cb_g = _mm256_set1_epi16(transform.cb_g as i16);
+        let v_cb_b = _mm256_set1_epi16(transform.cb_b as i16);
+        let v_cr_r = _mm256_set1_epi16(transform.cr_r as i16);
+        let v_cr_g = _mm256_set1_epi16(transform.cr_g as i16);
+        let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
         let (r_values, g_values, b_values);
 
@@ -68,9 +68,10 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         match source_channels {
             YuvSourceChannels::Rgb => {
-                let row_1 = _mm256_loadu_si256(rgba_ptr.add(px) as *const __m256i);
-                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
-                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 64) as *const __m256i);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm256_loadu_si256(source_ptr as *const __m256i);
+                let row_2 = _mm256_loadu_si256(source_ptr.add(32) as *const __m256i);
+                let row_3 = _mm256_loadu_si256(source_ptr.add(64) as *const __m256i);
 
                 let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
                 r_values = it1;
@@ -78,10 +79,11 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 b_values = it3;
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let row_1 = _mm256_loadu_si256(rgba_ptr.add(px) as *const __m256i);
-                let row_2 = _mm256_loadu_si256(rgba_ptr.add(px + 32) as *const __m256i);
-                let row_3 = _mm256_loadu_si256(rgba_ptr.add(px + 64) as *const __m256i);
-                let row_4 = _mm256_loadu_si256(rgba_ptr.add(px + 96) as *const __m256i);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm256_loadu_si256(source_ptr as *const __m256i);
+                let row_2 = _mm256_loadu_si256(source_ptr.add(32) as *const __m256i);
+                let row_3 = _mm256_loadu_si256(source_ptr.add(64) as *const __m256i);
+                let row_4 = _mm256_loadu_si256(source_ptr.add(96) as *const __m256i);
 
                 let (it1, it2, it3, _) = avx2_deinterleave_rgba(row_1, row_2, row_3, row_4);
                 if source_channels == YuvSourceChannels::Rgba {

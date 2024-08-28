@@ -4,6 +4,8 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::avx2::yuv_to_yuy2_avx2_row;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuv_to_yuy2_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -47,11 +49,34 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let mut _use_avx2 = is_x86_feature_detected!("avx2");
 
     for y in 0..height as usize {
         let mut _cx = 0usize;
         let mut _uv_x = 0usize;
         let mut _yuy2_x = 0usize;
+
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            if _use_avx2 {
+                let processed = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
+                    y_plane,
+                    y_offset,
+                    u_plane,
+                    u_offset,
+                    v_plane,
+                    v_offset,
+                    yuy2_store,
+                    yuy_offset,
+                    width,
+                    YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
+                );
+                _cx = processed.cx;
+                _uv_x = processed.uv_x;
+                _yuy2_x = processed.x;
+            }
+        }
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {

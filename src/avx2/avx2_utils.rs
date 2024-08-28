@@ -77,7 +77,7 @@ pub unsafe fn avx2_store_u8_rgb(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i
 
 #[inline]
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_store_u8_rgba(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, a: __m256i) {
+pub unsafe fn _mm256_store_interleaved_epi8(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i, a: __m256i) {
     let bg0 = _mm256_unpacklo_epi8(r, g);
     let bg1 = _mm256_unpackhi_epi8(r, g);
     let ra0 = _mm256_unpacklo_epi8(b, a);
@@ -296,20 +296,15 @@ pub unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
 
 #[inline]
 #[target_feature(enable = "avx2")]
-pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
-    #[rustfmt::skip]
-    let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
-                                8, 8, 10, 10, 12, 12, 14, 14);
-    let new_lane = _mm_shuffle_epi8(x, shuffle);
-    new_lane
-}
+pub unsafe fn _mm256_deinterleave_x2_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
 
-#[inline]
-#[target_feature(enable = "avx2")]
-pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
-    #[rustfmt::skip]
-    let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7,
-                                9, 9, 11, 11, 13, 13, 15, 15);
-    let new_lane = _mm_shuffle_epi8(x, shuffle);
-    new_lane
+    let sh = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15,
+                              0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15);
+    let p0 = _mm256_shuffle_epi8(a, sh);
+    let p1 = _mm256_shuffle_epi8(b, sh);
+    let pl = _mm256_permute2x128_si256::<32>(p0, p1);
+    let ph = _mm256_permute2x128_si256::<49>(p0, p1);
+    let a0 = _mm256_unpacklo_epi64(pl, ph);
+    let b0 = _mm256_unpackhi_epi64(pl, ph);
+    (a0, b0)
 }

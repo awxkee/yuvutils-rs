@@ -54,15 +54,15 @@ pub unsafe fn sse_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
     while cx + 16 < width {
         let y_bias = _mm_set1_epi32(bias_y);
         let uv_bias = _mm_set1_epi32(bias_uv);
-        let v_yr = _mm_set1_epi32(transform.yr);
-        let v_yg = _mm_set1_epi32(transform.yg);
-        let v_yb = _mm_set1_epi32(transform.yb);
-        let v_cb_r = _mm_set1_epi32(transform.cb_r);
-        let v_cb_g = _mm_set1_epi32(transform.cb_g);
-        let v_cb_b = _mm_set1_epi32(transform.cb_b);
-        let v_cr_r = _mm_set1_epi32(transform.cr_r);
-        let v_cr_g = _mm_set1_epi32(transform.cr_g);
-        let v_cr_b = _mm_set1_epi32(transform.cr_b);
+        let v_yr = _mm_set1_epi16(transform.yr as i16);
+        let v_yg = _mm_set1_epi16(transform.yg as i16);
+        let v_yb = _mm_set1_epi16(transform.yb as i16);
+        let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
+        let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
+        let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
+        let v_cr_r = _mm_set1_epi16(transform.cr_r as i16);
+        let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
+        let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
         let (r_values, g_values, b_values);
 

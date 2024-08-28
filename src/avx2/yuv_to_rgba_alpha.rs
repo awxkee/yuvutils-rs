@@ -168,7 +168,7 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
                 avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
-                avx2_store_u8_rgba(
+                _mm256_store_interleaved_epi8(
                     rgba_ptr.add(dst_shift),
                     r_values,
                     g_values,
@@ -177,7 +177,7 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
                 );
             }
             YuvSourceChannels::Bgra => {
-                avx2_store_u8_rgba(
+                _mm256_store_interleaved_epi8(
                     rgba_ptr.add(dst_shift),
                     b_values,
                     g_values,

@@ -17,7 +17,7 @@ pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
                                      8, 8, 10, 10, 12, 12, 14, 14);
     let new_lane = _mm_shuffle_epi8(x, shuffle);
-    return new_lane;
+    new_lane
 }
 
 #[inline]

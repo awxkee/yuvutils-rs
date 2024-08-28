@@ -210,10 +210,10 @@ pub unsafe fn avx512_rgb_to_ycbcr(
         bias,
         _mm512_add_epi32(
             _mm512_add_epi32(
-                _mm512_mullo_epi32(coeff_r, r_l),
-                _mm512_mullo_epi32(coeff_g, g_l),
+                _mm512_madd_epi16(coeff_r, r_l),
+                _mm512_madd_epi16(coeff_g, g_l),
             ),
-            _mm512_mullo_epi32(coeff_b, b_l),
+            _mm512_madd_epi16(coeff_b, b_l),
         ),
     ));
 
@@ -225,10 +225,10 @@ pub unsafe fn avx512_rgb_to_ycbcr(
         bias,
         _mm512_add_epi32(
             _mm512_add_epi32(
-                _mm512_mullo_epi32(coeff_r, r_h),
-                _mm512_mullo_epi32(coeff_g, g_h),
+                _mm512_madd_epi16(coeff_r, r_h),
+                _mm512_madd_epi16(coeff_g, g_h),
             ),
-            _mm512_mullo_epi32(coeff_b, b_h),
+            _mm512_madd_epi16(coeff_b, b_h),
         ),
     ));
 

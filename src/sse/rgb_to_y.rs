@@ -34,11 +34,13 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
 
     let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
 
+    let zeros_si = _mm_setzero_si128();
+
     while cx + 16 < width {
         let y_bias = _mm_set1_epi32(bias_y);
-        let v_yr = _mm_set1_epi32(transform.yr);
-        let v_yg = _mm_set1_epi32(transform.yg);
-        let v_yb = _mm_set1_epi32(transform.yb);
+        let v_yr = _mm_set1_epi16(transform.yr as i16);
+        let v_yg = _mm_set1_epi16(transform.yg as i16);
+        let v_yb = _mm_set1_epi16(transform.yb as i16);
 
         let (r_values, g_values, b_values);
 
@@ -46,9 +48,10 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
 
         match source_channels {
             YuvSourceChannels::Rgb => {
-                let row_1 = _mm_loadu_si128(rgba_ptr.add(px) as *const __m128i);
-                let row_2 = _mm_loadu_si128(rgba_ptr.add(px + 16) as *const __m128i);
-                let row_3 = _mm_loadu_si128(rgba_ptr.add(px + 32) as *const __m128i);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm_loadu_si128(source_ptr as *const __m128i);
+                let row_2 = _mm_loadu_si128(source_ptr.add(16) as *const __m128i);
+                let row_3 = _mm_loadu_si128(source_ptr.add(32) as *const __m128i);
 
                 let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, row_3);
                 r_values = it1;
@@ -56,10 +59,11 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
                 b_values = it3;
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let row_1 = _mm_loadu_si128(rgba_ptr.add(px) as *const __m128i);
-                let row_2 = _mm_loadu_si128(rgba_ptr.add(px + 16) as *const __m128i);
-                let row_3 = _mm_loadu_si128(rgba_ptr.add(px + 32) as *const __m128i);
-                let row_4 = _mm_loadu_si128(rgba_ptr.add(px + 48) as *const __m128i);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm_loadu_si128(source_ptr as *const __m128i);
+                let row_2 = _mm_loadu_si128(source_ptr.add(16) as *const __m128i);
+                let row_3 = _mm_loadu_si128(source_ptr.add(32) as *const __m128i);
+                let row_4 = _mm_loadu_si128(source_ptr.add(48) as *const __m128i);
 
                 let (it1, it2, it3, _) = sse_deinterleave_rgba(row_1, row_2, row_3, row_4);
                 if source_channels == YuvSourceChannels::Rgba {
@@ -75,11 +79,11 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
         }
 
         let r_low = _mm_cvtepu8_epi16(r_values);
-        let r_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(r_values));
+        let r_high = _mm_unpackhi_epi8(r_values, zeros_si);
         let g_low = _mm_cvtepu8_epi16(g_values);
-        let g_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(g_values));
+        let g_high = _mm_unpackhi_epi8(g_values, zeros_si);
         let b_low = _mm_cvtepu8_epi16(b_values);
-        let b_high = _mm_cvtepu8_epi16(_mm_srli_si128::<8>(b_values));
+        let b_high = _mm_unpackhi_epi8(b_values, zeros_si);
 
         let y_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
 

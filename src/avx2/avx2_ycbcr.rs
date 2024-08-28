@@ -30,10 +30,10 @@ pub unsafe fn avx2_rgb_to_ycbcr(
         bias,
         _mm256_add_epi32(
             _mm256_add_epi32(
-                _mm256_mullo_epi32(coeff_r, r_l),
-                _mm256_mullo_epi32(coeff_g, g_l),
+                _mm256_madd_epi16(coeff_r, r_l),
+                _mm256_madd_epi16(coeff_g, g_l),
             ),
-            _mm256_mullo_epi32(coeff_b, b_l),
+            _mm256_madd_epi16(coeff_b, b_l),
         ),
     ));
 
@@ -45,10 +45,10 @@ pub unsafe fn avx2_rgb_to_ycbcr(
         bias,
         _mm256_add_epi32(
             _mm256_add_epi32(
-                _mm256_mullo_epi32(coeff_r, r_h),
-                _mm256_mullo_epi32(coeff_g, g_h),
+                _mm256_madd_epi16(coeff_r, r_h),
+                _mm256_madd_epi16(coeff_g, g_h),
             ),
-            _mm256_mullo_epi32(coeff_b, b_h),
+            _mm256_madd_epi16(coeff_b, b_h),
         ),
     ));
 

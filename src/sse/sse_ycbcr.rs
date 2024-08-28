@@ -29,8 +29,8 @@ pub unsafe fn sse_rgb_to_ycbcr(
     let vl = _mm_srai_epi32::<8>(_mm_add_epi32(
         bias,
         _mm_add_epi32(
-            _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_l), _mm_mullo_epi32(coeff_g, g_l)),
-            _mm_mullo_epi32(coeff_b, b_l),
+            _mm_add_epi32(_mm_madd_epi16(coeff_r, r_l), _mm_madd_epi16(coeff_g, g_l)),
+            _mm_madd_epi16(coeff_b, b_l),
         ),
     ));
 
@@ -41,8 +41,8 @@ pub unsafe fn sse_rgb_to_ycbcr(
     let vh = _mm_srai_epi32::<8>(_mm_add_epi32(
         bias,
         _mm_add_epi32(
-            _mm_add_epi32(_mm_mullo_epi32(coeff_r, r_h), _mm_mullo_epi32(coeff_g, g_h)),
-            _mm_mullo_epi32(coeff_b, b_h),
+            _mm_add_epi32(_mm_madd_epi16(coeff_r, r_h), _mm_madd_epi16(coeff_g, g_h)),
+            _mm_madd_epi16(coeff_b, b_h),
         ),
     ));
 
@@ -60,9 +60,10 @@ pub unsafe fn sse_rgb_to_ycgco(
     y_bias: __m128i,
     uv_bias: __m128i,
 ) -> (__m128i, __m128i, __m128i) {
-    let mut r_l = _mm_cvtepi16_epi32(r);
-    let mut g_l = _mm_cvtepi16_epi32(g);
-    let mut b_l = _mm_cvtepi16_epi32(b);
+    let zeros_si = _mm_setzero_si128();
+    let mut r_l = _mm_unpacklo_epi16(r, zeros_si);
+    let mut g_l = _mm_unpacklo_epi16(g, zeros_si);
+    let mut b_l = _mm_unpacklo_epi16(b, zeros_si);
 
     let hg_0 = _mm_srai_epi32::<1>(_mm_mullo_epi32(g_l, y_reduction));
 
@@ -93,8 +94,6 @@ pub unsafe fn sse_rgb_to_ycgco(
         _mm_srai_epi32::<1>(_mm_sub_epi32(r_l, b_l)),
         uv_bias,
     ));
-
-    let zeros_si = _mm_setzero_si128();
 
     let mut r_h = _mm_unpackhi_epi16(r, zeros_si);
     let mut g_h = _mm_unpackhi_epi16(g, zeros_si);

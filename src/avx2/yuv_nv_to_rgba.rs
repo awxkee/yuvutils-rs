@@ -173,7 +173,7 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
                 avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
             }
             YuvSourceChannels::Rgba => {
-                avx2_store_u8_rgba(
+                _mm256_store_interleaved_epi8(
                     rgba_ptr.add(dst_shift),
                     r_values,
                     g_values,
@@ -182,7 +182,7 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
                 );
             }
             YuvSourceChannels::Bgra => {
-                avx2_store_u8_rgba(
+                _mm256_store_interleaved_epi8(
                     rgba_ptr.add(dst_shift),
                     b_values,
                     g_values,
