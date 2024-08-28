@@ -88,5 +88,5 @@ pub unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
         cx += 64;
     }
 
-    return cx;
+    cx
 }

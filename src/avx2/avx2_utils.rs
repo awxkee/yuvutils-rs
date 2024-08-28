@@ -21,7 +21,7 @@ pub const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
 pub unsafe fn avx2_pack_u16(s_1: __m256i, s_2: __m256i) -> __m256i {
     let packed = _mm256_packus_epi16(s_1, s_2);
     const MASK: i32 = shuffle(3, 1, 2, 0);
-    return _mm256_permute4x64_epi64::<MASK>(packed);
+    _mm256_permute4x64_epi64::<MASK>(packed)
 }
 
 #[inline]

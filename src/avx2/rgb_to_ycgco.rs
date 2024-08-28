@@ -47,7 +47,7 @@ pub unsafe fn avx2_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
     let bias_uv = ((range.bias_uv as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
 
     let precision_scale = (1 << 8) as f32;
-    let max_colors = 2i32.pow(8) - 1i32;
+    let max_colors = (1 << 8) - 1i32;
 
     let range_reduction_y =
         (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;

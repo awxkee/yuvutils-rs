@@ -41,7 +41,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let precision_scale = (1 << 8) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
     let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
-    let max_colors = 2i32.pow(8) - 1i32;
+    let max_colors = (1 << 8) - 1i32;
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,

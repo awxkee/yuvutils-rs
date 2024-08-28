@@ -93,5 +93,5 @@ pub unsafe fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8>(
         cx += 64;
     }
 
-    return cx;
+    cx
 }

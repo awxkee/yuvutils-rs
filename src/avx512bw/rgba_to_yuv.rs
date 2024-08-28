@@ -138,5 +138,5 @@ pub unsafe fn avx512_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         cx += 64;
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

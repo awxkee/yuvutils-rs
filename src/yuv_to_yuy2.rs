@@ -11,6 +11,7 @@ use crate::sse::yuv_to_yuy2_sse_impl;
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
 
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct YuvToYuy2Navigation {
     pub cx: usize,
     pub uv_x: usize,

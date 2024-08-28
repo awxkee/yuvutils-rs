@@ -10,15 +10,8 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-#[allow(dead_code)]
-pub unsafe fn sse_promote_i16_toi32(s: __m128i) -> __m128i {
-    _mm_cvtepi16_epi32(_mm_srli_si128::<8>(s))
-}
-
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     #[rustfmt::skip]
     let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
@@ -27,16 +20,18 @@ pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     return new_lane;
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
     #[rustfmt::skip]
         let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7,
                                     9, 9, 11, 11, 13, 13, 15, 15);
     let new_lane = _mm_shuffle_epi8(x, shuffle);
-    return new_lane;
+    new_lane
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_interleave_rgba(
     r: __m128i,
     g: __m128i,
@@ -55,7 +50,8 @@ pub unsafe fn sse_interleave_rgba(
     (rgba_0_lo, rgba_0_hi, rgba_1_lo, rgba_1_hi)
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a: __m128i) {
     let (row1, row2, row3, row4) = sse_interleave_rgba(r, g, b, a);
     _mm_storeu_si128(ptr as *mut __m128i, row1);
@@ -64,7 +60,8 @@ pub unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a
     _mm_storeu_si128(ptr.add(48) as *mut __m128i, row4);
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_deinterleave_rgba(
     rgba0: __m128i,
     rgba1: __m128i,
@@ -101,7 +98,8 @@ pub unsafe fn sse_deinterleave_rgba(
     (r1, r2, r3, r4)
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_deinterleave_rgb(
     rgb0: __m128i,
     rgb1: __m128i,
@@ -143,8 +141,8 @@ pub unsafe fn sse_deinterleave_rgb(
     (r0r1r2, g0g1g2, b0b1b2)
 }
 
-#[inline(always)]
-#[allow(dead_code)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_interleave_rgb(
     r: __m128i,
     g: __m128i,
@@ -165,7 +163,8 @@ pub unsafe fn sse_interleave_rgb(
     (v0, v1, v2)
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
     let (v0, v1, v2) = sse_interleave_rgb(r, g, b);
     _mm_storeu_si128(ptr as *mut __m128i, v0);
@@ -173,7 +172,8 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
     _mm_storeu_si128(ptr.add(32) as *mut __m128i, v2);
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
     let shifted = _mm_srli_epi16::<1>(sums);
@@ -181,8 +181,8 @@ pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     packed
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
     let rounding = _mm_set1_epi16(1 << 7);
     let x = _mm_adds_epi16(v, rounding);
@@ -228,7 +228,8 @@ pub unsafe fn _mm_combineh_epi8(a: __m128i, b: __m128i) -> __m128i {
     combined
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn _mm_storeu_si128_x4(ptr: *mut u8, vals: __mm128x4) {
     _mm_storeu_si128(ptr as *mut __m128i, vals.0);
     _mm_storeu_si128(ptr.add(16) as *mut __m128i, vals.1);
@@ -236,7 +237,8 @@ pub unsafe fn _mm_storeu_si128_x4(ptr: *mut u8, vals: __mm128x4) {
     _mm_storeu_si128(ptr.add(48) as *mut __m128i, vals.3);
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn _mm_getlow_epi8(a: __m128i) -> __m128i {
     let half = _mm_castps_si128(_mm_movelh_ps(
         _mm_castsi128_ps(a),
@@ -245,7 +247,8 @@ pub unsafe fn _mm_getlow_epi8(a: __m128i) -> __m128i {
     half
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn _mm_gethigh_epi8(a: __m128i) -> __m128i {
     _mm_srli_si128::<8>(a)
 }

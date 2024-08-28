@@ -204,5 +204,5 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
         }
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

@@ -40,7 +40,7 @@ fn yuv_p10_to_rgbx_impl<
     let bytes_position: YuvBytesPosition = BYTES_POSITION.into();
     let range = get_yuv_range(10, range);
     let kr_kb = get_kr_kb(matrix);
-    let max_range_p10 = (2f32.powi(10) - 1f32) as u32;
+    let max_range_p10 = (1u32 << 10u32) - 1;
     let transform = get_inverse_transform(
         max_range_p10,
         range.range_y,

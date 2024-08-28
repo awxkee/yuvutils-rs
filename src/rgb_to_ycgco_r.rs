@@ -40,7 +40,7 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
         YuvChromaSample::YUV444 => 1usize,
     };
 
-    let max_colors = 2i32.pow(8) - 1i32;
+    let max_colors = (1 << 8) - 1i32;
     let range_reduction_y =
         (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;
     let range_reduction_uv =

@@ -64,10 +64,8 @@ pub unsafe fn avx512_interleave_rgb(
     (bgr0, bgr1, bgr2)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
-#[inline(always)]
-#[allow(dead_code)]
+#[inline]
+#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_rgb_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m512i) {
     let (rgb0, rgb1, rgb2) = avx512_interleave_rgb(a, b, c);
     _mm512_storeu_si512(dst as *mut i32, rgb0);

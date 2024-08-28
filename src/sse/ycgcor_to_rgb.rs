@@ -31,7 +31,7 @@ pub unsafe fn sse_ycgcor_type_to_rgb_row<const DESTINATION_CHANNELS: u8, const S
     let channels = destination_channels.get_channels_count();
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
-    let max_colors = 2i32.pow(8) - 1i32;
+    let max_colors = (1 << 8) - 1i32;
     let precision_scale = (1 << 6) as f32;
     let range_reduction_y =
         (max_colors as f32 / range.range_y as f32 * precision_scale).round() as i32;

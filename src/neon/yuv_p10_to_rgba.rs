@@ -41,7 +41,6 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
     let y_corr = vdupq_n_s16(range.bias_y as i16);
     let uv_corr = vdup_n_s16(range.bias_uv as i16);
     let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
-    let v_luma_coeff_4 = vdup_n_s16(transform.y_coef as i16);
     let v_cr_coeff = vdup_n_s16(transform.cr_coef as i16);
     let v_cb_coeff = vdup_n_s16(transform.cb_coef as i16);
     let v_min_values = vdupq_n_s16(0i16);
@@ -111,7 +110,7 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
             v_g_coeff_2,
         ));
 
-        let y_low = vmull_s16(vget_low_s16(y_values), v_luma_coeff_4);
+        let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
         let u_low = vzip1_s16(u_values_c, u_values_c);
         let v_low = vzip1_s16(v_values_c, v_values_c);
 

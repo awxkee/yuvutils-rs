@@ -40,7 +40,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let channels = source_channels.get_channels_count();
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
-    let max_range_p8 = (2f32.powi(8) - 1f32) as u32;
+    let max_range_p8 = (1u32 << 8u32) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,
         range.range_y,

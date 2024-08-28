@@ -5,7 +5,6 @@
  * // license that can be found in the LICENSE file.
  */
 
-use crate::sse::sse_support::sse_promote_i16_toi32;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -22,9 +21,10 @@ pub unsafe fn sse_rgb_to_ycbcr(
     coeff_g: __m128i,
     coeff_b: __m128i,
 ) -> __m128i {
-    let r_l = _mm_cvtepi16_epi32(r);
-    let g_l = _mm_cvtepi16_epi32(g);
-    let b_l = _mm_cvtepi16_epi32(b);
+    let zeros_si = _mm_setzero_si128();
+    let r_l = _mm_unpacklo_epi16(r, zeros_si);
+    let g_l = _mm_unpacklo_epi16(g, zeros_si);
+    let b_l = _mm_unpacklo_epi16(b, zeros_si);
 
     let vl = _mm_srai_epi32::<8>(_mm_add_epi32(
         bias,
@@ -34,9 +34,9 @@ pub unsafe fn sse_rgb_to_ycbcr(
         ),
     ));
 
-    let r_h = sse_promote_i16_toi32(r);
-    let g_h = sse_promote_i16_toi32(g);
-    let b_h = sse_promote_i16_toi32(b);
+    let r_h = _mm_unpackhi_epi16(r, zeros_si);
+    let g_h = _mm_unpackhi_epi16(g, zeros_si);
+    let b_h = _mm_unpackhi_epi16(b, zeros_si);
 
     let vh = _mm_srai_epi32::<8>(_mm_add_epi32(
         bias,
@@ -94,9 +94,11 @@ pub unsafe fn sse_rgb_to_ycgco(
         uv_bias,
     ));
 
-    let mut r_h = sse_promote_i16_toi32(r);
-    let mut g_h = sse_promote_i16_toi32(g);
-    let mut b_h = sse_promote_i16_toi32(b);
+    let zeros_si = _mm_setzero_si128();
+
+    let mut r_h = _mm_unpackhi_epi16(r, zeros_si);
+    let mut g_h = _mm_unpackhi_epi16(g, zeros_si);
+    let mut b_h = _mm_unpackhi_epi16(b, zeros_si);
 
     let hg_1 = _mm_srai_epi32::<1>(_mm_mullo_epi32(g_h, y_reduction));
 

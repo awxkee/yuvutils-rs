@@ -47,18 +47,19 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
     let bias_uv = ((range.bias_uv as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
 
     let precision_scale = (1 << 8) as f32;
-    let max_colors = 2i32.pow(8) - 1i32;
+    let max_colors = (1i32 << 8i32) - 1i32;
 
     let range_reduction_y =
         (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;
     let range_reduction_uv =
         (range.range_uv as f32 / max_colors as f32 * precision_scale).round() as i32;
 
+    let y_bias = _mm512_set1_epi32(bias_y);
+    let uv_bias = _mm512_set1_epi32(bias_uv);
+    let v_range_reduction_y = _mm512_set1_epi32(range_reduction_y);
+    let v_range_reduction_uv = _mm512_set1_epi32(range_reduction_uv);
+
     while cx + 64 < width {
-        let y_bias = _mm512_set1_epi32(bias_y);
-        let uv_bias = _mm512_set1_epi32(bias_uv);
-        let v_range_reduction_y = _mm512_set1_epi32(range_reduction_y);
-        let v_range_reduction_uv = _mm512_set1_epi32(range_reduction_uv);
 
         let (r_values, g_values, b_values);
 
@@ -66,9 +67,10 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
 
         match source_channels {
             YuvSourceChannels::Rgb => {
-                let row_1 = _mm512_loadu_si512(rgba_ptr.add(px) as *const i32);
-                let row_2 = _mm512_loadu_si512(rgba_ptr.add(px + 64) as *const i32);
-                let row_3 = _mm512_loadu_si512(rgba_ptr.add(px + 128) as *const i32);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm512_loadu_si512(source_ptr as *const i32);
+                let row_2 = _mm512_loadu_si512(source_ptr.add(64) as *const i32);
+                let row_3 = _mm512_loadu_si512(source_ptr.add(128) as *const i32);
 
                 let (it1, it2, it3) = avx512_deinterleave_rgb(row_1, row_2, row_3);
                 r_values = it1;
@@ -76,10 +78,11 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
                 b_values = it3;
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let row_1 = _mm512_loadu_si512(rgba_ptr.add(px) as *const i32);
-                let row_2 = _mm512_loadu_si512(rgba_ptr.add(px + 64) as *const i32);
-                let row_3 = _mm512_loadu_si512(rgba_ptr.add(px + 128) as *const i32);
-                let row_4 = _mm512_loadu_si512(rgba_ptr.add(px + 192) as *const i32);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm512_loadu_si512(source_ptr as *const i32);
+                let row_2 = _mm512_loadu_si512(source_ptr.add(64) as *const i32);
+                let row_3 = _mm512_loadu_si512(source_ptr.add(128) as *const i32);
+                let row_4 = _mm512_loadu_si512(source_ptr.add(192) as *const i32);
 
                 let (it1, it2, it3, _) = avx512_deinterleave_rgba(row_1, row_2, row_3, row_4);
                 if source_channels == YuvSourceChannels::Rgba {
@@ -144,5 +147,5 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
         cx += 64;
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

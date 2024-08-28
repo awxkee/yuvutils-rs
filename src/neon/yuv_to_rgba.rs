@@ -42,7 +42,6 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     let y_corr = vdupq_n_u8(range.bias_y as u8);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
     let v_luma_coeff = vdupq_n_u8(transform.y_coef as u8);
-    let v_luma_coeff_8 = vdup_n_u8(transform.y_coef as u8);
     let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
     let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
     let v_min_values = vdupq_n_s16(0i16);
@@ -104,7 +103,8 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
 
         let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
         let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_low_u8)), uv_corr);
-        let y_low = vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_values), v_luma_coeff_8));
+        let y_low =
+            vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_values), vget_low_u8(v_luma_coeff)));
 
         let r_low = vqshrun_n_s16::<6>(vmaxq_s16(
             vqaddq_s16(y_low, vmulq_s16(v_low, v_cr_coeff)),

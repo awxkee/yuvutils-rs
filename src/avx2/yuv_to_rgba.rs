@@ -177,5 +177,5 @@ pub unsafe fn avx2_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         }
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

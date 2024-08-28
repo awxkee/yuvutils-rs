@@ -42,7 +42,7 @@ pub unsafe fn avx2_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLI
     let v_ptr = v_plane.as_ptr().add(v_offset);
     let rgba_ptr = rgba.as_mut_ptr().add(rgba_offset);
 
-    let max_colors = 2i32.pow(8) - 1i32;
+    let max_colors = (1 << 8) - 1i32;
     let precision_scale = (1 << 6) as f32;
 
     let range_reduction_y =

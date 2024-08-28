@@ -5,7 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct CbCrInverseTransform<T> {
     pub y_coef: T,
     pub cr_coef: T,
@@ -51,7 +51,7 @@ impl CbCrInverseTransform<f32> {
     }
 }
 
-/// Transformation RGB to YUV with coefficients as specified in [ITU-R](https://www.itu.int/rec/T-REC-H.273-201612-S)
+/// Transformation RGB to YUV with coefficients as specified in [ITU-R](https://www.itu.int/rec/T-REC-H.273/en)
 pub fn get_inverse_transform(
     range_bgra: u32,
     range_y: u32,
@@ -73,7 +73,7 @@ pub fn get_inverse_transform(
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct CbCrForwardTransform<T> {
     pub yr: T,
     pub yg: T,
@@ -107,7 +107,7 @@ impl ToIntegerTransform for CbCrForwardTransform<f32> {
     }
 }
 
-/// Transformation YUV to RGB with coefficients as specified in [ITU-R](https://www.itu.int/rec/T-REC-H.273-201612-S)
+/// Transformation YUV to RGB with coefficients as specified in [ITU-R](https://www.itu.int/rec/T-REC-H.273/en)
 pub fn get_forward_transform(
     range_rgba: u32,
     range_y: u32,
@@ -142,7 +142,7 @@ pub fn get_forward_transform(
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 /// Declares YUV range TV (limited) or Full
 pub enum YuvRange {
     /// Limited range Y ∈ [16 << (depth - 8), 16 << (depth - 8) + 224 << (depth - 8)], UV ∈ [-1 << (depth - 1), -1 << (depth - 1) + 1 << (depth - 1)]
@@ -172,8 +172,8 @@ pub fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
         YuvRange::Full => YuvChromaRange {
             bias_y: 0,
             bias_uv: 1 << (depth - 1),
-            range_uv: 2f32.powi(depth as i32) as u32 - 1,
-            range_y: 2f32.powi(depth as i32) as u32 - 1,
+            range_uv: (1 << depth) - 1,
+            range_y: (1 << depth) - 1,
             range,
         },
     }
@@ -181,7 +181,7 @@ pub fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
-/// Declares standard prebuilt YUV conversion matrices, check [JVET](https://www.itu.int/rec/T-REC-H.273-201612-S) information for more info
+/// Declares standard prebuilt YUV conversion matrices, check [JVET](https://www.itu.int/rec/T-REC-H.273/en) information for more info
 pub enum YuvStandardMatrix {
     Bt601,
     Bt709,
@@ -226,7 +226,7 @@ pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum YuvNVOrder {
     UV = 0,
     VU = 1,
@@ -246,7 +246,7 @@ impl From<u8> for YuvNVOrder {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum YuvChromaSample {
     YUV420 = 0,
     YUV422 = 1,
@@ -288,7 +288,7 @@ impl From<u8> for YuvEndian {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum YuvBytesPosition {
     MostSignificantBytes = 0,
     LeastSignificantBytes = 1,
@@ -308,7 +308,7 @@ impl From<u8> for YuvBytesPosition {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum YuvSourceChannels {
     Rgb = 0,
     Rgba = 1,
@@ -383,7 +383,7 @@ impl YuvSourceChannels {
 }
 
 #[repr(usize)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Yuy2Description {
     YUYV = 0,
     UYVY = 1,
