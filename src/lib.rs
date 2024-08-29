@@ -15,6 +15,7 @@ mod avx2;
     feature = "nightly_avx512"
 ))]
 mod avx512bw;
+mod from_identity;
 mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
@@ -208,3 +209,8 @@ pub use yuy2_to_yuv::yuyv422_to_yuv444;
 pub use yuy2_to_yuv::yvyu422_to_yuv420;
 pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
+
+pub use from_identity::gbr_to_bgr;
+pub use from_identity::gbr_to_bgra;
+pub use from_identity::gbr_to_rgb;
+pub use from_identity::gbr_to_rgba;

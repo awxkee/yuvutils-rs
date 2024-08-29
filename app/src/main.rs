@@ -6,7 +6,7 @@ use std::ops::Sub;
 use std::time::Instant;
 
 use yuvutils_rs::{
-    rgb_to_ycgcoro444, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, ycgcoro444_to_rgb,
+    gbr_to_rgb, rgb_to_ycgcoro444, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, ycgcoro444_to_rgb,
     yuv420_to_rgb, yuv420_to_yuyv422, yuv422_to_rgb, yuv422_to_yuyv422, yuv444_to_rgb,
     yuv444_to_yuyv422, yuyv422_to_yuv420, yuyv422_to_yuv422, yuyv422_to_yuv444, YuvRange,
     YuvStandardMatrix,
@@ -27,7 +27,6 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-
     let img = ImageReader::open("assets/test_image_3.jpg")
         .unwrap()
         .decode()
@@ -91,40 +90,40 @@ fn main() {
     let mut yuy2_plane = vec![0u8; full_size];
 
     let start_time = Instant::now();
-
-    yuv420_to_yuyv422(
-        &y_plane,
-        y_stride as u32,
-        &u_plane,
-        y_stride as u32,
-        &v_plane,
-        y_stride as u32,
-        &mut yuy2_plane,
-        yuy2_stride as u32,
-        width,
-        height,
-    );
-
-    let end_time = Instant::now().sub(start_time);
-    println!("yuv444_to_yuyv422 time: {:?}", end_time);
-
-    let start_time = Instant::now();
-
-    yuyv422_to_yuv420(
-        &mut y_plane,
-        y_stride as u32,
-        &mut u_plane,
-        y_stride as u32,
-        &mut v_plane,
-        y_stride as u32,
-        &yuy2_plane,
-        yuy2_stride as u32,
-        width,
-        height,
-    );
-
-    let end_time = Instant::now().sub(start_time);
-    println!("yuyv422_to_yuv444 time: {:?}", end_time);
+    //
+    // yuv420_to_yuyv422(
+    //     &y_plane,
+    //     y_stride as u32,
+    //     &u_plane,
+    //     y_stride as u32,
+    //     &v_plane,
+    //     y_stride as u32,
+    //     &mut yuy2_plane,
+    //     yuy2_stride as u32,
+    //     width,
+    //     height,
+    // );
+    //
+    // let end_time = Instant::now().sub(start_time);
+    // println!("yuv444_to_yuyv422 time: {:?}", end_time);
+    //
+    // let start_time = Instant::now();
+    //
+    // yuyv422_to_yuv420(
+    //     &mut y_plane,
+    //     y_stride as u32,
+    //     &mut u_plane,
+    //     y_stride as u32,
+    //     &mut v_plane,
+    //     y_stride as u32,
+    //     &yuy2_plane,
+    //     yuy2_stride as u32,
+    //     width,
+    //     height,
+    // );
+    //
+    // let end_time = Instant::now().sub(start_time);
+    // println!("yuyv422_to_yuv444 time: {:?}", end_time);
 
     let start_time = Instant::now();
     yuv420_to_rgb(
@@ -144,6 +143,23 @@ fn main() {
 
     let end_time = Instant::now().sub(start_time);
     println!("Backward time: {:?}", end_time);
+
+    let mut gbr = vec![0u8; rgba.len()];
+
+    let start_time = Instant::now();
+    gbr_to_rgb(
+        &rgba,
+        rgba_stride as u32,
+        &mut gbr,
+        rgba_stride as u32,
+        width,
+        height,
+    );
+
+    let end_time = Instant::now().sub(start_time);
+    println!("gbr_to_rgb time: {:?}", end_time);
+
+    // rgba = Vec::from(gbr);
 
     image::save_buffer(
         "converted.jpg",
