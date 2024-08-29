@@ -73,9 +73,9 @@ fn gbr_to_image_impl<const DESTINATION_CHANNELS: u8>(
         for x in _cx..width as usize {
             let gbr_local = unsafe { gbr.get_unchecked((gbr_offset + x * 3)..) };
 
-            let r = unsafe { *gbr_local.get_unchecked(2) };
-            let b = unsafe { *gbr_local.get_unchecked(1) };
             let g = unsafe { *gbr_local.get_unchecked(0) };
+            let b = unsafe { *gbr_local.get_unchecked(1) };
+            let r = unsafe { *gbr_local.get_unchecked(2) };
 
             let px = x * channels;
 
@@ -113,7 +113,7 @@ fn gbr_to_image_impl<const DESTINATION_CHANNELS: u8>(
 ///
 /// * `gbr` - A slice to load the GBR data.
 /// * `gbr_stride` - The stride (bytes per row) for the GBR plane.
-/// * `rgb` - A slice to load the RGB plane data.
+/// * `rgb` - A slice to store the RGB plane data.
 /// * `rgb_stride` - The stride (bytes per row) for the RGB plane.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
@@ -145,7 +145,7 @@ pub fn gbr_to_rgb(
 ///
 /// * `gbr` - A slice to load the GBR data.
 /// * `gbr_stride` - The stride (bytes per row) for the GBR plane.
-/// * `bgr` - A slice to load the BGR plane data.
+/// * `bgr` - A slice to store the BGR plane data.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR plane.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
@@ -177,7 +177,7 @@ pub fn gbr_to_bgr(
 ///
 /// * `gbr` - A slice to load the GBR data.
 /// * `gbr_stride` - The stride (bytes per row) for the GBR plane.
-/// * `rgba` - A slice to load the RGBA plane data.
+/// * `rgba` - A slice to store the RGBA plane data.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA plane.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
@@ -209,7 +209,7 @@ pub fn gbr_to_rgba(
 ///
 /// * `gbr` - A slice to load the GBR data.
 /// * `gbr_stride` - The stride (bytes per row) for the GBR plane.
-/// * `rgba` - A slice to load the BGRA plane data.
+/// * `rgba` - A slice to store the BGRA plane data.
 /// * `rgba_stride` - The stride (bytes per row) for the BGRA plane.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.

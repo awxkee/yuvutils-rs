@@ -26,6 +26,7 @@ mod rgba_to_nv;
 mod rgba_to_yuv;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod sse;
+mod to_identity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod wasm32;
 mod y_to_rgb;
@@ -214,3 +215,8 @@ pub use from_identity::gbr_to_bgr;
 pub use from_identity::gbr_to_bgra;
 pub use from_identity::gbr_to_rgb;
 pub use from_identity::gbr_to_rgba;
+
+pub use to_identity::bgr_to_gbr;
+pub use to_identity::bgra_to_gbr;
+pub use to_identity::rgb_to_gbr;
+pub use to_identity::rgba_to_gbr;

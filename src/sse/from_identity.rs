@@ -81,7 +81,7 @@ pub unsafe fn gbr_to_image_sse<const DESTINATION_CHANNELS: u8>(
 
     while _cx + 8 < width as usize {
         let row0 = _mm_loadu_si128(gbr_start_ptr as *const __m128i);
-        let row1 = _mm_loadu_si128(gbr_start_ptr.add(16) as *const __m128i);
+        let row1 = _mm_loadu_si64(gbr_start_ptr.add(16));
         let gbr_pixel = sse_deinterleave_rgb(row0, row1, _mm_setzero_si128());
 
         let r_pixel = gbr_pixel.2;

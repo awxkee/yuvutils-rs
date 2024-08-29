@@ -5,12 +5,7 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 
-use yuvutils_rs::{
-    gbr_to_rgb, rgb_to_ycgcoro444, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, ycgcoro444_to_rgb,
-    yuv420_to_rgb, yuv420_to_yuyv422, yuv422_to_rgb, yuv422_to_yuyv422, yuv444_to_rgb,
-    yuv444_to_yuyv422, yuyv422_to_yuv420, yuyv422_to_yuv422, yuyv422_to_yuv444, YuvRange,
-    YuvStandardMatrix,
-};
+use yuvutils_rs::{gbr_to_rgb, rgb_to_gbr, rgb_to_ycgcoro444, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, ycgcoro444_to_rgb, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_to_rgb, yuv422_to_yuyv422, yuv444_to_rgb, yuv444_to_yuyv422, yuyv422_to_yuv420, yuyv422_to_yuv422, yuyv422_to_yuv444, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -27,7 +22,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let img = ImageReader::open("assets/test_image_4.jpg")
+    let img = ImageReader::open("assets/test_image_3.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -147,7 +142,7 @@ fn main() {
     let mut gbr = vec![0u8; rgba.len()];
 
     let start_time = Instant::now();
-    gbr_to_rgb(
+    rgb_to_gbr(
         &rgba,
         rgba_stride as u32,
         &mut gbr,
@@ -157,9 +152,21 @@ fn main() {
     );
 
     let end_time = Instant::now().sub(start_time);
+    println!("rgb_to_gbr time: {:?}", end_time);
+
+    let start_time = Instant::now();
+    gbr_to_rgb(
+        &gbr,
+        rgba_stride as u32,
+        &mut rgba,
+        rgba_stride as u32,
+        width,
+        height,
+    );
+    let end_time = Instant::now().sub(start_time);
     println!("gbr_to_rgb time: {:?}", end_time);
 
-    rgba = Vec::from(gbr);
+    // rgba = Vec::from(gbr);
 
     image::save_buffer(
         "converted.jpg",
