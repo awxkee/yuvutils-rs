@@ -69,9 +69,10 @@ pub unsafe fn sse_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
 
         match source_channels {
             YuvSourceChannels::Rgb => {
-                let row_1 = _mm_loadu_si128(rgba_ptr.add(px) as *const __m128i);
-                let row_2 = _mm_loadu_si128(rgba_ptr.add(px + 16) as *const __m128i);
-                let row_3 = _mm_loadu_si128(rgba_ptr.add(px + 32) as *const __m128i);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm_loadu_si128(source_ptr as *const __m128i);
+                let row_2 = _mm_loadu_si128(source_ptr.add(16) as *const __m128i);
+                let row_3 = _mm_loadu_si128(source_ptr.add(32) as *const __m128i);
 
                 let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, row_3);
                 r_values = it1;
@@ -79,10 +80,11 @@ pub unsafe fn sse_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                 b_values = it3;
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let row_1 = _mm_loadu_si128(rgba_ptr.add(px) as *const __m128i);
-                let row_2 = _mm_loadu_si128(rgba_ptr.add(px + 16) as *const __m128i);
-                let row_3 = _mm_loadu_si128(rgba_ptr.add(px + 32) as *const __m128i);
-                let row_4 = _mm_loadu_si128(rgba_ptr.add(px + 48) as *const __m128i);
+                let source_ptr = rgba_ptr.add(px);
+                let row_1 = _mm_loadu_si128(source_ptr as *const __m128i);
+                let row_2 = _mm_loadu_si128(source_ptr.add(16) as *const __m128i);
+                let row_3 = _mm_loadu_si128(source_ptr.add(32) as *const __m128i);
+                let row_4 = _mm_loadu_si128(source_ptr.add(48) as *const __m128i);
 
                 let (it1, it2, it3, _) = sse_deinterleave_rgba(row_1, row_2, row_3, row_4);
                 if source_channels == YuvSourceChannels::Rgba {

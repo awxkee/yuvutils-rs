@@ -151,7 +151,7 @@ pub enum YuvRange {
     Full,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct YuvChromaRange {
     pub bias_y: u32,
     pub bias_uv: u32,
@@ -160,7 +160,7 @@ pub struct YuvChromaRange {
     pub range: YuvRange,
 }
 
-pub fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
+pub const fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
     match range {
         YuvRange::TV => YuvChromaRange {
             bias_y: 16 << (depth - 8),
@@ -181,7 +181,7 @@ pub fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
-/// Declares standard prebuilt YUV conversion matrices, check [JVET](https://www.itu.int/rec/T-REC-H.273/en) information for more info
+/// Declares standard prebuilt YUV conversion matrices, check [ITU-R](https://www.itu.int/rec/T-REC-H.273/en) information for more info
 pub enum YuvStandardMatrix {
     Bt601,
     Bt709,

@@ -89,8 +89,9 @@ pub unsafe fn sse_yuv_nv_to_rgba<
                 }
             }
             YuvChromaSample::YUV444 => {
-                let lo_val = _mm_loadu_si128(uv_ptr.add(uv_offset + uv_x) as *const __m128i);
-                let hi_val = _mm_loadu_si128(uv_ptr.add(uv_offset + uv_x + 16) as *const __m128i);
+                let uv_source_ptr = uv_ptr.add(uv_offset + uv_x);
+                let lo_val = _mm_loadu_si128(uv_source_ptr as *const __m128i);
+                let hi_val = _mm_loadu_si128(uv_source_ptr.add(16) as *const __m128i);
 
                 match order {
                     YuvNVOrder::UV => {
