@@ -63,31 +63,31 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
 
         let a_values = _mm256_loadu_si256(a_ptr.add(a_offset + cx) as *const __m256i);
 
-        let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
+        let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                 let u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
 
-                u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
-                v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
-                u_low_u8 = _mm_unpacklo_epi8(u_values, u_values);
-                v_low_u8 = _mm_unpacklo_epi8(v_values, v_values);
+                u_high_u16 = _mm256_cvtepu8_epi16(_mm_unpackhi_epi8(u_values, u_values));
+                v_high_u16 = _mm256_cvtepu8_epi16(_mm_unpackhi_epi8(v_values, v_values));
+                u_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(u_values, u_values));
+                v_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(v_values, v_values));
             }
             YuvChromaSample::YUV444 => {
                 let u_values = _mm256_loadu_si256(u_ptr.add(u_offset + uv_x) as *const __m256i);
                 let v_values = _mm256_loadu_si256(v_ptr.add(v_offset + uv_x) as *const __m256i);
 
-                u_high_u8 = _mm256_extracti128_si256::<1>(u_values);
-                v_high_u8 = _mm256_extracti128_si256::<1>(v_values);
-                u_low_u8 = _mm256_castsi256_si128(u_values);
-                v_low_u8 = _mm256_castsi256_si128(v_values);
+                u_high_u16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(u_values));
+                v_high_u16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(v_values));
+                u_low_u16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(u_values));
+                v_low_u16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(v_values));
             }
         }
 
-        let u_high = _mm256_subs_epi16(_mm256_cvtepu8_epi16(u_high_u8), uv_corr);
-        let v_high = _mm256_subs_epi16(_mm256_cvtepu8_epi16(v_high_u8), uv_corr);
+        let u_high = _mm256_subs_epi16(u_high_u16, uv_corr);
+        let v_high = _mm256_subs_epi16(v_high_u16, uv_corr);
         let y_high = _mm256_mullo_epi16(
             _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(y_values)),
             v_luma_coeff,
@@ -112,8 +112,8 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
             v_min_values,
         ));
 
-        let u_low = _mm256_subs_epi16(_mm256_cvtepu8_epi16(u_low_u8), uv_corr);
-        let v_low = _mm256_subs_epi16(_mm256_cvtepu8_epi16(v_low_u8), uv_corr);
+        let u_low = _mm256_subs_epi16(u_low_u16, uv_corr);
+        let v_low = _mm256_subs_epi16(v_low_u16, uv_corr);
         let y_low = _mm256_mullo_epi16(
             _mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values)),
             v_luma_coeff,

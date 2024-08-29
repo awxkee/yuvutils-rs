@@ -4,6 +4,8 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::avx2::gbr_to_image_avx;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::gbr_to_image_neon;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -22,7 +24,9 @@ fn gbr_to_image_impl<const DESTINATION_CHANNELS: u8>(
     let channels = destination_channels.get_channels_count();
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let _use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     let mut gbr_offset = 0usize;
     let mut rgba_offset = 0usize;
@@ -32,14 +36,26 @@ fn gbr_to_image_impl<const DESTINATION_CHANNELS: u8>(
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            _cx = gbr_to_image_sse::<DESTINATION_CHANNELS>(
-                gbr,
-                gbr_offset,
-                rgba,
-                rgba_offset,
-                width,
-                _cx,
-            );
+            if _use_avx {
+                _cx = gbr_to_image_avx::<DESTINATION_CHANNELS>(
+                    gbr,
+                    gbr_offset,
+                    rgba,
+                    rgba_offset,
+                    width,
+                    _cx,
+                );
+            }
+            if _use_sse {
+                _cx = gbr_to_image_sse::<DESTINATION_CHANNELS>(
+                    gbr,
+                    gbr_offset,
+                    rgba,
+                    rgba_offset,
+                    width,
+                    _cx,
+                );
+            }
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

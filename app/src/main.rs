@@ -27,7 +27,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let img = ImageReader::open("assets/test_image_3.jpg")
+    let img = ImageReader::open("assets/test_image_4.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -159,7 +159,7 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("gbr_to_rgb time: {:?}", end_time);
 
-    // rgba = Vec::from(gbr);
+    rgba = Vec::from(gbr);
 
     image::save_buffer(
         "converted.jpg",

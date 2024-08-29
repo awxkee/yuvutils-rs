@@ -50,9 +50,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
     for _ in 0..height as usize {
-        #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut cx = 0usize;
+        let mut _cx = 0usize;
 
         #[cfg(all(
             any(target_arch = "x86", target_arch = "x86_64"),
@@ -65,12 +63,12 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                     &integer_transform,
                     y_plane,
                     rgba,
-                    cx,
+                    _cx,
                     y_offset,
                     rgba_offset,
                     width as usize,
                 );
-                cx = processed;
+                _cx = processed;
             }
         }
 
@@ -81,12 +79,12 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 &integer_transform,
                 y_plane,
                 rgba,
-                cx,
+                _cx,
                 y_offset,
                 rgba_offset,
                 width as usize,
             );
-            cx = offset;
+            _cx = offset;
         }
 
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -96,15 +94,15 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 &integer_transform,
                 y_plane,
                 rgba,
-                cx,
+                _cx,
                 y_offset,
                 rgba_offset,
                 width as usize,
             );
-            cx = offset;
+            _cx = offset;
         }
 
-        for x in cx..width as usize {
+        for x in _cx..width as usize {
             let y_value =
                 (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
 
