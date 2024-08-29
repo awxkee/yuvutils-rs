@@ -62,10 +62,7 @@ pub unsafe fn sse_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     while cx + 16 < width {
         let y_values = _mm_loadu_si128(y_ptr.add(cx) as *const __m128i);
 
-        let u_high_u8;
-        let v_high_u8;
-        let u_low_u8;
-        let v_low_u8;
+        let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
@@ -74,30 +71,24 @@ pub unsafe fn sse_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
                 let u_values = _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(uv_x)), reshuffle);
                 let v_values = _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(uv_x)), reshuffle);
 
-                u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
-                v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
-                u_low_u8 = _mm_unpacklo_epi8(u_values, u_values);
-                v_low_u8 = _mm_unpacklo_epi8(v_values, v_values);
+                u_high_u16 = _mm_unpackhi_epi8(u_values, zeros);
+                v_high_u16 = _mm_unpackhi_epi8(v_values, zeros);
+                u_low_u16 = _mm_unpacklo_epi8(u_values, zeros);
+                v_low_u16 = _mm_unpacklo_epi8(v_values, zeros);
             }
             YuvChromaSample::YUV444 => {
                 let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
 
-                u_high_u8 = _mm_unpackhi_epi8(u_values, u_values);
-                v_high_u8 = _mm_unpackhi_epi8(v_values, v_values);
-                u_low_u8 = _mm_unpacklo_epi8(u_values, u_values);
-                v_low_u8 = _mm_unpacklo_epi8(v_values, v_values);
+                u_high_u16 = _mm_unpackhi_epi8(u_values, zeros);
+                v_high_u16 = _mm_unpackhi_epi8(v_values, zeros);
+                u_low_u16 = _mm_unpacklo_epi8(u_values, zeros);
+                v_low_u16 = _mm_unpacklo_epi8(v_values, zeros);
             }
         }
 
-        let cg_high = _mm_mullo_epi16(
-            _mm_subs_epi16(_mm_unpackhi_epi8(u_high_u8, zeros), uv_corr),
-            uv_reduction,
-        );
-        let co_high = _mm_mullo_epi16(
-            _mm_subs_epi16(_mm_unpackhi_epi8(v_high_u8, zeros), uv_corr),
-            uv_reduction,
-        );
+        let cg_high = _mm_mullo_epi16(_mm_subs_epi16(u_high_u16, uv_corr), uv_reduction);
+        let co_high = _mm_mullo_epi16(_mm_subs_epi16(v_high_u16, uv_corr), uv_reduction);
         let y_high = _mm_mullo_epi16(
             _mm_sub_epi16(_mm_unpackhi_epi8(y_values, zeros), y_corr),
             y_reduction,
@@ -112,14 +103,8 @@ pub unsafe fn sse_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let g_high =
             _mm_srai_epi16::<6>(_mm_max_epi16(_mm_adds_epi16(y_high, cg_high), v_min_zeros));
 
-        let cg_low = _mm_mullo_epi16(
-            _mm_subs_epi16(_mm_cvtepu8_epi16(u_low_u8), uv_corr),
-            uv_reduction,
-        );
-        let co_low = _mm_mullo_epi16(
-            _mm_subs_epi16(_mm_cvtepu8_epi16(v_low_u8), uv_corr),
-            uv_reduction,
-        );
+        let cg_low = _mm_mullo_epi16(_mm_subs_epi16(u_low_u16, uv_corr), uv_reduction);
+        let co_low = _mm_mullo_epi16(_mm_subs_epi16(v_low_u16, uv_corr), uv_reduction);
         let y_low = _mm_mullo_epi16(
             _mm_sub_epi16(_mm_cvtepu8_epi16(y_values), y_corr),
             y_reduction,
