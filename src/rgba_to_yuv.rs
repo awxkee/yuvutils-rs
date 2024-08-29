@@ -291,6 +291,51 @@ pub fn rgb_to_yuv422(
     );
 }
 
+/// Convert BGR image data to YUV 422 planar format.
+///
+/// This function performs BGR to YUV conversion and stores the result in YUV422 planar format,
+/// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
+///
+/// # Arguments
+///
+/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
+/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
+/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `bgr` - The input BGR image data slice.
+/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `width` - The width of the image in pixels.
+/// * `height` - The height of the image in pixels.
+/// * `range` - The YUV range (limited or full).
+/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGR data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn bgr_to_yuv422(
+    y_plane: &mut [u8],
+    y_stride: u32,
+    u_plane: &mut [u8],
+    u_stride: u32,
+    v_plane: &mut [u8],
+    v_stride: u32,
+    bgr: &[u8],
+    bgr_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV422 as u8 }>(
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
+        range, matrix,
+    );
+}
+
 /// Convert RGBA image data to YUV 422 planar format.
 ///
 /// This function performs RGBA to YUV conversion and stores the result in YUV422 planar format,
@@ -423,7 +468,7 @@ pub fn bgra_to_yuv422(
 ///
 /// # Panics
 ///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
+/// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_yuv420(
@@ -442,6 +487,51 @@ pub fn rgb_to_yuv420(
 ) {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
+    );
+}
+
+/// Convert BGR image data to YUV 420 planar format.
+///
+/// This function performs BGR to YUV conversion and stores the result in YUV420 planar format,
+/// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
+///
+/// # Arguments
+///
+/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
+/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
+/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `bgr` - The input BGR image data slice.
+/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `width` - The width of the image in pixels.
+/// * `height` - The height of the image in pixels.
+/// * `range` - The YUV range (limited or full).
+/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input RGB data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn bgr_to_yuv420(
+    y_plane: &mut [u8],
+    y_stride: u32,
+    u_plane: &mut [u8],
+    u_stride: u32,
+    v_plane: &mut [u8],
+    v_stride: u32,
+    bgr: &[u8],
+    bgr_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV420 as u8 }>(
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
         range, matrix,
     );
 }
@@ -597,6 +687,51 @@ pub fn rgb_to_yuv444(
 ) {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
+        range, matrix,
+    );
+}
+
+/// Convert BGR image data to YUV 444 planar format.
+///
+/// This function performs BGR to YUV conversion and stores the result in YUV444 planar format,
+/// with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
+///
+/// # Arguments
+///
+/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
+/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
+/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `bgr` - The input BGR image data slice.
+/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `width` - The width of the image in pixels.
+/// * `height` - The height of the image in pixels.
+/// * `range` - The YUV range (limited or full).
+/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGR data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn bgr_to_yuv444(
+    y_plane: &mut [u8],
+    y_stride: u32,
+    u_plane: &mut [u8],
+    u_stride: u32,
+    v_plane: &mut [u8],
+    v_stride: u32,
+    bgr: &[u8],
+    bgr_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV444 as u8 }>(
+        y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
         range, matrix,
     );
 }

@@ -60,8 +60,7 @@ pub unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
         let dst_shift = rgba_offset + cx * channels;
 
         match destination_channels {
-            YuvSourceChannels::Rgb => {
-                // We need always to write 104 bytes, however 32 initial offset is safe only for 96, then if there are some exceed it is required to use transient buffer
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
                 let ptr = rgba_ptr.add(dst_shift);
                 avx512_rgb_u8(ptr, r_values, r_values, r_values);
             }

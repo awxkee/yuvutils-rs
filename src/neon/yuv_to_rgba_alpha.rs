@@ -139,7 +139,7 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
         }
 
         match destination_channels {
-            YuvSourceChannels::Rgb => {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
                 panic!("Should not be reached");
             }
             YuvSourceChannels::Rgba => {

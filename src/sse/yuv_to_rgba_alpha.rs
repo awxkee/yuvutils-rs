@@ -164,6 +164,9 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
             YuvSourceChannels::Rgb => {
                 sse_store_rgb_u8(rgba_ptr.add(dst_shift), r_values, g_values, b_values);
             }
+            YuvSourceChannels::Bgr => {
+                sse_store_rgb_u8(rgba_ptr.add(dst_shift), b_values, g_values, r_values);
+            }
             YuvSourceChannels::Rgba => {
                 sse_store_rgba(
                     rgba_ptr.add(dst_shift),

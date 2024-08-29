@@ -175,6 +175,10 @@ pub unsafe fn avx512_yuv_nv_to_rgba<
                 let ptr = rgba_ptr.add(dst_shift);
                 avx512_rgb_u8(ptr, r_values, g_values, b_values);
             }
+            YuvSourceChannels::Bgr => {
+                let ptr = rgba_ptr.add(dst_shift);
+                avx512_rgb_u8(ptr, b_values, g_values, r_values);
+            }
             YuvSourceChannels::Rgba => {
                 avx512_rgba_u8(
                     rgba_ptr.add(dst_shift),

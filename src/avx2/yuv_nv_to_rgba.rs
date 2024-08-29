@@ -172,6 +172,10 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
                 let ptr = rgba_ptr.add(dst_shift);
                 avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
             }
+            YuvSourceChannels::Bgr => {
+                let ptr = rgba_ptr.add(dst_shift);
+                avx2_store_u8_rgb(ptr, b_values, g_values, r_values);
+            }
             YuvSourceChannels::Rgba => {
                 _mm256_store_interleaved_epi8(
                     rgba_ptr.add(dst_shift),

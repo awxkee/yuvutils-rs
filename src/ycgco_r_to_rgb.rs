@@ -224,7 +224,7 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
 ///
 /// # Panics
 ///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgcoro420_to_rgb(
@@ -246,6 +246,52 @@ pub fn ycgcoro420_to_rgb(
         { YCgCoR::YCgCoRo as usize },
     >(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
+        height, range,
+    )
+}
+
+/// Convert YCgCo-Ro 420 planar format to BGR format.
+///
+/// This function takes YCgCo-Ro 420 planar format data with 8-bit precision,
+/// and converts it to BGR format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `cg_plane` - A slice to load the U (chrominance) plane data.
+/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `co_plane` - A slice to load the V (chrominance) plane data.
+/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `bgr_data` - A mutable slice to store the converted RGB data.
+/// * `range` - The YUV range (limited or full).
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGR data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn ycgcoro420_to_bgr(
+    y_plane: &[u16],
+    y_stride: u32,
+    cg_plane: &[u16],
+    cg_stride: u32,
+    co_plane: &[u16],
+    co_stride: u32,
+    bgr: &mut [u8],
+    bgr_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+) {
+    ycgco_r_type_ro_rgbx::<
+        { YuvSourceChannels::Bgr as u8 },
+        { YuvChromaSample::YUV420 as u8 },
+        { YCgCoR::YCgCoRo as usize },
+    >(
+        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
         height, range,
     )
 }
@@ -380,7 +426,7 @@ pub fn ycgcoro420_to_bgra(
 ///
 /// # Panics
 ///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgcoro422_to_rgb(
@@ -402,6 +448,52 @@ pub fn ycgcoro422_to_rgb(
         { YCgCoR::YCgCoRo as usize },
     >(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
+        height, range,
+    )
+}
+
+/// Convert YCgCo-Ro 422 planar format to BGR format.
+///
+/// This function takes YCgCo-Ro 422 data with 8-bit precision,
+/// and converts it to BGR format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `cg_plane` - A slice to load the U (chrominance) plane data.
+/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `co_plane` - A slice to load the V (chrominance) plane data.
+/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `rgb_data` - A mutable slice to store the converted BGR data.
+/// * `range` - The YUV range (limited or full).
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGR data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn ycgcoro422_to_bgr(
+    y_plane: &[u16],
+    y_stride: u32,
+    cg_plane: &[u16],
+    cg_stride: u32,
+    co_plane: &[u16],
+    co_stride: u32,
+    bgr: &mut [u8],
+    bgr_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+) {
+    ycgco_r_type_ro_rgbx::<
+        { YuvSourceChannels::Bgr as u8 },
+        { YuvChromaSample::YUV422 as u8 },
+        { YCgCoR::YCgCoRo as usize },
+    >(
+        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
         height, range,
     )
 }
@@ -646,7 +738,7 @@ pub fn ycgcoro444_to_bgra(
 ///
 /// # Panics
 ///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgcoro444_to_rgb(
@@ -668,6 +760,53 @@ pub fn ycgcoro444_to_rgb(
         { YCgCoR::YCgCoRo as usize },
     >(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
+        height, range,
+    )
+}
+
+
+/// Convert YCgCo-Ro 444 planar format to BGR format.
+///
+/// This function takes YCgCo-Ro 444 data with 8-bit precision,
+/// and converts it to BGR format with 8-bit per channel precision.
+///
+/// # Arguments
+///
+/// * `y_plane` - A slice to load the Y (luminance) plane data.
+/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `cg_plane` - A slice to load the U (chrominance) plane data.
+/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `co_plane` - A slice to load the V (chrominance) plane data.
+/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `width` - The width of the YUV image.
+/// * `height` - The height of the YUV image.
+/// * `bgr_data` - A mutable slice to store the converted RGB data.
+/// * `range` - The YUV range (limited or full).
+///
+/// # Panics
+///
+/// This function panics if the lengths of the planes or the input BGR data are not valid based
+/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
+///
+pub fn ycgcoro444_to_bgr(
+    y_plane: &[u16],
+    y_stride: u32,
+    cg_plane: &[u16],
+    cg_stride: u32,
+    co_plane: &[u16],
+    co_stride: u32,
+    bgr: &mut [u8],
+    bgr_stride: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+) {
+    ycgco_r_type_ro_rgbx::<
+        { YuvSourceChannels::Bgr as u8 },
+        { YuvChromaSample::YUV444 as u8 },
+        { YCgCoR::YCgCoRo as usize },
+    >(
+        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
         height, range,
     )
 }

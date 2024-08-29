@@ -46,16 +46,22 @@ pub unsafe fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8>(
         let px = cx * channels;
 
         match source_channels {
-            YuvSourceChannels::Rgb => {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
                 let source_ptr = rgba_ptr.add(px);
                 let row_1 = _mm512_loadu_si512(source_ptr as *const i32);
                 let row_2 = _mm512_loadu_si512(source_ptr.add(64) as *const i32);
                 let row_3 = _mm512_loadu_si512(source_ptr.add(128) as *const i32);
 
                 let (it1, it2, it3) = avx512_deinterleave_rgb(row_1, row_2, row_3);
-                r_values = it1;
-                g_values = it2;
-                b_values = it3;
+                if source_channels == YuvSourceChannels::Rgb {
+                    r_values = it1;
+                    g_values = it2;
+                    b_values = it3;
+                } else {
+                    r_values = it3;
+                    g_values = it2;
+                    b_values = it1;
+                }
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
                 let source_ptr = rgba_ptr.add(px);

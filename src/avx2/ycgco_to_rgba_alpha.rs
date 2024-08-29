@@ -6,15 +6,15 @@
  */
 
 use crate::avx2::avx2_utils::{
-    avx2_div_by255, avx2_pack_u16, avx2_store_u8_rgb, _mm256_store_interleaved_epi8,
+    _mm256_store_interleaved_epi8, avx2_div_by255, avx2_pack_u16, avx2_store_u8_rgb,
 };
 use crate::internals::ProcessedOffset;
+use crate::sse::{sse_interleave_even, sse_interleave_odd};
 use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::sse::{sse_interleave_even, sse_interleave_odd};
 
 #[target_feature(enable = "avx2")]
 pub unsafe fn avx2_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
@@ -184,6 +184,10 @@ pub unsafe fn avx2_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
             YuvSourceChannels::Rgb => {
                 let ptr = rgba_ptr.add(dst_shift);
                 avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
+            }
+            YuvSourceChannels::Bgr => {
+                let ptr = rgba_ptr.add(dst_shift);
+                avx2_store_u8_rgb(ptr, b_values, g_values, r_values);
             }
             YuvSourceChannels::Rgba => {
                 _mm256_store_interleaved_epi8(

@@ -162,6 +162,10 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
                 let dst_pack = (r_values, g_values, b_values);
                 wasm_store_interleave_u8x3(rgba_ptr.add(dst_shift), dst_pack);
             }
+            YuvSourceChannels::Bgr => {
+                let dst_pack = (b_values, g_values, r_values);
+                wasm_store_interleave_u8x3(rgba_ptr.add(dst_shift), dst_pack);
+            }
             YuvSourceChannels::Rgba => {
                 let dst_pack = (r_values, g_values, b_values, v_alpha);
                 wasm_store_interleave_u8x4(rgba_ptr.add(dst_shift), dst_pack);

@@ -50,7 +50,7 @@ pub unsafe fn wasm_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
         let dst_shift = rgba_offset + cx * channels;
 
         match destination_channels {
-            YuvSourceChannels::Rgb => {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
                 let dst_pack = (r_values, r_values, r_values);
                 wasm_store_interleave_u8x3(rgba_ptr.add(dst_shift), dst_pack);
             }

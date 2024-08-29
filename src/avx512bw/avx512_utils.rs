@@ -16,12 +16,6 @@ use crate::avx512bw::avx512_setr::{_v512_set_epu16, _v512_set_epu32};
 
 #[inline]
 #[target_feature(enable = "avx512bw")]
-pub unsafe fn avx512_combine(lo: __m256i, hi: __m256i) -> __m512i {
-    _mm512_inserti64x4::<1>(_mm512_castsi256_si512(lo), hi)
-}
-
-#[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_pack_u16(lo: __m512i, hi: __m512i) -> __m512i {
     let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
     _mm512_permutexvar_epi64(mask, _mm512_packus_epi16(lo, hi))

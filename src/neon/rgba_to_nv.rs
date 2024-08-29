@@ -64,11 +64,17 @@ pub unsafe fn neon_rgbx_to_nv_row<
         let b_values_u8: uint8x16_t;
 
         match source_channels {
-            YuvSourceChannels::Rgb => {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
                 let rgb_values = vld3q_u8(rgba_ptr.add(rgba_offset + cx * channels));
-                r_values_u8 = rgb_values.0;
-                g_values_u8 = rgb_values.1;
-                b_values_u8 = rgb_values.2;
+                if source_channels == YuvSourceChannels::Rgb {
+                    r_values_u8 = rgb_values.0;
+                    g_values_u8 = rgb_values.1;
+                    b_values_u8 = rgb_values.2;
+                } else {
+                    r_values_u8 = rgb_values.2;
+                    g_values_u8 = rgb_values.1;
+                    b_values_u8 = rgb_values.0;
+                }
             }
             YuvSourceChannels::Rgba => {
                 let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));

@@ -313,6 +313,7 @@ pub enum YuvSourceChannels {
     Rgb = 0,
     Rgba = 1,
     Bgra = 2,
+    Bgr = 3,
 }
 
 impl From<u8> for YuvSourceChannels {
@@ -322,6 +323,7 @@ impl From<u8> for YuvSourceChannels {
             0 => YuvSourceChannels::Rgb,
             1 => YuvSourceChannels::Rgba,
             2 => YuvSourceChannels::Bgra,
+            3 => YuvSourceChannels::Bgr,
             _ => {
                 panic!("Unknown value")
             }
@@ -333,7 +335,7 @@ impl YuvSourceChannels {
     #[inline(always)]
     pub const fn get_channels_count(&self) -> usize {
         match self {
-            YuvSourceChannels::Rgb => 3,
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => 3,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => 4,
         }
     }
@@ -341,7 +343,7 @@ impl YuvSourceChannels {
     #[inline(always)]
     pub const fn has_alpha(&self) -> bool {
         match self {
-            YuvSourceChannels::Rgb => false,
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => false,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => true,
         }
     }
@@ -354,13 +356,14 @@ impl YuvSourceChannels {
             YuvSourceChannels::Rgb => 0,
             YuvSourceChannels::Rgba => 0,
             YuvSourceChannels::Bgra => 2,
+            YuvSourceChannels::Bgr => 2,
         }
     }
 
     #[inline(always)]
     pub const fn get_g_channel_offset(&self) -> usize {
         match self {
-            YuvSourceChannels::Rgb => 1,
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => 1,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => 1,
         }
     }
@@ -371,12 +374,13 @@ impl YuvSourceChannels {
             YuvSourceChannels::Rgb => 2,
             YuvSourceChannels::Rgba => 2,
             YuvSourceChannels::Bgra => 0,
+            YuvSourceChannels::Bgr => 0,
         }
     }
     #[inline(always)]
     pub const fn get_a_channel_offset(&self) -> usize {
         match self {
-            YuvSourceChannels::Rgb => 0,
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => 0,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => 3,
         }
     }

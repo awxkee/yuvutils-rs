@@ -53,7 +53,7 @@ pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
         let dst_shift = rgba_offset + cx * channels;
 
         match destination_channels {
-            YuvSourceChannels::Rgb => {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
                 let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, r_values, r_values);
                 vst3q_u8(rgba_ptr.add(dst_shift), dst_pack);
             }

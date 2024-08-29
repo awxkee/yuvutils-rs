@@ -5,7 +5,9 @@
  * // license that can be found in the LICENSE file.
  */
 
-use crate::avx2::avx2_utils::{avx2_deinterleave_rgb, _mm256_deinterleave_rgba_epi8, avx2_pack_u16};
+use crate::avx2::avx2_utils::{
+    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
+};
 use crate::avx2::avx2_ycbcr::avx2_rgb_to_ycbcr;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -45,16 +47,22 @@ pub unsafe fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
         let px = cx * channels;
 
         match source_channels {
-            YuvSourceChannels::Rgb => {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
                 let source_ptr = rgba_ptr.add(px);
                 let row_1 = _mm256_loadu_si256(source_ptr as *const __m256i);
                 let row_2 = _mm256_loadu_si256(source_ptr.add(32) as *const __m256i);
                 let row_3 = _mm256_loadu_si256(source_ptr.add(64) as *const __m256i);
 
                 let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
-                r_values = it1;
-                g_values = it2;
-                b_values = it3;
+                if source_channels == YuvSourceChannels::Rgb {
+                    r_values = it1;
+                    g_values = it2;
+                    b_values = it3;
+                } else {
+                    r_values = it3;
+                    g_values = it2;
+                    b_values = it1;
+                }
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
                 let source_ptr = rgba_ptr.add(px);

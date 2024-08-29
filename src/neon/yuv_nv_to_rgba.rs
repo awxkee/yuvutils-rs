@@ -137,6 +137,10 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
                 let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
                 vst3q_u8(bgra_ptr.add(dst_shift), dst_pack);
             }
+            YuvSourceChannels::Bgr => {
+                let dst_pack: uint8x16x3_t = uint8x16x3_t(b_values, g_values, r_values);
+                vst3q_u8(bgra_ptr.add(dst_shift), dst_pack);
+            }
             YuvSourceChannels::Rgba => {
                 let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, v_alpha);
                 vst4q_u8(bgra_ptr.add(dst_shift), dst_pack);
