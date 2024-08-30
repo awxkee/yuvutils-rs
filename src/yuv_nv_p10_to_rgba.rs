@@ -6,8 +6,6 @@
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_nv12_p10_to_rgba_row;
-use std::ops::Add;
-use std::slice;
 
 use crate::yuv_support::*;
 
