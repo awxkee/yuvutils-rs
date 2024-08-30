@@ -308,3 +308,14 @@ pub unsafe fn _mm256_deinterleave_x2_epi8(a: __m256i, b: __m256i) -> (__m256i, _
     let b0 = _mm256_unpackhi_epi64(pl, ph);
     (a0, b0)
 }
+
+#[inline]
+#[target_feature(enable = "avx2")]
+pub unsafe fn _mm256_interleave_x2_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
+    let xy_l = _mm256_unpacklo_epi8(a, b);
+    let xy_h = _mm256_unpackhi_epi8(a, b);
+
+    let xy0 = _mm256_permute2x128_si256::<32>(xy_l, xy_h);
+    let xy1 = _mm256_permute2x128_si256::<49>(xy_l, xy_h);
+    (xy0, xy1)
+}

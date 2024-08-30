@@ -4,7 +4,7 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-
+use crate::avx2::avx2_rgba_to_nv;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgbx_to_nv_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -54,6 +54,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
 
     for y in 0..height as usize {
         #[allow(unused_variables)]
@@ -63,21 +65,40 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
-                y_plane,
-                y_offset,
-                uv_plane,
-                uv_offset,
-                rgba,
-                rgba_offset,
-                width,
-                &range,
-                &transform,
-                cx,
-                ux,
-            );
-            cx = offset.cx;
-            ux = offset.ux;
+            if _use_avx2 {
+                let offset = avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                    y_plane,
+                    y_offset,
+                    uv_plane,
+                    uv_offset,
+                    rgba,
+                    rgba_offset,
+                    width,
+                    &range,
+                    &transform,
+                    cx,
+                    ux,
+                );
+                cx = offset.cx;
+                ux = offset.ux;
+            }
+            if _use_sse {
+                let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                    y_plane,
+                    y_offset,
+                    uv_plane,
+                    uv_offset,
+                    rgba,
+                    rgba_offset,
+                    width,
+                    &range,
+                    &transform,
+                    cx,
+                    ux,
+                );
+                cx = offset.cx;
+                ux = offset.ux;
+            }
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

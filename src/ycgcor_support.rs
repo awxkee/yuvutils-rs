@@ -13,12 +13,12 @@ pub enum YCgCoR {
 
 impl From<usize> for YCgCoR {
     fn from(value: usize) -> Self {
-        return match value {
+        match value {
             1 => YCgCoR::YCgCoRo,
             2 => YCgCoR::YCgCoRe,
             _ => {
                 panic!("Not found suitable type of YCgCoR for {}", value);
             }
-        };
+        }
     }
 }

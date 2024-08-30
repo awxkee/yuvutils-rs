@@ -9,6 +9,7 @@ mod avx2_utils;
 mod avx2_ycbcr;
 mod avx2_ycgco;
 mod from_identity;
+mod rgb_to_nv;
 mod rgb_to_y;
 mod rgb_to_ycgco;
 mod rgba_to_yuv;
@@ -22,6 +23,7 @@ mod yuv_to_yuv2;
 mod yuy2_to_yuv;
 
 pub use from_identity::gbr_to_image_avx;
+pub use rgb_to_nv::avx2_rgba_to_nv;
 pub use rgb_to_y::avx2_rgb_to_y_row;
 pub use rgb_to_ycgco::avx2_rgb_to_ycgco_row;
 pub use rgba_to_yuv::avx2_rgba_to_yuv;
