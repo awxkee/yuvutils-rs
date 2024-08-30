@@ -43,6 +43,8 @@ mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_yuv;
 
+pub use yuv_support::YuvBytesPacking;
+pub use yuv_support::YuvEndiannes;
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
 
@@ -151,14 +153,14 @@ pub use yuv_p10_rgba::yuv420_p10_to_bgr;
 pub use yuv_p10_rgba::yuv420_p10_to_bgra;
 pub use yuv_p10_rgba::yuv420_p10_to_rgb;
 pub use yuv_p10_rgba::yuv420_p10_to_rgba;
-pub use yuv_p10_rgba::yuv422_p10_to_bgra;
 pub use yuv_p10_rgba::yuv422_p10_to_bgr;
-pub use yuv_p10_rgba::yuv422_p10_to_rgba;
+pub use yuv_p10_rgba::yuv422_p10_to_bgra;
 pub use yuv_p10_rgba::yuv422_p10_to_rgb;
-pub use yuv_p10_rgba::yuv444_p10_to_bgra;
+pub use yuv_p10_rgba::yuv422_p10_to_rgba;
 pub use yuv_p10_rgba::yuv444_p10_to_bgr;
-pub use yuv_p10_rgba::yuv444_p10_to_rgba;
+pub use yuv_p10_rgba::yuv444_p10_to_bgra;
 pub use yuv_p10_rgba::yuv444_p10_to_rgb;
+pub use yuv_p10_rgba::yuv444_p10_to_rgba;
 
 pub use rgb_to_ycgco::bgr_to_ycgco420;
 pub use rgb_to_ycgco::bgr_to_ycgco422;
@@ -240,6 +242,3 @@ pub use to_identity::bgr_to_gbr;
 pub use to_identity::bgra_to_gbr;
 pub use to_identity::rgb_to_gbr;
 pub use to_identity::rgba_to_gbr;
-
-pub use yuv_support::YuvBytesPacking;
-pub use yuv_support::YuvEndiannes;
