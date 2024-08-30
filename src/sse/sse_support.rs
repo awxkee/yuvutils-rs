@@ -165,6 +165,23 @@ pub unsafe fn sse_interleave_rgb(
 
 #[inline]
 #[target_feature(enable = "sse4.1")]
+pub unsafe fn _mm_deinterleave_x2_epi8(a: __m128i, b: __m128i) -> (__m128i, __m128i) {
+    let t10 = _mm_unpacklo_epi8(a, b);
+    let t11 = _mm_unpackhi_epi8(a, b);
+
+    let t20 = _mm_unpacklo_epi8(t10, t11);
+    let t21 = _mm_unpackhi_epi8(t10, t11);
+
+    let t30 = _mm_unpacklo_epi8(t20, t21);
+    let t31 = _mm_unpackhi_epi8(t20, t21);
+
+    let av = _mm_unpacklo_epi8(t30, t31);
+    let bv = _mm_unpackhi_epi8(t30, t31);
+    (av, bv)
+}
+
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
     let (v0, v1, v2) = sse_interleave_rgb(r, g, b);
     _mm_storeu_si128(ptr as *mut __m128i, v0);

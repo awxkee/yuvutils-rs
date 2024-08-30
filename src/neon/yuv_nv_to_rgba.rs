@@ -163,5 +163,96 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
         }
     }
 
+    let shuffle_u = vld1_u8([0, 0, 2, 2, 4, 4, 6, 6].as_ptr());
+    let shuffle_v = vld1_u8([1, 1, 3, 3, 5, 5, 7, 7].as_ptr());
+
+    while cx + 8 < width {
+        let y_values = vsub_u8(vld1_u8(y_ptr.add(y_offset + cx)), vget_low_u8(y_corr));
+
+        let mut u_low_u8: uint8x8_t;
+        let mut v_low_u8: uint8x8_t;
+
+        match chroma_subsampling {
+            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                let uv_values = vld1_u8(uv_ptr.add(uv_offset + ux));
+
+                u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
+                v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
+
+                if order == YuvNVOrder::VU {
+                    let new_v = u_low_u8;
+                    u_low_u8 = v_low_u8;
+                    v_low_u8 = new_v;
+                }
+            }
+            YuvChromaSample::YUV444 => {
+                let mut uv_values = vld2_u8(uv_ptr.add(uv_offset + ux));
+                if order == YuvNVOrder::VU {
+                    uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
+                }
+                u_low_u8 = uv_values.0;
+                v_low_u8 = uv_values.0;
+            }
+        }
+
+        let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
+        let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_low_u8)), uv_corr);
+        let y_low = vreinterpretq_s16_u16(vmull_u8(y_values, vget_low_u8(v_luma_coeff)));
+
+        let r_low = vqshrun_n_s16::<6>(vmaxq_s16(
+            vqaddq_s16(y_low, vmulq_s16(v_low, v_cr_coeff)),
+            v_min_values,
+        ));
+        let b_low = vqshrun_n_s16::<6>(vmaxq_s16(
+            vqaddq_s16(y_low, vmulq_s16(u_low, v_cb_coeff)),
+            v_min_values,
+        ));
+        let g_low = vqshrun_n_s16::<6>(vmaxq_s16(
+            vqaddq_s16(
+                y_low,
+                vqaddq_s16(vmulq_s16(v_low, v_g_coeff_1), vmulq_s16(u_low, v_g_coeff_2)),
+            ),
+            v_min_values,
+        ));
+
+        let r_values = r_low;
+        let g_values = g_low;
+        let b_values = b_low;
+
+        let dst_shift = rgba_offset + cx * channels;
+
+        match destination_channels {
+            YuvSourceChannels::Rgb => {
+                let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);
+                vst3_u8(bgra_ptr.add(dst_shift), dst_pack);
+            }
+            YuvSourceChannels::Bgr => {
+                let dst_pack: uint8x8x3_t = uint8x8x3_t(b_values, g_values, r_values);
+                vst3_u8(bgra_ptr.add(dst_shift), dst_pack);
+            }
+            YuvSourceChannels::Rgba => {
+                let dst_pack: uint8x8x4_t =
+                    uint8x8x4_t(r_values, g_values, b_values, vget_low_u8(v_alpha));
+                vst4_u8(bgra_ptr.add(dst_shift), dst_pack);
+            }
+            YuvSourceChannels::Bgra => {
+                let dst_pack: uint8x8x4_t =
+                    uint8x8x4_t(b_values, g_values, r_values, vget_low_u8(v_alpha));
+                vst4_u8(bgra_ptr.add(dst_shift), dst_pack);
+            }
+        }
+
+        cx += 8;
+
+        match chroma_subsampling {
+            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                ux += 8;
+            }
+            YuvChromaSample::YUV444 => {
+                ux += 16;
+            }
+        }
+    }
+
     ProcessedOffset { cx, ux }
 }

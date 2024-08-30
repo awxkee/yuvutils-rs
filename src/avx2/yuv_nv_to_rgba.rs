@@ -86,24 +86,24 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
             }
             YuvChromaSample::YUV444 => {
                 let offset = uv_offset + uv_x;
-                let uv_values_l = _mm256_loadu_si256(uv_ptr.add(offset) as *const __m256i);
-                let uv_values_h = _mm256_loadu_si256(uv_ptr.add(offset + 32) as *const __m256i);
+                let src_ptr = uv_ptr.add(offset);
+                let row0 = _mm256_loadu_si256(src_ptr as *const __m256i);
+                let row1 = _mm256_loadu_si256(src_ptr.add(32) as *const __m256i);
 
-                let full_v = avx2_interleave_even_2_epi8(uv_values_l, uv_values_h);
-                let full_u = avx2_interleave_odd_2_epi8(uv_values_l, uv_values_h);
+                let (u, v) = _mm256_deinterleave_x2_epi8(row0, row1);
 
                 match order {
                     YuvNVOrder::UV => {
-                        u_high_u8 = _mm256_extracti128_si256::<1>(full_u);
-                        v_high_u8 = _mm256_extracti128_si256::<1>(full_v);
-                        u_low_u8 = _mm256_castsi256_si128(full_u);
-                        v_low_u8 = _mm256_castsi256_si128(full_v);
+                        u_high_u8 = _mm256_extracti128_si256::<1>(u);
+                        v_high_u8 = _mm256_extracti128_si256::<1>(v);
+                        u_low_u8 = _mm256_castsi256_si128(u);
+                        v_low_u8 = _mm256_castsi256_si128(v);
                     }
                     YuvNVOrder::VU => {
-                        u_high_u8 = _mm256_extracti128_si256::<1>(full_v);
-                        v_high_u8 = _mm256_extracti128_si256::<1>(full_u);
-                        u_low_u8 = _mm256_castsi256_si128(full_v);
-                        v_low_u8 = _mm256_castsi256_si128(full_u);
+                        u_high_u8 = _mm256_extracti128_si256::<1>(v);
+                        v_high_u8 = _mm256_extracti128_si256::<1>(u);
+                        u_low_u8 = _mm256_castsi256_si128(v);
+                        v_low_u8 = _mm256_castsi256_si128(u);
                     }
                 }
             }
