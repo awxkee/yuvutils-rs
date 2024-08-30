@@ -36,8 +36,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     matrix: YuvStandardMatrix,
 ) {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = dst_chans.get_channels_count();
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
@@ -213,16 +213,12 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             let rgba_shift = rgba_offset + px;
 
             unsafe {
-                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_r_channel_offset()) =
-                    r as u8;
-                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_g_channel_offset()) =
-                    g as u8;
-                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_b_channel_offset()) =
-                    b as u8;
-                if destination_channels.has_alpha() {
-                    *rgba.get_unchecked_mut(
-                        rgba_shift + destination_channels.get_a_channel_offset(),
-                    ) = 255;
+                let dst = rgba.get_unchecked_mut(rgba_shift..);
+                *dst.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+                *dst.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+                *dst.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+                if dst_chans.has_alpha() {
+                    *dst.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                 }
             }
 
@@ -246,19 +242,12 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     let rgba_shift = rgba_offset + next_px;
 
                     unsafe {
-                        *rgba.get_unchecked_mut(
-                            rgba_shift + destination_channels.get_r_channel_offset(),
-                        ) = r as u8;
-                        *rgba.get_unchecked_mut(
-                            rgba_shift + destination_channels.get_g_channel_offset(),
-                        ) = g as u8;
-                        *rgba.get_unchecked_mut(
-                            rgba_shift + destination_channels.get_b_channel_offset(),
-                        ) = b as u8;
-                        if destination_channels.has_alpha() {
-                            *rgba.get_unchecked_mut(
-                                rgba_shift + destination_channels.get_a_channel_offset(),
-                            ) = 255;
+                        let dst = rgba.get_unchecked_mut(rgba_shift..);
+                        *dst.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+                        *dst.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+                        *dst.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+                        if dst_chans.has_alpha() {
+                            *dst.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                         }
                     }
                 }
