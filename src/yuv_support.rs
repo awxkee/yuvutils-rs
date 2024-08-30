@@ -289,17 +289,17 @@ impl From<u8> for YuvEndian {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum YuvBytesPosition {
+pub enum YuvBytesPacking {
     MostSignificantBytes = 0,
     LeastSignificantBytes = 1,
 }
 
-impl From<u8> for YuvBytesPosition {
+impl From<u8> for YuvBytesPacking {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
-            0 => YuvBytesPosition::MostSignificantBytes,
-            1 => YuvBytesPosition::LeastSignificantBytes,
+            0 => YuvBytesPacking::MostSignificantBytes,
+            1 => YuvBytesPacking::LeastSignificantBytes,
             _ => {
                 panic!("Unknown value")
             }

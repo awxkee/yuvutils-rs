@@ -9,7 +9,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPosition, YuvChromaRange, YuvChromaSample, YuvEndian,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndian,
     YuvSourceChannels,
 };
 
@@ -35,7 +35,7 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let endianness: YuvEndian = ENDIANNESS.into();
-    let bytes_position: YuvBytesPosition = BYTES_POSITION.into();
+    let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = rgba.as_mut_ptr();
 
     let y_corr = vdupq_n_s16(range.bias_y as i16);
@@ -65,14 +65,14 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
                 let mut y_u_values = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(
                     vld1q_u16(y_ld_ptr.add(cx)),
                 )));
-                if bytes_position == YuvBytesPosition::MostSignificantBytes {
+                if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     y_u_values = vshrq_n_u16::<6>(y_u_values);
                 }
                 y_values = vsubq_s16(vreinterpretq_s16_u16(y_u_values), y_corr);
 
                 let mut u_v = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(u_values_l)));
                 let mut v_v = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v_values_l)));
-                if bytes_position == YuvBytesPosition::MostSignificantBytes {
+                if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     u_v = vshr_n_u16::<6>(u_v);
                     v_v = vshr_n_u16::<6>(v_v);
                 }
@@ -81,14 +81,14 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
             }
             YuvEndian::LittleEndian => {
                 let mut y_vl = vld1q_u16(y_ld_ptr.add(cx));
-                if bytes_position == YuvBytesPosition::MostSignificantBytes {
+                if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     y_vl = vshrq_n_u16::<6>(y_vl);
                 }
                 y_values = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
 
                 let mut u_vl = u_values_l;
                 let mut v_vl = v_values_l;
-                if bytes_position == YuvBytesPosition::MostSignificantBytes {
+                if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     u_vl = vshr_n_u16::<6>(u_vl);
                     v_vl = vshr_n_u16::<6>(v_vl);
                 }

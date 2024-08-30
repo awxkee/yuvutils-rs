@@ -9,7 +9,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPosition, YuvChromaRange, YuvChromaSample, YuvEndian, YuvNVOrder,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndian, YuvNVOrder,
     YuvSourceChannels,
 };
 
@@ -36,7 +36,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     let uv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let endianness: YuvEndian = ENDIANNESS.into();
-    let bytes_position: YuvBytesPosition = BYTES_POSITION.into();
+    let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = bgra.as_mut_ptr();
     let cr_coef = transform.cr_coef;
     let cb_coef = transform.cb_coef;
@@ -73,7 +73,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         if endianness == YuvEndian::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
-        if bytes_position == YuvBytesPosition::MostSignificantBytes {
+        if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = vshrq_n_u16::<6>(y_vl);
         }
         y_values = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
@@ -94,7 +94,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                 if endianness == YuvEndian::BigEndian {
                     v_vl = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v_vl)));
                 }
-                if bytes_position == YuvBytesPosition::MostSignificantBytes {
+                if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     u_vl = vshr_n_u16::<6>(u_vl);
                     v_vl = vshr_n_u16::<6>(v_vl);
                 }
@@ -120,7 +120,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                 if endianness == YuvEndian::BigEndian {
                     v_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v_vl)));
                 }
-                if bytes_position == YuvBytesPosition::MostSignificantBytes {
+                if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     u_vl = vshrq_n_u16::<6>(u_vl);
                     v_vl = vshrq_n_u16::<6>(v_vl);
                 }

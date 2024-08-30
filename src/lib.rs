@@ -46,14 +46,15 @@ mod yuy2_to_yuv;
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
 
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_be_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_msb_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_msb_to_rgba;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_be_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_msb_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_msb_to_rgba;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgb;
+pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgba;
 pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgr;
+pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgb;
+pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgba;
 
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgr;
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgra;
