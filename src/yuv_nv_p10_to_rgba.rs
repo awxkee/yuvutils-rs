@@ -29,8 +29,8 @@ fn yuv_nv_p10_to_image_impl<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = dst_chans.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let endianness: YuvEndiannes = ENDIANNESS.into();
@@ -171,16 +171,12 @@ fn yuv_nv_p10_to_image_impl<
             let rgb_offset = dst_offset + px;
 
             unsafe {
-                *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_b_channel_offset()) =
-                    b as u8;
-                *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_g_channel_offset()) =
-                    g as u8;
-                *bgra.get_unchecked_mut(rgb_offset + destination_channels.get_r_channel_offset()) =
-                    r as u8;
-                if destination_channels.has_alpha() {
-                    *bgra.get_unchecked_mut(
-                        rgb_offset + destination_channels.get_a_channel_offset(),
-                    ) = 255;
+                let dst_slice = bgra.get_unchecked_mut(rgb_offset..);
+                *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+                *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+                *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+                if dst_chans.has_alpha() {
+                    *bgra.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                 }
             }
 
@@ -220,19 +216,12 @@ fn yuv_nv_p10_to_image_impl<
                     let px = next_px * channels;
                     let rgb_offset = dst_offset + px;
                     unsafe {
-                        *bgra.get_unchecked_mut(
-                            rgb_offset + destination_channels.get_b_channel_offset(),
-                        ) = b as u8;
-                        *bgra.get_unchecked_mut(
-                            rgb_offset + destination_channels.get_g_channel_offset(),
-                        ) = g as u8;
-                        *bgra.get_unchecked_mut(
-                            rgb_offset + destination_channels.get_r_channel_offset(),
-                        ) = r as u8;
-                        if destination_channels.has_alpha() {
-                            *bgra.get_unchecked_mut(
-                                rgb_offset + destination_channels.get_a_channel_offset(),
-                            ) = 255;
+                        let dst_slice = bgra.get_unchecked_mut(rgb_offset..);
+                        *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+                        *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+                        *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+                        if dst_chans.has_alpha() {
+                            *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                         }
                     }
                 }

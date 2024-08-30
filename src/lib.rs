@@ -147,18 +147,18 @@ pub use y_to_rgb::yuv400_to_bgra;
 pub use y_to_rgb::yuv400_to_rgb;
 pub use y_to_rgb::yuv400_to_rgba;
 
-pub use yuv_p10_rgba::yuv420_p10_be_to_bgra;
-pub use yuv_p10_rgba::yuv420_p10_be_to_rgba;
+pub use yuv_p10_rgba::yuv420_p10_to_bgr;
 pub use yuv_p10_rgba::yuv420_p10_to_bgra;
+pub use yuv_p10_rgba::yuv420_p10_to_rgb;
 pub use yuv_p10_rgba::yuv420_p10_to_rgba;
-pub use yuv_p10_rgba::yuv422_p10_be_to_bgra;
-pub use yuv_p10_rgba::yuv422_p10_be_to_rgba;
 pub use yuv_p10_rgba::yuv422_p10_to_bgra;
+pub use yuv_p10_rgba::yuv422_p10_to_bgr;
 pub use yuv_p10_rgba::yuv422_p10_to_rgba;
-pub use yuv_p10_rgba::yuv444_p10_be_to_bgra;
-pub use yuv_p10_rgba::yuv444_p10_be_to_rgba;
+pub use yuv_p10_rgba::yuv422_p10_to_rgb;
 pub use yuv_p10_rgba::yuv444_p10_to_bgra;
+pub use yuv_p10_rgba::yuv444_p10_to_bgr;
 pub use yuv_p10_rgba::yuv444_p10_to_rgba;
+pub use yuv_p10_rgba::yuv444_p10_to_rgb;
 
 pub use rgb_to_ycgco::bgr_to_ycgco420;
 pub use rgb_to_ycgco::bgr_to_ycgco422;
