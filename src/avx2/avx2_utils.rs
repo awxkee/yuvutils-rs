@@ -150,24 +150,6 @@ pub unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
 
 #[inline]
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_interleave_even_2_epi8(a: __m256i, b: __m256i) -> __m256i {
-    let mask_a = _mm256_slli_epi16::<8>(_mm256_srli_epi16::<8>(a));
-    let masked_a = _mm256_and_si256(a, mask_a);
-    let b_s = _mm256_srli_epi16::<8>(b);
-    _mm256_or_si256(masked_a, b_s)
-}
-
-#[inline]
-#[target_feature(enable = "avx2")]
-pub unsafe fn avx2_interleave_odd_2_epi8(a: __m256i, b: __m256i) -> __m256i {
-    let mask_a = _mm256_set1_epi16(0x00FF);
-    let masked_a = _mm256_slli_epi16::<8>(_mm256_and_si256(a, mask_a));
-    let b_s = _mm256_and_si256(b, mask_a);
-    _mm256_or_si256(masked_a, b_s)
-}
-
-#[inline]
-#[target_feature(enable = "avx2")]
 pub unsafe fn avx2_interleave_rgb(
     r: __m256i,
     g: __m256i,

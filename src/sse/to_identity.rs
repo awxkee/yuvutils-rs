@@ -27,8 +27,8 @@ pub unsafe fn image_to_gbr_sse<const SOURCE_CHANNELS: u8>(
     let source_channels: YuvSourceChannels = SOURCE_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let mut gbr_start_ptr = gbr.as_mut_ptr().add(gbr_offset);
-    let mut rgb_start_ptr = rgb.as_ptr().add(rgb_offset);
+    let mut gbr_start_ptr = gbr.as_mut_ptr().add(gbr_offset + 3 * _cx);
+    let mut rgb_start_ptr = rgb.as_ptr().add(rgb_offset + channels * _cx);
 
     let rgb_part_size = channels * 16;
 
