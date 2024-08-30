@@ -107,7 +107,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let y_pos = y_offset + _cx;
             let dst_offset = yuy_offset + x * 4;
 
-            let yuy2_plane_shifted = &yuy2_store[dst_offset..];
+            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(dst_offset..) };
 
             let first_y_position =
                 unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_first_y_position()) };
@@ -142,7 +142,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let y_pos = y_offset + _cx;
             let dst_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
 
-            let yuy2_plane_shifted = &yuy2_store[dst_offset..];
+            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(dst_offset..) };
 
             let first_y_position =
                 unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_first_y_position()) };

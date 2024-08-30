@@ -142,12 +142,11 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             let dst_offset = yuy_offset + x * 4;
             unsafe {
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_first_y_position()) =
-                    first_y_value;
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_u_position()) = u_value;
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_second_y_position()) =
-                    second_y_value;
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_v_position()) = v_value;
+                let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
+                *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
+                *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
+                *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = second_y_value;
+                *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
             }
 
             _uv_x += match chroma_subsampling {
@@ -169,11 +168,11 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             let dst_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
             unsafe {
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_first_y_position()) =
-                    first_y_value;
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_u_position()) = u_value;
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_second_y_position()) = 0;
-                *yuy2_store.get_unchecked_mut(dst_offset + yuy2_target.get_v_position()) = v_value;
+                let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
+                *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
+                *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
+                *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = 0;
+                *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
             }
         }
 

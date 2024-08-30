@@ -104,57 +104,57 @@ fn main() {
     // let end_time = Instant::now().sub(start_time);
     // println!("Forward time: {:?}", end_time);
     //
-    // let full_size = if width % 2 == 0 {
-    //     2 * width as usize * height as usize
-    // } else {
-    //     2 * (width as usize + 1) * height as usize
-    // };
-    //
-    // println!("Full YUY2 {}", full_size);
-    //
-    // let yuy2_stride = if width % 2 == 0 {
-    //     2 * width as usize
-    // } else {
-    //     2 * (width as usize + 1)
-    // };
-    //
-    // let mut yuy2_plane = vec![0u8; full_size];
-    //
-    // let start_time = Instant::now();
-    // //
-    // // yuv420_to_yuyv422(
-    // //     &y_plane,
-    // //     y_stride as u32,
-    // //     &u_plane,
-    // //     y_stride as u32,
-    // //     &v_plane,
-    // //     y_stride as u32,
-    // //     &mut yuy2_plane,
-    // //     yuy2_stride as u32,
-    // //     width,
-    // //     height,
-    // // );
-    // //
-    // // let end_time = Instant::now().sub(start_time);
-    // // println!("yuv444_to_yuyv422 time: {:?}", end_time);
-    // //
-    // // let start_time = Instant::now();
-    // //
-    // // yuyv422_to_yuv420(
-    // //     &mut y_plane,
-    // //     y_stride as u32,
-    // //     &mut u_plane,
-    // //     y_stride as u32,
-    // //     &mut v_plane,
-    // //     y_stride as u32,
-    // //     &yuy2_plane,
-    // //     yuy2_stride as u32,
-    // //     width,
-    // //     height,
-    // // );
-    // //
-    // // let end_time = Instant::now().sub(start_time);
-    // // println!("yuyv422_to_yuv444 time: {:?}", end_time);
+    let full_size = if width % 2 == 0 {
+        2 * width as usize * height as usize
+    } else {
+        2 * (width as usize + 1) * height as usize
+    };
+
+    println!("Full YUY2 {}", full_size);
+
+    let yuy2_stride = if width % 2 == 0 {
+        2 * width as usize
+    } else {
+        2 * (width as usize + 1)
+    };
+
+    let mut yuy2_plane = vec![0u8; full_size];
+
+    let start_time = Instant::now();
+
+    yuv420_to_yuyv422(
+        &y_plane,
+        y_stride as u32,
+        &u_plane,
+        y_stride as u32,
+        &v_plane,
+        y_stride as u32,
+        &mut yuy2_plane,
+        yuy2_stride as u32,
+        width,
+        height,
+    );
+
+    let end_time = Instant::now().sub(start_time);
+    println!("yuv420_to_yuyv422 time: {:?}", end_time);
+
+    let start_time = Instant::now();
+
+    yuyv422_to_yuv420(
+        &mut y_plane,
+        y_stride as u32,
+        &mut u_plane,
+        y_stride as u32,
+        &mut v_plane,
+        y_stride as u32,
+        &yuy2_plane,
+        yuy2_stride as u32,
+        width,
+        height,
+    );
+
+    let end_time = Instant::now().sub(start_time);
+    println!("yuyv422_to_yuv444 time: {:?}", end_time);
     //
     // let start_time = Instant::now();
     // yuv420_to_rgb(
