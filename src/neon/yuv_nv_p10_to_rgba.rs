@@ -9,7 +9,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndian, YuvNVOrder,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndiannes, YuvNVOrder,
     YuvSourceChannels,
 };
 
@@ -35,7 +35,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     let channels = destination_channels.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-    let endianness: YuvEndian = ENDIANNESS.into();
+    let endianness: YuvEndiannes = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = bgra.as_mut_ptr();
     let cr_coef = transform.cr_coef;
@@ -70,7 +70,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let v_low: int16x4_t;
 
         let mut y_vl = vld1q_u16(y_ld_ptr.add(cx));
-        if endianness == YuvEndian::BigEndian {
+        if endianness == YuvEndiannes::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -87,11 +87,11 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                 }
 
                 let mut u_vl = uv_values_u.0;
-                if endianness == YuvEndian::BigEndian {
+                if endianness == YuvEndiannes::BigEndian {
                     u_vl = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(u_vl)));
                 }
                 let mut v_vl = uv_values_u.1;
-                if endianness == YuvEndian::BigEndian {
+                if endianness == YuvEndiannes::BigEndian {
                     v_vl = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v_vl)));
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -113,11 +113,11 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                     uv_values_u = uint16x8x2_t(uv_values_u.1, uv_values_u.0);
                 }
                 let mut u_vl = uv_values_u.0;
-                if endianness == YuvEndian::BigEndian {
+                if endianness == YuvEndiannes::BigEndian {
                     u_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(u_vl)));
                 }
                 let mut v_vl = uv_values_u.1;
-                if endianness == YuvEndian::BigEndian {
+                if endianness == YuvEndiannes::BigEndian {
                     v_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v_vl)));
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {

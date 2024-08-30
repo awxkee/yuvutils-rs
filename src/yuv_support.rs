@@ -269,17 +269,17 @@ impl From<u8> for YuvChromaSample {
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum YuvEndian {
+pub enum YuvEndiannes {
     BigEndian = 0,
     LittleEndian = 1,
 }
 
-impl From<u8> for YuvEndian {
+impl From<u8> for YuvEndiannes {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
-            0 => YuvEndian::BigEndian,
-            1 => YuvEndian::LittleEndian,
+            0 => YuvEndiannes::BigEndian,
+            1 => YuvEndiannes::LittleEndian,
             _ => {
                 panic!("Unknown value")
             }

@@ -9,7 +9,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndian,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndiannes,
     YuvSourceChannels,
 };
 
@@ -34,7 +34,7 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-    let endianness: YuvEndian = ENDIANNESS.into();
+    let endianness: YuvEndiannes = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = rgba.as_mut_ptr();
 
@@ -61,7 +61,7 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
         let v_values_l = vld1_u16(v_ld_ptr.add(ux));
 
         match endianness {
-            YuvEndian::BigEndian => {
+            YuvEndiannes::BigEndian => {
                 let mut y_u_values = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(
                     vld1q_u16(y_ld_ptr.add(cx)),
                 )));
@@ -79,7 +79,7 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
                 u_values_c = vsub_s16(vreinterpret_s16_u16(u_v), uv_corr);
                 v_values_c = vsub_s16(vreinterpret_s16_u16(v_v), uv_corr);
             }
-            YuvEndian::LittleEndian => {
+            YuvEndiannes::LittleEndian => {
                 let mut y_vl = vld1q_u16(y_ld_ptr.add(cx));
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     y_vl = vshrq_n_u16::<6>(y_vl);

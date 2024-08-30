@@ -50,11 +50,18 @@ pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra;
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgb;
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgba;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgr;
 pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_rgb;
+pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_rgba;
 pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgr;
 pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgra;
 pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgb;
 pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgba;
+pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_bgr;
+pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_bgra;
+pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgb;
+pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgba;
 
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgr;
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgra;
@@ -233,3 +240,6 @@ pub use to_identity::bgr_to_gbr;
 pub use to_identity::bgra_to_gbr;
 pub use to_identity::rgb_to_gbr;
 pub use to_identity::rgba_to_gbr;
+
+pub use yuv_support::YuvBytesPacking;
+pub use yuv_support::YuvEndiannes;

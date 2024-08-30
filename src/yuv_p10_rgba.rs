@@ -10,7 +10,7 @@ use crate::neon::neon_yuv_p10_to_rgba_row;
 use std::slice;
 
 use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, YuvBytesPacking, YuvChromaSample, YuvEndian,
+    get_inverse_transform, get_kr_kb, get_yuv_range, YuvBytesPacking, YuvChromaSample, YuvEndiannes,
     YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 
@@ -36,7 +36,7 @@ fn yuv_p10_to_rgbx_impl<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-    let endianness: YuvEndian = ENDIANNESS.into();
+    let endianness: YuvEndiannes = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let range = get_yuv_range(10, range);
     let kr_kb = get_kr_kb(matrix);
@@ -106,7 +106,7 @@ fn yuv_p10_to_rgbx_impl<
             let cb_value: i32;
             let cr_value: i32;
             match endianness {
-                YuvEndian::BigEndian => {
+                YuvEndiannes::BigEndian => {
                     let mut y_vl = u16::from_be(unsafe { *y_ld.get_unchecked(x) }) as i32;
                     let mut cb_vl = u16::from_be(unsafe { *u_ld.get_unchecked(cx) }) as i32;
                     let mut cr_vl = u16::from_be(unsafe { *v_ld.get_unchecked(cx) }) as i32;
@@ -120,7 +120,7 @@ fn yuv_p10_to_rgbx_impl<
                     cb_value = cb_vl - bias_uv;
                     cr_value = cr_vl - bias_uv;
                 }
-                YuvEndian::LittleEndian => {
+                YuvEndiannes::LittleEndian => {
                     let mut y_vl = u16::from_le(unsafe { *y_ld.get_unchecked(x) }) as i32;
                     let mut cb_vl = u16::from_le(unsafe { *u_ld.get_unchecked(cx) }) as i32;
                     let mut cr_vl = u16::from_le(unsafe { *v_ld.get_unchecked(cx) }) as i32;
@@ -169,14 +169,14 @@ fn yuv_p10_to_rgbx_impl<
             if x + 1 < width as usize {
                 let y_value: i32;
                 match endianness {
-                    YuvEndian::BigEndian => {
+                    YuvEndiannes::BigEndian => {
                         let mut y_vl = u16::from_be(unsafe { *y_ld.get_unchecked(x) }) as i32;
                         if bytes_position == YuvBytesPacking::MostSignificantBytes {
                             y_vl = y_vl >> 6;
                         }
                         y_value = (y_vl - bias_y) * y_coef;
                     }
-                    YuvEndian::LittleEndian => {
+                    YuvEndiannes::LittleEndian => {
                         let mut y_vl = u16::from_le(unsafe { *y_ld.get_unchecked(x) }) as i32;
                         if bytes_position == YuvBytesPacking::MostSignificantBytes {
                             y_vl = y_vl >> 6;
@@ -277,7 +277,7 @@ pub fn yuv420_p10_to_bgra(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSample::YUV420 as u8 },
-        { YuvEndian::LittleEndian as u8 },
+        { YuvEndiannes::LittleEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -337,7 +337,7 @@ pub fn yuv422_p10_to_bgra(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSample::YUV422 as u8 },
-        { YuvEndian::LittleEndian as u8 },
+        { YuvEndiannes::LittleEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -370,7 +370,7 @@ pub fn yuv422_p10_to_bgra(
 /// * `v_stride` - The stride (bytes per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
-/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+/// * `bgra` - A mutable slice to store the converted BGRA data.
 /// * `bgra_stride` - The stride (bytes per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -397,7 +397,7 @@ pub fn yuv420_p10_be_to_bgra(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSample::YUV420 as u8 },
-        { YuvEndian::BigEndian as u8 },
+        { YuvEndiannes::BigEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -457,7 +457,7 @@ pub fn yuv422_p10_be_to_bgra(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSample::YUV422 as u8 },
-        { YuvEndian::BigEndian as u8 },
+        { YuvEndiannes::BigEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -517,7 +517,7 @@ pub fn yuv420_p10_to_rgba(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSample::YUV420 as u8 },
-        { YuvEndian::LittleEndian as u8 },
+        { YuvEndiannes::LittleEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -577,7 +577,7 @@ pub fn yuv422_p10_to_rgba(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSample::YUV422 as u8 },
-        { YuvEndian::LittleEndian as u8 },
+        { YuvEndiannes::LittleEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -637,7 +637,7 @@ pub fn yuv420_p10_be_to_rgba(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSample::YUV420 as u8 },
-        { YuvEndian::BigEndian as u8 },
+        { YuvEndiannes::BigEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -697,7 +697,7 @@ pub fn yuv422_p10_be_to_rgba(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSample::YUV422 as u8 },
-        { YuvEndian::BigEndian as u8 },
+        { YuvEndiannes::BigEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -757,7 +757,7 @@ pub fn yuv444_p10_to_rgba(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSample::YUV444 as u8 },
-        { YuvEndian::LittleEndian as u8 },
+        { YuvEndiannes::LittleEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -817,7 +817,7 @@ pub fn yuv444_p10_be_to_rgba(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSample::YUV444 as u8 },
-        { YuvEndian::BigEndian as u8 },
+        { YuvEndiannes::BigEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -877,7 +877,7 @@ pub fn yuv444_p10_to_bgra(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSample::YUV444 as u8 },
-        { YuvEndian::LittleEndian as u8 },
+        { YuvEndiannes::LittleEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
@@ -937,7 +937,7 @@ pub fn yuv444_p10_be_to_bgra(
     yuv_p10_to_rgbx_impl::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSample::YUV444 as u8 },
-        { YuvEndian::BigEndian as u8 },
+        { YuvEndiannes::BigEndian as u8 },
         { YuvBytesPacking::LeastSignificantBytes as u8 },
     >(
         y_plane,
