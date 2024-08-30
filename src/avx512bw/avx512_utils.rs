@@ -179,7 +179,7 @@ pub unsafe fn avx512_deinterleave_rgba(
 #[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_pairwise_widen_avg(v: __m512i) -> __m512i {
     let sums = _mm512_maddubs_epi16(v, _mm512_set1_epi8(1));
-    let shifted = _mm512_srli_epi16::<1>(sums);
+    let shifted = _mm512_srli_epi16::<1>(_mm512_add_epi16(sums, _mm512_set1_epi16(1)));
     let packed_lo = _mm512_packus_epi16(shifted, shifted);
     let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
     _mm512_permutexvar_epi64(mask, packed_lo)

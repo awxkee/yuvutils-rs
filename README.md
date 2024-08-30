@@ -11,6 +11,7 @@ Supports:
 - [x] YCgCo
 - [x] YCgCo-R
 - [x] YUY2
+- [x] Identity ( GBR )
 
 # SIMD
 

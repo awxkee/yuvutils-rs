@@ -62,6 +62,14 @@ pub unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a
 
 #[inline]
 #[target_feature(enable = "sse4.1")]
+pub unsafe fn sse_store_rgba_half_epi8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a: __m128i) {
+    let (row1, row2, _, _) = sse_interleave_rgba(r, g, b, a);
+    _mm_storeu_si128(ptr as *mut __m128i, row1);
+    _mm_storeu_si128(ptr.add(16) as *mut __m128i, row2);
+}
+
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_deinterleave_rgba(
     rgba0: __m128i,
     rgba1: __m128i,
@@ -191,9 +199,17 @@ pub unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i)
 
 #[inline]
 #[target_feature(enable = "sse4.1")]
+pub unsafe fn sse_store_rgb_half_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
+    let (v0, v1, _) = sse_interleave_rgb(r, g, b);
+    _mm_storeu_si128(ptr as *mut __m128i, v0);
+    std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
+}
+
+#[inline]
+#[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
-    let shifted = _mm_srli_epi16::<1>(sums);
+    let shifted = _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)));
     let packed = _mm_packus_epi16(shifted, shifted);
     packed
 }
@@ -201,11 +217,11 @@ pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
 #[inline]
 #[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
-    let rounding = _mm_set1_epi16(1 << 7);
-    let x = _mm_adds_epi16(v, rounding);
-    let multiplier = _mm_set1_epi16(-32640);
-    let r = _mm_mulhi_epu16(x, multiplier);
-    _mm_srli_epi16::<7>(r)
+    let addition = _mm_set1_epi16(127);
+    _mm_srli_epi16::<8>(_mm_add_epi16(
+        _mm_add_epi16(v, addition),
+        _mm_srli_epi16::<8>(v),
+    ))
 }
 
 #[inline(always)]

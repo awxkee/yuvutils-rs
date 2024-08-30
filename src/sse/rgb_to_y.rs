@@ -36,11 +36,12 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
 
     let zeros_si = _mm_setzero_si128();
 
+    let y_bias = _mm_set1_epi32(bias_y);
+    let v_yr = _mm_set1_epi16(transform.yr as i16);
+    let v_yg = _mm_set1_epi16(transform.yg as i16);
+    let v_yb = _mm_set1_epi16(transform.yb as i16);
+
     while cx + 16 < width {
-        let y_bias = _mm_set1_epi32(bias_y);
-        let v_yr = _mm_set1_epi16(transform.yr as i16);
-        let v_yg = _mm_set1_epi16(transform.yg as i16);
-        let v_yb = _mm_set1_epi16(transform.yb as i16);
 
         let (r_values, g_values, b_values);
 

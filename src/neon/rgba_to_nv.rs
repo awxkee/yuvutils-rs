@@ -177,8 +177,8 @@ pub unsafe fn neon_rgbx_to_nv_row<
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_s = vshrn_n_u16::<1>(vpaddlq_u8(cb));
-                let cr_s = vshrn_n_u16::<1>(vpaddlq_u8(cr));
+                let cb_s = vrshrn_n_u16::<1>(vpaddlq_u8(cb));
+                let cr_s = vrshrn_n_u16::<1>(vpaddlq_u8(cr));
                 match order {
                     YuvNVOrder::UV => {
                         let store: uint8x8x2_t = uint8x8x2_t(cb_s, cr_s);

@@ -74,16 +74,28 @@ pub use yuv_nv_to_rgba::yuv_nv42_to_rgba;
 
 pub use rgba_to_nv::bgr_to_yuv_nv12;
 pub use rgba_to_nv::bgr_to_yuv_nv16;
+pub use rgba_to_nv::bgr_to_yuv_nv21;
 pub use rgba_to_nv::bgr_to_yuv_nv24;
+pub use rgba_to_nv::bgr_to_yuv_nv42;
+pub use rgba_to_nv::bgr_to_yuv_nv61;
 pub use rgba_to_nv::bgra_to_yuv_nv12;
 pub use rgba_to_nv::bgra_to_yuv_nv16;
+pub use rgba_to_nv::bgra_to_yuv_nv21;
 pub use rgba_to_nv::bgra_to_yuv_nv24;
+pub use rgba_to_nv::bgra_to_yuv_nv42;
+pub use rgba_to_nv::bgra_to_yuv_nv61;
 pub use rgba_to_nv::rgb_to_yuv_nv12;
 pub use rgba_to_nv::rgb_to_yuv_nv16;
+pub use rgba_to_nv::rgb_to_yuv_nv21;
 pub use rgba_to_nv::rgb_to_yuv_nv24;
+pub use rgba_to_nv::rgb_to_yuv_nv42;
+pub use rgba_to_nv::rgb_to_yuv_nv61;
 pub use rgba_to_nv::rgba_to_yuv_nv12;
 pub use rgba_to_nv::rgba_to_yuv_nv16;
+pub use rgba_to_nv::rgba_to_yuv_nv21;
 pub use rgba_to_nv::rgba_to_yuv_nv24;
+pub use rgba_to_nv::rgba_to_yuv_nv42;
+pub use rgba_to_nv::rgba_to_yuv_nv61;
 
 pub use yuv_to_rgba::yuv420_to_bgr;
 pub use yuv_to_rgba::yuv420_to_bgra;

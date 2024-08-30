@@ -277,7 +277,7 @@ pub unsafe fn avx2_deinterleave_rgb(
 #[target_feature(enable = "avx2")]
 pub unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
     let sums = _mm256_maddubs_epi16(v, _mm256_set1_epi8(1));
-    let shifted = _mm256_srli_epi16::<1>(sums);
+    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
     let packed_lo = _mm256_packus_epi16(shifted, shifted);
     const MASK: i32 = shuffle(3, 1, 2, 0);
     _mm256_permute4x64_epi64::<MASK>(packed_lo)
@@ -286,11 +286,11 @@ pub unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 #[inline]
 #[target_feature(enable = "avx2")]
 pub unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
-    let rounding = _mm256_set1_epi16(1 << 7);
-    let x = _mm256_adds_epi16(v, rounding);
-    let multiplier = _mm256_set1_epi16(-32640);
-    let r = _mm256_mulhi_epu16(x, multiplier);
-    _mm256_srli_epi16::<7>(r)
+    let addition = _mm256_set1_epi16(127);
+    _mm256_srli_epi16::<8>(_mm256_add_epi16(
+        _mm256_add_epi16(v, addition),
+        _mm256_srli_epi16::<8>(v),
+    ))
 }
 
 #[inline]

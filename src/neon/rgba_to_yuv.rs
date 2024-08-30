@@ -175,8 +175,8 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_s = vshrn_n_u16::<1>(vpaddlq_u8(cb));
-                let cr_s = vshrn_n_u16::<1>(vpaddlq_u8(cr));
+                let cb_s = vrshrn_n_u16::<1>(vpaddlq_u8(cb));
+                let cr_s = vrshrn_n_u16::<1>(vpaddlq_u8(cr));
                 vst1_u8(u_ptr.add(u_offset + ux), cb_s);
                 vst1_u8(v_ptr.add(u_offset + ux), cr_s);
 

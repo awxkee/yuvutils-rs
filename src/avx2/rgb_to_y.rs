@@ -36,11 +36,12 @@ pub unsafe fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
 
     let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
 
+    let y_bias = _mm256_set1_epi32(bias_y);
+    let v_yr = _mm256_set1_epi16(transform.yr as i16);
+    let v_yg = _mm256_set1_epi16(transform.yg as i16);
+    let v_yb = _mm256_set1_epi16(transform.yb as i16);
+
     while cx + 32 < width {
-        let y_bias = _mm256_set1_epi32(bias_y);
-        let v_yr = _mm256_set1_epi16(transform.yr as i16);
-        let v_yg = _mm256_set1_epi16(transform.yg as i16);
-        let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
         let (r_values, g_values, b_values);
 

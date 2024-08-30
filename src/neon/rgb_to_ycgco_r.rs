@@ -115,10 +115,10 @@ pub unsafe fn neon_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: 
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cg_l_s = vshrn_n_u32::<1>(vpaddlq_u16(cg_low));
-                let cg_h_s = vshrn_n_u32::<1>(vpaddlq_u16(cg_high));
-                let co_l_s = vshrn_n_u32::<1>(vpaddlq_u16(co_low));
-                let co_h_s = vshrn_n_u32::<1>(vpaddlq_u16(co_high));
+                let cg_l_s = vrshrn_n_u32::<1>(vpaddlq_u16(cg_low));
+                let cg_h_s = vrshrn_n_u32::<1>(vpaddlq_u16(cg_high));
+                let co_l_s = vrshrn_n_u32::<1>(vpaddlq_u16(co_low));
+                let co_h_s = vrshrn_n_u32::<1>(vpaddlq_u16(co_high));
                 let cg = vcombine_u16(cg_l_s, cg_h_s);
                 let co = vcombine_u16(co_l_s, co_h_s);
                 vst1q_u16(cg_ptr.add(uv_x), cg);

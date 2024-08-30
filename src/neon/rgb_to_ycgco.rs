@@ -120,8 +120,8 @@ pub unsafe fn neon_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cg_s = vshrn_n_u16::<1>(vpaddlq_u8(cg));
-                let co_s = vshrn_n_u16::<1>(vpaddlq_u8(co));
+                let cg_s = vrshrn_n_u16::<1>(vpaddlq_u8(cg));
+                let co_s = vrshrn_n_u16::<1>(vpaddlq_u8(co));
                 vst1_u8(cg_ptr.add(uv_x), cg_s);
                 vst1_u8(co_ptr.add(uv_x), co_s);
 

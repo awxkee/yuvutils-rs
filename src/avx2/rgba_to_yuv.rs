@@ -49,18 +49,19 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
     let bias_uv = ((range.bias_uv as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
 
+    let y_bias = _mm256_set1_epi32(bias_y);
+    let uv_bias = _mm256_set1_epi32(bias_uv);
+    let v_yr = _mm256_set1_epi16(transform.yr as i16);
+    let v_yg = _mm256_set1_epi16(transform.yg as i16);
+    let v_yb = _mm256_set1_epi16(transform.yb as i16);
+    let v_cb_r = _mm256_set1_epi16(transform.cb_r as i16);
+    let v_cb_g = _mm256_set1_epi16(transform.cb_g as i16);
+    let v_cb_b = _mm256_set1_epi16(transform.cb_b as i16);
+    let v_cr_r = _mm256_set1_epi16(transform.cr_r as i16);
+    let v_cr_g = _mm256_set1_epi16(transform.cr_g as i16);
+    let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
+
     while cx + 32 < width {
-        let y_bias = _mm256_set1_epi32(bias_y);
-        let uv_bias = _mm256_set1_epi32(bias_uv);
-        let v_yr = _mm256_set1_epi16(transform.yr as i16);
-        let v_yg = _mm256_set1_epi16(transform.yg as i16);
-        let v_yb = _mm256_set1_epi16(transform.yb as i16);
-        let v_cb_r = _mm256_set1_epi16(transform.cb_r as i16);
-        let v_cb_g = _mm256_set1_epi16(transform.cb_g as i16);
-        let v_cb_b = _mm256_set1_epi16(transform.cb_b as i16);
-        let v_cr_r = _mm256_set1_epi16(transform.cr_r as i16);
-        let v_cr_g = _mm256_set1_epi16(transform.cr_g as i16);
-        let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
         let (r_values, g_values, b_values);
 
