@@ -4,9 +4,9 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_p10_to_rgba_row;
+use std::ops::Add;
 use std::slice;
 
 use crate::yuv_support::{
@@ -72,11 +72,8 @@ fn yuv_p10_to_image_impl<
         let mut cx = 0usize;
 
         let y_ld_ptr = unsafe { y_src_ptr.offset(y_offset as isize) as *const u16 };
-        let y_ld = unsafe { slice::from_raw_parts(y_ld_ptr, width as usize) };
         let u_ld_ptr = unsafe { u_src_ptr.offset(u_offset as isize) as *const u16 };
-        let u_ld = unsafe { slice::from_raw_parts(u_ld_ptr, width as usize) };
         let v_ld_ptr = unsafe { v_src_ptr.offset(v_offset as isize) as *const u16 };
-        let v_ld = unsafe { slice::from_raw_parts(v_ld_ptr, width as usize) };
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
@@ -107,9 +104,11 @@ fn yuv_p10_to_image_impl<
             let cr_value: i32;
             match endianness {
                 YuvEndiannes::BigEndian => {
-                    let mut y_vl = u16::from_be(unsafe { *y_ld.get_unchecked(x) }) as i32;
-                    let mut cb_vl = u16::from_be(unsafe { *u_ld.get_unchecked(cx) }) as i32;
-                    let mut cr_vl = u16::from_be(unsafe { *v_ld.get_unchecked(cx) }) as i32;
+                    let mut y_vl = u16::from_be(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
+                    let mut cb_vl =
+                        u16::from_be(unsafe { u_ld_ptr.add(cx).read_unaligned() }) as i32;
+                    let mut cr_vl =
+                        u16::from_be(unsafe { v_ld_ptr.add(cx).read_unaligned() }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -121,9 +120,11 @@ fn yuv_p10_to_image_impl<
                     cr_value = cr_vl - bias_uv;
                 }
                 YuvEndiannes::LittleEndian => {
-                    let mut y_vl = u16::from_le(unsafe { *y_ld.get_unchecked(x) }) as i32;
-                    let mut cb_vl = u16::from_le(unsafe { *u_ld.get_unchecked(cx) }) as i32;
-                    let mut cr_vl = u16::from_le(unsafe { *v_ld.get_unchecked(cx) }) as i32;
+                    let mut y_vl = u16::from_le(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
+                    let mut cb_vl =
+                        u16::from_le(unsafe { u_ld_ptr.add(cx).read_unaligned() }) as i32;
+                    let mut cr_vl =
+                        u16::from_le(unsafe { v_ld_ptr.add(cx).read_unaligned() }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -166,14 +167,16 @@ fn yuv_p10_to_image_impl<
                 let y_value: i32;
                 match endianness {
                     YuvEndiannes::BigEndian => {
-                        let mut y_vl = u16::from_be(unsafe { *y_ld.get_unchecked(x) }) as i32;
+                        let mut y_vl =
+                            u16::from_be(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
                         if bytes_position == YuvBytesPacking::MostSignificantBytes {
                             y_vl = y_vl >> 6;
                         }
                         y_value = (y_vl - bias_y) * y_coef;
                     }
                     YuvEndiannes::LittleEndian => {
-                        let mut y_vl = u16::from_le(unsafe { *y_ld.get_unchecked(x) }) as i32;
+                        let mut y_vl =
+                            u16::from_le(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
                         if bytes_position == YuvBytesPacking::MostSignificantBytes {
                             y_vl = y_vl >> 6;
                         }

@@ -4,9 +4,9 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_nv12_p10_to_rgba_row;
+use std::ops::Add;
 use std::slice;
 
 use crate::yuv_support::*;
@@ -78,14 +78,7 @@ fn yuv_nv_p10_to_image_impl<
         let mut ux = 0usize;
 
         let y_ld_ptr = unsafe { y_src_ptr.offset(y_offset as isize) as *const u16 };
-        let y_ld = unsafe { slice::from_raw_parts(y_ld_ptr, width as usize) };
         let uv_ld_ptr = unsafe { uv_src_ptr.offset(uv_offset as isize) as *const u16 };
-        let uv_length = if chroma_subsampling == YuvChromaSample::YUV444 {
-            width as usize * 2usize
-        } else {
-            width as usize
-        };
-        let uv_ld = unsafe { slice::from_raw_parts(uv_ld_ptr, uv_length) };
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
@@ -116,9 +109,11 @@ fn yuv_nv_p10_to_image_impl<
             let mut cr_value: i32;
             match endianness {
                 YuvEndiannes::BigEndian => {
-                    let mut y_vl = u16::from_be(unsafe { *y_ld.get_unchecked(x) }) as i32;
-                    let mut cb_vl = u16::from_be(unsafe { *uv_ld.get_unchecked(ux) }) as i32;
-                    let mut cr_vl = u16::from_be(unsafe { *uv_ld.get_unchecked(ux + 1) }) as i32;
+                    let mut y_vl = u16::from_be(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
+                    let mut cb_vl =
+                        u16::from_be(unsafe { uv_ld_ptr.add(ux).read_unaligned() }) as i32;
+                    let mut cr_vl =
+                        u16::from_be(unsafe { uv_ld_ptr.add(ux + 1).read_unaligned() }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -130,9 +125,11 @@ fn yuv_nv_p10_to_image_impl<
                     cr_value = cr_vl;
                 }
                 YuvEndiannes::LittleEndian => {
-                    let mut y_vl = u16::from_le(unsafe { *y_ld.get_unchecked(x) }) as i32;
-                    let mut cb_vl = u16::from_le(unsafe { *uv_ld.get_unchecked(ux) }) as i32;
-                    let mut cr_vl = u16::from_le(unsafe { *uv_ld.get_unchecked(ux + 1) }) as i32;
+                    let mut y_vl = u16::from_le(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
+                    let mut cb_vl =
+                        u16::from_le(unsafe { uv_ld_ptr.add(ux).read_unaligned() }) as i32;
+                    let mut cr_vl =
+                        u16::from_le(unsafe { uv_ld_ptr.add(ux + 1).read_unaligned() }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -189,7 +186,8 @@ fn yuv_nv_p10_to_image_impl<
                     match endianness {
                         YuvEndiannes::BigEndian => {
                             let mut y_vl =
-                                u16::from_be(unsafe { *y_ld.get_unchecked(next_px) }) as i32;
+                                u16::from_be(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
+                                    as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                                 y_vl = y_vl >> 6;
                             }
@@ -197,7 +195,8 @@ fn yuv_nv_p10_to_image_impl<
                         }
                         YuvEndiannes::LittleEndian => {
                             let mut y_vl =
-                                u16::from_le(unsafe { *y_ld.get_unchecked(next_px) }) as i32;
+                                u16::from_le(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
+                                    as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                                 y_vl = y_vl >> 6;
                             }
