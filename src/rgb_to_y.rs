@@ -123,12 +123,10 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             let px = x * channels;
             let dst_offset = rgba_offset + px;
             unsafe {
-                let r =
-                    *rgba.get_unchecked(dst_offset + source_channels.get_r_channel_offset()) as i32;
-                let g =
-                    *rgba.get_unchecked(dst_offset + source_channels.get_g_channel_offset()) as i32;
-                let b =
-                    *rgba.get_unchecked(dst_offset + source_channels.get_b_channel_offset()) as i32;
+                let dst = rgba.get_unchecked(dst_offset..);
+                let r = *dst.get_unchecked(source_channels.get_r_channel_offset()) as i32;
+                let g = *dst.get_unchecked(source_channels.get_g_channel_offset()) as i32;
+                let b = *dst.get_unchecked(source_channels.get_b_channel_offset()) as i32;
                 let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
                 *y_plane.get_unchecked_mut(y_offset + x) = y as u8;
             }

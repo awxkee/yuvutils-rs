@@ -27,8 +27,8 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
     range: YuvRange,
 ) {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let channels = source_channels.get_channels_count();
+    let src_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let channels = src_channels.get_channels_count();
     let precision_scale = (1 << 8) as f32;
     let range = get_yuv_range(8, range);
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
@@ -101,15 +101,10 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let rgba_shift = rgba_offset + px;
-            let r =
-                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset()) }
-                    as i32;
-            let g =
-                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset()) }
-                    as i32;
-            let b =
-                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset()) }
-                    as i32;
+            let src = unsafe { rgba.get_unchecked(rgba_shift..) };
+            let r = unsafe { *src.get_unchecked(src_channels.get_r_channel_offset()) } as i32;
+            let g = unsafe { *src.get_unchecked(src_channels.get_g_channel_offset()) } as i32;
+            let b = unsafe { *src.get_unchecked(src_channels.get_b_channel_offset()) } as i32;
             let co = r - b;
             let t = b + (co >> 1);
             let cg = g - t;
@@ -132,15 +127,13 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
                         let rgba_shift = rgba_offset + next_px;
-                        let r = unsafe {
-                            *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset())
-                        } as i32;
-                        let g = unsafe {
-                            *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset())
-                        } as i32;
-                        let b = unsafe {
-                            *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset())
-                        } as i32;
+                        let src = unsafe { rgba.get_unchecked(rgba_shift..) };
+                        let r = unsafe { *src.get_unchecked(src_channels.get_r_channel_offset()) }
+                            as i32;
+                        let g = unsafe { *src.get_unchecked(src_channels.get_g_channel_offset()) }
+                            as i32;
+                        let b = unsafe { *src.get_unchecked(src_channels.get_b_channel_offset()) }
+                            as i32;
                         let co = r - b;
                         let t = b + (co >> 1);
                         let cg = g - t;

@@ -22,6 +22,7 @@ mod neon;
 mod rgb_to_y;
 mod rgb_to_ycgco;
 mod rgb_to_ycgco_r;
+mod rgb_to_yuv_p10;
 mod rgba_to_nv;
 mod rgba_to_yuv;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -132,6 +133,19 @@ pub use rgba_to_yuv::rgb_to_yuv444;
 pub use rgba_to_yuv::rgba_to_yuv420;
 pub use rgba_to_yuv::rgba_to_yuv422;
 pub use rgba_to_yuv::rgba_to_yuv444;
+
+pub use rgb_to_yuv_p10::bgr_to_yuv420_u16;
+pub use rgb_to_yuv_p10::bgr_to_yuv422_u16;
+pub use rgb_to_yuv_p10::bgr_to_yuv444_u16;
+pub use rgb_to_yuv_p10::bgra_to_yuv420_u16;
+pub use rgb_to_yuv_p10::bgra_to_yuv422_u16;
+pub use rgb_to_yuv_p10::bgra_to_yuv444_u16;
+pub use rgb_to_yuv_p10::rgb_to_yuv420_u16;
+pub use rgb_to_yuv_p10::rgb_to_yuv422_u16;
+pub use rgb_to_yuv_p10::rgb_to_yuv444_u16;
+pub use rgb_to_yuv_p10::rgba_to_yuv420_u16;
+pub use rgb_to_yuv_p10::rgba_to_yuv422_u16;
+pub use rgb_to_yuv_p10::rgba_to_yuv444_u16;
 
 pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_bgra;
 pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_rgba;

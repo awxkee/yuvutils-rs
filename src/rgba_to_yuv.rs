@@ -36,8 +36,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     matrix: YuvStandardMatrix,
 ) {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let channels = source_channels.get_channels_count();
+    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let channels = src_chans.get_channels_count();
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let max_range_p8 = (1u32 << 8u32) - 1u32;
@@ -172,15 +172,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         for x in (cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let rgba_shift = rgba_offset + px;
-            let r =
-                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset()) }
-                    as i32;
-            let g =
-                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset()) }
-                    as i32;
-            let b =
-                unsafe { *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset()) }
-                    as i32;
+            let src = unsafe { rgba.get_unchecked(rgba_shift..) };
+            let r = unsafe { *src.get_unchecked(src_chans.get_r_channel_offset()) } as i32;
+            let g = unsafe { *src.get_unchecked(src_chans.get_g_channel_offset()) } as i32;
+            let b = unsafe { *src.get_unchecked(src_chans.get_b_channel_offset()) } as i32;
             let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
             let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
             let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
@@ -206,15 +201,13 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
                         let rgba_shift = rgba_offset + next_px;
-                        let r = unsafe {
-                            *rgba.get_unchecked(rgba_shift + source_channels.get_r_channel_offset())
-                        } as i32;
-                        let g = unsafe {
-                            *rgba.get_unchecked(rgba_shift + source_channels.get_g_channel_offset())
-                        } as i32;
-                        let b = unsafe {
-                            *rgba.get_unchecked(rgba_shift + source_channels.get_b_channel_offset())
-                        } as i32;
+                        let src = unsafe { rgba.get_unchecked(rgba_shift..) };
+                        let r =
+                            unsafe { *src.get_unchecked(src_chans.get_r_channel_offset()) } as i32;
+                        let g =
+                            unsafe { *src.get_unchecked(src_chans.get_g_channel_offset()) } as i32;
+                        let b =
+                            unsafe { *src.get_unchecked(src_chans.get_b_channel_offset()) } as i32;
                         let y_1 =
                             (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
                         unsafe {
