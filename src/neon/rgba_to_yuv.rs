@@ -56,7 +56,7 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     let v_zeros = vdupq_n_s32(0i32);
 
-    while cx + 16 < width as usize {
+    while cx + 16 < width {
         let r_values_u8: uint8x16_t;
         let g_values_u8: uint8x16_t;
         let b_values_u8: uint8x16_t;

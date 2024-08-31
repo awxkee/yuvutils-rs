@@ -4,6 +4,8 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::neon_rgba_to_yuv_p10;
 use crate::yuv_support::{
     get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvChromaSample,
     YuvSourceChannels,
@@ -11,13 +13,12 @@ use crate::yuv_support::{
 use crate::{YuvBytesPacking, YuvEndiannes, YuvRange, YuvStandardMatrix};
 
 #[inline(always)]
-fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
+fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_DEPTH: u8>(
     v: i32,
-    bit_depth: i32,
 ) -> u16 {
     let endianness: YuvEndiannes = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
-    let packing: i32 = 16 - bit_depth;
+    let packing: i32 = 16 - BIT_DEPTH as i32;
     let packed_bytes = match bytes_position {
         YuvBytesPacking::MostSignificantBytes => v << packing,
         YuvBytesPacking::LeastSignificantBytes => v,
@@ -29,11 +30,12 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
     endian_prepared
 }
 
-fn rgbx_to_yuv<
+fn rgbx_to_yuv_impl<
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const BIT_DEPTH: u8,
 >(
     y_plane: &mut [u16],
     y_stride: u32,
@@ -43,7 +45,6 @@ fn rgbx_to_yuv<
     v_stride: u32,
     rgba: &[u16],
     rgba_stride: u32,
-    bit_depth: u32,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -52,9 +53,9 @@ fn rgbx_to_yuv<
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
-    let range = get_yuv_range(bit_depth, range);
+    let range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = get_kr_kb(matrix);
-    let max_range_p8 = (1u32 << bit_depth) - 1u32;
+    let max_range_p8 = (1u32 << BIT_DEPTH as u32) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,
         range.range_y,
@@ -92,6 +93,29 @@ fn rgbx_to_yuv<
         let v_st_ptr = unsafe { v_dst_ptr.offset(v_offset as isize) as *mut u16 };
         let rgb_ld_ptr = unsafe { rgb_src_ptr.offset(rgba_offset as isize) as *const u16 };
 
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            let offset = neon_rgba_to_yuv_p10::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                BIT_DEPTH,
+            >(
+                &transform,
+                &range,
+                y_st_ptr,
+                u_st_ptr,
+                v_st_ptr,
+                rgb_ld_ptr,
+                _cx,
+                _ux,
+                width as usize,
+            );
+            _cx = offset.cx;
+            _ux = offset.ux;
+        }
+
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let src = unsafe { rgb_ld_ptr.add(px) };
@@ -102,30 +126,33 @@ fn rgbx_to_yuv<
             let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
             let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
             unsafe {
-                y_st_ptr
-                    .add(x)
-                    .write_unaligned(transform_integer::<ENDIANNESS, BYTES_POSITION>(
-                        y_0,
-                        bit_depth as i32,
-                    ));
+                y_st_ptr.add(x).write_unaligned(transform_integer::<
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    BIT_DEPTH,
+                >(y_0));
             }
             let u_pos = match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
                 YuvChromaSample::YUV444 => _ux,
             };
             unsafe {
-                u_st_ptr.add(u_pos).write_unaligned(
-                    transform_integer::<ENDIANNESS, BYTES_POSITION>(cb, bit_depth as i32),
-                );
+                u_st_ptr.add(u_pos).write_unaligned(transform_integer::<
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    BIT_DEPTH,
+                >(cb));
             }
             let v_pos = match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
                 YuvChromaSample::YUV444 => _ux,
             };
             unsafe {
-                v_st_ptr.add(v_pos).write_unaligned(
-                    transform_integer::<ENDIANNESS, BYTES_POSITION>(cr, bit_depth as i32),
-                );
+                v_st_ptr.add(v_pos).write_unaligned(transform_integer::<
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    BIT_DEPTH,
+                >(cr));
             }
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
@@ -147,9 +174,8 @@ fn rgbx_to_yuv<
                             y_st_ptr.add(x + 1).write_unaligned(transform_integer::<
                                 ENDIANNESS,
                                 BYTES_POSITION,
-                            >(
-                                y_1, bit_depth as i32
-                            ));
+                                BIT_DEPTH,
+                            >(y_1));
                         }
                     }
                 }
@@ -173,6 +199,59 @@ fn rgbx_to_yuv<
                 v_offset += v_stride as usize;
             }
         }
+    }
+}
+
+fn rgbx_to_yuv<
+    const ORIGIN_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+>(
+    y_plane: &mut [u16],
+    y_stride: u32,
+    u_plane: &mut [u16],
+    u_stride: u32,
+    v_plane: &mut [u16],
+    v_stride: u32,
+    rgba: &[u16],
+    rgba_stride: u32,
+    bit_depth: u32,
+    width: u32,
+    height: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) {
+    if bit_depth == 10 {
+        rgbx_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 10>(
+            y_plane,
+            y_stride,
+            u_plane,
+            u_stride,
+            v_plane,
+            v_stride,
+            rgba,
+            rgba_stride,
+            width,
+            height,
+            range,
+            matrix,
+        );
+    } else if bit_depth == 12 {
+        rgbx_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 12>(
+            y_plane,
+            y_stride,
+            u_plane,
+            u_stride,
+            v_plane,
+            v_stride,
+            rgba,
+            rgba_stride,
+            width,
+            height,
+            range,
+            matrix,
+        );
     }
 }
 
