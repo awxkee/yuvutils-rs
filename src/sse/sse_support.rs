@@ -62,7 +62,13 @@ pub unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a
 
 #[inline]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_store_rgba_half_epi8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i, a: __m128i) {
+pub unsafe fn sse_store_rgba_half_epi8(
+    ptr: *mut u8,
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    a: __m128i,
+) {
     let (row1, row2, _, _) = sse_interleave_rgba(r, g, b, a);
     _mm_storeu_si128(ptr as *mut __m128i, row1);
     _mm_storeu_si128(ptr.add(16) as *mut __m128i, row2);
@@ -227,8 +233,15 @@ pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
 #[inline(always)]
 pub unsafe fn sse_pairwise_avg_epi16(a: __m128i, b: __m128i) -> __m128i {
     let sums = _mm_hadd_epi16(a, b);
-    let shifted = _mm_srli_epi16::<1>(sums);
+    let shifted = _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)));
     shifted
+}
+
+#[inline(always)]
+pub unsafe fn sse_avg_epi16(a: __m128i) -> __m128i {
+    let sums = _mm_madd_epi16(a, _mm_set1_epi16(1));
+    let shifted = _mm_srli_epi32::<1>(_mm_add_epi32(sums, _mm_set1_epi32(1)));
+    _mm_packus_epi32(shifted, shifted)
 }
 
 #[inline(always)]
@@ -284,4 +297,49 @@ pub unsafe fn _mm_getlow_epi8(a: __m128i) -> __m128i {
 #[target_feature(enable = "sse4.1")]
 pub unsafe fn _mm_gethigh_epi8(a: __m128i) -> __m128i {
     _mm_srli_si128::<8>(a)
+}
+
+#[inline]
+#[target_feature(enable = "sse4.1")]
+pub unsafe fn _mm_deinterleave_rgba_epi16(
+    rgba0: __m128i,
+    rgba1: __m128i,
+    rgba2: __m128i,
+    rgba3: __m128i,
+) -> (__m128i, __m128i, __m128i, __m128i) {
+    let v0 = _mm_unpacklo_epi16(rgba0, rgba2); // a0 a4 b0 b4 ...
+    let v1 = _mm_unpackhi_epi16(rgba0, rgba2); // a1 a5 b1 b5 ...
+    let v2 = _mm_unpacklo_epi16(rgba1, rgba3); // a2 a6 b2 b6 ...
+    let v3 = _mm_unpackhi_epi16(rgba1, rgba3); // a3 a7 b3 b7 ...
+
+    let u0 = _mm_unpacklo_epi16(v0, v2); // a0 a2 a4 a6 ...
+    let u1 = _mm_unpacklo_epi16(v1, v3); // a1 a3 a5 a7 ...
+    let u2 = _mm_unpackhi_epi16(v0, v2); // c0 c2 c4 c6 ...
+    let u3 = _mm_unpackhi_epi16(v1, v3); // c1 c3 c5 c7 ...
+
+    let a = _mm_unpacklo_epi16(u0, u1);
+    let b = _mm_unpackhi_epi16(u0, u1);
+    let c = _mm_unpacklo_epi16(u2, u3);
+    let d = _mm_unpackhi_epi16(u2, u3);
+    (a, b, c, d)
+}
+
+#[inline]
+#[target_feature(enable = "sse4.1")]
+pub unsafe fn _mm_deinterleave_rgb_epi16(
+    rgba0: __m128i,
+    rgba1: __m128i,
+    rgba2: __m128i,
+) -> (__m128i, __m128i, __m128i) {
+    let a0 = _mm_blend_epi16::<0x24>(_mm_blend_epi16::<0x92>(rgba0, rgba1), rgba2);
+    let b0 = _mm_blend_epi16::<0x24>(_mm_blend_epi16::<0x92>(rgba2, rgba0), rgba1);
+    let c0 = _mm_blend_epi16::<0x24>(_mm_blend_epi16::<0x92>(rgba1, rgba2), rgba0);
+
+    let sh_a = _mm_setr_epi8(0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11);
+    let sh_b = _mm_setr_epi8(2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0, 1, 6, 7, 12, 13);
+    let sh_c = _mm_setr_epi8(4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15);
+    let a0 = _mm_shuffle_epi8(a0, sh_a);
+    let b0 = _mm_shuffle_epi8(b0, sh_b);
+    let c0 = _mm_shuffle_epi8(c0, sh_c);
+    (a0, b0, c0)
 }

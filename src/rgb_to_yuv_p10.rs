@@ -6,6 +6,8 @@
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgba_to_yuv_p10;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::sse::sse_rgba_to_yuv_p10;
 use crate::yuv_support::{
     get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvChromaSample,
     YuvSourceChannels,
@@ -74,6 +76,9 @@ fn rgbx_to_yuv_impl<
         YuvChromaSample::YUV444 => 1usize,
     };
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+
     let mut y_offset = 0usize;
     let mut u_offset = 0usize;
     let mut v_offset = 0usize;
@@ -92,6 +97,31 @@ fn rgbx_to_yuv_impl<
         let u_st_ptr = unsafe { u_dst_ptr.offset(u_offset as isize) as *mut u16 };
         let v_st_ptr = unsafe { v_dst_ptr.offset(v_offset as isize) as *mut u16 };
         let rgb_ld_ptr = unsafe { rgb_src_ptr.offset(rgba_offset as isize) as *const u16 };
+
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            if _use_sse {
+                let offset = sse_rgba_to_yuv_p10::<
+                    ORIGIN_CHANNELS,
+                    SAMPLING,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    BIT_DEPTH,
+                >(
+                    &transform,
+                    &range,
+                    y_st_ptr,
+                    u_st_ptr,
+                    v_st_ptr,
+                    rgb_ld_ptr,
+                    _cx,
+                    _ux,
+                    width as usize,
+                );
+                _cx = offset.cx;
+                _ux = offset.ux;
+            }
+        }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
