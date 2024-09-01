@@ -4,10 +4,13 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::yuy2_to_rgb_neon;
 use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, YuvSourceChannels,
-    Yuy2Description,
+    get_inverse_transform, get_kr_kb, get_yuv_range, YuvSourceChannels, Yuy2Description,
 };
+#[allow(unused_imports)]
+use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use crate::{YuvRange, YuvStandardMatrix};
 
 fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
@@ -42,6 +45,22 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     for _ in 0..height as usize {
         let mut _cx = 0usize;
         let mut _yuy2_x = 0usize;
+
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            let processed = yuy2_to_rgb_neon::<DESTINATION_CHANNELS, YUY2_SOURCE>(
+                &range,
+                &inverse_transform,
+                yuy2_store,
+                yuy_offset,
+                rgb_store,
+                rgb_offset,
+                width,
+                YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
+            );
+            _cx = processed.cx;
+            _yuy2_x = processed.x;
+        }
 
         for x in _yuy2_x..width.saturating_sub(1) as usize / 2 {
             let rgb_pos = rgb_offset + _cx * channels;
@@ -471,7 +490,6 @@ pub fn uyvy422_to_bgra(
     );
 }
 
-
 /// Convert YVYU format to RGB image.
 ///
 /// This function takes YVYU (4:2:2) format data with 8-bit precision,
@@ -686,7 +704,6 @@ pub fn vyuy422_to_rgb(
         matrix,
     );
 }
-
 
 /// Convert VYUY format to RGBA image.
 ///

@@ -156,7 +156,7 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             }
 
             _yuy2_x = x;
-            if x + 8 < max_x_16 {
+            if x + 8 < max_x_8 {
                 _uv_x += match chroma_subsampling {
                     YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 8,
                     YuvChromaSample::YUV444 => 16,
@@ -166,9 +166,9 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         }
     }
 
-    return YuvToYuy2Navigation {
+    YuvToYuy2Navigation {
         cx: _cx,
         uv_x: _uv_x,
         x: _yuy2_x,
-    };
+    }
 }

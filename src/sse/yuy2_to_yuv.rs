@@ -171,7 +171,7 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
             }
 
             _yuy2_x = x;
-            if x + 8 < max_x_16 {
+            if x + 8 < max_x_8 {
                 _uv_x += match chroma_subsampling {
                     YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 8,
                     YuvChromaSample::YUV444 => 16,

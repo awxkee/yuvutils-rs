@@ -206,7 +206,9 @@ fn main() {
         width,
         height,
     );
-
+    let end_time = Instant::now().sub(start_time);
+    println!("yuv420_to_yuyv422 time: {:?}", end_time);
+    let start_time = Instant::now();
     yuyv422_to_rgb(
         &yuy2_plane,
         yuy2_stride as u32,
@@ -219,7 +221,7 @@ fn main() {
     );
 
     let end_time = Instant::now().sub(start_time);
-    println!("yuv420_to_yuyv422 time: {:?}", end_time);
+    println!("yuyv422_to_rgb time: {:?}", end_time);
     //
     // let start_time = Instant::now();
     //
