@@ -37,12 +37,12 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
         let max_x_8 = (width.saturating_sub(1) as usize / 2).saturating_sub(8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
-            let dst_offset = yuy2_offset + x * 4;
+            let yuy2_offset = yuy2_offset + x * 4;
             let u_pos = u_offset + _uv_x;
             let v_pos = v_offset + _uv_x;
             let y_pos = y_offset + _cx;
 
-            let yuy2_ptr = yuy2_store.as_ptr().add(dst_offset);
+            let yuy2_ptr = yuy2_store.as_ptr().add(yuy2_offset);
 
             let j0 = _mm_loadu_si128(yuy2_ptr as *const __m128i);
             let j1 = _mm_loadu_si128(yuy2_ptr.add(16) as *const __m128i);
@@ -111,12 +111,12 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
         }
 
         for x in (_yuy2_x..max_x_8).step_by(8) {
-            let dst_offset = yuy2_offset + x * 4;
+            let yuy2_offset = yuy2_offset + x * 4;
             let u_pos = u_offset + _uv_x;
             let v_pos = v_offset + _uv_x;
             let y_pos = y_offset + _cx;
 
-            let yuy2_ptr = yuy2_store.as_ptr().add(dst_offset);
+            let yuy2_ptr = yuy2_store.as_ptr().add(yuy2_offset);
 
             let j0 = _mm_loadu_si128(yuy2_ptr as *const __m128i);
             let j1 = _mm_loadu_si128(yuy2_ptr.add(16) as *const __m128i);
@@ -181,9 +181,9 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
         }
     }
 
-    return YuvToYuy2Navigation {
+    YuvToYuy2Navigation {
         cx: _cx,
         uv_x: _uv_x,
         x: _yuy2_x,
-    };
+    }
 }
