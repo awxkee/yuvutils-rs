@@ -5,7 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, _mm256_interleave_epi8, _mm256_interleave_x2_epi8, shuffle,
+    _mm256_deinterleave_rgba_epi8, _mm256_interleave_epi8, _mm256_interleave_x2_epi8,
 };
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
