@@ -31,8 +31,8 @@ pub fn yuy2_to_rgb_sse<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_16 = (width.saturating_sub(1) as usize / 2).saturating_sub(16);
-        let max_x_8 = (width.saturating_sub(1) as usize / 2).saturating_sub(8);
+        let max_x_16 = (width as usize / 2).saturating_sub(16);
+        let max_x_8 = (width as usize / 2).saturating_sub(8);
 
         let y_corr = _mm_set1_epi8(range.bias_y as i8);
         let uv_corr = _mm_set1_epi16(range.bias_uv as i16);

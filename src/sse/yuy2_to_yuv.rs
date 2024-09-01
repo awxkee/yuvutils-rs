@@ -33,8 +33,8 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_16 = (width.saturating_sub(1) as usize / 2).saturating_sub(16);
-        let max_x_8 = (width.saturating_sub(1) as usize / 2).saturating_sub(8);
+        let max_x_16 = (width as usize / 2).saturating_sub(16);
+        let max_x_8 = (width as usize / 2).saturating_sub(8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
             let yuy2_offset = yuy2_offset + x * 4;

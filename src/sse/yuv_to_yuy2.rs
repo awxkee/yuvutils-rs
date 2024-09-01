@@ -39,8 +39,8 @@ pub unsafe fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
         let v_shuffle = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14,
                                                 1, 3, 5, 7, 9, 11, 13, 15);
 
-        let max_x_16 = (width.saturating_sub(1) as usize / 2).saturating_sub(16);
-        let max_x_8 = (width.saturating_sub(1) as usize / 2).saturating_sub(8);
+        let max_x_16 = (width as usize / 2).saturating_sub(16);
+        let max_x_8 = (width as usize / 2).saturating_sub(8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
             let u_pos = u_offset + _uv_x;

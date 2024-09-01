@@ -32,7 +32,7 @@ pub unsafe fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>
     let mut _uv_x = nav.uv_x;
     let mut _yuy2_x = nav.x;
     unsafe {
-        let max_x_32 = (width.saturating_sub(1) as usize / 2).saturating_sub(32);
+        let max_x_32 = (width as usize / 2).saturating_sub(32);
 
         for x in (_yuy2_x..max_x_32).step_by(32) {
             let u_pos = u_offset + _uv_x;

@@ -31,8 +31,8 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     unsafe {
         let v_shuffle = vld1q_u8(shuffle_table.as_ptr());
 
-        let max_x_16 = (width.saturating_sub(1) as usize / 2).saturating_sub(16);
-        let max_x_8 = (width.saturating_sub(1) as usize / 2).saturating_sub(8);
+        let max_x_16 = (width as usize / 2).saturating_sub(16);
+        let max_x_8 = (width as usize / 2).saturating_sub(8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
             let u_pos = u_offset + _uv_x;

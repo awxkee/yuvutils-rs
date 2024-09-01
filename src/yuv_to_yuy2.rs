@@ -114,7 +114,7 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             _yuy2_x = processed.x;
         }
 
-        for x in _yuy2_x..width.saturating_sub(1) as usize / 2 {
+        for x in _yuy2_x..width as usize / 2 {
             let u_pos = u_offset + _uv_x;
             let v_pos = v_offset + _uv_x;
             let y_pos = y_offset + _cx;

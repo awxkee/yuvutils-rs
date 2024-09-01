@@ -34,7 +34,7 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let mut _uv_x = nav.uv_x;
     let mut _yuy2_x = nav.x;
 
-    let max_x_32 = (width.saturating_sub(1) as usize / 2).saturating_sub(32);
+    let max_x_32 = (width as usize / 2).saturating_sub(32);
 
     for x in (_yuy2_x..max_x_32).step_by(32) {
         let dst_offset = yuy2_offset + x * 4;

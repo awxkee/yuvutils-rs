@@ -27,8 +27,8 @@ pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_16 = (width.saturating_sub(1) as usize / 2).saturating_sub(16);
-        let max_x_8 = (width.saturating_sub(1) as usize / 2).saturating_sub(8);
+        let max_x_16 = (width as usize / 2).saturating_sub(16);
+        let max_x_8 = (width as usize / 2).saturating_sub(8);
 
         let y_corr = vdupq_n_u8(range.bias_y as u8);
         let uv_corr = vdupq_n_s16(range.bias_uv as i16);

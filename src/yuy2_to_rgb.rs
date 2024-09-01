@@ -27,7 +27,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {
-    let yuy2_target: Yuy2Description = YUY2_SOURCE.into();
+    let yuy2_source: Yuy2Description = YUY2_SOURCE.into();
 
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
@@ -103,20 +103,21 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
             _yuy2_x = processed.x;
         }
 
-        for x in _yuy2_x..width.saturating_sub(1) as usize / 2 {
+        let max_iter = width as usize / 2;
+        for x in _yuy2_x..max_iter {
             let rgb_pos = rgb_offset + _cx * channels;
-            let dst_offset = yuy_offset + x * 4;
+            let yuy2_offset = yuy_offset + x * 4;
 
-            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(dst_offset..) };
+            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(yuy2_offset..) };
 
             let first_y =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_first_y_position()) };
+                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_first_y_position()) };
             let second_y =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_second_y_position()) };
+                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_second_y_position()) };
             let u_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_u_position()) };
+                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_u_position()) };
             let v_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_v_position()) };
+                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_v_position()) };
 
             let cb = u_value as i32 - bias_uv;
             let cr = v_value as i32 - bias_uv;
@@ -131,11 +132,12 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                 *dst0.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r0 as u8;
                 *dst0.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g0 as u8;
                 *dst0.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b0 as u8;
+
                 if dst_chans.has_alpha() {
                     *dst0.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                 }
 
-                let dst1 = rgb_store.get_unchecked_mut((rgb_pos + channels)..);
+                let dst1 = dst0.get_unchecked_mut(channels..);
 
                 let r1 = ((s_y + cr_coef * cr) >> 6).clamp(0, 255);
                 let b1 = ((s_y + cb_coef * cb) >> 6).clamp(0, 255);
@@ -152,17 +154,17 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
         }
 
         if width & 1 == 1 {
-            let rgb_pos = rgb_offset + _cx * channels;
-            let dst_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
+            let rgb_pos = rgb_offset + (width as usize - 1) * channels;
+            let yuy2_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
 
-            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(dst_offset..) };
+            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(yuy2_offset..) };
 
             let first_y =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_first_y_position()) };
+                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_first_y_position()) };
             let u_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_u_position()) };
+                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_u_position()) };
             let v_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_v_position()) };
+                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_v_position()) };
 
             let cb = u_value as i32 - bias_uv;
             let cr = v_value as i32 - bias_uv;
