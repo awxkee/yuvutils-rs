@@ -378,7 +378,7 @@ pub fn yuv420_to_bgr(
 /// * `v_stride` - The stride (bytes per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
-/// * `rgba_data` - A mutable slice to store the converted RGBA data.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
