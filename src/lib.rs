@@ -47,7 +47,7 @@ mod yuv_to_yuy2;
 mod yuy2_to_yuv;
 
 pub use yuv_support::YuvBytesPacking;
-pub use yuv_support::YuvEndiannes;
+pub use yuv_support::YuvEndianness;
 pub use yuv_support::YuvRange;
 pub use yuv_support::YuvStandardMatrix;
 

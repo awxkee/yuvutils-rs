@@ -12,13 +12,13 @@ use crate::yuv_support::{
     get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvChromaSample,
     YuvSourceChannels,
 };
-use crate::{YuvBytesPacking, YuvEndiannes, YuvRange, YuvStandardMatrix};
+use crate::{YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
 
 #[inline(always)]
 fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_DEPTH: u8>(
     v: i32,
 ) -> u16 {
-    let endianness: YuvEndiannes = ENDIANNESS.into();
+    let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let packing: i32 = 16 - BIT_DEPTH as i32;
     let packed_bytes = match bytes_position {
@@ -26,8 +26,8 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_D
         YuvBytesPacking::LeastSignificantBytes => v,
     } as u16;
     let endian_prepared = match endianness {
-        YuvEndiannes::BigEndian => packed_bytes.to_be(),
-        YuvEndiannes::LittleEndian => packed_bytes.to_le(),
+        YuvEndianness::BigEndian => packed_bytes.to_be(),
+        YuvEndianness::LittleEndian => packed_bytes.to_le(),
     };
     endian_prepared
 }
@@ -327,19 +327,19 @@ pub fn rgb_to_yuv422_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -347,17 +347,17 @@ pub fn rgb_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -365,7 +365,7 @@ pub fn rgb_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -419,19 +419,19 @@ pub fn bgr_to_yuv422_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -439,17 +439,17 @@ pub fn bgr_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -457,7 +457,7 @@ pub fn bgr_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -511,19 +511,19 @@ pub fn rgba_to_yuv422_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -531,17 +531,17 @@ pub fn rgba_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -549,7 +549,7 @@ pub fn rgba_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -614,19 +614,19 @@ pub fn bgra_to_yuv422_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -634,17 +634,17 @@ pub fn bgra_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -652,7 +652,7 @@ pub fn bgra_to_yuv422_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -717,19 +717,19 @@ pub fn rgb_to_yuv420_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -737,17 +737,17 @@ pub fn rgb_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -755,7 +755,7 @@ pub fn rgb_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -809,19 +809,19 @@ pub fn bgr_to_yuv420_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -829,17 +829,17 @@ pub fn bgr_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -847,7 +847,7 @@ pub fn bgr_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -901,19 +901,19 @@ pub fn rgba_to_yuv420_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -921,17 +921,17 @@ pub fn rgba_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -939,7 +939,7 @@ pub fn rgba_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -1004,19 +1004,19 @@ pub fn bgra_to_yuv420_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1024,17 +1024,17 @@ pub fn bgra_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1042,7 +1042,7 @@ pub fn bgra_to_yuv420_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -1107,19 +1107,19 @@ pub fn rgb_to_yuv444_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1127,17 +1127,17 @@ pub fn rgb_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1145,7 +1145,7 @@ pub fn rgb_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -1199,19 +1199,19 @@ pub fn bgr_to_yuv444_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1219,17 +1219,17 @@ pub fn bgr_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1237,7 +1237,7 @@ pub fn bgr_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -1291,19 +1291,19 @@ pub fn rgba_to_yuv444_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1311,17 +1311,17 @@ pub fn rgba_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1329,7 +1329,7 @@ pub fn rgba_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
@@ -1394,19 +1394,19 @@ pub fn bgra_to_yuv444_u16(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    endianness: YuvEndiannes,
+    endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
 ) {
     if bit_depth != 10 && bit_depth != 12 {
         panic!("Only 10 and 12 bit depth is supported");
     }
     let dispatcher = match endianness {
-        YuvEndiannes::BigEndian => match bytes_packing {
+        YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1414,17 +1414,17 @@ pub fn bgra_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::BigEndian as u8 },
+                    { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }
         },
-        YuvEndiannes::LittleEndian => match bytes_packing {
+        YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
             }
@@ -1432,7 +1432,7 @@ pub fn bgra_to_yuv444_u16(
                 rgbx_to_yuv::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
-                    { YuvEndiannes::LittleEndian as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
             }

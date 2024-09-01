@@ -5,7 +5,7 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 
-use yuvutils_rs::{rgb_to_yuv_nv12_p16, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb_p16, YuvBytesPacking, YuvEndiannes, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{rgb_to_yuv_nv12_p16, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb_p16, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -68,7 +68,7 @@ fn main() {
         height,
         YuvRange::Full,
         YuvStandardMatrix::Bt709,
-        YuvEndiannes::BigEndian,
+        YuvEndianness::BigEndian,
         YuvBytesPacking::LeastSignificantBytes,
     );
     bytes_16.fill(0);
@@ -90,7 +90,7 @@ fn main() {
         height,
         YuvRange::Full,
         YuvStandardMatrix::Bt709,
-        YuvEndiannes::BigEndian,
+        YuvEndianness::BigEndian,
         YuvBytesPacking::LeastSignificantBytes,
     );
     // yuv_nv12_p10_to_rgb(

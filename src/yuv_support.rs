@@ -287,17 +287,18 @@ impl From<u8> for YuvChromaSample {
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum YuvEndiannes {
+/// This controls endianness of YUV storage format
+pub enum YuvEndianness {
     BigEndian = 0,
     LittleEndian = 1,
 }
 
-impl From<u8> for YuvEndiannes {
+impl From<u8> for YuvEndianness {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
-            0 => YuvEndiannes::BigEndian,
-            1 => YuvEndiannes::LittleEndian,
+            0 => YuvEndianness::BigEndian,
+            1 => YuvEndianness::LittleEndian,
             _ => {
                 panic!("Unknown value")
             }
@@ -307,6 +308,12 @@ impl From<u8> for YuvEndiannes {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+/// Most of the cases of storage bytes is least significant whereas b`0000000111111` integers stored in low part,
+/// however most modern hardware encoders (Apple, Android manufacturers) uses most significant bytes
+/// where same number stored as b`111111000000` and need to be shifted right before working with this.
+/// This is not the same and endianness. I never met `big endian` packing with `most significant bytes`
+/// so this case may not work fully correct, however, `little endian` + `most significant bytes`
+/// can be easily derived from HDR camera stream on android and apple platforms
 pub enum YuvBytesPacking {
     MostSignificantBytes = 0,
     LeastSignificantBytes = 1,

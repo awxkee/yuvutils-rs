@@ -9,7 +9,7 @@ use crate::sse::{_mm_deinterleave_rgb_epi16, _mm_deinterleave_rgba_epi16, sse_av
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSample, YuvSourceChannels,
 };
-use crate::{YuvBytesPacking, YuvEndiannes};
+use crate::{YuvBytesPacking, YuvEndianness};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -35,7 +35,7 @@ pub unsafe fn sse_rgba_to_yuv_p10<
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let endianness: YuvEndiannes = ENDIANNESS.into();
+    let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
@@ -149,7 +149,7 @@ pub unsafe fn sse_rgba_to_yuv_p10<
             y_vl = _mm_sll_epi32(y_vl, v_shift_count);
         }
 
-        if endianness == YuvEndiannes::BigEndian {
+        if endianness == YuvEndianness::BigEndian {
             y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
 
@@ -165,7 +165,7 @@ pub unsafe fn sse_rgba_to_yuv_p10<
                     cr_s = _mm_sll_epi32(cr_s, v_shift_count);
                 }
 
-                if endianness == YuvEndiannes::BigEndian {
+                if endianness == YuvEndianness::BigEndian {
                     cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
                     cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
                 }
@@ -189,7 +189,7 @@ pub unsafe fn sse_rgba_to_yuv_p10<
                     cr_vl = _mm_sll_epi32(cr_vl, v_shift_count);
                 }
 
-                if endianness == YuvEndiannes::BigEndian {
+                if endianness == YuvEndianness::BigEndian {
                     cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
                     cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
                 }
