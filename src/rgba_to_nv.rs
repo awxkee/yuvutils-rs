@@ -138,15 +138,9 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 *y_plane.get_unchecked_mut(y_offset + x) = y_0 as u8;
             }
             let uv_pos = uv_offset + ux;
-            match order {
-                YuvNVOrder::UV => unsafe {
-                    *uv_plane.get_unchecked_mut(uv_pos) = cb as u8;
-                    *uv_plane.get_unchecked_mut(uv_pos + 1) = cr as u8;
-                },
-                YuvNVOrder::VU => unsafe {
-                    *uv_plane.get_unchecked_mut(uv_pos) = cr as u8;
-                    *uv_plane.get_unchecked_mut(uv_pos + 1) = cb as u8;
-                },
+            unsafe {
+                *uv_plane.get_unchecked_mut(uv_pos + order.get_u_position()) = cb as u8;
+                *uv_plane.get_unchecked_mut(uv_pos + order.get_v_position()) = cr as u8;
             }
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {

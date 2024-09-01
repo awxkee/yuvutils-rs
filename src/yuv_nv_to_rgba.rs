@@ -191,18 +191,11 @@ fn yuv_nv12_to_rgbx<
             let cb_value: i32;
             let cr_value: i32;
             let cb_pos = uv_offset + ux;
-            let cr_pos = cb_pos + 1;
 
-            match order {
-                YuvNVOrder::UV => {
-                    cb_value = unsafe { *uv_plane.get_unchecked(cb_pos) } as i32 - bias_uv;
-                    cr_value = unsafe { *uv_plane.get_unchecked(cr_pos) } as i32 - bias_uv;
-                }
-                YuvNVOrder::VU => {
-                    cb_value = unsafe { *uv_plane.get_unchecked(cr_pos) } as i32 - bias_uv;
-                    cr_value = unsafe { *uv_plane.get_unchecked(cb_pos) } as i32 - bias_uv;
-                }
-            }
+            cb_value = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_u_position()) } as i32
+                - bias_uv;
+            cr_value = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_v_position()) } as i32
+                - bias_uv;
 
             let r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
             let b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);

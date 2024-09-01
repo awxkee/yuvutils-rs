@@ -232,6 +232,24 @@ pub enum YuvNVOrder {
     VU = 1,
 }
 
+impl YuvNVOrder {
+    #[inline]
+    pub const fn get_u_position(&self) -> usize {
+        match self {
+            YuvNVOrder::UV => 0,
+            YuvNVOrder::VU => 1
+        }
+    }
+    #[inline]
+    pub const fn get_v_position(&self) -> usize {
+        match self {
+            YuvNVOrder::UV => 1,
+            YuvNVOrder::VU => 0
+        }
+    }
+
+}
+
 impl From<u8> for YuvNVOrder {
     #[inline(always)]
     fn from(value: u8) -> Self {
