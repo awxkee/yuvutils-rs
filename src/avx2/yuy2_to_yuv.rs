@@ -4,7 +4,9 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-use crate::avx2::avx2_utils::{_mm256_deinterleave_rgba_epi8, _mm256_interleave_epi8, shuffle};
+use crate::avx2::avx2_utils::{
+    _mm256_deinterleave_rgba_epi8, _mm256_interleave_epi8, _mm256_interleave_x2_epi8, shuffle,
+};
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
@@ -73,15 +75,8 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
         };
 
         if chroma_subsampling == YuvChromaSample::YUV444 {
-            const MASK: i32 = shuffle(3, 1, 2, 0);
-            let low_u_value =
-                _mm256_permute4x64_epi64::<MASK>(_mm256_unpacklo_epi8(u_value, u_value));
-            let high_u_value =
-                _mm256_permute4x64_epi64::<MASK>(_mm256_unpackhi_epi8(u_value, u_value));
-            let low_v_value =
-                _mm256_permute4x64_epi64::<MASK>(_mm256_unpacklo_epi8(v_value, v_value));
-            let high_v_value =
-                _mm256_permute4x64_epi64::<MASK>(_mm256_unpackhi_epi8(v_value, v_value));
+            let (low_u_value, high_u_value) = _mm256_interleave_x2_epi8(u_value, u_value);
+            let (low_v_value, high_v_value) = _mm256_interleave_x2_epi8(v_value, v_value);
 
             let u_plane_ptr = u_plane.as_mut_ptr().add(u_pos);
             let v_plane_ptr = v_plane.as_mut_ptr().add(v_pos);

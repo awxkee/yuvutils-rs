@@ -20,6 +20,7 @@ mod yuv_nv_to_rgba;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuv2;
+mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
 pub use from_identity::gbr_to_image_avx;
@@ -34,4 +35,5 @@ pub use yuv_nv_to_rgba::avx2_yuv_nv_to_rgba_row;
 pub use yuv_to_rgba::avx2_yuv_to_rgba_row;
 pub use yuv_to_rgba_alpha::avx2_yuv_to_rgba_alpha;
 pub use yuv_to_yuv2::yuv_to_yuy2_avx2_row;
+pub use yuy2_to_rgb::yuy2_to_rgb_avx;
 pub use yuy2_to_yuv::yuy2_to_yuv_avx;
