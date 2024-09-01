@@ -89,8 +89,9 @@ pub unsafe fn avx512_yuv_nv_to_rgba<
             }
             YuvChromaSample::YUV444 => {
                 let offset = uv_offset + uv_x;
-                let uv_values_l = _mm512_loadu_si512(uv_ptr.add(offset) as *const i32);
-                let uv_values_h = _mm512_loadu_si512(uv_ptr.add(offset + 64) as *const i32);
+                let v_str = uv_ptr.add(offset);
+                let uv_values_l = _mm512_loadu_si512(v_str as *const i32);
+                let uv_values_h = _mm512_loadu_si512(v_str.add(64) as *const i32);
 
                 let full_v = avx512_interleave_even_epi8(uv_values_l, uv_values_h);
                 let full_u = avx512_interleave_odd_epi8(uv_values_l, uv_values_h);
