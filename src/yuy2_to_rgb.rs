@@ -8,6 +8,7 @@
 use crate::avx2::yuy2_to_rgb_avx;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuy2_to_rgb_neon;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuy2_to_rgb_sse;
 use crate::yuv_support::{
     get_inverse_transform, get_kr_kb, get_yuv_range, YuvSourceChannels, Yuy2Description,
