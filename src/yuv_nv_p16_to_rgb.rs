@@ -4,7 +4,7 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-
+use crate::neon::neon_yuv_nv_p16_to_rgba_row;
 use crate::yuv_support::*;
 
 fn yuv_nv_p16_to_image_impl<
@@ -76,6 +76,29 @@ fn yuv_nv_p16_to_image_impl<
         let uv_ld_ptr = unsafe { uv_src_ptr.offset(uv_offset as isize) as *const u16 };
         let dst_st_ptr = unsafe { dst_ptr.add(dst_offset) as *mut u16 };
 
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            let processed = neon_yuv_nv_p16_to_rgba_row::<
+                DESTINATION_CHANNELS,
+                NV_ORDER,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                BIT_DEPTH,
+            >(
+                y_ld_ptr,
+                uv_ld_ptr,
+                dst_st_ptr,
+                width,
+                &range,
+                &i_transform,
+                _cx,
+                _ux,
+            );
+            _cx = processed.cx;
+            _ux = processed.ux;
+        }
+
         for x in (_cx..width as usize).step_by(iterator_step) {
             let y_value: i32;
             let mut cb_value: i32;
@@ -83,10 +106,16 @@ fn yuv_nv_p16_to_image_impl<
             match endianness {
                 YuvEndiannes::BigEndian => {
                     let mut y_vl = u16::from_be(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl =
-                        u16::from_be(unsafe { uv_ld_ptr.add(_ux + uv_order.get_u_position()).read_unaligned() }) as i32;
-                    let mut cr_vl =
-                        u16::from_be(unsafe { uv_ld_ptr.add(_ux + uv_order.get_v_position()).read_unaligned() }) as i32;
+                    let mut cb_vl = u16::from_be(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_u_position())
+                            .read_unaligned()
+                    }) as i32;
+                    let mut cr_vl = u16::from_be(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_v_position())
+                            .read_unaligned()
+                    }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> msb_shift;
                         cb_vl = cb_vl >> msb_shift;
@@ -99,10 +128,16 @@ fn yuv_nv_p16_to_image_impl<
                 }
                 YuvEndiannes::LittleEndian => {
                     let mut y_vl = u16::from_le(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl =
-                        u16::from_le(unsafe { uv_ld_ptr.add(_ux + uv_order.get_u_position()).read_unaligned() }) as i32;
-                    let mut cr_vl =
-                        u16::from_le(unsafe { uv_ld_ptr.add(_ux + uv_order.get_v_position()).read_unaligned() }) as i32;
+                    let mut cb_vl = u16::from_le(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_u_position())
+                            .read_unaligned()
+                    }) as i32;
+                    let mut cr_vl = u16::from_le(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_v_position())
+                            .read_unaligned()
+                    }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> msb_shift;
                         cb_vl = cb_vl >> msb_shift;
@@ -140,11 +175,19 @@ fn yuv_nv_p16_to_image_impl<
 
             unsafe {
                 let dst_store = dst_st_ptr.add(px);
-                dst_store.add(dst_chans.get_b_channel_offset()).write_unaligned(b as u16);
-                dst_store.add(dst_chans.get_g_channel_offset()).write_unaligned(g as u16);
-                dst_store.add(dst_chans.get_r_channel_offset()).write_unaligned(r as u16);
+                dst_store
+                    .add(dst_chans.get_b_channel_offset())
+                    .write_unaligned(b as u16);
+                dst_store
+                    .add(dst_chans.get_g_channel_offset())
+                    .write_unaligned(g as u16);
+                dst_store
+                    .add(dst_chans.get_r_channel_offset())
+                    .write_unaligned(r as u16);
                 if dst_chans.has_alpha() {
-                    dst_store.add(dst_chans.get_a_channel_offset()).write_unaligned(max_range as u16);
+                    dst_store
+                        .add(dst_chans.get_a_channel_offset())
+                        .write_unaligned(max_range as u16);
                 }
             }
 
@@ -186,11 +229,19 @@ fn yuv_nv_p16_to_image_impl<
                     let px = next_px * channels;
                     unsafe {
                         let dst_store = dst_st_ptr.add(px);
-                        dst_store.add(dst_chans.get_b_channel_offset()).write_unaligned(b as u16);
-                        dst_store.add(dst_chans.get_g_channel_offset()).write_unaligned(g as u16);
-                        dst_store.add(dst_chans.get_r_channel_offset()).write_unaligned(r as u16);
+                        dst_store
+                            .add(dst_chans.get_b_channel_offset())
+                            .write_unaligned(b as u16);
+                        dst_store
+                            .add(dst_chans.get_g_channel_offset())
+                            .write_unaligned(g as u16);
+                        dst_store
+                            .add(dst_chans.get_r_channel_offset())
+                            .write_unaligned(r as u16);
                         if dst_chans.has_alpha() {
-                            dst_store.add(dst_chans.get_a_channel_offset()).write_unaligned(max_range as u16);
+                            dst_store
+                                .add(dst_chans.get_a_channel_offset())
+                                .write_unaligned(max_range as u16);
                         }
                     }
                 }
@@ -553,7 +604,8 @@ pub fn yuv_nv12_to_bgr_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range, matrix,
+        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
+        matrix,
     );
 }
 
@@ -639,7 +691,8 @@ pub fn yuv_nv12_to_rgb_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range, matrix,
+        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
+        matrix,
     );
 }
 
@@ -1493,7 +1546,8 @@ pub fn yuv_nv21_to_bgr_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range, matrix,
+        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
+        matrix,
     );
 }
 
@@ -1675,7 +1729,8 @@ pub fn yuv_nv21_to_rgb_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range, matrix,
+        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
+        matrix,
     );
 }
 

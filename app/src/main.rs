@@ -107,7 +107,7 @@ fn main() {
     //     YuvEndiannes::BigEndian,
     //     YuvBytesPacking::LeastSignificantBytes,
     // );
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
     //
     let end_time = Instant::now().sub(start_time);
     println!("yuv_nv12_to_rgb time: {:?}", end_time);
