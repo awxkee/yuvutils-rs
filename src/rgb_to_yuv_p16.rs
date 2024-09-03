@@ -313,7 +313,7 @@ fn rgbx_to_yuv<
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn rgb_to_yuv422_u16(
+pub fn rgb_to_yuv422_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -405,7 +405,7 @@ pub fn rgb_to_yuv422_u16(
 /// This function panics if the lengths of the planes or the input BGR data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn bgr_to_yuv422_u16(
+pub fn bgr_to_yuv422_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -497,7 +497,7 @@ pub fn bgr_to_yuv422_u16(
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn rgba_to_yuv422_u16(
+pub fn rgba_to_yuv422_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -600,7 +600,7 @@ pub fn rgba_to_yuv422_u16(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn bgra_to_yuv422_u16(
+pub fn bgra_to_yuv422_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -703,7 +703,7 @@ pub fn bgra_to_yuv422_u16(
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn rgb_to_yuv420_u16(
+pub fn rgb_to_yuv420_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -795,7 +795,7 @@ pub fn rgb_to_yuv420_u16(
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn bgr_to_yuv420_u16(
+pub fn bgr_to_yuv420_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -887,7 +887,7 @@ pub fn bgr_to_yuv420_u16(
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn rgba_to_yuv420_u16(
+pub fn rgba_to_yuv420_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -990,7 +990,7 @@ pub fn rgba_to_yuv420_u16(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn bgra_to_yuv420_u16(
+pub fn bgra_to_yuv420_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -1093,7 +1093,7 @@ pub fn bgra_to_yuv420_u16(
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn rgb_to_yuv444_u16(
+pub fn rgb_to_yuv444_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -1185,7 +1185,7 @@ pub fn rgb_to_yuv444_u16(
 /// This function panics if the lengths of the planes or the input BGR data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn bgr_to_yuv444_u16(
+pub fn bgr_to_yuv444_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -1277,7 +1277,7 @@ pub fn bgr_to_yuv444_u16(
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn rgba_to_yuv444_u16(
+pub fn rgba_to_yuv444_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
@@ -1380,7 +1380,7 @@ pub fn rgba_to_yuv444_u16(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn bgra_to_yuv444_u16(
+pub fn bgra_to_yuv444_p16(
     y_plane: &mut [u16],
     y_stride: u32,
     u_plane: &mut [u16],
