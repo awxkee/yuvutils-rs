@@ -38,9 +38,6 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     for i in 0..256 {
         unsafe {
             let linear = linearize_func(i as f32 * linear_scale);
-            if linear < 0. || linear > 1. {
-                panic!("{}", linear);
-            }
             *linear_map_table.get_unchecked_mut(i as usize) =
                 (linear * u16::MAX as f32).round() as u16;
         }
