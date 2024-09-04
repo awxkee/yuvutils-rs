@@ -5,7 +5,7 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 
-use yuvutils_rs::{rgb_to_yuv420, rgb_to_yuv_nv12_p16, yuv420_to_rgb, yuv420_to_yuyv422, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb_p16, yuyv422_to_rgb, yuyv422_to_yuv420, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv_nv12_p16, yuv420_to_rgb, yuv420_to_yuyv422, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb_p16, yuyv422_to_rgb, yuyv422_to_yuv420, SharpYuvGammaTransfer, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -22,7 +22,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let img = ImageReader::open("./assets/main_test.jpg")
+    let img = ImageReader::open("./assets/test_augea.jpg")
         .unwrap()
         .decode()
         .unwrap();

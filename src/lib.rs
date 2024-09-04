@@ -27,6 +27,7 @@ mod rgb_to_ycgco_r;
 mod rgb_to_yuv_p16;
 mod rgba_to_nv;
 mod rgba_to_yuv;
+mod sharpyuv;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod sse;
 mod to_identity;
@@ -370,3 +371,13 @@ pub use from_identity_p16::gbr_to_bgr_p16;
 pub use from_identity_p16::gbr_to_bgra_p16;
 pub use from_identity_p16::gbr_to_rgb_p16;
 pub use from_identity_p16::gbr_to_rgba_p16;
+
+pub use sharpyuv::bgr_to_sharp_yuv420;
+pub use sharpyuv::bgr_to_sharp_yuv422;
+pub use sharpyuv::bgra_to_sharp_yuv420;
+pub use sharpyuv::bgra_to_sharp_yuv422;
+pub use sharpyuv::rgb_to_sharp_yuv420;
+pub use sharpyuv::rgb_to_sharp_yuv422;
+pub use sharpyuv::rgba_to_sharp_yuv420;
+pub use sharpyuv::rgba_to_sharp_yuv422;
+pub use sharpyuv::SharpYuvGammaTransfer;

@@ -53,6 +53,10 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let mut uv_offset = 0usize;
     let mut rgba_offset = 0usize;
 
+    let i_bias_y = range.bias_y as i32;
+    let i_cap_y = range.range_y as i32 + i_bias_y;
+    let i_cap_uv = i_bias_y + range.range_uv as i32;
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -135,12 +139,14 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
             let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
             unsafe {
-                *y_plane.get_unchecked_mut(y_offset + x) = y_0 as u8;
+                *y_plane.get_unchecked_mut(y_offset + x) = y_0.clamp(i_bias_y, i_cap_y) as u8;
             }
             let uv_pos = uv_offset + ux;
             unsafe {
-                *uv_plane.get_unchecked_mut(uv_pos + order.get_u_position()) = cb as u8;
-                *uv_plane.get_unchecked_mut(uv_pos + order.get_v_position()) = cr as u8;
+                *uv_plane.get_unchecked_mut(uv_pos + order.get_u_position()) =
+                    cb.clamp(i_bias_y, i_cap_uv) as u8;
+                *uv_plane.get_unchecked_mut(uv_pos + order.get_v_position()) =
+                    cr.clamp(i_bias_y, i_cap_uv) as u8;
             }
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
@@ -161,7 +167,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                         let y_1 =
                             (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
                         unsafe {
-                            *y_plane.get_unchecked_mut(y_offset + next_x) = y_1 as u8;
+                            *y_plane.get_unchecked_mut(y_offset + next_x) =
+                                y_1.clamp(i_bias_y, i_cap_y) as u8;
                         }
                     }
                 }
