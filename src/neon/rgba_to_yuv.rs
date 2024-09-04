@@ -12,7 +12,7 @@ use crate::yuv_support::{
 use std::arch::aarch64::*;
 
 #[inline(always)]
-pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: *mut u8,
@@ -31,8 +31,9 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
-    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
+    let rounding_const_bias: i32 = 1 << (PRECISION - 1);
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
     let y_ptr = y_plane;
     let u_ptr = u_plane;
@@ -112,7 +113,7 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let y_high = vminq_u16(
             vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(y_h_low), vshrn_n_s32::<8>(y_h_high)),
+                vcombine_s16(vshrn_n_s32::<PRECISION>(y_h_low), vshrn_n_s32::<PRECISION>(y_h_high)),
                 i_bias_y,
             )),
             i_cap_y,
@@ -128,7 +129,7 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let cb_high = vminq_u16(
             vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cb_h_low), vshrn_n_s32::<8>(cb_h_high)),
+                vcombine_s16(vshrn_n_s32::<PRECISION>(cb_h_low), vshrn_n_s32::<PRECISION>(cb_h_high)),
                 i_bias_y,
             )),
             i_cap_uv,
@@ -144,7 +145,7 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let cr_high = vminq_u16(
             vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cr_h_low), vshrn_n_s32::<8>(cr_h_high)),
+                vcombine_s16(vshrn_n_s32::<PRECISION>(cr_h_low), vshrn_n_s32::<PRECISION>(cr_h_high)),
                 i_bias_y,
             )),
             i_cap_uv,
@@ -170,7 +171,7 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let y_low = vminq_u16(
             vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vqshrn_n_s32::<8>(y_l_low), vshrn_n_s32::<8>(y_l_high)),
+                vcombine_s16(vqshrn_n_s32::<PRECISION>(y_l_low), vshrn_n_s32::<PRECISION>(y_l_high)),
                 i_bias_y,
             )),
             i_cap_y,
@@ -186,7 +187,7 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let cb_low = vminq_u16(
             vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cb_l_low), vshrn_n_s32::<8>(cb_l_high)),
+                vcombine_s16(vshrn_n_s32::<PRECISION>(cb_l_low), vshrn_n_s32::<PRECISION>(cb_l_high)),
                 i_bias_y,
             )),
             i_cap_uv,
@@ -202,7 +203,7 @@ pub unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         let cr_low = vminq_u16(
             vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cr_l_low), vshrn_n_s32::<8>(cr_l_high)),
+                vcombine_s16(vshrn_n_s32::<PRECISION>(cr_l_low), vshrn_n_s32::<PRECISION>(cr_l_high)),
                 i_bias_y,
             )),
             i_cap_uv,

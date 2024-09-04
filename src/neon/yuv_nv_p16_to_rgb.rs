@@ -138,9 +138,9 @@ pub unsafe fn neon_yuv_nv_p16_to_rgba_row<
 
         let y_high = vmull_high_s16(y_values, v_luma_coeff);
 
-        let r_high = vshrn_n_s32::<6>(vmlal_s16(y_high, v_high, v_cr_coeff));
-        let b_high = vshrn_n_s32::<6>(vmlal_s16(y_high, u_high, v_cb_coeff));
-        let g_high = vshrn_n_s32::<6>(vmlal_s16(
+        let r_high = vrshrn_n_s32::<6>(vmlal_s16(y_high, v_high, v_cr_coeff));
+        let b_high = vrshrn_n_s32::<6>(vmlal_s16(y_high, u_high, v_cb_coeff));
+        let g_high = vrshrn_n_s32::<6>(vmlal_s16(
             vmlal_s16(y_high, v_high, v_g_coeff_1),
             u_high,
             v_g_coeff_2,
@@ -148,9 +148,9 @@ pub unsafe fn neon_yuv_nv_p16_to_rgba_row<
 
         let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
 
-        let r_low = vshrn_n_s32::<6>(vmlal_s16(y_low, v_low, v_cr_coeff));
-        let b_low = vshrn_n_s32::<6>(vmlal_s16(y_low, u_low, v_cb_coeff));
-        let g_low = vshrn_n_s32::<6>(vmlal_s16(
+        let r_low = vrshrn_n_s32::<6>(vmlal_s16(y_low, v_low, v_cr_coeff));
+        let b_low = vrshrn_n_s32::<6>(vmlal_s16(y_low, u_low, v_cb_coeff));
+        let g_low = vrshrn_n_s32::<6>(vmlal_s16(
             vmlal_s16(y_low, v_low, v_g_coeff_1),
             u_low,
             v_g_coeff_2,

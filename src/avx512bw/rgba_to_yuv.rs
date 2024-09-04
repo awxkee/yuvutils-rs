@@ -46,8 +46,9 @@ pub unsafe fn avx512_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
-    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
+    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
+    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
 
     while cx + 64 < width {
         let y_bias = _mm512_set1_epi32(bias_y);

@@ -54,6 +54,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
     let v_g_coeff_1 = i16x8_splat(-1i16 * (transform.g_coeff_1 as i16));
     let v_g_coeff_2 = i16x8_splat(-1i16 * (transform.g_coeff_2 as i16));
     let v_alpha = u8x16_splat(255u8);
+    let rounding_const = i16x8_splat(1 << 5);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -95,29 +96,38 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
         let y_high = u16x8_extmul_high_u8x16(y_values, v_luma_coeff);
 
         let r_high = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_high, i16x8_mul(v_high, v_cr_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_high, i16x8_mul(v_high, v_cr_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let b_high = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_high, i16x8_mul(u_high, v_cb_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_high, i16x8_mul(u_high, v_cb_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let g_high = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(
-                    y_high,
+            i16x8_add_sat(
+                i16x8_max(
                     i16x8_add_sat(
-                        i16x8_mul(v_high, v_g_coeff_1),
-                        i16x8_mul(u_high, v_g_coeff_2),
+                        y_high,
+                        i16x8_add_sat(
+                            i16x8_mul(v_high, v_g_coeff_1),
+                            i16x8_mul(u_high, v_g_coeff_2),
+                        ),
                     ),
+                    v_min_values,
                 ),
-                v_min_values,
+                rounding_const,
             ),
             6,
         );
@@ -127,26 +137,35 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
         let y_low = u16x8_extmul_low_u8x16(y_values, v_luma_coeff);
 
         let r_low = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_low, i16x8_mul(v_low, v_cr_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_low, i16x8_mul(v_low, v_cr_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let b_low = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_low, i16x8_mul(u_low, v_cb_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_low, i16x8_mul(u_low, v_cb_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let g_low = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(
-                    y_low,
-                    i16x8_add_sat(i16x8_mul(v_low, v_g_coeff_1), i16x8_mul(u_low, v_g_coeff_2)),
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(
+                        y_low,
+                        i16x8_add_sat(i16x8_mul(v_low, v_g_coeff_1), i16x8_mul(u_low, v_g_coeff_2)),
+                    ),
+                    v_min_values,
                 ),
-                v_min_values,
+                rounding_const,
             ),
             6,
         );

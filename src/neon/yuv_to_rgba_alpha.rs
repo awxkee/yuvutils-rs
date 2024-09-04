@@ -86,15 +86,15 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
         let v_high = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_high_u8)), uv_corr);
         let y_high = vreinterpretq_s16_u16(vmull_high_u8(y_values, v_luma_coeff));
 
-        let r_high = vqshrun_n_s16::<6>(vmaxq_s16(
+        let r_high = vqrshrun_n_s16::<6>(vmaxq_s16(
             vqaddq_s16(y_high, vmulq_s16(v_high, v_cr_coeff)),
             v_min_values,
         ));
-        let b_high = vqshrun_n_s16::<6>(vmaxq_s16(
+        let b_high = vqrshrun_n_s16::<6>(vmaxq_s16(
             vqaddq_s16(y_high, vmulq_s16(u_high, v_cb_coeff)),
             v_min_values,
         ));
-        let g_high = vqshrun_n_s16::<6>(vmaxq_s16(
+        let g_high = vqrshrun_n_s16::<6>(vmaxq_s16(
             vqaddq_s16(
                 y_high,
                 vqaddq_s16(
@@ -110,15 +110,15 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
         let y_low =
             vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_values), vget_low_u8(v_luma_coeff)));
 
-        let r_low = vqshrun_n_s16::<6>(vmaxq_s16(
+        let r_low = vqrshrun_n_s16::<6>(vmaxq_s16(
             vqaddq_s16(y_low, vmulq_s16(v_low, v_cr_coeff)),
             v_min_values,
         ));
-        let b_low = vqshrun_n_s16::<6>(vmaxq_s16(
+        let b_low = vqrshrun_n_s16::<6>(vmaxq_s16(
             vqaddq_s16(y_low, vmulq_s16(u_low, v_cb_coeff)),
             v_min_values,
         ));
-        let g_low = vqshrun_n_s16::<6>(vmaxq_s16(
+        let g_low = vqrshrun_n_s16::<6>(vmaxq_s16(
             vqaddq_s16(
                 y_low,
                 vqaddq_s16(vmulq_s16(v_low, v_g_coeff_1), vmulq_s16(u_low, v_g_coeff_2)),

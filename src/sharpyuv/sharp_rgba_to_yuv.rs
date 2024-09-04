@@ -83,10 +83,11 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         kr_kb.kr,
         kr_kb.kb,
     );
-    let transform = transform_precise.to_integers(8);
-    let precision_scale = (1 << 8) as f32;
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
-    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
+    const PRECISION: i32 = 16;
+    let transform = transform_precise.to_integers(PRECISION as u32);
+    const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
     let i_bias_y = range.bias_y as i32;
     let i_cap_y = range.range_y as i32 + i_bias_y;
@@ -127,7 +128,8 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let mut sharp_g_next = sharp_g_c;
                 let mut sharp_b_next = sharp_b_c;
 
-                let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
+                let y_0 =
+                    (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
 
                 *y_plane.get_unchecked_mut(y_offset + x) = y_0.clamp(i_bias_y, i_cap_y) as u8;
 
@@ -152,7 +154,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
                             let y_1 =
                                 (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
-                                    >> 8;
+                                    >> PRECISION;
                             *y_plane.get_unchecked_mut(y_offset + x + 1) =
                                 y_1.clamp(i_bias_y, i_cap_y) as u8;
                         }
@@ -189,20 +191,25 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     }
                 }
 
+                const ROUNDING_CONST: i32 = 1 << 3;
+
                 let interpolated_r = ((sharp_r_c as i32 * 9
                     + sharp_r_next as i32 * 3
                     + sharp_r_c_next_row as i32 * 3
-                    + sharp_r_next_row as i32)
+                    + sharp_r_next_row as i32
+                    + ROUNDING_CONST)
                     >> 4) as u16;
                 let interpolated_g = ((sharp_g_c as i32 * 9
                     + sharp_g_next as i32 * 3
                     + sharp_g_c_next_row as i32 * 3
-                    + sharp_g_next_row as i32)
+                    + sharp_g_next_row as i32
+                    + ROUNDING_CONST)
                     >> 4) as u16;
                 let interpolated_b = ((sharp_b_c as i32 * 9
                     + sharp_b_next as i32 * 3
                     + sharp_b_c_next_row as i32 * 3
-                    + sharp_b_next_row as i32)
+                    + sharp_b_next_row as i32
+                    + ROUNDING_CONST)
                     >> 4) as u16;
 
                 let corrected_r = *gamma_map_table.get_unchecked(interpolated_r as usize) as i32;
@@ -213,12 +220,12 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     + corrected_g * transform.cb_g
                     + corrected_b * transform.cb_b
                     + bias_uv)
-                    >> 8;
+                    >> PRECISION;
                 let cr = (corrected_r * transform.cr_r
                     + corrected_g * transform.cr_g
                     + corrected_b * transform.cr_b
                     + bias_uv)
-                    >> 8;
+                    >> PRECISION;
 
                 let u_pos = match chroma_subsampling {
                     YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + _ux,

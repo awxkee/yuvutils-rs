@@ -62,6 +62,7 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
     let zeros = _mm_setzero_si128();
     let v_g_coeff_1 = _mm_set1_epi16(-1i16 * (g_coef_1 as i16));
     let v_g_coeff_2 = _mm_set1_epi16(-1i16 * (g_coef_2 as i16));
+    let rounding_const = _mm_set1_epi32(1 << 5);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -155,20 +156,38 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
 
         let y_high = _mm_madd_epi16(_mm_unpackhi_epi16(y_values, zeros), v_luma_coeff);
 
-        let r_high = _mm_srai_epi32::<6>(_mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_cr_coeff)));
-        let b_high = _mm_srai_epi32::<6>(_mm_add_epi32(y_high, _mm_madd_epi16(u_high, v_cb_coeff)));
+        let r_high = _mm_srai_epi32::<6>(_mm_add_epi32(
+            _mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_cr_coeff)),
+            rounding_const,
+        ));
+        let b_high = _mm_srai_epi32::<6>(_mm_add_epi32(
+            _mm_add_epi32(y_high, _mm_madd_epi16(u_high, v_cb_coeff)),
+            rounding_const,
+        ));
         let g_high = _mm_srai_epi32::<6>(_mm_add_epi32(
-            _mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_g_coeff_1)),
-            _mm_madd_epi16(u_high, v_g_coeff_2),
+            _mm_add_epi32(
+                _mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_g_coeff_1)),
+                _mm_madd_epi16(u_high, v_g_coeff_2),
+            ),
+            rounding_const,
         ));
 
         let y_low = _mm_madd_epi16(_mm_unpacklo_epi16(y_values, zeros), v_luma_coeff);
 
-        let r_low = _mm_srai_epi32::<6>(_mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_cr_coeff)));
-        let b_low = _mm_srai_epi32::<6>(_mm_add_epi32(y_low, _mm_madd_epi16(u_low, v_cb_coeff)));
+        let r_low = _mm_srai_epi32::<6>(_mm_add_epi32(
+            _mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_cr_coeff)),
+            rounding_const,
+        ));
+        let b_low = _mm_srai_epi32::<6>(_mm_add_epi32(
+            _mm_add_epi32(y_low, _mm_madd_epi16(u_low, v_cb_coeff)),
+            rounding_const,
+        ));
         let g_low = _mm_srai_epi32::<6>(_mm_add_epi32(
-            _mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_g_coeff_1)),
-            _mm_madd_epi16(u_low, v_g_coeff_2),
+            _mm_add_epi32(
+                _mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_g_coeff_1)),
+                _mm_madd_epi16(u_low, v_g_coeff_2),
+            ),
+            rounding_const,
         ));
 
         let r_values = _mm_min_epi16(

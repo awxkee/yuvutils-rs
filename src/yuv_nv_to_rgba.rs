@@ -45,7 +45,9 @@ fn yuv_nv12_to_rgbx<
     let channels = dst_chans.get_channels_count();
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    let inverse_transform = transform.to_integers(6u32);
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -197,9 +199,14 @@ fn yuv_nv12_to_rgbx<
             cr_value = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_v_position()) } as i32
                 - bias_uv;
 
-            let r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
-            let b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
-            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 6)
+            let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
+                >> PRECISION)
                 .min(255)
                 .max(0);
 
@@ -226,9 +233,15 @@ fn yuv_nv12_to_rgbx<
                         - bias_y)
                         * y_coef;
 
-                    let r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
-                    let b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
-                    let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 6)
+                    let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value
+                        + ROUNDING_CONST)
+                        >> PRECISION)
                         .min(255)
                         .max(0);
 

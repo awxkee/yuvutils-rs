@@ -34,9 +34,9 @@ pub unsafe fn neon_rgbx_to_nv_row<
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
-    let precision_scale = (1i32 << 8i32) as f32;
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
-    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
+    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
+    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
 
     let y_ptr = y_plane.as_mut_ptr();
     let uv_ptr = uv_plane.as_mut_ptr();

@@ -53,9 +53,11 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         YuvChromaSample::YUV422 => 2usize,
         YuvChromaSample::YUV444 => 1usize,
     };
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
 
     let max_colors = (1 << 8) - 1i32;
-    let precision_scale = (1 << 6) as f32;
+    let precision_scale = (1 << PRECISION) as f32;
 
     let range_reduction_y =
         (max_colors as f32 / range.range_y as f32 * precision_scale).round() as i32;
@@ -194,9 +196,15 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let t = y_value - cg_value;
 
-            let mut r = ((t + co_value) >> 6).min(255).max(0);
-            let mut b = ((t - co_value) >> 6).min(255).max(0);
-            let mut g = ((y_value + cg_value) >> 6).min(255).max(0);
+            let mut r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let mut b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let mut g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
 
             let a_value = unsafe { *a_plane.get_unchecked(a_offset + x) };
             if premultiply_alpha {
@@ -238,9 +246,15 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * range_reduction_y;
 
-                    let mut r = ((t + co_value) >> 6).min(255).max(0);
-                    let mut b = ((t - co_value) >> 6).min(255).max(0);
-                    let mut g = ((y_value + cg_value) >> 6).min(255).max(0);
+                    let mut r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let mut b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let mut g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
 
                     let next_px = next_x * channels;
 

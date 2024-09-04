@@ -40,6 +40,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let channels = src_chans.get_channels_count();
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
+    const PRECISION: i32 = 8;
     let max_range_p8 = (1u32 << 8u32) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,
@@ -48,10 +49,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         kr_kb.kr,
         kr_kb.kb,
     );
-    let transform = transform_precise.to_integers(8);
-    let precision_scale = (1 << 8) as f32;
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
-    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
+    let transform = transform_precise.to_integers(PRECISION as u32);
+
+    const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
@@ -154,7 +156,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            let offset = neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
+            let offset = neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                 &transform,
                 &range,
                 y_plane.as_mut_ptr(),
@@ -180,9 +182,12 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let r = unsafe { *src.get_unchecked(src_chans.get_r_channel_offset()) } as i32;
             let g = unsafe { *src.get_unchecked(src_chans.get_g_channel_offset()) } as i32;
             let b = unsafe { *src.get_unchecked(src_chans.get_b_channel_offset()) } as i32;
-            let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
+            let y_0 =
+                (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
+            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                >> PRECISION;
+            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                >> PRECISION;
             unsafe {
                 *y_plane.get_unchecked_mut(y_offset + x) = y_0.clamp(i_bias_y, i_cap_y) as u8;
             }
@@ -212,8 +217,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                             unsafe { *src.get_unchecked(src_chans.get_g_channel_offset()) } as i32;
                         let b =
                             unsafe { *src.get_unchecked(src_chans.get_b_channel_offset()) } as i32;
-                        let y_1 =
-                            (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
+                        let y_1 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
+                            >> PRECISION;
                         unsafe {
                             *y_plane.get_unchecked_mut(y_offset + x + 1) =
                                 y_1.clamp(i_bias_y, i_cap_y) as u8;

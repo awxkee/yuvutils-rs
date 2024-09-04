@@ -9,8 +9,8 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndianness, YuvNVOrder,
-    YuvSourceChannels,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndianness,
+    YuvNVOrder, YuvSourceChannels,
 };
 
 #[inline(always)]
@@ -57,6 +57,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     let v_g_coeff_1 = vdup_n_s16(-1i16 * (g_coef_1 as i16));
     let v_g_coeff_2 = vdup_n_s16(-1i16 * (g_coef_2 as i16));
     let v_alpha = vdup_n_u8(255u8);
+    let rounding_const = vdupq_n_s32(1 << 5);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -135,22 +136,32 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         let y_high = vmull_high_s16(y_values, v_luma_coeff);
 
-        let r_high = vshrn_n_s32::<6>(vmlal_s16(y_high, v_high, v_cr_coeff));
-        let b_high = vshrn_n_s32::<6>(vmlal_s16(y_high, u_high, v_cb_coeff));
-        let g_high = vshrn_n_s32::<6>(vmlal_s16(
-            vmlal_s16(y_high, v_high, v_g_coeff_1),
-            u_high,
-            v_g_coeff_2,
+        let r_high = vshrn_n_s32::<6>(vaddq_s32(
+            vmlal_s16(y_high, v_high, v_cr_coeff),
+            rounding_const,
+        ));
+        let b_high = vshrn_n_s32::<6>(vaddq_s32(
+            vmlal_s16(y_high, u_high, v_cb_coeff),
+            rounding_const,
+        ));
+        let g_high = vshrn_n_s32::<6>(vaddq_s32(
+            vmlal_s16(vmlal_s16(y_high, v_high, v_g_coeff_1), u_high, v_g_coeff_2),
+            rounding_const,
         ));
 
         let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
 
-        let r_low = vshrn_n_s32::<6>(vmlal_s16(y_low, v_low, v_cr_coeff));
-        let b_low = vshrn_n_s32::<6>(vmlal_s16(y_low, u_low, v_cb_coeff));
-        let g_low = vshrn_n_s32::<6>(vmlal_s16(
-            vmlal_s16(y_low, v_low, v_g_coeff_1),
-            u_low,
-            v_g_coeff_2,
+        let r_low = vshrn_n_s32::<6>(vaddq_s32(
+            vmlal_s16(y_low, v_low, v_cr_coeff),
+            rounding_const,
+        ));
+        let b_low = vshrn_n_s32::<6>(vaddq_s32(
+            vmlal_s16(y_low, u_low, v_cb_coeff),
+            rounding_const,
+        ));
+        let g_low = vshrn_n_s32::<6>(vaddq_s32(
+            vmlal_s16(vmlal_s16(y_low, v_low, v_g_coeff_1), u_low, v_g_coeff_2),
+            rounding_const,
         ));
 
         let r_values = vqshrun_n_s16::<2>(vmaxq_s16(vcombine_s16(r_low, r_high), v_min_values));

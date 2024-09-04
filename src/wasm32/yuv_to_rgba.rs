@@ -52,6 +52,7 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     let v_g_coeff_1 = i16x8_splat(-1i16 * transform.g_coeff_1 as i16);
     let v_g_coeff_2 = i16x8_splat(-1i16 * transform.g_coeff_2 as i16);
     let v_alpha = u8x16_splat(255u8);
+    let rounding_const = i16x8_splat(1 << 5);
 
     while cx + 16 < width {
         let y_values = u8x16_sub(v128_load(y_ptr.add(y_offset + cx) as *const v128), y_corr);
@@ -95,29 +96,38 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let y_high = u16x8_extmul_high_u8x16(y_values, v_luma_coeff);
 
         let r_high = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_high, i16x8_mul(v_high, v_cr_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_high, i16x8_mul(v_high, v_cr_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let b_high = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_high, i16x8_mul(u_high, v_cb_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_high, i16x8_mul(u_high, v_cb_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let g_high = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(
-                    y_high,
+            i16x8_add_sat(
+                i16x8_max(
                     i16x8_add_sat(
-                        i16x8_mul(v_high, v_g_coeff_1),
-                        i16x8_mul(u_high, v_g_coeff_2),
+                        y_high,
+                        i16x8_add_sat(
+                            i16x8_mul(v_high, v_g_coeff_1),
+                            i16x8_mul(u_high, v_g_coeff_2),
+                        ),
                     ),
+                    v_min_values,
                 ),
-                v_min_values,
+                rounding_const,
             ),
             6,
         );
@@ -127,26 +137,35 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let y_low = u16x8_extmul_low_u8x16(y_values, v_luma_coeff);
 
         let r_low = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_low, i16x8_mul(v_low, v_cr_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_low, i16x8_mul(v_low, v_cr_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let b_low = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(y_low, i16x8_mul(u_low, v_cb_coeff)),
-                v_min_values,
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(y_low, i16x8_mul(u_low, v_cb_coeff)),
+                    v_min_values,
+                ),
+                rounding_const,
             ),
             6,
         );
         let g_low = i16x8_shr(
-            i16x8_max(
-                i16x8_add_sat(
-                    y_low,
-                    i16x8_add_sat(i16x8_mul(v_low, v_g_coeff_1), i16x8_mul(u_low, v_g_coeff_2)),
+            i16x8_add_sat(
+                i16x8_max(
+                    i16x8_add_sat(
+                        y_low,
+                        i16x8_add_sat(i16x8_mul(v_low, v_g_coeff_1), i16x8_mul(u_low, v_g_coeff_2)),
+                    ),
+                    v_min_values,
                 ),
-                v_min_values,
+                rounding_const,
             ),
             6,
         );

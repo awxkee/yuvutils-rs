@@ -43,8 +43,9 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
     let precision_scale = (1 << 8) as f32;
     let max_colors = (1 << 8) - 1i32;
 
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
-    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
+    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
+    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
 
     let range_reduction_y =
         (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;

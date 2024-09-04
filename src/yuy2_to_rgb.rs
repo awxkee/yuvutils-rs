@@ -34,7 +34,9 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    let inverse_transform = transform.to_integers(6);
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -126,9 +128,10 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
             unsafe {
                 let dst0 = rgb_store.get_unchecked_mut(rgb_pos..);
-                let r0 = ((f_y + cr_coef * cr) >> 6).clamp(0, 255);
-                let b0 = ((f_y + cb_coef * cb) >> 6).clamp(0, 255);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb) >> 6).clamp(0, 255);
+                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
+                    .clamp(0, 255);
                 *dst0.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r0 as u8;
                 *dst0.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g0 as u8;
                 *dst0.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b0 as u8;
@@ -139,9 +142,10 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
                 let dst1 = dst0.get_unchecked_mut(channels..);
 
-                let r1 = ((s_y + cr_coef * cr) >> 6).clamp(0, 255);
-                let b1 = ((s_y + cb_coef * cb) >> 6).clamp(0, 255);
-                let g1 = ((s_y - g_coef_1 * cr - g_coef_2 * cb) >> 6).clamp(0, 255);
+                let r1 = ((s_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+                let b1 = ((s_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+                let g1 = ((s_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
+                    .clamp(0, 255);
                 *dst1.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r1 as u8;
                 *dst1.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g1 as u8;
                 *dst1.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b1 as u8;
@@ -172,9 +176,10 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
             unsafe {
                 let dst0 = rgb_store.get_unchecked_mut(rgb_pos..);
-                let r0 = ((f_y + cr_coef * cr) >> 6).clamp(0, 255);
-                let b0 = ((f_y + cb_coef * cb) >> 6).clamp(0, 255);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb) >> 6).clamp(0, 255);
+                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
+                    .clamp(0, 255);
                 *dst0.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r0 as u8;
                 *dst0.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g0 as u8;
                 *dst0.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b0 as u8;

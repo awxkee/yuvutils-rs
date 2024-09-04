@@ -5,7 +5,7 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 
-use yuvutils_rs::{rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv_nv12_p16, yuv420_to_rgb, yuv420_to_yuyv422, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb_p16, yuyv422_to_rgb, yuyv422_to_yuv420, SharpYuvGammaTransfer, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{rgb_to_sharp_yuv420, rgb_to_yuv420, yuv420_to_rgb, SharpYuvGammaTransfer, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -112,7 +112,7 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("yuv_nv12_to_rgb time: {:?}", end_time);
     let start_time = Instant::now();
-    rgb_to_sharp_yuv420(
+    rgb_to_yuv420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,
@@ -125,7 +125,6 @@ fn main() {
         height,
         YuvRange::TV,
         YuvStandardMatrix::Bt709,
-        SharpYuvGammaTransfer::Srgb,
     );
 
     // let mut y_plane_16 = vec![0u16; width as usize * height as usize];
@@ -288,7 +287,7 @@ fn main() {
     // rgba = Vec::from(gbr);
 
     image::save_buffer(
-        "converted.jpg",
+        "converted.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

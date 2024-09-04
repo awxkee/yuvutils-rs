@@ -44,8 +44,11 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
         YuvChromaSample::YUV444 => 1usize,
     };
 
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+
     let max_colors = (1i32 << 8i32) - 1i32;
-    let precision_scale = (1 << 6) as f32;
+    let precision_scale = (1 << PRECISION) as f32;
     let range_reduction_y =
         (max_colors as f32 / range.range_y as f32 * precision_scale).round() as i32;
     let range_reduction_uv =
@@ -113,10 +116,10 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
                 * range_reduction_uv;
 
             let t = y_value - (cg_value >> 1);
-            let g = (((t + cg_value).max(0)) >> 6).min(255);
+            let g = (((t + cg_value + ROUNDING_CONST).max(0)) >> PRECISION).min(255);
             let b = t - (co_value >> 1);
-            let r = ((b + co_value).max(0) >> 6).min(255);
-            let b = (b.max(0) >> 6).min(255);
+            let r = ((b + co_value + ROUNDING_CONST).max(0) >> PRECISION).min(255);
+            let b = ((b + ROUNDING_CONST).max(0) >> PRECISION).min(255);
 
             let px = x * channels;
 
@@ -150,10 +153,10 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
                     let y_value = unsafe { y_ptr.add(next_x).read_unaligned() } as i32 - bias_y;
 
                     let t = y_value - (cg_value >> 1);
-                    let g = (((t + cg_value).max(0)) >> 6).min(255);
+                    let g = (((t + cg_value + ROUNDING_CONST).max(0)) >> PRECISION).min(255);
                     let b = t - (co_value >> 1);
-                    let r = ((b + co_value).max(0) >> 6).min(255);
-                    let b = (b.max(0) >> 6).min(255);
+                    let r = ((b + co_value + ROUNDING_CONST).max(0) >> PRECISION).min(255);
+                    let b = ((b + ROUNDING_CONST).max(0) >> PRECISION).min(255);
 
                     let next_px = next_x * channels;
 
@@ -763,7 +766,6 @@ pub fn ycgcoro444_to_rgb(
         height, range,
     )
 }
-
 
 /// Convert YCgCo-Ro 444 planar format to BGR format.
 ///

@@ -32,7 +32,8 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * (1i32 << 8i32) as f32) as i32;
+    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
+    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
 
     let zeros_si = _mm_setzero_si128();
 

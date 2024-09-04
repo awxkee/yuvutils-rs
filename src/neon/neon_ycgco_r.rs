@@ -70,10 +70,10 @@ pub unsafe fn neon_ycgco_r_to_rgb(
     let co_l = vmulq_s16(co, uv_reduction);
 
     let t_l = vqsubq_s16(y_l, vshrq_n_s16::<1>(cg_l));
-    let g = vqshrun_n_s16::<6>(vqaddq_s16(t_l, cg_l));
+    let g = vqrshrun_n_s16::<6>(vqaddq_s16(t_l, cg_l));
     let b = vqsubq_s16(t_l, vshrq_n_s16::<1>(co_l));
-    let r = vqshrun_n_s16::<6>(vqaddq_s16(b, co_l));
-    let b = vqshrun_n_s16::<6>(b);
+    let r = vqrshrun_n_s16::<6>(vqaddq_s16(b, co_l));
+    let b = vqrshrun_n_s16::<6>(b);
 
     (r, g, b)
 }

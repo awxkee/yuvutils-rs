@@ -41,7 +41,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    let inverse_transform = transform.to_integers(6);
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -204,9 +206,11 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let cr_value = unsafe { *v_plane.get_unchecked(v_pos) } as i32 - bias_uv;
 
-            let r = ((y_value + cr_coef * cr_value) >> 6).clamp(0, 255);
-            let b = ((y_value + cb_coef * cb_value) >> 6).clamp(0, 255);
-            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 6).clamp(0, 255);
+            let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+            let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
+            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
+                >> PRECISION)
+                .clamp(0, 255);
 
             let px = x * channels;
 
@@ -231,11 +235,14 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * y_coef;
 
-                    let r = ((y_value + cr_coef * cr_value) >> 6).min(255).max(0);
-                    let b = ((y_value + cb_coef * cb_value) >> 6).min(255).max(0);
-                    let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 6)
-                        .min(255)
-                        .max(0);
+                    let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
+                        .clamp(0, 255);
+                    let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
+                        .clamp(0, 255);
+                    let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value
+                        + ROUNDING_CONST)
+                        >> PRECISION)
+                        .clamp(0, 255);
 
                     let next_px = next_x * channels;
 

@@ -41,6 +41,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+
     let mut y_offset = 0usize;
     let mut u_offset = 0usize;
     let mut v_offset = 0usize;
@@ -53,7 +56,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
 
     let max_colors = (1 << 8) - 1i32;
-    let precision_scale = (1 << 6) as f32;
+    let precision_scale = (1 << PRECISION) as f32;
 
     let range_reduction_y =
         (max_colors as f32 / range.range_y as f32 * precision_scale).round() as i32;
@@ -180,9 +183,15 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let t = y_value - cg_value;
 
-            let r = ((t + co_value) >> 6).min(255).max(0);
-            let b = ((t - co_value) >> 6).min(255).max(0);
-            let g = ((y_value + cg_value) >> 6).min(255).max(0);
+            let r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
 
             let px = x * channels;
 
@@ -217,9 +226,15 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * range_reduction_y;
 
-                    let r = ((t + co_value) >> 6).min(255).max(0);
-                    let b = ((t - co_value) >> 6).min(255).max(0);
-                    let g = ((y_value + cg_value) >> 6).min(255).max(0);
+                    let r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
 
                     let next_px = next_x * channels;
 

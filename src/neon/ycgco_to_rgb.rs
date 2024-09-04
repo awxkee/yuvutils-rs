@@ -94,9 +94,9 @@ pub unsafe fn neon_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         let t_high = vqsubq_s16(y_high, cg_high);
 
-        let r_high = vqshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(t_high, co_high), v_min_zeros));
-        let b_high = vqshrun_n_s16::<6>(vmaxq_s16(vqsubq_s16(t_high, co_high), v_min_zeros));
-        let g_high = vqshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(y_high, cg_high), v_min_zeros));
+        let r_high = vqrshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(t_high, co_high), v_min_zeros));
+        let b_high = vqrshrun_n_s16::<6>(vmaxq_s16(vqsubq_s16(t_high, co_high), v_min_zeros));
+        let g_high = vqrshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(y_high, cg_high), v_min_zeros));
 
         let cg_low = vmulq_s16(
             vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr),
@@ -111,9 +111,9 @@ pub unsafe fn neon_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         let t_low = vqsubq_s16(y_low, cg_low);
 
-        let r_low = vqshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(t_low, co_low), v_min_zeros));
-        let b_low = vqshrun_n_s16::<6>(vmaxq_s16(vqsubq_s16(t_low, co_low), v_min_zeros));
-        let g_low = vqshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(y_low, cg_low), v_min_zeros));
+        let r_low = vqrshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(t_low, co_low), v_min_zeros));
+        let b_low = vqrshrun_n_s16::<6>(vmaxq_s16(vqsubq_s16(t_low, co_low), v_min_zeros));
+        let g_low = vqrshrun_n_s16::<6>(vmaxq_s16(vqaddq_s16(y_low, cg_low), v_min_zeros));
 
         let r_values = vcombine_u8(r_low, r_high);
         let g_values = vcombine_u8(g_low, g_high);

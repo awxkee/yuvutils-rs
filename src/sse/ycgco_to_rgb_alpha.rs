@@ -59,7 +59,7 @@ pub unsafe fn sse_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const S
     let y_reduction = _mm_set1_epi16(range_reduction_y as i16);
     let uv_reduction = _mm_set1_epi16(range_reduction_uv as i16);
     let v_alpha = _mm_set1_epi16(-128);
-    let v_min_zeros = _mm_setzero_si128();
+    let rounding_const = _mm_set1_epi16(1 << 5);
 
     let zeros = _mm_setzero_si128();
 
@@ -95,18 +95,24 @@ pub unsafe fn sse_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const S
         let cg_high = _mm_mullo_epi16(_mm_subs_epi16(u_high_u16, uv_corr), uv_reduction);
         let co_high = _mm_mullo_epi16(_mm_subs_epi16(v_high_u16, uv_corr), uv_reduction);
         let y_high = _mm_mullo_epi16(
-            _mm_sub_epi16(_mm_unpackhi_epi8(y_values, v_min_zeros), y_corr),
+            _mm_sub_epi16(_mm_unpackhi_epi8(y_values, zeros), y_corr),
             y_reduction,
         );
 
         let t_high = _mm_subs_epi16(y_high, cg_high);
 
-        let r_high =
-            _mm_srai_epi16::<6>(_mm_max_epi16(_mm_adds_epi16(t_high, co_high), v_min_zeros));
-        let b_high =
-            _mm_srai_epi16::<6>(_mm_max_epi16(_mm_subs_epi16(t_high, co_high), v_min_zeros));
-        let g_high =
-            _mm_srai_epi16::<6>(_mm_max_epi16(_mm_adds_epi16(y_high, cg_high), v_min_zeros));
+        let r_high = _mm_srai_epi16::<6>(_mm_adds_epi16(
+            _mm_max_epi16(_mm_adds_epi16(t_high, co_high), zeros),
+            rounding_const,
+        ));
+        let b_high = _mm_srai_epi16::<6>(_mm_adds_epi16(
+            _mm_max_epi16(_mm_subs_epi16(t_high, co_high), zeros),
+            rounding_const,
+        ));
+        let g_high = _mm_srai_epi16::<6>(_mm_adds_epi16(
+            _mm_max_epi16(_mm_adds_epi16(y_high, cg_high), zeros),
+            rounding_const,
+        ));
 
         let cg_low = _mm_mullo_epi16(_mm_subs_epi16(u_low_u16, uv_corr), uv_reduction);
         let co_low = _mm_mullo_epi16(_mm_subs_epi16(v_low_u16, uv_corr), uv_reduction);
@@ -117,14 +123,23 @@ pub unsafe fn sse_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const S
 
         let t_low = _mm_subs_epi16(y_low, cg_low);
 
-        let r_low = _mm_srai_epi16::<6>(_mm_max_epi16(_mm_adds_epi16(t_low, co_low), v_min_zeros));
-        let b_low = _mm_srai_epi16::<6>(_mm_max_epi16(_mm_subs_epi16(t_low, co_low), v_min_zeros));
-        let g_low = _mm_srai_epi16::<6>(_mm_max_epi16(_mm_adds_epi16(y_low, cg_low), v_min_zeros));
+        let r_low = _mm_srai_epi16::<6>(_mm_adds_epi16(
+            _mm_max_epi16(_mm_adds_epi16(t_low, co_low), zeros),
+            rounding_const,
+        ));
+        let b_low = _mm_srai_epi16::<6>(_mm_adds_epi16(
+            _mm_max_epi16(_mm_subs_epi16(t_low, co_low), zeros),
+            rounding_const,
+        ));
+        let g_low = _mm_srai_epi16::<6>(_mm_adds_epi16(
+            _mm_max_epi16(_mm_adds_epi16(y_low, cg_low), zeros),
+            rounding_const,
+        ));
 
         let (r_values, g_values, b_values);
 
         if premultiply_alpha {
-            let a_h = _mm_unpackhi_epi8(a_values, v_min_zeros);
+            let a_h = _mm_unpackhi_epi8(a_values, zeros);
             let a_l = _mm_cvtepu8_epi16(a_values);
             let r_h_16 = sse_div_by255(_mm_mullo_epi16(r_high, a_h));
             let r_l_16 = sse_div_by255(_mm_mullo_epi16(r_low, a_l));

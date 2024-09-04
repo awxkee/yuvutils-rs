@@ -21,7 +21,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
     matrix: YuvStandardMatrix,
 ) {
     let yuy2_source: Yuy2Description = YUY2_SOURCE.into();
-    const PRECISION: i32 = 8;
+    const PRECISION: i32 = 6;
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
     let range = get_yuv_range(bit_depth, range);
@@ -34,6 +34,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
         kr_kb.kr,
         kr_kb.kb,
     );
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
@@ -76,9 +77,10 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
                 let f_y = (first_y as i32 - bias_y) * y_coef;
                 let s_y = (second_y as i32 - bias_y) * y_coef;
 
-                let r0 = ((f_y + cr_coef * cr) >> PRECISION).clamp(0, max_colors);
-                let b0 = ((f_y + cb_coef * cb) >> PRECISION).clamp(0, max_colors);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb) >> PRECISION).clamp(0, max_colors);
+                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
+                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
+                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
+                    .clamp(0, max_colors);
                 dst_ptr
                     .add(dst_chans.get_r_channel_offset())
                     .write_unaligned(r0 as u16);
@@ -97,9 +99,10 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
 
                 let dst1 = dst_ptr.add(channels);
 
-                let r1 = ((s_y + cr_coef * cr) >> PRECISION).clamp(0, max_colors);
-                let b1 = ((s_y + cb_coef * cb) >> PRECISION).clamp(0, max_colors);
-                let g1 = ((s_y - g_coef_1 * cr - g_coef_2 * cb) >> PRECISION).clamp(0, max_colors);
+                let r1 = ((s_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
+                let b1 = ((s_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
+                let g1 = ((s_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
+                    .clamp(0, max_colors);
                 dst1.add(dst_chans.get_r_channel_offset())
                     .write_unaligned(r1 as u16);
                 dst1.add(dst_chans.get_g_channel_offset())
@@ -136,9 +139,10 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
                 let cr = v_value as i32 - bias_uv;
                 let f_y = (first_y as i32 - bias_y) * y_coef;
 
-                let r0 = ((f_y + cr_coef * cr) >> PRECISION).clamp(0, max_colors);
-                let b0 = ((f_y + cb_coef * cb) >> PRECISION).clamp(0, max_colors);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb) >> PRECISION).clamp(0, max_colors);
+                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
+                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
+                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
+                    .clamp(0, max_colors);
                 dst_ptr
                     .add(dst_chans.get_r_channel_offset())
                     .write_unaligned(r0 as u16);

@@ -43,6 +43,7 @@ fn yuv_nv_p10_to_image_impl<
         kr_kb.kr,
         kr_kb.kb,
     );
+    const ROUNDING_CONST: i32 = 1 << 5;
     let i_transform = transform.to_integers(6u32);
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
@@ -104,10 +105,16 @@ fn yuv_nv_p10_to_image_impl<
             match endianness {
                 YuvEndianness::BigEndian => {
                     let mut y_vl = u16::from_be(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl =
-                        u16::from_be(unsafe { uv_ld_ptr.add(_ux + uv_order.get_u_position()).read_unaligned() }) as i32;
-                    let mut cr_vl =
-                        u16::from_be(unsafe { uv_ld_ptr.add(_ux + uv_order.get_v_position()).read_unaligned() }) as i32;
+                    let mut cb_vl = u16::from_be(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_u_position())
+                            .read_unaligned()
+                    }) as i32;
+                    let mut cr_vl = u16::from_be(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_v_position())
+                            .read_unaligned()
+                    }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -120,10 +127,16 @@ fn yuv_nv_p10_to_image_impl<
                 }
                 YuvEndianness::LittleEndian => {
                     let mut y_vl = u16::from_le(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl =
-                        u16::from_le(unsafe { uv_ld_ptr.add(_ux + uv_order.get_u_position()).read_unaligned() }) as i32;
-                    let mut cr_vl =
-                        u16::from_le(unsafe { uv_ld_ptr.add(_ux + uv_order.get_v_position()).read_unaligned() }) as i32;
+                    let mut cb_vl = u16::from_le(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_u_position())
+                            .read_unaligned()
+                    }) as i32;
+                    let mut cr_vl = u16::from_le(unsafe {
+                        uv_ld_ptr
+                            .add(_ux + uv_order.get_v_position())
+                            .read_unaligned()
+                    }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl = y_vl >> 6;
                         cb_vl = cb_vl >> 6;
@@ -149,9 +162,9 @@ fn yuv_nv_p10_to_image_impl<
 
             // shift right 8 due to we want to make it 8 bit instead of 10
 
-            let r_u16 = (y_value + cr_coef * cr_value) >> 8;
-            let b_u16 = (y_value + cb_coef * cb_value) >> 8;
-            let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 8;
+            let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> 8;
+            let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> 8;
+            let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST) >> 8;
 
             let r = r_u16.min(255).max(0);
             let b = b_u16.min(255).max(0);
@@ -198,9 +211,10 @@ fn yuv_nv_p10_to_image_impl<
                         }
                     }
 
-                    let r_u16 = (y_value + cr_coef * cr_value) >> 8;
-                    let b_u16 = (y_value + cb_coef * cb_value) >> 8;
-                    let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value) >> 8;
+                    let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> 8;
+                    let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> 8;
+                    let g_u16 =
+                        (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST) >> 8;
 
                     let r = r_u16.min(255).max(0);
                     let b = b_u16.min(255).max(0);

@@ -77,10 +77,10 @@ pub unsafe fn sse_ycgco_r_to_rgb_epi16(
     let b = _mm_subs_epi16(t_l, _mm_srai_epi16::<1>(co));
     let r = _mm_adds_epi16(b, co);
     let zeros = _mm_setzero_si128();
-
+    let rounding_const = _mm_set1_epi16(1 << 5);
     (
-        _mm_srai_epi16::<6>(_mm_max_epi16(r, zeros)),
-        _mm_srai_epi16::<6>(_mm_max_epi16(g, zeros)),
-        _mm_srai_epi16::<6>(_mm_max_epi16(b, zeros)),
+        _mm_srai_epi16::<6>(_mm_adds_epi16(_mm_max_epi16(r, zeros), rounding_const)),
+        _mm_srai_epi16::<6>(_mm_adds_epi16(_mm_max_epi16(g, zeros), rounding_const)),
+        _mm_srai_epi16::<6>(_mm_adds_epi16(_mm_max_epi16(b, zeros), rounding_const)),
     )
 }

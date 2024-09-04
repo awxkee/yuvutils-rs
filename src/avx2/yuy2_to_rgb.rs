@@ -45,6 +45,7 @@ pub fn yuy2_to_rgb_avx<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
         let v_g_coeff_2 = _mm256_set1_epi16(-1i16 * transform.g_coeff_2 as i16);
         let v_alpha = _mm256_set1_epi8(255u8 as i8);
         let zeros = _mm256_setzero_si256();
+        let rounding_const = _mm256_set1_epi16(1 << 5);
 
         for x in (_yuy2_x..max_x_32).step_by(32) {
             let yuy2_offset = yuy2_offset + x * 4;
@@ -105,23 +106,32 @@ pub fn yuy2_to_rgb_avx<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
                 v_luma_coeff,
             );
 
-            let r_l_h = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_l_h, _mm256_mullo_epi16(v_l_h, v_cr_coeff)),
-                zeros,
-            ));
-            let b_l_h = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_l_h, _mm256_mullo_epi16(u_l_h, v_cb_coeff)),
-                zeros,
-            ));
-            let g_l_h = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(
-                    y_l_h,
-                    _mm256_adds_epi16(
-                        _mm256_mullo_epi16(v_l_h, v_g_coeff_1),
-                        _mm256_mullo_epi16(u_l_h, v_g_coeff_2),
-                    ),
+            let r_l_h = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_l_h, _mm256_mullo_epi16(v_l_h, v_cr_coeff)),
+                    zeros,
                 ),
-                zeros,
+                rounding_const,
+            ));
+            let b_l_h = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_l_h, _mm256_mullo_epi16(u_l_h, v_cb_coeff)),
+                    zeros,
+                ),
+                rounding_const,
+            ));
+            let g_l_h = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(
+                        y_l_h,
+                        _mm256_adds_epi16(
+                            _mm256_mullo_epi16(v_l_h, v_g_coeff_1),
+                            _mm256_mullo_epi16(u_l_h, v_g_coeff_2),
+                        ),
+                    ),
+                    zeros,
+                ),
+                rounding_const,
             ));
 
             let u_low = _mm256_sub_epi16(
@@ -137,23 +147,32 @@ pub fn yuy2_to_rgb_avx<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
                 v_luma_coeff,
             );
 
-            let r_l_l = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_low, _mm256_mullo_epi16(v_low, v_cr_coeff)),
-                zeros,
-            ));
-            let b_l_l = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_low, _mm256_mullo_epi16(u_low, v_cb_coeff)),
-                zeros,
-            ));
-            let g_l_l = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(
-                    y_low,
-                    _mm256_adds_epi16(
-                        _mm256_mullo_epi16(v_low, v_g_coeff_1),
-                        _mm256_mullo_epi16(u_low, v_g_coeff_2),
-                    ),
+            let r_l_l = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_low, _mm256_mullo_epi16(v_low, v_cr_coeff)),
+                    zeros,
                 ),
-                zeros,
+                rounding_const,
+            ));
+            let b_l_l = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_low, _mm256_mullo_epi16(u_low, v_cb_coeff)),
+                    zeros,
+                ),
+                rounding_const,
+            ));
+            let g_l_l = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(
+                        y_low,
+                        _mm256_adds_epi16(
+                            _mm256_mullo_epi16(v_low, v_g_coeff_1),
+                            _mm256_mullo_epi16(u_low, v_g_coeff_2),
+                        ),
+                    ),
+                    zeros,
+                ),
+                rounding_const,
             ));
 
             let r_l = avx2_pack_u16(r_l_l, r_l_h);
@@ -194,23 +213,32 @@ pub fn yuy2_to_rgb_avx<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
                 v_luma_coeff,
             );
 
-            let r_h_h = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_h_h, _mm256_mullo_epi16(v_h_h, v_cr_coeff)),
-                zeros,
-            ));
-            let b_h_h = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_h_h, _mm256_mullo_epi16(u_h_h, v_cb_coeff)),
-                zeros,
-            ));
-            let g_h_h = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(
-                    y_h_h,
-                    _mm256_adds_epi16(
-                        _mm256_mullo_epi16(v_h_h, v_g_coeff_1),
-                        _mm256_mullo_epi16(u_h_h, v_g_coeff_2),
-                    ),
+            let r_h_h = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_h_h, _mm256_mullo_epi16(v_h_h, v_cr_coeff)),
+                    zeros,
                 ),
-                zeros,
+                rounding_const,
+            ));
+            let b_h_h = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_h_h, _mm256_mullo_epi16(u_h_h, v_cb_coeff)),
+                    zeros,
+                ),
+                rounding_const,
+            ));
+            let g_h_h = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(
+                        y_h_h,
+                        _mm256_adds_epi16(
+                            _mm256_mullo_epi16(v_h_h, v_g_coeff_1),
+                            _mm256_mullo_epi16(u_h_h, v_g_coeff_2),
+                        ),
+                    ),
+                    zeros,
+                ),
+                rounding_const,
             ));
 
             let u_h_l = _mm256_sub_epi16(
@@ -226,23 +254,32 @@ pub fn yuy2_to_rgb_avx<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
                 v_luma_coeff,
             );
 
-            let r_h_l = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_h_l, _mm256_mullo_epi16(v_h_l, v_cr_coeff)),
-                zeros,
-            ));
-            let b_h_l = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(y_h_l, _mm256_mullo_epi16(u_h_l, v_cb_coeff)),
-                zeros,
-            ));
-            let g_h_l = _mm256_srai_epi16::<6>(_mm256_max_epi16(
-                _mm256_adds_epi16(
-                    y_h_l,
-                    _mm256_adds_epi16(
-                        _mm256_mullo_epi16(v_h_l, v_g_coeff_1),
-                        _mm256_mullo_epi16(u_h_l, v_g_coeff_2),
-                    ),
+            let r_h_l = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_h_l, _mm256_mullo_epi16(v_h_l, v_cr_coeff)),
+                    zeros,
                 ),
-                zeros,
+                rounding_const,
+            ));
+            let b_h_l = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(y_h_l, _mm256_mullo_epi16(u_h_l, v_cb_coeff)),
+                    zeros,
+                ),
+                rounding_const,
+            ));
+            let g_h_l = _mm256_srai_epi16::<6>(_mm256_adds_epi16(
+                _mm256_max_epi16(
+                    _mm256_adds_epi16(
+                        y_h_l,
+                        _mm256_adds_epi16(
+                            _mm256_mullo_epi16(v_h_l, v_g_coeff_1),
+                            _mm256_mullo_epi16(u_h_l, v_g_coeff_2),
+                        ),
+                    ),
+                    zeros,
+                ),
+                rounding_const,
             ));
 
             let r_h = avx2_pack_u16(r_h_l, r_h_h);
