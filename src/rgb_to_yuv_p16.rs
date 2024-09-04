@@ -66,9 +66,10 @@ fn rgbx_to_yuv_impl<
         kr_kb.kb,
     );
     let transform = transform_precise.to_integers(8);
-    let precision_scale = (1 << 8) as f32;
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
-    let bias_uv = ((range.bias_uv as f32 + 0.5f32) * precision_scale) as i32;
+    const PRECISION: i32 = 8;
+    const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
@@ -152,9 +153,9 @@ fn rgbx_to_yuv_impl<
             let r = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() } as i32;
             let g = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() } as i32;
             let b = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() } as i32;
-            let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
+            let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
+            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> PRECISION;
+            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> PRECISION;
             unsafe {
                 y_st_ptr.add(x).write_unaligned(transform_integer::<
                     ENDIANNESS,
@@ -199,7 +200,7 @@ fn rgbx_to_yuv_impl<
                             unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() }
                                 as i32;
                         let y_1 =
-                            (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
+                            (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
                         unsafe {
                             y_st_ptr.add(x + 1).write_unaligned(transform_integer::<
                                 ENDIANNESS,

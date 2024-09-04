@@ -58,7 +58,7 @@ pub unsafe fn avx512_yuv_nv_to_rgba<
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
     while cx + 32 < width {
-        let y_values = _mm512_subs_epi8(
+        let y_values = _mm512_subs_epu8(
             _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
             y_corr,
         );

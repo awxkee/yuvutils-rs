@@ -55,7 +55,7 @@ pub unsafe fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
     let v_g_coeff_2 = _mm512_set1_epi16(-1 * transform.g_coeff_2 as i16);
 
     while cx + 64 < width {
-        let y_values = _mm512_subs_epi8(
+        let y_values = _mm512_subs_epu8(
             _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
             y_corr,
         );

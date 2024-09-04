@@ -62,7 +62,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
     let distribute_shuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
 
     while cx + 16 < width {
-        let y_values = _mm_subs_epi8(
+        let y_values = _mm_subs_epu8(
             _mm_loadu_si128(y_ptr.add(y_offset + cx) as *const __m128i),
             y_corr,
         );

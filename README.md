@@ -12,6 +12,7 @@ Supports:
 - [x] YCgCo-R
 - [x] YUY2
 - [x] Identity ( GBR )
+- [x] Sharp YUV
 
 # SIMD
 
@@ -65,11 +66,11 @@ yuv422_to_rgb(&y_plane, y_stride,
 
 ```rust
 rgb_to_ycgco420(&mut y_plane, y_stride,
-              &mut cg_plane, cg_width,
-              &mut cg_plane, cg_width,
-              &rgb, rgb_stride,
-              width, height, 
-              YuvRange::TV);
+                &mut cg_plane, cg_width,
+                &mut cg_plane, cg_width,
+                &rgb, rgb_stride,
+                width, height, 
+                YuvRange::TV);
 ```
 
 ### YCgCo to RGB

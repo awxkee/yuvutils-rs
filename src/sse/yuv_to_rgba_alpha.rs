@@ -60,7 +60,7 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
     let zeros = _mm_setzero_si128();
 
     while cx + 16 < width {
-        let y_values = _mm_subs_epi8(
+        let y_values = _mm_subs_epu8(
             _mm_loadu_si128(y_ptr.add(y_offset + cx) as *const __m128i),
             y_corr,
         );

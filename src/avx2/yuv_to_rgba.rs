@@ -54,7 +54,7 @@ pub unsafe fn avx2_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     let rounding_const = _mm256_set1_epi16(1 << 5);
 
     while cx + 32 < width {
-        let y_values = _mm256_subs_epi8(
+        let y_values = _mm256_subs_epu8(
             _mm256_loadu_si256(y_ptr.add(y_offset + cx) as *const __m256i),
             y_corr,
         );

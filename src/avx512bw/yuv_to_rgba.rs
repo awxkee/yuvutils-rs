@@ -53,7 +53,7 @@ pub unsafe fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING:
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
     while cx + 64 < width {
-        let y_values = _mm512_subs_epi8(
+        let y_values = _mm512_subs_epu8(
             _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
             y_corr,
         );
