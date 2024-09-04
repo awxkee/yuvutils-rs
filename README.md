@@ -38,6 +38,18 @@ rgb_to_yuv422(&mut y_plane, y_stride,
               YuvRange::Full, YuvStandardMatrix::Bt709);
 ```
 
+### RGB to sharp YUV
+
+```rust
+rgb_to_sharp_yuv420(&mut y_plane, y_stride,
+                    &mut u_plane, u_width,
+                    &mut v_plane, v_width,
+                    &rgb, rgb_stride,
+                    width, height, 
+                    YuvRange::Full, YuvStandardMatrix::Bt709,
+                    SharpYuvGammaTransfer::Srgb);
+```
+
 ### YCbCr to RGB
 
 ```rust

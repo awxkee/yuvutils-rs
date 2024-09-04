@@ -112,7 +112,7 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("yuv_nv12_to_rgb time: {:?}", end_time);
     let start_time = Instant::now();
-    rgb_to_yuv420(
+    rgb_to_sharp_yuv420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,
@@ -125,6 +125,7 @@ fn main() {
         height,
         YuvRange::TV,
         YuvStandardMatrix::Bt709,
+        SharpYuvGammaTransfer::Srgb,
     );
 
     // let mut y_plane_16 = vec![0u16; width as usize * height as usize];
