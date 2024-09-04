@@ -16,6 +16,7 @@ mod avx2;
 ))]
 mod avx512bw;
 mod from_identity;
+mod from_identity_p16;
 mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
@@ -44,7 +45,9 @@ mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
+mod yuv_to_yuy2_p16;
 mod yuy2_to_rgb;
+mod yuy2_to_rgb_p16;
 mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
 
@@ -332,3 +335,38 @@ pub use yuy2_to_yuv_p16::yuyv422_to_yuv444_p16;
 pub use yuy2_to_yuv_p16::yvyu422_to_yuv420_p16;
 pub use yuy2_to_yuv_p16::yvyu422_to_yuv422_p16;
 pub use yuy2_to_yuv_p16::yvyu422_to_yuv444_p16;
+
+pub use yuv_to_yuy2_p16::yuv420_to_uyvy422_p16;
+pub use yuv_to_yuy2_p16::yuv420_to_vyuy422_p16;
+pub use yuv_to_yuy2_p16::yuv420_to_yuyv422_p16;
+pub use yuv_to_yuy2_p16::yuv420_to_yvyu422_p16;
+pub use yuv_to_yuy2_p16::yuv422_to_uyvy422_p16;
+pub use yuv_to_yuy2_p16::yuv422_to_vyuy422_p16;
+pub use yuv_to_yuy2_p16::yuv422_to_yuyv422_p16;
+pub use yuv_to_yuy2_p16::yuv422_to_yvyu422_p16;
+pub use yuv_to_yuy2_p16::yuv444_to_uyvy422_p16;
+pub use yuv_to_yuy2_p16::yuv444_to_vyuy422_p16;
+pub use yuv_to_yuy2_p16::yuv444_to_yuyv422_p16;
+pub use yuv_to_yuy2_p16::yuv444_to_yvyu422_p16;
+
+pub use yuy2_to_rgb_p16::uyvy422_to_bgr_p16;
+pub use yuy2_to_rgb_p16::uyvy422_to_bgra_p16;
+pub use yuy2_to_rgb_p16::uyvy422_to_rgb_p16;
+pub use yuy2_to_rgb_p16::uyvy422_to_rgba_p16;
+pub use yuy2_to_rgb_p16::vyuy422_to_bgr_p16;
+pub use yuy2_to_rgb_p16::vyuy422_to_bgra_p16;
+pub use yuy2_to_rgb_p16::vyuy422_to_rgb_p16;
+pub use yuy2_to_rgb_p16::vyuy422_to_rgba_p16;
+pub use yuy2_to_rgb_p16::yuyv422_to_bgr_p16;
+pub use yuy2_to_rgb_p16::yuyv422_to_bgra_p16;
+pub use yuy2_to_rgb_p16::yuyv422_to_rgb_p16;
+pub use yuy2_to_rgb_p16::yuyv422_to_rgba_p16;
+pub use yuy2_to_rgb_p16::yvyu422_to_bgr_p16;
+pub use yuy2_to_rgb_p16::yvyu422_to_bgra_p16;
+pub use yuy2_to_rgb_p16::yvyu422_to_rgb_p16;
+pub use yuy2_to_rgb_p16::yvyu422_to_rgba_p16;
+
+pub use from_identity_p16::gbr_to_bgr_p16;
+pub use from_identity_p16::gbr_to_bgra_p16;
+pub use from_identity_p16::gbr_to_rgb_p16;
+pub use from_identity_p16::gbr_to_rgba_p16;

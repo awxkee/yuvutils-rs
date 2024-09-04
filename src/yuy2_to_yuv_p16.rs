@@ -56,13 +56,13 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let u_value = u_dst_ptr.add(yuy2_target.get_u_position()).read_unaligned();
                 let v_value = v_dst_ptr.add(yuy2_target.get_v_position()).read_unaligned();
 
-                y_dst_ptr.add(y_pos).write_unaligned(first_y_position);
-                y_dst_ptr.add(y_pos + 1).write_unaligned(second_y_position);
-                u_dst_ptr.add(u_pos).write_unaligned(u_value);
-                v_dst_ptr.add(v_pos).write_unaligned(v_value);
+                y_dst_ptr.write_unaligned(first_y_position);
+                y_dst_ptr.add(1).write_unaligned(second_y_position);
+                u_dst_ptr.write_unaligned(u_value);
+                v_dst_ptr.write_unaligned(v_value);
                 if chroma_subsampling == YuvChromaSample::YUV444 {
-                    u_dst_ptr.add(u_pos + 1).write_unaligned(u_value);
-                    v_dst_ptr.add(v_pos + 1).write_unaligned(v_value);
+                    u_dst_ptr.add(1).write_unaligned(u_value);
+                    v_dst_ptr.add(1).write_unaligned(v_value);
                 }
             }
 
@@ -96,9 +96,9 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let u_value = yuy2_ptr.add(yuy2_target.get_u_position()).read_unaligned();
                 let v_value = yuy2_ptr.add(yuy2_target.get_v_position()).read_unaligned();
 
-                y_dst_ptr.add(y_pos).write_unaligned(first_y_position);
-                u_dst_ptr.add(u_pos).write_unaligned(u_value);
-                v_dst_ptr.add(v_pos).write_unaligned(v_value);
+                y_dst_ptr.write_unaligned(first_y_position);
+                u_dst_ptr.write_unaligned(u_value);
+                v_dst_ptr.write_unaligned(v_value);
             }
         }
 
@@ -119,7 +119,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     }
 }
 
-/// Convert YUYV format to YUV 444 planar format.
+/// Convert YUYV (YUV Packed) format to YUV 444 planar format.
 ///
 /// This function takes YUYV (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -168,7 +168,7 @@ pub fn yuyv422_to_yuv444_p16(
     );
 }
 
-/// Convert YUYV format to YUV 420 planar format.
+/// Convert YUYV (YUV Packed) format to YUV 420 planar format.
 ///
 /// This function takes YUYV (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -217,7 +217,7 @@ pub fn yuyv422_to_yuv420_p16(
     );
 }
 
-/// Convert YVYU format to YUV 422 planar format.
+/// Convert YVYU (YUV Packed) format to YUV 422 planar format.
 ///
 /// This function takes YUYV (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -266,7 +266,7 @@ pub fn yuyv422_to_yuv422_p16(
     );
 }
 
-/// Convert YVYU format to YUV 444 planar format.
+/// Convert YVYU (YUV Packed) format to YUV 444 planar format.
 ///
 /// This function takes YVYU (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -315,7 +315,7 @@ pub fn yvyu422_to_yuv444_p16(
     );
 }
 
-/// Convert YVYU format to YUV 420 planar format.
+/// Convert YVYU (YUV Packed) format to YUV 420 planar format.
 ///
 /// This function takes YVYU (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -364,7 +364,7 @@ pub fn yvyu422_to_yuv420_p16(
     );
 }
 
-/// Convert YVYU format to YUV 422 planar format.
+/// Convert YVYU (YUV Packed) format to YUV 422 planar format.
 ///
 /// This function takes YVYU (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -413,7 +413,7 @@ pub fn yvyu422_to_yuv422_p16(
     );
 }
 
-/// Convert VYUY format to YUV 444 planar format.
+/// Convert VYUY (YUV Packed) format to YUV 444 planar format.
 ///
 /// This function takes VYUY (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -462,7 +462,7 @@ pub fn vyuy422_to_yuv444_p16(
     );
 }
 
-/// Convert VYUY format to YUV 420 planar format.
+/// Convert VYUY (YUV Packed) format to YUV 420 planar format.
 ///
 /// This function takes VYUY (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -511,7 +511,7 @@ pub fn vyuy422_to_yuv420_p16(
     );
 }
 
-/// Convert VYUY format to YUV 422 planar format.
+/// Convert VYUY (YUV Packed) format to YUV 422 planar format.
 ///
 /// This function takes VYUY (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -560,7 +560,7 @@ pub fn vyuy422_to_yuv422_p16(
     );
 }
 
-/// Convert UYVY format to YUV 444 planar format.
+/// Convert UYVY (YUV Packed) format to YUV 444 planar format.
 ///
 /// This function takes UYVY (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -609,7 +609,7 @@ pub fn uyvy422_to_yuv444_p16(
     );
 }
 
-/// Convert UYVY format to YUV 420 planar format.
+/// Convert UYVY (YUV Packed) format to YUV 420 planar format.
 ///
 /// This function takes UYVY (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.
@@ -658,7 +658,7 @@ pub fn uyvy422_to_yuv420_p16(
     );
 }
 
-/// Convert UYVY format to YUV 422 planar format.
+/// Convert UYVY (YUV Packed) format to YUV 422 planar format.
 ///
 /// This function takes UYVY (4:2:2) format data with 8-16 bit precision,
 /// and converts it to YUV 444 planar format with 8-16 bit per channel precision.

@@ -5,6 +5,7 @@
  * // license that can be found in the LICENSE file.
  */
 mod from_identity;
+mod from_identity_p16;
 mod rgb_to_nv;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -27,6 +28,7 @@ mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
 pub use from_identity::gbr_to_image_sse;
+pub use from_identity_p16::gbr_to_image_sse_p16;
 pub use rgb_to_nv::sse_rgba_to_nv_row;
 pub use rgb_to_y::sse_rgb_to_y;
 pub use rgb_to_ycgco::sse_rgb_to_ycgco_row;

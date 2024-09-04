@@ -4,37 +4,16 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::yuv_to_yuy2_avx2_row;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::yuv_to_yuy2_neon_impl;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::yuv_to_yuy2_sse_impl;
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
 
-#[allow(dead_code)]
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct YuvToYuy2Navigation {
-    pub cx: usize,
-    pub uv_x: usize,
-    pub x: usize,
-}
-
-impl YuvToYuy2Navigation {
-    #[allow(dead_code)]
-    pub const fn new(cx: usize, uv_x: usize, x: usize) -> YuvToYuy2Navigation {
-        YuvToYuy2Navigation { cx, uv_x, x }
-    }
-}
-
-fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
-    y_plane: &[u8],
+fn yuv_to_yuy2_impl_p16<const SAMPLING: u8, const YUY2_TARGET: usize>(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
@@ -47,106 +26,56 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let mut v_offset = 0usize;
     let mut yuy_offset = 0usize;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx2 = is_x86_feature_detected!("avx2");
-
     for y in 0..height as usize {
         let mut _cx = 0usize;
         let mut _uv_x = 0usize;
         let mut _yuy2_x = 0usize;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
-            if _use_avx2 {
-                let processed = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
-                    y_plane,
-                    y_offset,
-                    u_plane,
-                    u_offset,
-                    v_plane,
-                    v_offset,
-                    yuy2_store,
-                    yuy_offset,
-                    width,
-                    YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
-                );
-                _cx = processed.cx;
-                _uv_x = processed.uv_x;
-                _yuy2_x = processed.x;
-            }
-            if _use_sse {
-                let processed = yuv_to_yuy2_sse_impl::<SAMPLING, YUY2_TARGET>(
-                    y_plane,
-                    y_offset,
-                    u_plane,
-                    u_offset,
-                    v_plane,
-                    v_offset,
-                    yuy2_store,
-                    yuy_offset,
-                    width,
-                    YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
-                );
-                _cx = processed.cx;
-                _uv_x = processed.uv_x;
-                _yuy2_x = processed.x;
-            }
-        }
-
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        {
-            let processed = yuv_to_yuy2_neon_impl::<SAMPLING, YUY2_TARGET>(
-                y_plane,
-                y_offset,
-                u_plane,
-                u_offset,
-                v_plane,
-                v_offset,
-                yuy2_store,
-                yuy_offset,
-                width,
-                YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
-            );
-            _cx = processed.cx;
-            _uv_x = processed.uv_x;
-            _yuy2_x = processed.x;
-        }
-
         for x in _yuy2_x..width as usize / 2 {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
-
-            let (u_value, v_value);
-
-            if chroma_subsampling == YuvChromaSample::YUV444 {
-                u_value = unsafe {
-                    (*u_plane.get_unchecked(u_pos) as u32
-                        + *u_plane.get_unchecked(u_pos + 1) as u32) + 1
-                        >> 1
-                } as u8;
-                v_value = unsafe {
-                    (*v_plane.get_unchecked(v_pos) as u32
-                        + *v_plane.get_unchecked(v_pos + 1) as u32) + 1
-                        >> 1
-                } as u8;
-            } else {
-                u_value = unsafe { *u_plane.get_unchecked(u_pos) };
-                v_value = unsafe { *v_plane.get_unchecked(v_pos) };
-            }
-
-            let first_y_value = unsafe { *y_plane.get_unchecked(y_pos) };
-            let second_y_value = unsafe { *y_plane.get_unchecked(y_pos + 1) };
-
-            let dst_offset = yuy_offset + x * 4;
             unsafe {
-                let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
-                *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = second_y_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
+                let u_pos = _uv_x;
+                let v_pos = _uv_x;
+                let y_pos = _cx;
+
+                let y_src_ptr =
+                    ((y_plane.as_ptr() as *const u8).add(y_offset) as *const u16).add(y_pos);
+                let u_src_ptr =
+                    ((u_plane.as_ptr() as *const u8).add(u_offset) as *const u16).add(u_pos);
+                let v_src_ptr =
+                    ((v_plane.as_ptr() as *const u8).add(v_offset) as *const u16).add(v_pos);
+
+                let (u_value, v_value);
+
+                if chroma_subsampling == YuvChromaSample::YUV444 {
+                    u_value = ((u_src_ptr.read_unaligned() as u32
+                        + u_src_ptr.add(1).read_unaligned() as u32) + 1
+                        >> 1) as u16;
+                    v_value = ((v_src_ptr.read_unaligned() as u32
+                        + v_src_ptr.add(1).read_unaligned() as u32) + 1
+                        >> 1) as u16;
+                } else {
+                    u_value = u_src_ptr.read_unaligned();
+                    v_value = v_src_ptr.read_unaligned();
+                }
+
+                let first_y_value = y_src_ptr.read_unaligned();
+                let second_y_value = y_src_ptr.add(1).read_unaligned();
+
+                let dst_ptr =
+                    ((yuy2_store.as_ptr() as *mut u8).add(yuy_offset) as *mut u16).add(x * 4);
+
+                dst_ptr
+                    .add(yuy2_target.get_first_y_position())
+                    .write_unaligned(first_y_value);
+                dst_ptr
+                    .add(yuy2_target.get_u_position())
+                    .write_unaligned(u_value);
+                dst_ptr
+                    .add(yuy2_target.get_second_y_position())
+                    .write_unaligned(second_y_value);
+                dst_ptr
+                    .add(yuy2_target.get_v_position())
+                    .write_unaligned(v_value);
             }
 
             _uv_x += match chroma_subsampling {
@@ -157,22 +86,37 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         }
 
         if width & 1 == 1 {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
-
-            let u_value = unsafe { *u_plane.get_unchecked(u_pos) };
-            let v_value = unsafe { *v_plane.get_unchecked(v_pos) };
-
-            let first_y_value = unsafe { *y_plane.get_unchecked(y_pos) };
-
-            let dst_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
             unsafe {
-                let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
-                *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = 0;
-                *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
+                let u_pos = _uv_x;
+                let v_pos = _uv_x;
+                let y_pos = _cx;
+
+                let y_src_ptr =
+                    ((y_plane.as_ptr() as *const u8).add(y_offset) as *const u16).add(y_pos);
+                let u_src_ptr =
+                    ((u_plane.as_ptr() as *const u8).add(u_offset) as *const u16).add(u_pos);
+                let v_src_ptr =
+                    ((v_plane.as_ptr() as *const u8).add(v_offset) as *const u16).add(v_pos);
+
+                let u_value = u_src_ptr.read_unaligned();
+                let v_value = v_src_ptr.read_unaligned();
+
+                let first_y_value = y_src_ptr.read_unaligned();
+
+                let dst_ptr = ((yuy2_store.as_ptr() as *mut u8).add(yuy_offset) as *mut u16)
+                    .add(((width as usize - 1) / 2) * 4);
+                dst_ptr
+                    .add(yuy2_target.get_first_y_position())
+                    .write_unaligned(first_y_value);
+                dst_ptr
+                    .add(yuy2_target.get_u_position())
+                    .write_unaligned(u_value);
+                dst_ptr
+                    .add(yuy2_target.get_second_y_position())
+                    .write_unaligned(0);
+                dst_ptr
+                    .add(yuy2_target.get_v_position())
+                    .write_unaligned(v_value);
             }
         }
 
@@ -195,8 +139,8 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
 /// Convert YUV 444 planar format to YUYV ( YUV Packed ) format.
 ///
-/// This function takes YUV 444 planar format data with 8-bit precision,
-/// and converts it to YUYV format with 8-bit per channel precision.
+/// This function takes YUV 444 planar format data with 8-16 bit precision,
+/// and converts it to YUYV format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -218,19 +162,19 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv444_to_yuyv422(
-    y_plane: &[u8],
+pub fn yuv444_to_yuyv422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YUYV as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -246,8 +190,8 @@ pub fn yuv444_to_yuyv422(
 
 /// Convert YUV 422 planar format to YUYV ( YUV Packed ) format.
 ///
-/// This function takes YUV 422 planar format data with 8-bit precision,
-/// and converts it to YUYV format with 8-bit per channel precision.
+/// This function takes YUV 422 planar format data with 8-16 bit precision,
+/// and converts it to YUYV format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -269,19 +213,19 @@ pub fn yuv444_to_yuyv422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv422_to_yuyv422(
-    y_plane: &[u8],
+pub fn yuv422_to_yuyv422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YUYV as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -297,8 +241,8 @@ pub fn yuv422_to_yuyv422(
 
 /// Convert YUV 420 planar format to YUYV ( YUV Packed ) format.
 ///
-/// This function takes YUV 420 planar format data with 8-bit precision,
-/// and converts it to YUYV format with 8-bit per channel precision.
+/// This function takes YUV 420 planar format data with 8-16 bit precision,
+/// and converts it to YUYV format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -320,19 +264,19 @@ pub fn yuv422_to_yuyv422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv420_to_yuyv422(
-    y_plane: &[u8],
+pub fn yuv420_to_yuyv422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YUYV as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -348,8 +292,8 @@ pub fn yuv420_to_yuyv422(
 
 /// Convert YUV 444 planar format to YVYU ( YUV Packed ) format.
 ///
-/// This function takes YUV 444 planar format data with 8-bit precision,
-/// and converts it to YVYU format with 8-bit per channel precision.
+/// This function takes YUV 444 planar format data with 8-16 bit precision,
+/// and converts it to YVYU format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -371,19 +315,19 @@ pub fn yuv420_to_yuyv422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv444_to_yvyu422(
-    y_plane: &[u8],
+pub fn yuv444_to_yvyu422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YVYU as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -399,8 +343,8 @@ pub fn yuv444_to_yvyu422(
 
 /// Convert YUV 422 planar format to YVYU ( YUV Packed ) format.
 ///
-/// This function takes YUV 422 planar format data with 8-bit precision,
-/// and converts it to YVYU format with 8-bit per channel precision.
+/// This function takes YUV 422 planar format data with 8-16 bit precision,
+/// and converts it to YVYU format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -422,19 +366,19 @@ pub fn yuv444_to_yvyu422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv422_to_yvyu422(
-    y_plane: &[u8],
+pub fn yuv422_to_yvyu422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YVYU as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -450,8 +394,8 @@ pub fn yuv422_to_yvyu422(
 
 /// Convert YUV 420 planar format to YVYU ( YUV Packed ) format.
 ///
-/// This function takes YUV 420 planar format data with 8-bit precision,
-/// and converts it to YVYU format with 8-bit per channel precision.
+/// This function takes YUV 420 planar format data with 8-16 bit precision,
+/// and converts it to YVYU format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -473,19 +417,19 @@ pub fn yuv422_to_yvyu422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv420_to_yvyu422(
-    y_plane: &[u8],
+pub fn yuv420_to_yvyu422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YVYU as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -501,8 +445,8 @@ pub fn yuv420_to_yvyu422(
 
 /// Convert YUV 444 planar format to VYUY ( YUV Packed ) format.
 ///
-/// This function takes YUV 444 planar format data with 8-bit precision,
-/// and converts it to VYUY format with 8-bit per channel precision.
+/// This function takes YUV 444 planar format data with 8-16 bit precision,
+/// and converts it to VYUY format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -524,19 +468,19 @@ pub fn yuv420_to_yvyu422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv444_to_vyuy422(
-    y_plane: &[u8],
+pub fn yuv444_to_vyuy422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::VYUY as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -552,8 +496,8 @@ pub fn yuv444_to_vyuy422(
 
 /// Convert YUV 422 planar format to VYUY ( YUV Packed ) format.
 ///
-/// This function takes YUV 422 planar format data with 8-bit precision,
-/// and converts it to VYUY format with 8-bit per channel precision.
+/// This function takes YUV 422 planar format data with 8-16 bit precision,
+/// and converts it to VYUY format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -575,19 +519,19 @@ pub fn yuv444_to_vyuy422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv422_to_vyuy422(
-    y_plane: &[u8],
+pub fn yuv422_to_vyuy422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::VYUY as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -603,8 +547,8 @@ pub fn yuv422_to_vyuy422(
 
 /// Convert YUV 420 planar format to VYUY ( YUV Packed ) format.
 ///
-/// This function takes YUV 420 planar format data with 8-bit precision,
-/// and converts it to VYUY format with 8-bit per channel precision.
+/// This function takes YUV 420 planar format data with 8-16 bit precision,
+/// and converts it to VYUY format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -626,19 +570,19 @@ pub fn yuv422_to_vyuy422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv420_to_vyuy422(
-    y_plane: &[u8],
+pub fn yuv420_to_vyuy422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::VYUY as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -654,8 +598,8 @@ pub fn yuv420_to_vyuy422(
 
 /// Convert YUV 444 planar format to UYVY ( YUV Packed ) format.
 ///
-/// This function takes YUV 444 planar format data with 8-bit precision,
-/// and converts it to UYVY format with 8-bit per channel precision.
+/// This function takes YUV 444 planar format data with 8-16 bit precision,
+/// and converts it to UYVY format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -677,19 +621,19 @@ pub fn yuv420_to_vyuy422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv444_to_uyvy422(
-    y_plane: &[u8],
+pub fn yuv444_to_uyvy422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::UYVY as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -705,8 +649,8 @@ pub fn yuv444_to_uyvy422(
 
 /// Convert YUV 422 planar format to UYVY ( YUV Packed ) format.
 ///
-/// This function takes YUV 422 planar format data with 8-bit precision,
-/// and converts it to UYVY format with 8-bit per channel precision.
+/// This function takes YUV 422 planar format data with 8-16 bit precision,
+/// and converts it to UYVY format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -728,19 +672,19 @@ pub fn yuv444_to_uyvy422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv422_to_uyvy422(
-    y_plane: &[u8],
+pub fn yuv422_to_uyvy422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::UYVY as usize }>(
         y_plane,
         y_stride,
         u_plane,
@@ -756,8 +700,8 @@ pub fn yuv422_to_uyvy422(
 
 /// Convert YUV 420 planar format to UYVY ( YUV Packed ) format.
 ///
-/// This function takes YUV 420 planar format data with 8-bit precision,
-/// and converts it to UYVY format with 8-bit per channel precision.
+/// This function takes YUV 420 planar format data with 8-16 bit precision,
+/// and converts it to UYVY format with 8-16 bit per channel precision.
 /// Do not forget about odd alignment, use (width + 1) for buffers.
 ///
 /// # Arguments
@@ -779,19 +723,19 @@ pub fn yuv422_to_uyvy422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
-pub fn yuv420_to_uyvy422(
-    y_plane: &[u8],
+pub fn yuv420_to_uyvy422_p16(
+    y_plane: &[u16],
     y_stride: u32,
-    u_plane: &[u8],
+    u_plane: &[u16],
     u_stride: u32,
-    v_plane: &[u8],
+    v_plane: &[u16],
     v_stride: u32,
-    yuy2_store: &mut [u8],
+    yuy2_store: &mut [u16],
     yuy2_stride: u32,
     width: u32,
     height: u32,
 ) {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl_p16::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::UYVY as usize }>(
         y_plane,
         y_stride,
         u_plane,
