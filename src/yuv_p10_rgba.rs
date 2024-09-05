@@ -39,7 +39,8 @@ fn yuv_p10_to_image_impl<
     let range = get_yuv_range(10, range);
     let kr_kb = get_kr_kb(matrix);
     let max_range_p10 = (1u32 << 10u32) - 1;
-    const ROUNDING_CONST: i32 = 1 << 5;
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let transform = get_inverse_transform(
         max_range_p10,
         range.range_y,
@@ -47,7 +48,7 @@ fn yuv_p10_to_image_impl<
         kr_kb.kr,
         kr_kb.kb,
     );
-    let i_transform = transform.to_integers(6u32);
+    let i_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
@@ -138,9 +139,10 @@ fn yuv_p10_to_image_impl<
 
             // shift right 8 due to we want to make it 8 bit instead of 10
 
-            let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> 8;
-            let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> 8;
-            let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST) >> 8;
+            let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> (PRECISION + 2);
+            let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> (PRECISION + 2);
+            let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
+                >> (PRECISION + 2);
 
             let r = r_u16.min(255).max(0);
             let b = b_u16.min(255).max(0);
@@ -183,10 +185,10 @@ fn yuv_p10_to_image_impl<
                     }
                 }
 
-                let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> 8;
-                let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> 8;
-                let g_u16 =
-                    (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST) >> 8;
+                let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> (PRECISION + 2);
+                let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> (PRECISION + 2);
+                let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
+                    >> (PRECISION + 2);
 
                 let r = r_u16.min(255).max(0);
                 let b = b_u16.min(255).max(0);

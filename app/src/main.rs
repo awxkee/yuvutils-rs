@@ -112,7 +112,7 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("yuv_nv12_to_rgb time: {:?}", end_time);
     let start_time = Instant::now();
-    rgb_to_yuv420(
+    rgb_to_sharp_yuv420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,
@@ -123,8 +123,9 @@ fn main() {
         width * components,
         width,
         height,
-        YuvRange::TV,
-        YuvStandardMatrix::Bt709,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt601,
+        SharpYuvGammaTransfer::Srgb,
     );
 
     // let mut y_plane_16 = vec![0u16; width as usize * height as usize];
@@ -250,8 +251,8 @@ fn main() {
         rgba_stride as u32,
         width,
         height,
-        YuvRange::TV,
-        YuvStandardMatrix::Bt709,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt601,
     );
 
     let end_time = Instant::now().sub(start_time);
@@ -287,7 +288,7 @@ fn main() {
     // rgba = Vec::from(gbr);
 
     image::save_buffer(
-        "converted.png",
+        "converted_sharp.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

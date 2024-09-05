@@ -34,6 +34,7 @@ pub unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_min_values = _mm512_setzero_si512();
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
+    let rounding_const = _mm512_set1_epi16(1 << 5);
 
     while cx + 64 < width {
         let y_values = _mm512_subs_epi8(
@@ -53,7 +54,10 @@ pub unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
             v_luma_coeff,
         );
 
-        let r_low = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_low, v_min_values));
+        let r_low = _mm512_srli_epi16::<6>(_mm512_adds_epi16(
+            _mm512_max_epi16(y_low, v_min_values),
+            rounding_const,
+        ));
 
         let r_values = avx512_pack_u16(r_low, r_high);
 

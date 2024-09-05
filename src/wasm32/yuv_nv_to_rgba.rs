@@ -60,7 +60,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
     let mut ux = start_ux;
 
     while cx + 16 < width {
-        let y_values = u8x16_sub(v128_load(y_ptr.add(y_offset + cx) as *const v128), y_corr);
+        let y_values = u8x16_sub_sat(v128_load(y_ptr.add(y_offset + cx) as *const v128), y_corr);
 
         let u_high_u8;
         let v_high_u8;

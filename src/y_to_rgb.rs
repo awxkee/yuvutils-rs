@@ -35,8 +35,11 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    let integer_transform = transform.to_integers(6);
-    let y_coef = integer_transform.y_coef;
+
+    const PRECISION: i32 = 6;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    let inverse_transform = transform.to_integers(PRECISION as u32);
+    let y_coef = inverse_transform.y_coef;
 
     let bias_y = range.bias_y as i32;
 
@@ -60,7 +63,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             if _use_avx512 {
                 let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(
                     &range,
-                    &integer_transform,
+                    &inverse_transform,
                     y_plane,
                     rgba,
                     _cx,
@@ -76,7 +79,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         unsafe {
             let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
                 &range,
-                &integer_transform,
+                &inverse_transform,
                 y_plane,
                 rgba,
                 _cx,
@@ -91,7 +94,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         unsafe {
             let offset = wasm_y_to_rgb_row::<DESTINATION_CHANNELS>(
                 &range,
-                &integer_transform,
+                &inverse_transform,
                 y_plane,
                 rgba,
                 _cx,
@@ -106,23 +109,19 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             let y_value =
                 (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
 
-            let r = (y_value >> 6).min(255i32).max(0);
+            let r = (y_value + ROUNDING_CONST >> PRECISION).min(255i32).max(0);
 
             let px = x * channels;
 
             let rgba_shift = rgba_offset + px;
 
             unsafe {
-                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_r_channel_offset()) =
-                    r as u8;
-                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_g_channel_offset()) =
-                    r as u8;
-                *rgba.get_unchecked_mut(rgba_shift + destination_channels.get_b_channel_offset()) =
-                    r as u8;
+                let dst = rgba.get_unchecked_mut(rgba_shift..);
+                *dst.get_unchecked_mut(destination_channels.get_r_channel_offset()) = r as u8;
+                *dst.get_unchecked_mut(destination_channels.get_g_channel_offset()) = r as u8;
+                *dst.get_unchecked_mut(destination_channels.get_b_channel_offset()) = r as u8;
                 if destination_channels.has_alpha() {
-                    *rgba.get_unchecked_mut(
-                        rgba_shift + destination_channels.get_a_channel_offset(),
-                    ) = 255;
+                    *dst.get_unchecked_mut(destination_channels.get_a_channel_offset()) = 255;
                 }
             }
         }

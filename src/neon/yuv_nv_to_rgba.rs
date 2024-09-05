@@ -51,7 +51,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
     let mut ux = start_ux;
 
     while cx + 16 < width {
-        let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
+        let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
 
         let u_high_u8: uint8x8_t;
         let v_high_u8: uint8x8_t;
@@ -167,7 +167,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
     let shuffle_v = vld1_u8([1, 1, 3, 3, 5, 5, 7, 7].as_ptr());
 
     while cx + 8 < width {
-        let y_values = vsub_u8(vld1_u8(y_ptr.add(y_offset + cx)), vget_low_u8(y_corr));
+        let y_values = vqsub_u8(vld1_u8(y_ptr.add(y_offset + cx)), vget_low_u8(y_corr));
 
         let mut u_low_u8: uint8x8_t;
         let mut v_low_u8: uint8x8_t;

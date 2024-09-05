@@ -78,8 +78,8 @@ pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
             let low_v_value = vzip1q_u8(v_value, v_value);
             let high_v_value = vzip2q_u8(v_value, v_value);
 
-            y_first = vsubq_u8(y_first, y_corr);
-            y_second = vsubq_u8(y_second, y_corr);
+            y_first = vqsubq_u8(y_first, y_corr);
+            y_second = vqsubq_u8(y_second, y_corr);
 
             let u_l_h = vsubq_s16(vreinterpretq_s16_u16(vmovl_high_u8(low_u_value)), uv_corr);
             let v_l_h = vsubq_s16(vreinterpretq_s16_u16(vmovl_high_u8(low_v_value)), uv_corr);
@@ -260,8 +260,8 @@ pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
                 Yuy2Description::VYUY => pixel_set.0,
             };
 
-            y_first = vsub_u8(y_first, vget_low_u8(y_corr));
-            y_second = vsub_u8(y_second, vget_low_u8(y_corr));
+            y_first = vqsub_u8(y_first, vget_low_u8(y_corr));
+            y_second = vqsub_u8(y_second, vget_low_u8(y_corr));
 
             let low_u_value = vzip1_u8(u_value, u_value);
             let high_u_value = vzip2_u8(u_value, u_value);

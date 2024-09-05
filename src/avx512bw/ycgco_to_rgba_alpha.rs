@@ -60,6 +60,7 @@ pub unsafe fn avx512_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const S
     let uv_reduction = _mm512_set1_epi16(range_reduction_uv as i16);
     let v_alpha = _mm512_set1_epi16(-128);
     let v_min_zeros = _mm512_setzero_si512();
+    let rounding_const = _mm512_set1_epi16(1 << 5);
 
     while cx + 64 < width {
         let y_values = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
@@ -114,17 +115,17 @@ pub unsafe fn avx512_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const S
 
         let t_high = _mm512_subs_epi16(y_high, cg_high);
 
-        let r_high = _mm512_srai_epi16::<6>(_mm512_max_epi16(
-            _mm512_adds_epi16(t_high, co_high),
-            v_min_zeros,
+        let r_high = _mm512_srai_epi16::<6>(_mm512_adds_epi16(
+            _mm512_max_epi16(_mm512_adds_epi16(t_high, co_high), v_min_zeros),
+            rounding_const,
         ));
-        let b_high = _mm512_srai_epi16::<6>(_mm512_max_epi16(
-            _mm512_subs_epi16(t_high, co_high),
-            v_min_zeros,
+        let b_high = _mm512_srai_epi16::<6>(_mm512_adds_epi16(
+            _mm512_max_epi16(_mm512_subs_epi16(t_high, co_high), v_min_zeros),
+            rounding_const,
         ));
-        let g_high = _mm512_srai_epi16::<6>(_mm512_max_epi16(
-            _mm512_adds_epi16(y_high, cg_high),
-            v_min_zeros,
+        let g_high = _mm512_srai_epi16::<6>(_mm512_adds_epi16(
+            _mm512_max_epi16(_mm512_adds_epi16(y_high, cg_high), v_min_zeros),
+            rounding_const,
         ));
 
         let cg_low = _mm512_mullo_epi16(
@@ -145,17 +146,17 @@ pub unsafe fn avx512_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const S
 
         let t_low = _mm512_subs_epi16(y_low, cg_low);
 
-        let r_low = _mm512_srai_epi16::<6>(_mm512_max_epi16(
-            _mm512_adds_epi16(t_low, co_low),
-            v_min_zeros,
+        let r_low = _mm512_srai_epi16::<6>(_mm512_adds_epi16(
+            _mm512_max_epi16(_mm512_adds_epi16(t_low, co_low), v_min_zeros),
+            rounding_const,
         ));
-        let b_low = _mm512_srai_epi16::<6>(_mm512_max_epi16(
-            _mm512_subs_epi16(t_low, co_low),
-            v_min_zeros,
+        let b_low = _mm512_srai_epi16::<6>(_mm512_adds_epi16(
+            _mm512_max_epi16(_mm512_subs_epi16(t_low, co_low), v_min_zeros),
+            rounding_const,
         ));
-        let g_low = _mm512_srai_epi16::<6>(_mm512_max_epi16(
-            _mm512_adds_epi16(y_low, cg_low),
-            v_min_zeros,
+        let g_low = _mm512_srai_epi16::<6>(_mm512_adds_epi16(
+            _mm512_max_epi16(_mm512_adds_epi16(y_low, cg_low), v_min_zeros),
+            rounding_const,
         ));
 
         let (r_values, g_values, b_values);
@@ -223,5 +224,5 @@ pub unsafe fn avx512_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const S
         }
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

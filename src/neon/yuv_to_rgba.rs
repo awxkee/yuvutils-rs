@@ -50,7 +50,7 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     let v_alpha = vdupq_n_u8(255u8);
 
     while cx + 16 < width {
-        let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
+        let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
 
         let u_high_u8: uint8x8_t;
         let v_high_u8: uint8x8_t;
@@ -160,7 +160,7 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     }
 
     while cx + 8 < width {
-        let y_values = vsub_u8(vld1_u8(y_ptr.add(y_offset + cx)), vget_low_u8(y_corr));
+        let y_values = vqsub_u8(vld1_u8(y_ptr.add(y_offset + cx)), vget_low_u8(y_corr));
 
         let u_low_u8: uint8x8_t;
         let v_low_u8: uint8x8_t;

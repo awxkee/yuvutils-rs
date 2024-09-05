@@ -182,7 +182,9 @@ pub const fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 /// Declares standard prebuilt YUV conversion matrices, check [ITU-R](https://www.itu.int/rec/T-REC-H.273/en) information for more info
+/// MJPEG Matrix corresponds Bt.601 + Full Range
 pub enum YuvStandardMatrix {
+    /// If you want to encode/decode MJPEG use Bt.601 + Full Range
     Bt601,
     Bt709,
     Bt2020,
