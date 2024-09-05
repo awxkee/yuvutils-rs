@@ -25,11 +25,10 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_D
         YuvBytesPacking::MostSignificantBytes => v << packing,
         YuvBytesPacking::LeastSignificantBytes => v,
     } as u16;
-    let endian_prepared = match endianness {
+    match endianness {
         YuvEndianness::BigEndian => packed_bytes.to_be(),
         YuvEndianness::LittleEndian => packed_bytes.to_le(),
-    };
-    endian_prepared
+    }
 }
 
 fn rgbx_to_yuv_impl<
@@ -94,10 +93,10 @@ fn rgbx_to_yuv_impl<
         let mut _cx = 0usize;
         let mut _ux = 0usize;
 
-        let y_st_ptr = unsafe { y_dst_ptr.offset(y_offset as isize) as *mut u16 };
-        let u_st_ptr = unsafe { u_dst_ptr.offset(u_offset as isize) as *mut u16 };
-        let v_st_ptr = unsafe { v_dst_ptr.offset(v_offset as isize) as *mut u16 };
-        let rgb_ld_ptr = unsafe { rgb_src_ptr.offset(rgba_offset as isize) as *const u16 };
+        let y_st_ptr = unsafe { y_dst_ptr.add(y_offset) as *mut u16 };
+        let u_st_ptr = unsafe { u_dst_ptr.add(u_offset) as *mut u16 };
+        let v_st_ptr = unsafe { v_dst_ptr.add(v_offset) as *mut u16 };
+        let rgb_ld_ptr = unsafe { rgb_src_ptr.add(rgba_offset) as *const u16 };
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
@@ -153,9 +152,12 @@ fn rgbx_to_yuv_impl<
             let r = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() } as i32;
             let g = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() } as i32;
             let b = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() } as i32;
-            let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> PRECISION;
+            let y_0 =
+                (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
+            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                >> PRECISION;
+            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                >> PRECISION;
             unsafe {
                 y_st_ptr.add(x).write_unaligned(transform_integer::<
                     ENDIANNESS,
@@ -199,8 +201,8 @@ fn rgbx_to_yuv_impl<
                         let b =
                             unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() }
                                 as i32;
-                        let y_1 =
-                            (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
+                        let y_1 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
+                            >> PRECISION;
                         unsafe {
                             y_st_ptr.add(x + 1).write_unaligned(transform_integer::<
                                 ENDIANNESS,

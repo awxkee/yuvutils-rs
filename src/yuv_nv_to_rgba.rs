@@ -190,13 +190,12 @@ fn yuv_nv12_to_rgbx<
         for x in (cx..width as usize).step_by(iterator_step) {
             let y_value =
                 (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
-            let cb_value: i32;
-            let cr_value: i32;
             let cb_pos = uv_offset + ux;
-
-            cb_value = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_u_position()) } as i32
+            let cb_value: i32 = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_u_position()) }
+                as i32
                 - bias_uv;
-            cr_value = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_v_position()) } as i32
+            let cr_value: i32 = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_v_position()) }
+                as i32
                 - bias_uv;
 
             let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)

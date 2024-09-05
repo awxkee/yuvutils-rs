@@ -41,10 +41,9 @@ pub unsafe fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>
 
             let u_pixels;
             let v_pixels;
-            let y_pixels;
 
             let y_ptr = y_plane.as_ptr().add(y_pos);
-            y_pixels = (
+            let y_pixels = (
                 _mm256_loadu_si256(y_ptr as *const __m256i),
                 _mm256_loadu_si256(y_ptr.add(32) as *const __m256i),
             );
@@ -70,21 +69,12 @@ pub unsafe fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>
 
             let (low_y, high_y) = _mm256_deinterleave_x2_epi8(y_pixels.0, y_pixels.1);
 
-            let storage;
-            match yuy2_target {
-                Yuy2Description::YUYV => {
-                    storage = (low_y, u_pixels, high_y, v_pixels);
-                }
-                Yuy2Description::UYVY => {
-                    storage = (u_pixels, low_y, v_pixels, high_y);
-                }
-                Yuy2Description::YVYU => {
-                    storage = (low_y, v_pixels, high_y, u_pixels);
-                }
-                Yuy2Description::VYUY => {
-                    storage = (v_pixels, low_y, u_pixels, high_y);
-                }
-            }
+            let storage = match yuy2_target {
+                Yuy2Description::YUYV => (low_y, u_pixels, high_y, v_pixels),
+                Yuy2Description::UYVY => (u_pixels, low_y, v_pixels, high_y),
+                Yuy2Description::YVYU => (low_y, v_pixels, high_y, u_pixels),
+                Yuy2Description::VYUY => (v_pixels, low_y, u_pixels, high_y),
+            };
 
             let dst_offset = yuy2_offset + x * 4;
 

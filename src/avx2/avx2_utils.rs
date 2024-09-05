@@ -128,8 +128,7 @@ pub unsafe fn avx2_interleave_odd(x: __m256i) -> __m256i {
                                    21, 21, 23, 23,
                                    25, 25, 27, 27,
                                    29, 29, 31, 31);
-    let new_lane = _mm256_shuffle_epi8(x, shuffle);
-    new_lane
+    _mm256_shuffle_epi8(x, shuffle)
 }
 
 #[inline]
@@ -144,8 +143,7 @@ pub unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
                                    20, 20, 22, 22,
                                    24, 24, 26, 26,
                                    28, 28, 30, 30);
-    let new_lane = _mm256_shuffle_epi8(x, shuffle);
-    new_lane
+    _mm256_shuffle_epi8(x, shuffle)
 }
 
 #[inline]

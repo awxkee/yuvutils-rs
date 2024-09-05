@@ -4,6 +4,8 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::manual_clamp)]
 #![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
 #![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]

@@ -49,8 +49,8 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
     let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
     let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
     let v_min_values = vdupq_n_s16(0i16);
-    let v_g_coeff_1 = vdupq_n_s16(-1i16 * transform.g_coeff_1 as i16);
-    let v_g_coeff_2 = vdupq_n_s16(-1i16 * transform.g_coeff_2 as i16);
+    let v_g_coeff_1 = vdupq_n_s16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
 
     while cx + 16 < width {
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);

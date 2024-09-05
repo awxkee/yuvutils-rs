@@ -22,7 +22,7 @@ pub unsafe fn gbr_to_image_neon_p16<const DESTINATION_CHANNELS: u8>(
     let mut gbr_start_ptr = gbr.add(3 * _cx);
     let mut rgb_start_ptr = rgb.add(channels * _cx);
 
-    let v_max_colors = vdupq_n_u16(1 << bit_depth - 1);
+    let v_max_colors = vdupq_n_u16((1 << bit_depth) - 1);
 
     let rgb_part_size = channels * 8;
 

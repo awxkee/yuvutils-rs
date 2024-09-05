@@ -49,9 +49,7 @@ pub unsafe fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
 
             let u_pixels;
             let v_pixels;
-            let y_pixels;
-
-            y_pixels = _mm_loadu_si128_x2(y_plane.as_ptr().add(y_pos));
+            let y_pixels = _mm_loadu_si128_x2(y_plane.as_ptr().add(y_pos));
 
             if chroma_subsampling == YuvChromaSample::YUV444 {
                 let full_u = _mm_loadu_si128_x2(u_plane.as_ptr().add(u_pos));
@@ -70,21 +68,12 @@ pub unsafe fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
             let low_y = _mm_combinel_epi8(y_pixels_low, y_pixels_high);
             let high_y = _mm_combineh_epi8(y_pixels_low, y_pixels_high);
 
-            let storage;
-            match yuy2_target {
-                Yuy2Description::YUYV => {
-                    storage = __mm128x4(low_y, u_pixels, high_y, v_pixels);
-                }
-                Yuy2Description::UYVY => {
-                    storage = __mm128x4(u_pixels, low_y, v_pixels, high_y);
-                }
-                Yuy2Description::YVYU => {
-                    storage = __mm128x4(low_y, v_pixels, high_y, u_pixels);
-                }
-                Yuy2Description::VYUY => {
-                    storage = __mm128x4(v_pixels, low_y, u_pixels, high_y);
-                }
-            }
+            let storage = match yuy2_target {
+                Yuy2Description::YUYV => __mm128x4(low_y, u_pixels, high_y, v_pixels),
+                Yuy2Description::UYVY => __mm128x4(u_pixels, low_y, v_pixels, high_y),
+                Yuy2Description::YVYU => __mm128x4(low_y, v_pixels, high_y, u_pixels),
+                Yuy2Description::VYUY => __mm128x4(v_pixels, low_y, u_pixels, high_y),
+            };
 
             let dst_offset = yuy2_offset + x * 4;
 
@@ -137,21 +126,12 @@ pub unsafe fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
             let low_y = _mm_getlow_epi8(y_pixels);
             let high_y = _mm_gethigh_epi8(y_pixels);
 
-            let storage;
-            match yuy2_target {
-                Yuy2Description::YUYV => {
-                    storage = __mm128x4(low_y, u_pixels, high_y, v_pixels);
-                }
-                Yuy2Description::UYVY => {
-                    storage = __mm128x4(u_pixels, low_y, v_pixels, high_y);
-                }
-                Yuy2Description::YVYU => {
-                    storage = __mm128x4(low_y, v_pixels, high_y, u_pixels);
-                }
-                Yuy2Description::VYUY => {
-                    storage = __mm128x4(v_pixels, low_y, u_pixels, high_y);
-                }
-            }
+            let storage = match yuy2_target {
+                Yuy2Description::YUYV => __mm128x4(low_y, u_pixels, high_y, v_pixels),
+                Yuy2Description::UYVY => __mm128x4(u_pixels, low_y, v_pixels, high_y),
+                Yuy2Description::YVYU => __mm128x4(low_y, v_pixels, high_y, u_pixels),
+                Yuy2Description::VYUY => __mm128x4(v_pixels, low_y, u_pixels, high_y),
+            };
 
             let inverleaved = sse_interleave_rgba(storage.0, storage.1, storage.2, storage.3);
             let converted = __mm128x4(inverleaved.0, inverleaved.1, inverleaved.2, inverleaved.3);
@@ -175,9 +155,9 @@ pub unsafe fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
         }
     }
 
-    return YuvToYuy2Navigation {
+    YuvToYuy2Navigation {
         cx: _cx,
         uv_x: _uv_x,
         x: _yuy2_x,
-    };
+    }
 }

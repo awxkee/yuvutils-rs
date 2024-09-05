@@ -50,8 +50,8 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
     let v_cr_coeff = _mm256_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
     let v_min_values = _mm256_setzero_si256();
-    let v_g_coeff_1 = _mm256_set1_epi16(-1 * transform.g_coeff_1 as i16);
-    let v_g_coeff_2 = _mm256_set1_epi16(-1 * transform.g_coeff_2 as i16);
+    let v_g_coeff_1 = _mm256_set1_epi16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = _mm256_set1_epi16(-(transform.g_coeff_2 as i16));
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
     let rounding_const = _mm256_set1_epi16(1 << 5);
 

@@ -201,5 +201,5 @@ pub unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMP
         }
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

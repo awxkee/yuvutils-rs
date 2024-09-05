@@ -44,8 +44,8 @@ pub unsafe fn neon_yuv_p10_to_rgba_row<
     let v_cr_coeff = vdup_n_s16(transform.cr_coef as i16);
     let v_cb_coeff = vdup_n_s16(transform.cb_coef as i16);
     let v_min_values = vdupq_n_s16(0i16);
-    let v_g_coeff_1 = vdup_n_s16(-1i16 * (transform.g_coeff_1 as i16));
-    let v_g_coeff_2 = vdup_n_s16(-1i16 * (transform.g_coeff_2 as i16));
+    let v_g_coeff_1 = vdup_n_s16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = vdup_n_s16(-(transform.g_coeff_2 as i16));
     let v_alpha = vdup_n_u8(255u8);
     let rounding_const = vdupq_n_s32(1 << 5);
 

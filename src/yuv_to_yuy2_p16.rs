@@ -47,11 +47,13 @@ fn yuv_to_yuy2_impl_p16<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let (u_value, v_value);
 
                 if chroma_subsampling == YuvChromaSample::YUV444 {
-                    u_value = ((u_src_ptr.read_unaligned() as u32
-                        + u_src_ptr.add(1).read_unaligned() as u32) + 1
+                    u_value = (((u_src_ptr.read_unaligned() as u32
+                        + u_src_ptr.add(1).read_unaligned() as u32)
+                        + 1)
                         >> 1) as u16;
-                    v_value = ((v_src_ptr.read_unaligned() as u32
-                        + v_src_ptr.add(1).read_unaligned() as u32) + 1
+                    v_value = (((v_src_ptr.read_unaligned() as u32
+                        + v_src_ptr.add(1).read_unaligned() as u32)
+                        + 1)
                         >> 1) as u16;
                 } else {
                     u_value = u_src_ptr.read_unaligned();

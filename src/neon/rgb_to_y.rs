@@ -111,5 +111,5 @@ pub unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
         cx += 16;
     }
 
-    return cx;
+    cx
 }

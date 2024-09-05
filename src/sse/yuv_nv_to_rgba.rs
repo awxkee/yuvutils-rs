@@ -52,8 +52,8 @@ pub unsafe fn sse_yuv_nv_to_rgba<
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
     let v_min_values = _mm_setzero_si128();
-    let v_g_coeff_1 = _mm_set1_epi16(-1 * transform.g_coeff_1 as i16);
-    let v_g_coeff_2 = _mm_set1_epi16(-1 * transform.g_coeff_2 as i16);
+    let v_g_coeff_1 = _mm_set1_epi16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = _mm_set1_epi16(-(transform.g_coeff_2 as i16));
     let v_alpha = _mm_set1_epi8(255u8 as i8);
     let rounding_const = _mm_set1_epi16(1 << 5);
 

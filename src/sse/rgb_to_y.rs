@@ -104,5 +104,5 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
         cx += 16;
     }
 
-    return cx;
+    cx
 }

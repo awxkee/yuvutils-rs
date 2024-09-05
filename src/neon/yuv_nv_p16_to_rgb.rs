@@ -56,8 +56,8 @@ pub unsafe fn neon_yuv_nv_p16_to_rgba_row<
     let v_cr_coeff = vdup_n_s16(cr_coef as i16);
     let v_cb_coeff = vdup_n_s16(cb_coef as i16);
     let v_min_values = vdupq_n_s16(0i16);
-    let v_g_coeff_1 = vdup_n_s16(-1i16 * (g_coef_1 as i16));
-    let v_g_coeff_2 = vdup_n_s16(-1i16 * (g_coef_2 as i16));
+    let v_g_coeff_1 = vdup_n_s16(-(g_coef_1 as i16));
+    let v_g_coeff_2 = vdup_n_s16(-(g_coef_2 as i16));
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -65,8 +65,6 @@ pub unsafe fn neon_yuv_nv_p16_to_rgba_row<
     let v_big_shift_count = vdupq_n_s16(-(16i16 - BIT_DEPTH as i16));
 
     while cx + 8 < width as usize {
-        let y_values: int16x8_t;
-
         let u_high: int16x4_t;
         let v_high: int16x4_t;
         let u_low: int16x4_t;
@@ -79,7 +77,7 @@ pub unsafe fn neon_yuv_nv_p16_to_rgba_row<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = vshlq_u16(y_vl, v_big_shift_count);
         }
-        y_values = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
+        let y_values: int16x8_t = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {

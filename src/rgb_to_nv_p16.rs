@@ -21,11 +21,10 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_D
         YuvBytesPacking::MostSignificantBytes => v << packing,
         YuvBytesPacking::LeastSignificantBytes => v,
     } as u16;
-    let endian_prepared = match endianness {
+    match endianness {
         YuvEndianness::BigEndian => packed_bytes.to_be(),
         YuvEndianness::LittleEndian => packed_bytes.to_le(),
-    };
-    endian_prepared
+    }
 }
 
 fn rgbx_to_yuv_bi_planar_10_impl<
@@ -57,9 +56,10 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     let transform_precise =
         get_forward_transform(max_range, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
     let transform = transform_precise.to_integers(8);
-    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
-    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
-    let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    const PRECISION: i32 = 8;
+    const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
@@ -92,9 +92,12 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let r = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() } as i32;
             let g = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() } as i32;
             let b = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() } as i32;
-            let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv) >> 8;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv) >> 8;
+            let y_0 =
+                (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
+            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                >> PRECISION;
+            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                >> PRECISION;
             unsafe {
                 y_st_ptr.add(x).write_unaligned(transform_integer::<
                     ENDIANNESS,
@@ -133,8 +136,8 @@ fn rgbx_to_yuv_bi_planar_10_impl<
                         let b =
                             unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() }
                                 as i32;
-                        let y_1 =
-                            (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
+                        let y_1 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
+                            >> PRECISION;
                         unsafe {
                             y_st_ptr.add(x + 1).write_unaligned(transform_integer::<
                                 ENDIANNESS,
@@ -706,7 +709,6 @@ pub fn bgr_to_yuv_nv12_p16(
         matrix,
     );
 }
-
 
 /// Convert BGR image data to YUV 420 bi-planar (NV21 10-bit) format with 10 or 12 bit depth.
 ///
@@ -2229,7 +2231,16 @@ pub fn bgra_to_yuv_nv24_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgra, bgra_stride, bit_depth, width, height, range,
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        bgra,
+        bgra_stride,
+        bit_depth,
+        width,
+        height,
+        range,
         matrix,
     );
 }
@@ -2321,7 +2332,16 @@ pub fn bgra_to_yuv_nv42_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgra, bgra_stride, bit_depth, width, height, range,
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        bgra,
+        bgra_stride,
+        bit_depth,
+        width,
+        height,
+        range,
         matrix,
     );
 }
@@ -2413,7 +2433,16 @@ pub fn rgba_to_yuv_nv24_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgba, rgba_stride, bit_depth, width, height, range,
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        rgba,
+        rgba_stride,
+        bit_depth,
+        width,
+        height,
+        range,
         matrix,
     );
 }
@@ -2505,7 +2534,16 @@ pub fn rgba_to_yuv_nv42_p16(
         },
     };
     dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgba, rgba_stride, bit_depth, width, height, range,
+        y_plane,
+        y_stride,
+        uv_plane,
+        uv_stride,
+        rgba,
+        rgba_stride,
+        bit_depth,
+        width,
+        height,
+        range,
         matrix,
     );
 }

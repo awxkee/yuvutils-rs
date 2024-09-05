@@ -109,7 +109,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             let y_value =
                 (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
 
-            let r = (y_value + ROUNDING_CONST >> PRECISION).min(255i32).max(0);
+            let r = ((y_value + ROUNDING_CONST) >> PRECISION).min(255i32).max(0);
 
             let px = x * channels;
 

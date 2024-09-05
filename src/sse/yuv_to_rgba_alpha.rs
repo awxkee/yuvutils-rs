@@ -53,8 +53,8 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
     let v_min_values = _mm_setzero_si128();
-    let v_g_coeff_1 = _mm_set1_epi16(-1 * transform.g_coeff_1 as i16);
-    let v_g_coeff_2 = _mm_set1_epi16(-1 * transform.g_coeff_2 as i16);
+    let v_g_coeff_1 = _mm_set1_epi16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = _mm_set1_epi16(-(transform.g_coeff_2 as i16));
     let rounding_const = _mm_set1_epi16(1 << 5);
 
     let zeros = _mm_setzero_si128();
@@ -218,5 +218,5 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
         }
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

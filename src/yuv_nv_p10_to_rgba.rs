@@ -72,8 +72,8 @@ fn yuv_nv_p10_to_image_impl<
 
         let mut _ux = 0usize;
 
-        let y_ld_ptr = unsafe { y_src_ptr.offset(y_offset as isize) as *const u16 };
-        let uv_ld_ptr = unsafe { uv_src_ptr.offset(uv_offset as isize) as *const u16 };
+        let y_ld_ptr = unsafe { y_src_ptr.add(y_offset) as *const u16 };
+        let uv_ld_ptr = unsafe { uv_src_ptr.add(uv_offset) as *const u16 };
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
@@ -116,9 +116,9 @@ fn yuv_nv_p10_to_image_impl<
                             .read_unaligned()
                     }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        y_vl = y_vl >> 6;
-                        cb_vl = cb_vl >> 6;
-                        cr_vl = cr_vl >> 6;
+                        y_vl >>= 6;
+                        cb_vl >>= 6;
+                        cr_vl >>= 6;
                     }
                     y_value = (y_vl - bias_y) * y_coef;
 
@@ -138,9 +138,9 @@ fn yuv_nv_p10_to_image_impl<
                             .read_unaligned()
                     }) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        y_vl = y_vl >> 6;
-                        cb_vl = cb_vl >> 6;
-                        cr_vl = cr_vl >> 6;
+                        y_vl >>= 6;
+                        cb_vl >>= 6;
+                        cr_vl >>= 6;
                     }
                     y_value = (y_vl - bias_y) * y_coef;
 
@@ -151,8 +151,8 @@ fn yuv_nv_p10_to_image_impl<
 
             match uv_order {
                 YuvNVOrder::UV => {
-                    cb_value = cb_value - bias_uv;
-                    cr_value = cr_value - bias_uv;
+                    cb_value -= bias_uv;
+                    cr_value -= bias_uv;
                 }
                 YuvNVOrder::VU => {
                     cr_value = cb_value - bias_uv;
@@ -189,27 +189,26 @@ fn yuv_nv_p10_to_image_impl<
             {
                 let next_px = x + 1;
                 if next_px < width as usize {
-                    let y_value: i32;
-                    match endianness {
+                    let y_value: i32 = match endianness {
                         YuvEndianness::BigEndian => {
                             let mut y_vl =
                                 u16::from_be(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
                                     as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                                y_vl = y_vl >> 6;
+                                y_vl >>= 6;
                             }
-                            y_value = (y_vl - bias_y) * y_coef;
+                            (y_vl - bias_y) * y_coef
                         }
                         YuvEndianness::LittleEndian => {
                             let mut y_vl =
                                 u16::from_le(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
                                     as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                                y_vl = y_vl >> 6;
+                                y_vl >>= 6;
                             }
-                            y_value = (y_vl - bias_y) * y_coef;
+                            (y_vl - bias_y) * y_coef
                         }
-                    }
+                    };
 
                     let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> 8;
                     let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> 8;

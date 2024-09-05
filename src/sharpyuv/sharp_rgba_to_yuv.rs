@@ -109,6 +109,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let mut _cx = 0usize;
         let mut _ux = 0usize;
 
+        #[allow(clippy::explicit_counter_loop)]
         for x in (_cx..width as usize).step_by(iterator_step) {
             unsafe {
                 let px = x * channels;

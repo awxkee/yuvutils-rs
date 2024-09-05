@@ -164,5 +164,5 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
         }
     }
 
-    return ProcessedOffset { cx, ux: uv_x };
+    ProcessedOffset { cx, ux: uv_x }
 }

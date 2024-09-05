@@ -110,23 +110,20 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
             let rgb_pos = rgb_offset + _cx * channels;
             let yuy2_offset = yuy_offset + x * 4;
 
-            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(yuy2_offset..) };
-
-            let first_y =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_first_y_position()) };
-            let second_y =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_second_y_position()) };
-            let u_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_u_position()) };
-            let v_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_v_position()) };
-
-            let cb = u_value as i32 - bias_uv;
-            let cr = v_value as i32 - bias_uv;
-            let f_y = (first_y as i32 - bias_y) * y_coef;
-            let s_y = (second_y as i32 - bias_y) * y_coef;
-
             unsafe {
+                let yuy2_plane_shifted = yuy2_store.get_unchecked(yuy2_offset..);
+
+                let first_y = *yuy2_plane_shifted.get_unchecked(yuy2_source.get_first_y_position());
+                let second_y =
+                    *yuy2_plane_shifted.get_unchecked(yuy2_source.get_second_y_position());
+                let u_value = *yuy2_plane_shifted.get_unchecked(yuy2_source.get_u_position());
+                let v_value = *yuy2_plane_shifted.get_unchecked(yuy2_source.get_v_position());
+
+                let cb = u_value as i32 - bias_uv;
+                let cr = v_value as i32 - bias_uv;
+                let f_y = (first_y as i32 - bias_y) * y_coef;
+                let s_y = (second_y as i32 - bias_y) * y_coef;
+
                 let dst0 = rgb_store.get_unchecked_mut(rgb_pos..);
                 let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
                 let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, 255);

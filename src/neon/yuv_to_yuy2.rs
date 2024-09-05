@@ -41,9 +41,7 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             let u_pixels;
             let v_pixels;
-            let y_pixels;
-
-            y_pixels = vld1q_u8_x2(y_plane.as_ptr().add(y_pos));
+            let y_pixels = vld1q_u8_x2(y_plane.as_ptr().add(y_pos));
 
             if chroma_subsampling == YuvChromaSample::YUV444 {
                 let full_u = vld1q_u8_x2(u_plane.as_ptr().add(u_pos));
@@ -62,21 +60,12 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let low_y = vcombine_u8(vget_low_u8(y_pixels_low), vget_low_u8(y_pixels_high));
             let high_y = vcombine_u8(vget_high_u8(y_pixels_low), vget_high_u8(y_pixels_high));
 
-            let storage;
-            match yuy2_target {
-                Yuy2Description::YUYV => {
-                    storage = uint8x16x4_t(low_y, u_pixels, high_y, v_pixels);
-                }
-                Yuy2Description::UYVY => {
-                    storage = uint8x16x4_t(u_pixels, low_y, v_pixels, high_y);
-                }
-                Yuy2Description::YVYU => {
-                    storage = uint8x16x4_t(low_y, v_pixels, high_y, u_pixels);
-                }
-                Yuy2Description::VYUY => {
-                    storage = uint8x16x4_t(v_pixels, low_y, u_pixels, high_y);
-                }
-            }
+            let storage = match yuy2_target {
+                Yuy2Description::YUYV => uint8x16x4_t(low_y, u_pixels, high_y, v_pixels),
+                Yuy2Description::UYVY => uint8x16x4_t(u_pixels, low_y, v_pixels, high_y),
+                Yuy2Description::YVYU => uint8x16x4_t(low_y, v_pixels, high_y, u_pixels),
+                Yuy2Description::VYUY => uint8x16x4_t(v_pixels, low_y, u_pixels, high_y),
+            };
 
             let dst_offset = yuy2_offset + x * 4;
 
@@ -126,21 +115,12 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let low_y = vget_low_u8(y_pixels);
             let high_y = vget_high_u8(y_pixels);
 
-            let storage;
-            match yuy2_target {
-                Yuy2Description::YUYV => {
-                    storage = uint8x8x4_t(low_y, u_pixels, high_y, v_pixels);
-                }
-                Yuy2Description::UYVY => {
-                    storage = uint8x8x4_t(u_pixels, low_y, v_pixels, high_y);
-                }
-                Yuy2Description::YVYU => {
-                    storage = uint8x8x4_t(low_y, v_pixels, high_y, u_pixels);
-                }
-                Yuy2Description::VYUY => {
-                    storage = uint8x8x4_t(v_pixels, low_y, u_pixels, high_y);
-                }
-            }
+            let storage = match yuy2_target {
+                Yuy2Description::YUYV => uint8x8x4_t(low_y, u_pixels, high_y, v_pixels),
+                Yuy2Description::UYVY => uint8x8x4_t(u_pixels, low_y, v_pixels, high_y),
+                Yuy2Description::YVYU => uint8x8x4_t(low_y, v_pixels, high_y, u_pixels),
+                Yuy2Description::VYUY => uint8x8x4_t(v_pixels, low_y, u_pixels, high_y),
+            };
 
             let dst_offset = yuy2_offset + x * 4;
 
@@ -158,9 +138,9 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         }
     }
 
-    return YuvToYuy2Navigation {
+    YuvToYuy2Navigation {
         cx: _cx,
         uv_x: _uv_x,
         x: _yuy2_x,
-    };
+    }
 }

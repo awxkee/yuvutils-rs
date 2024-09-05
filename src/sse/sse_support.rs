@@ -16,18 +16,14 @@ pub unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     #[rustfmt::skip]
     let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
                                      8, 8, 10, 10, 12, 12, 14, 14);
-    let new_lane = _mm_shuffle_epi8(x, shuffle);
-    new_lane
+    _mm_shuffle_epi8(x, shuffle)
 }
 
 #[inline]
 #[target_feature(enable = "sse4.1")]
 pub unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
-    #[rustfmt::skip]
-        let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7,
-                                    9, 9, 11, 11, 13, 13, 15, 15);
-    let new_lane = _mm_shuffle_epi8(x, shuffle);
-    new_lane
+    let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+    _mm_shuffle_epi8(x, shuffle)
 }
 
 #[inline]
@@ -229,8 +225,7 @@ pub unsafe fn sse_store_rgb_half_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m
 pub unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
     let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
     let shifted = _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)));
-    let packed = _mm_packus_epi16(shifted, shifted);
-    packed
+    _mm_packus_epi16(shifted, shifted)
 }
 
 #[inline]
@@ -246,8 +241,7 @@ pub unsafe fn sse_div_by255(v: __m128i) -> __m128i {
 #[inline(always)]
 pub unsafe fn sse_pairwise_avg_epi16(a: __m128i, b: __m128i) -> __m128i {
     let sums = _mm_hadd_epi16(a, b);
-    let shifted = _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)));
-    shifted
+    _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)))
 }
 
 #[inline(always)]
@@ -274,8 +268,7 @@ pub unsafe fn _mm_combinel_epi8(a: __m128i, b: __m128i) -> __m128i {
     let a_low = _mm_castps_si128(_mm_movelh_ps(_mm_castsi128_ps(a), _mm_castsi128_ps(a)));
     let b_low = _mm_castps_si128(_mm_movelh_ps(_mm_castsi128_ps(b), _mm_castsi128_ps(b)));
 
-    let combined = _mm_unpacklo_epi64(a_low, b_low);
-    combined
+    _mm_unpacklo_epi64(a_low, b_low)
 }
 
 #[inline(always)]
@@ -283,8 +276,7 @@ pub unsafe fn _mm_combineh_epi8(a: __m128i, b: __m128i) -> __m128i {
     let a_low = _mm_castps_si128(_mm_movehl_ps(_mm_castsi128_ps(a), _mm_castsi128_ps(a)));
     let b_low = _mm_castps_si128(_mm_movehl_ps(_mm_castsi128_ps(b), _mm_castsi128_ps(b)));
 
-    let combined = _mm_unpacklo_epi64(a_low, b_low);
-    combined
+    _mm_unpacklo_epi64(a_low, b_low)
 }
 
 #[inline]
@@ -299,11 +291,10 @@ pub unsafe fn _mm_storeu_si128_x4(ptr: *mut u8, vals: __mm128x4) {
 #[inline]
 #[target_feature(enable = "sse4.1")]
 pub unsafe fn _mm_getlow_epi8(a: __m128i) -> __m128i {
-    let half = _mm_castps_si128(_mm_movelh_ps(
+    _mm_castps_si128(_mm_movelh_ps(
         _mm_castsi128_ps(a),
         _mm_castsi128_ps(_mm_setzero_si128()),
-    ));
-    half
+    ))
 }
 
 #[inline]

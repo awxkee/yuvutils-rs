@@ -36,8 +36,8 @@ pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
         let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
         let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
         let v_min_values = vdupq_n_s16(0i16);
-        let v_g_coeff_1 = vdupq_n_s16(-1i16 * transform.g_coeff_1 as i16);
-        let v_g_coeff_2 = vdupq_n_s16(-1i16 * transform.g_coeff_2 as i16);
+        let v_g_coeff_1 = vdupq_n_s16(-(transform.g_coeff_1 as i16));
+        let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
         let v_alpha = vdupq_n_u8(255u8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {

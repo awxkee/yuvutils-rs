@@ -10,10 +10,10 @@
 pub fn srgb_to_linear(gamma: f32) -> f32 {
     if gamma < 0f32 {
         0f32
-    } else if gamma < 12.92f32 * 0.0030412825601275209f32 {
+    } else if gamma < 12.92f32 * 0.003_041_282_5_f32 {
         gamma * (1f32 / 12.92f32)
     } else if gamma < 1.0f32 {
-        ((gamma + 0.0550107189475866f32) / 1.0550107189475866f32).powf(2.4f32)
+        ((gamma + 0.055_010_717_f32) / 1.055_010_7_f32).powf(2.4f32)
     } else {
         1.0f32
     }
@@ -24,10 +24,10 @@ pub fn srgb_to_linear(gamma: f32) -> f32 {
 pub fn srgb_from_linear(linear: f32) -> f32 {
     if linear < 0.0f32 {
         0.0f32
-    } else if linear < 0.0030412825601275209f32 {
+    } else if linear < 0.003_041_282_5_f32 {
         linear * 12.92f32
     } else if linear < 1.0f32 {
-        1.0550107189475866f32 * linear.powf(1.0f32 / 2.4f32) - 0.0550107189475866f32
+        1.055_010_7_f32 * linear.powf(1.0f32 / 2.4f32) - 0.055_010_717_f32
     } else {
         1.0f32
     }
@@ -38,10 +38,10 @@ pub fn srgb_from_linear(linear: f32) -> f32 {
 pub fn rec709_to_linear(gamma: f32) -> f32 {
     if gamma < 0.0f32 {
         0.0f32
-    } else if gamma < 4.5f32 * 0.018053968510807f32 {
+    } else if gamma < 4.5f32 * 0.018_053_97_f32 {
         gamma * (1f32 / 4.5f32)
     } else if gamma < 1.0f32 {
-        ((gamma + 0.09929682680944f32) / 1.09929682680944f32).powf(1.0f32 / 0.45f32)
+        ((gamma + 0.099_296_82_f32) / 1.099_296_8_f32).powf(1.0f32 / 0.45f32)
     } else {
         1.0f32
     }
@@ -52,10 +52,10 @@ pub fn rec709_to_linear(gamma: f32) -> f32 {
 pub fn rec709_from_linear(linear: f32) -> f32 {
     if linear < 0.0f32 {
         0.0f32
-    } else if linear < 0.018053968510807f32 {
+    } else if linear < 0.018_053_97_f32 {
         linear * 4.5f32
     } else if linear < 1.0f32 {
-        1.09929682680944f32 * linear.powf(0.45f32) - 0.09929682680944f32
+        1.099_296_8_f32 * linear.powf(0.45f32) - 0.099_296_82_f32
     } else {
         1.0f32
     }

@@ -86,7 +86,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     y_plane.as_mut_ptr(),
                     cg_plane.as_mut_ptr(),
                     co_plane.as_mut_ptr(),
-                    &rgba,
+                    rgba,
                     y_offset,
                     cg_offset,
                     co_offset,
@@ -104,7 +104,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     y_plane.as_mut_ptr(),
                     cg_plane.as_mut_ptr(),
                     co_plane.as_mut_ptr(),
-                    &rgba,
+                    rgba,
                     y_offset,
                     cg_offset,
                     co_offset,
@@ -122,7 +122,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     y_plane.as_mut_ptr(),
                     cg_plane.as_mut_ptr(),
                     co_plane.as_mut_ptr(),
-                    &rgba,
+                    rgba,
                     y_offset,
                     cg_offset,
                     co_offset,
@@ -143,7 +143,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 y_plane.as_mut_ptr(),
                 cg_plane.as_mut_ptr(),
                 co_plane.as_mut_ptr(),
-                &rgba,
+                rgba,
                 y_offset,
                 cg_offset,
                 co_offset,
@@ -167,7 +167,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let mut b =
                 unsafe { *src0.get_unchecked(source_channels.get_b_channel_offset()) } as i32;
 
-            let hg = g * range_reduction_y >> 1;
+            let hg = (g * range_reduction_y) >> 1;
             let y_0 = (hg + ((r * range_reduction_y + b * range_reduction_y) >> 2) + bias_y) >> 8;
             r *= range_reduction_uv;
             g *= range_reduction_uv;
@@ -200,7 +200,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                         let b =
                             unsafe { *src1.get_unchecked(source_channels.get_b_channel_offset()) }
                                 as i32;
-                        let hg_1 = g * range_reduction_y >> 1;
+                        let hg_1 = (g * range_reduction_y) >> 1;
                         let y_1 = (hg_1
                             + ((r * range_reduction_y + b * range_reduction_y) >> 2)
                             + bias_y)

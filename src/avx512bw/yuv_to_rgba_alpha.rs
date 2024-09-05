@@ -51,8 +51,8 @@ pub unsafe fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
     let v_min_values = _mm512_setzero_si512();
-    let v_g_coeff_1 = _mm512_set1_epi16(-1 * transform.g_coeff_1 as i16);
-    let v_g_coeff_2 = _mm512_set1_epi16(-1 * transform.g_coeff_2 as i16);
+    let v_g_coeff_1 = _mm512_set1_epi16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = _mm512_set1_epi16(-(transform.g_coeff_2 as i16));
     let rounding_const = _mm512_set1_epi16(1 << 5);
 
     while cx + 64 < width {

@@ -53,8 +53,8 @@ pub unsafe fn avx512_yuv_nv_to_rgba<
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
     let v_min_values = _mm512_setzero_si512();
-    let v_g_coeff_1 = _mm512_set1_epi16(-1 * transform.g_coeff_1 as i16);
-    let v_g_coeff_2 = _mm512_set1_epi16(-1 * transform.g_coeff_2 as i16);
+    let v_g_coeff_1 = _mm512_set1_epi16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = _mm512_set1_epi16(-(transform.g_coeff_2 as i16));
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
     let rounding_const = _mm512_set1_epi16(1 << 5);
 

@@ -60,8 +60,8 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
     let v_cr_coeff = _mm_set1_epi16(cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(cb_coef as i16);
     let zeros = _mm_setzero_si128();
-    let v_g_coeff_1 = _mm_set1_epi16(-1i16 * (g_coef_1 as i16));
-    let v_g_coeff_2 = _mm_set1_epi16(-1i16 * (g_coef_2 as i16));
+    let v_g_coeff_1 = _mm_set1_epi16(-(g_coef_1 as i16));
+    let v_g_coeff_2 = _mm_set1_epi16(-(g_coef_2 as i16));
     let rounding_const = _mm_set1_epi32(1 << 5);
 
     let mut cx = start_cx;
@@ -73,8 +73,6 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
     while cx + 8 < width as usize {
-        let y_values;
-
         let u_high;
         let v_high;
         let u_low;
@@ -87,7 +85,7 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm_srl_epi16(y_vl, v_big_shift_count);
         }
-        y_values = _mm_sub_epi16(y_vl, y_corr);
+        let y_values = _mm_sub_epi16(y_vl, y_corr);
 
         match chroma_subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {

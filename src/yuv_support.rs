@@ -34,7 +34,7 @@ impl<T> CbCrInverseTransform<T> {
 
 impl CbCrInverseTransform<f32> {
     /// Integral transformation adds an error not less than 1%
-    pub fn to_integers(&self, precision: u32) -> CbCrInverseTransform<i32> {
+    pub fn to_integers(self, precision: u32) -> CbCrInverseTransform<i32> {
         let precision_scale: i32 = 1i32 << (precision as i32);
         let cr_coef = (self.cr_coef * precision_scale as f32).round() as i32;
         let cb_coef = (self.cb_coef * precision_scale as f32).round() as i32;
@@ -182,9 +182,9 @@ pub const fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 /// Declares standard prebuilt YUV conversion matrices, check [ITU-R](https://www.itu.int/rec/T-REC-H.273/en) information for more info
-/// MJPEG Matrix corresponds Bt.601 + Full Range
+/// JPEG YUV Matrix corresponds Bt.601 + Full Range
 pub enum YuvStandardMatrix {
-    /// If you want to encode/decode MJPEG use Bt.601 + Full Range
+    /// If you want to encode/decode JPEG YUV use Bt.601 + Full Range
     Bt601,
     Bt709,
     Bt2020,
@@ -239,17 +239,16 @@ impl YuvNVOrder {
     pub const fn get_u_position(&self) -> usize {
         match self {
             YuvNVOrder::UV => 0,
-            YuvNVOrder::VU => 1
+            YuvNVOrder::VU => 1,
         }
     }
     #[inline]
     pub const fn get_v_position(&self) -> usize {
         match self {
             YuvNVOrder::UV => 1,
-            YuvNVOrder::VU => 0
+            YuvNVOrder::VU => 0,
         }
     }
-
 }
 
 impl From<u8> for YuvNVOrder {
@@ -310,6 +309,7 @@ impl From<u8> for YuvEndianness {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[allow(clippy::too_long_first_doc_paragraph)]
 /// Most of the cases of storage bytes is least significant whereas b`0000000111111` integers stored in low part,
 /// however most modern hardware encoders (Apple, Android manufacturers) uses most significant bytes
 /// where same number stored as b`111111000000` and need to be shifted right before working with this.
@@ -415,6 +415,7 @@ impl YuvSourceChannels {
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) enum Yuy2Description {
     YUYV = 0,
     UYVY = 1,

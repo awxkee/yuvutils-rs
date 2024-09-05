@@ -123,13 +123,15 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             if chroma_subsampling == YuvChromaSample::YUV444 {
                 u_value = unsafe {
-                    (*u_plane.get_unchecked(u_pos) as u32
-                        + *u_plane.get_unchecked(u_pos + 1) as u32) + 1
+                    ((*u_plane.get_unchecked(u_pos) as u32
+                        + *u_plane.get_unchecked(u_pos + 1) as u32)
+                        + 1)
                         >> 1
                 } as u8;
                 v_value = unsafe {
-                    (*v_plane.get_unchecked(v_pos) as u32
-                        + *v_plane.get_unchecked(v_pos + 1) as u32) + 1
+                    ((*v_plane.get_unchecked(v_pos) as u32
+                        + *v_plane.get_unchecked(v_pos + 1) as u32)
+                        + 1)
                         >> 1
                 } as u8;
             } else {

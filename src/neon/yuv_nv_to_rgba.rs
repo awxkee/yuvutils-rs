@@ -43,8 +43,8 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
     let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
     let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
     let v_min_values = vdupq_n_s16(0i16);
-    let v_g_coeff_1 = vdupq_n_s16(-1i16 * (transform.g_coeff_1 as i16));
-    let v_g_coeff_2 = vdupq_n_s16(-1i16 * (transform.g_coeff_2 as i16));
+    let v_g_coeff_1 = vdupq_n_s16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
     let v_alpha = vdupq_n_u8(255u8);
 
     let mut cx = start_cx;
@@ -179,6 +179,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
                 u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
                 v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
 
+                #[allow(clippy::manual_swap)]
                 if order == YuvNVOrder::VU {
                     let new_v = u_low_u8;
                     u_low_u8 = v_low_u8;

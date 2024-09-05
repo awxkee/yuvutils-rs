@@ -37,7 +37,7 @@ pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    while cx + 16 < width as usize {
+    while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
 
         let y_high = vreinterpretq_s16_u16(vmull_high_u8(y_values, v_luma_coeff));

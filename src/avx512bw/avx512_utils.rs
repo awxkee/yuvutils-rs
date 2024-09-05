@@ -109,7 +109,7 @@ pub unsafe fn avx512_div_by255(v: __m512i) -> __m512i {
     let x = _mm512_adds_epi16(v, rounding);
     let multiplier = _mm512_set1_epi16(-32640);
     let r = _mm512_mulhi_epu16(x, multiplier);
-    return _mm512_srli_epi16::<7>(r);
+    _mm512_srli_epi16::<7>(r)
 }
 
 #[inline]
