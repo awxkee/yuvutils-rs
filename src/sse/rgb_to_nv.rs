@@ -35,6 +35,7 @@ pub unsafe fn sse_rgba_to_nv_row<
     transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
+    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
@@ -117,48 +118,49 @@ pub unsafe fn sse_rgba_to_nv_row<
         let b_high = _mm_unpackhi_epi8(b_values, zeros);
 
         let y_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
-        let cb_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cb_r, v_cb_g, v_cb_b);
-        let cr_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cr_r, v_cr_g, v_cr_b);
 
         let y_h = sse_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
 
         let y_yuv = _mm_packus_epi16(y_l, y_h);
-
-        let cb_h = sse_rgb_to_ycbcr(r_high, g_high, b_high, uv_bias, v_cb_r, v_cb_g, v_cb_b);
-        let cr_h = sse_rgb_to_ycbcr(r_high, g_high, b_high, uv_bias, v_cr_r, v_cr_g, v_cr_b);
-
-        let cb = _mm_packus_epi16(cb_l, cb_h);
-
-        let cr = _mm_packus_epi16(cr_l, cr_h);
-
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, y_yuv);
 
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = sse_pairwise_widen_avg(cb);
-                let cr_h = sse_pairwise_widen_avg(cr);
-                let row0 = match order {
-                    YuvNVOrder::UV => _mm_unpacklo_epi8(cb_h, cr_h),
-                    YuvNVOrder::VU => _mm_unpacklo_epi8(cr_h, cb_h),
-                };
-                let dst_ptr = uv_ptr.add(uv_x);
-                _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
-                uv_x += 16;
-            }
-            YuvChromaSample::YUV444 => {
-                let row0 = match order {
-                    YuvNVOrder::UV => _mm_unpacklo_epi8(cb, cr),
-                    YuvNVOrder::VU => _mm_unpacklo_epi8(cr, cb),
-                };
-                let row1 = match order {
-                    YuvNVOrder::UV => _mm_unpackhi_epi8(cb, cr),
-                    YuvNVOrder::VU => _mm_unpackhi_epi8(cr, cb),
-                };
+        if compute_uv_row {
+            let cb_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cb_r, v_cb_g, v_cb_b);
+            let cr_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cr_r, v_cr_g, v_cr_b);
+            let cb_h = sse_rgb_to_ycbcr(r_high, g_high, b_high, uv_bias, v_cb_r, v_cb_g, v_cb_b);
+            let cr_h = sse_rgb_to_ycbcr(r_high, g_high, b_high, uv_bias, v_cr_r, v_cr_g, v_cr_b);
 
-                let dst_ptr = uv_ptr.add(uv_x);
-                _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
-                _mm_storeu_si128(dst_ptr.add(16) as *mut __m128i, row1);
-                uv_x += 32;
+            let cb = _mm_packus_epi16(cb_l, cb_h);
+
+            let cr = _mm_packus_epi16(cr_l, cr_h);
+
+            match chroma_subsampling {
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                    let cb_h = sse_pairwise_widen_avg(cb);
+                    let cr_h = sse_pairwise_widen_avg(cr);
+                    let row0 = match order {
+                        YuvNVOrder::UV => _mm_unpacklo_epi8(cb_h, cr_h),
+                        YuvNVOrder::VU => _mm_unpacklo_epi8(cr_h, cb_h),
+                    };
+                    let dst_ptr = uv_ptr.add(uv_x);
+                    _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
+                    uv_x += 16;
+                }
+                YuvChromaSample::YUV444 => {
+                    let row0 = match order {
+                        YuvNVOrder::UV => _mm_unpacklo_epi8(cb, cr),
+                        YuvNVOrder::VU => _mm_unpacklo_epi8(cr, cb),
+                    };
+                    let row1 = match order {
+                        YuvNVOrder::UV => _mm_unpackhi_epi8(cb, cr),
+                        YuvNVOrder::VU => _mm_unpackhi_epi8(cr, cb),
+                    };
+
+                    let dst_ptr = uv_ptr.add(uv_x);
+                    _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
+                    _mm_storeu_si128(dst_ptr.add(16) as *mut __m128i, row1);
+                    uv_x += 32;
+                }
             }
         }
 
@@ -210,38 +212,39 @@ pub unsafe fn sse_rgba_to_nv_row<
         let b_low = _mm_cvtepu8_epi16(b_values);
 
         let y_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
-        let cb_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cb_r, v_cb_g, v_cb_b);
-        let cr_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cr_r, v_cr_g, v_cr_b);
 
         let y_yuv = _mm_packus_epi16(y_l, zeros);
-
-        let cb = _mm_packus_epi16(cb_l, zeros);
-
-        let cr = _mm_packus_epi16(cr_l, zeros);
-
         std::ptr::copy_nonoverlapping(&y_yuv as *const _ as *const u8, y_ptr.add(cx), 8);
 
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = sse_pairwise_widen_avg(cb);
-                let cr_h = sse_pairwise_widen_avg(cr);
-                let row0 = match order {
-                    YuvNVOrder::UV => _mm_unpacklo_epi8(cb_h, cr_h),
-                    YuvNVOrder::VU => _mm_unpacklo_epi8(cr_h, cb_h),
-                };
-                let dst_ptr = uv_ptr.add(uv_x);
-                std::ptr::copy_nonoverlapping(&row0 as *const _ as *const u8, dst_ptr, 8);
-                uv_x += 8;
-            }
-            YuvChromaSample::YUV444 => {
-                let row0 = match order {
-                    YuvNVOrder::UV => _mm_unpacklo_epi8(cb, cr),
-                    YuvNVOrder::VU => _mm_unpacklo_epi8(cr, cb),
-                };
+        if compute_uv_row {
+            let cb_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cb_r, v_cb_g, v_cb_b);
+            let cr_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, uv_bias, v_cr_r, v_cr_g, v_cr_b);
+            let cb = _mm_packus_epi16(cb_l, zeros);
 
-                let dst_ptr = uv_ptr.add(uv_x);
-                _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
-                uv_x += 16;
+            let cr = _mm_packus_epi16(cr_l, zeros);
+
+            match chroma_subsampling {
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                    let cb_h = sse_pairwise_widen_avg(cb);
+                    let cr_h = sse_pairwise_widen_avg(cr);
+                    let row0 = match order {
+                        YuvNVOrder::UV => _mm_unpacklo_epi8(cb_h, cr_h),
+                        YuvNVOrder::VU => _mm_unpacklo_epi8(cr_h, cb_h),
+                    };
+                    let dst_ptr = uv_ptr.add(uv_x);
+                    std::ptr::copy_nonoverlapping(&row0 as *const _ as *const u8, dst_ptr, 8);
+                    uv_x += 8;
+                }
+                YuvChromaSample::YUV444 => {
+                    let row0 = match order {
+                        YuvNVOrder::UV => _mm_unpacklo_epi8(cb, cr),
+                        YuvNVOrder::VU => _mm_unpacklo_epi8(cr, cb),
+                    };
+
+                    let dst_ptr = uv_ptr.add(uv_x);
+                    _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
+                    uv_x += 16;
+                }
             }
         }
 

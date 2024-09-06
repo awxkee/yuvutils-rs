@@ -29,6 +29,7 @@ pub unsafe fn neon_rgbx_to_nv_row<
     transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
+    compute_nv_row: bool,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
@@ -120,38 +121,6 @@ pub unsafe fn neon_rgbx_to_nv_row<
             i_cap_y,
         );
 
-        let mut cb_h_high = vmlal_high_s16(uv_bias, r_high, v_cb_r);
-        cb_h_high = vmlal_high_s16(cb_h_high, g_high, v_cb_g);
-        cb_h_high = vmlal_high_s16(cb_h_high, b_high, v_cb_b);
-
-        let mut cb_h_low = vmlal_s16(uv_bias, r_h_low, vget_low_s16(v_cb_r));
-        cb_h_low = vmlal_s16(cb_h_low, g_h_low, vget_low_s16(v_cb_g));
-        cb_h_low = vmlal_s16(cb_h_low, b_h_low, vget_low_s16(v_cb_b));
-
-        let cb_high = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cb_h_low), vshrn_n_s32::<8>(cb_h_high)),
-                i_bias_y,
-            )),
-            i_cap_uv,
-        );
-
-        let mut cr_h_high = vmlal_high_s16(uv_bias, r_high, v_cr_r);
-        cr_h_high = vmlal_high_s16(cr_h_high, g_high, v_cr_g);
-        cr_h_high = vmlal_high_s16(cr_h_high, b_high, v_cr_b);
-
-        let mut cr_h_low = vmlal_s16(uv_bias, r_h_low, vget_low_s16(v_cr_r));
-        cr_h_low = vmlal_s16(cr_h_low, g_h_low, vget_low_s16(v_cr_g));
-        cr_h_low = vmlal_s16(cr_h_low, b_h_low, vget_low_s16(v_cr_b));
-
-        let cr_high = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cr_h_low), vshrn_n_s32::<8>(cr_h_high)),
-                i_bias_y,
-            )),
-            i_cap_uv,
-        );
-
         let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));
         let b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values_u8)));
@@ -178,72 +147,107 @@ pub unsafe fn neon_rgbx_to_nv_row<
             i_cap_y,
         );
 
-        let mut cb_l_high = vmlal_high_s16(uv_bias, r_low, v_cb_r);
-        cb_l_high = vmlal_high_s16(cb_l_high, g_low, v_cb_g);
-        cb_l_high = vmlal_high_s16(cb_l_high, b_low, v_cb_b);
-
-        let mut cb_l_low = vmlal_s16(uv_bias, r_l_low, vget_low_s16(v_cb_r));
-        cb_l_low = vmlal_s16(cb_l_low, g_l_low, vget_low_s16(v_cb_g));
-        cb_l_low = vmlal_s16(cb_l_low, b_l_low, vget_low_s16(v_cb_b));
-
-        let cb_low = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cb_l_low), vshrn_n_s32::<8>(cb_l_high)),
-                i_bias_y,
-            )),
-            i_cap_uv,
-        );
-
-        let mut cr_l_high = vmlal_high_s16(uv_bias, r_low, v_cr_r);
-        cr_l_high = vmlal_high_s16(cr_l_high, g_low, v_cr_g);
-        cr_l_high = vmlal_high_s16(cr_l_high, b_low, v_cr_b);
-
-        let mut cr_l_low = vmlal_s16(uv_bias, r_l_low, vget_low_s16(v_cr_r));
-        cr_l_low = vmlal_s16(cr_l_low, g_l_low, vget_low_s16(v_cr_g));
-        cr_l_low = vmlal_s16(cr_l_low, b_l_low, vget_low_s16(v_cr_b));
-
-        let cr_low = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(vshrn_n_s32::<8>(cr_l_low), vshrn_n_s32::<8>(cr_l_high)),
-                i_bias_y,
-            )),
-            i_cap_uv,
-        );
-
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
-        let cb = vcombine_u8(vqmovn_u16(cb_low), vqmovn_u16(cb_high));
-        let cr = vcombine_u8(vqmovn_u16(cr_low), vqmovn_u16(cr_high));
         vst1q_u8(y_ptr.add(y_offset + cx), y);
 
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_s = vrshrn_n_u16::<1>(vpaddlq_u8(cb));
-                let cr_s = vrshrn_n_u16::<1>(vpaddlq_u8(cr));
-                match order {
-                    YuvNVOrder::UV => {
-                        let store: uint8x8x2_t = uint8x8x2_t(cb_s, cr_s);
-                        vst2_u8(uv_ptr.add(uv_offset + ux), store);
-                    }
-                    YuvNVOrder::VU => {
-                        let store: uint8x8x2_t = uint8x8x2_t(cr_s, cb_s);
-                        vst2_u8(uv_ptr.add(uv_offset + ux), store);
-                    }
-                }
-                ux += 16;
-            }
-            YuvChromaSample::YUV444 => {
-                match order {
-                    YuvNVOrder::UV => {
-                        let store: uint8x16x2_t = uint8x16x2_t(cb, cr);
-                        vst2q_u8(uv_ptr.add(uv_offset + ux), store);
-                    }
-                    YuvNVOrder::VU => {
-                        let store: uint8x16x2_t = uint8x16x2_t(cr, cb);
-                        vst2q_u8(uv_ptr.add(uv_offset + ux), store);
-                    }
-                }
+        if compute_nv_row {
+            let mut cb_h_high = vmlal_high_s16(uv_bias, r_high, v_cb_r);
+            cb_h_high = vmlal_high_s16(cb_h_high, g_high, v_cb_g);
+            cb_h_high = vmlal_high_s16(cb_h_high, b_high, v_cb_b);
 
-                ux += 32;
+            let mut cb_h_low = vmlal_s16(uv_bias, r_h_low, vget_low_s16(v_cb_r));
+            cb_h_low = vmlal_s16(cb_h_low, g_h_low, vget_low_s16(v_cb_g));
+            cb_h_low = vmlal_s16(cb_h_low, b_h_low, vget_low_s16(v_cb_b));
+
+            let cb_high = vminq_u16(
+                vreinterpretq_u16_s16(vmaxq_s16(
+                    vcombine_s16(vshrn_n_s32::<8>(cb_h_low), vshrn_n_s32::<8>(cb_h_high)),
+                    i_bias_y,
+                )),
+                i_cap_uv,
+            );
+
+            let mut cr_h_high = vmlal_high_s16(uv_bias, r_high, v_cr_r);
+            cr_h_high = vmlal_high_s16(cr_h_high, g_high, v_cr_g);
+            cr_h_high = vmlal_high_s16(cr_h_high, b_high, v_cr_b);
+
+            let mut cr_h_low = vmlal_s16(uv_bias, r_h_low, vget_low_s16(v_cr_r));
+            cr_h_low = vmlal_s16(cr_h_low, g_h_low, vget_low_s16(v_cr_g));
+            cr_h_low = vmlal_s16(cr_h_low, b_h_low, vget_low_s16(v_cr_b));
+
+            let cr_high = vminq_u16(
+                vreinterpretq_u16_s16(vmaxq_s16(
+                    vcombine_s16(vshrn_n_s32::<8>(cr_h_low), vshrn_n_s32::<8>(cr_h_high)),
+                    i_bias_y,
+                )),
+                i_cap_uv,
+            );
+
+            let mut cb_l_high = vmlal_high_s16(uv_bias, r_low, v_cb_r);
+            cb_l_high = vmlal_high_s16(cb_l_high, g_low, v_cb_g);
+            cb_l_high = vmlal_high_s16(cb_l_high, b_low, v_cb_b);
+
+            let mut cb_l_low = vmlal_s16(uv_bias, r_l_low, vget_low_s16(v_cb_r));
+            cb_l_low = vmlal_s16(cb_l_low, g_l_low, vget_low_s16(v_cb_g));
+            cb_l_low = vmlal_s16(cb_l_low, b_l_low, vget_low_s16(v_cb_b));
+
+            let cb_low = vminq_u16(
+                vreinterpretq_u16_s16(vmaxq_s16(
+                    vcombine_s16(vshrn_n_s32::<8>(cb_l_low), vshrn_n_s32::<8>(cb_l_high)),
+                    i_bias_y,
+                )),
+                i_cap_uv,
+            );
+
+            let mut cr_l_high = vmlal_high_s16(uv_bias, r_low, v_cr_r);
+            cr_l_high = vmlal_high_s16(cr_l_high, g_low, v_cr_g);
+            cr_l_high = vmlal_high_s16(cr_l_high, b_low, v_cr_b);
+
+            let mut cr_l_low = vmlal_s16(uv_bias, r_l_low, vget_low_s16(v_cr_r));
+            cr_l_low = vmlal_s16(cr_l_low, g_l_low, vget_low_s16(v_cr_g));
+            cr_l_low = vmlal_s16(cr_l_low, b_l_low, vget_low_s16(v_cr_b));
+
+            let cr_low = vminq_u16(
+                vreinterpretq_u16_s16(vmaxq_s16(
+                    vcombine_s16(vshrn_n_s32::<8>(cr_l_low), vshrn_n_s32::<8>(cr_l_high)),
+                    i_bias_y,
+                )),
+                i_cap_uv,
+            );
+
+            let cb = vcombine_u8(vqmovn_u16(cb_low), vqmovn_u16(cb_high));
+            let cr = vcombine_u8(vqmovn_u16(cr_low), vqmovn_u16(cr_high));
+
+            match chroma_subsampling {
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                    let cb_s = vrshrn_n_u16::<1>(vpaddlq_u8(cb));
+                    let cr_s = vrshrn_n_u16::<1>(vpaddlq_u8(cr));
+                    match order {
+                        YuvNVOrder::UV => {
+                            let store: uint8x8x2_t = uint8x8x2_t(cb_s, cr_s);
+                            vst2_u8(uv_ptr.add(uv_offset + ux), store);
+                        }
+                        YuvNVOrder::VU => {
+                            let store: uint8x8x2_t = uint8x8x2_t(cr_s, cb_s);
+                            vst2_u8(uv_ptr.add(uv_offset + ux), store);
+                        }
+                    }
+                    ux += 16;
+                }
+                YuvChromaSample::YUV444 => {
+                    match order {
+                        YuvNVOrder::UV => {
+                            let store: uint8x16x2_t = uint8x16x2_t(cb, cr);
+                            vst2q_u8(uv_ptr.add(uv_offset + ux), store);
+                        }
+                        YuvNVOrder::VU => {
+                            let store: uint8x16x2_t = uint8x16x2_t(cr, cb);
+                            vst2q_u8(uv_ptr.add(uv_offset + ux), store);
+                        }
+                    }
+
+                    ux += 32;
+                }
             }
         }
 

@@ -69,6 +69,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         let mut cx = 0usize;
         let mut ux = 0usize;
 
+        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444 || y & 1 == 0;
+
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             if _use_avx2 {
@@ -84,6 +86,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     &transform,
                     cx,
                     ux,
+                    compute_uv_row,
                 );
                 cx = offset.cx;
                 ux = offset.ux;
@@ -101,6 +104,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     &transform,
                     cx,
                     ux,
+                    compute_uv_row,
                 );
                 cx = offset.cx;
                 ux = offset.ux;
@@ -121,6 +125,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 &transform,
                 cx,
                 ux,
+                compute_uv_row,
             );
             cx = offset.cx;
             ux = offset.ux;
@@ -130,28 +135,17 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             let px = x * channels;
             let rgba_shift = rgba_offset + px;
             let source_slice = unsafe { rgba.get_unchecked(rgba_shift..) };
-            let r = unsafe { *source_slice.get_unchecked(source_channels.get_r_channel_offset()) }
+            let r0 = unsafe { *source_slice.get_unchecked(source_channels.get_r_channel_offset()) }
                 as i32;
-            let g = unsafe { *source_slice.get_unchecked(source_channels.get_g_channel_offset()) }
+            let g0 = unsafe { *source_slice.get_unchecked(source_channels.get_g_channel_offset()) }
                 as i32;
-            let b = unsafe { *source_slice.get_unchecked(source_channels.get_b_channel_offset()) }
+            let b0 = unsafe { *source_slice.get_unchecked(source_channels.get_b_channel_offset()) }
                 as i32;
-            let y_0 =
-                (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
-                >> PRECISION;
-            unsafe {
-                *y_plane.get_unchecked_mut(y_offset + x) = y_0.clamp(i_bias_y, i_cap_y) as u8;
-            }
-            let uv_pos = uv_offset + ux;
-            unsafe {
-                *uv_plane.get_unchecked_mut(uv_pos + order.get_u_position()) =
-                    cb.clamp(i_bias_y, i_cap_uv) as u8;
-                *uv_plane.get_unchecked_mut(uv_pos + order.get_v_position()) =
-                    cr.clamp(i_bias_y, i_cap_uv) as u8;
-            }
+
+            let mut r1 = r0;
+            let mut g1 = g0;
+            let mut b1 = b0;
+
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                     let next_x = x + 1;
@@ -159,17 +153,18 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                         let next_px = next_x * channels;
                         let rgba_shift = rgba_offset + next_px;
                         let source_slice = unsafe { rgba.get_unchecked(rgba_shift..) };
-                        let r = unsafe {
+                        r1 = unsafe {
                             *source_slice.get_unchecked(source_channels.get_r_channel_offset())
                         } as i32;
-                        let g = unsafe {
+                        g1 = unsafe {
                             *source_slice.get_unchecked(source_channels.get_g_channel_offset())
                         } as i32;
-                        let b = unsafe {
+                        b1 = unsafe {
                             *source_slice.get_unchecked(source_channels.get_b_channel_offset())
                         } as i32;
-                        let y_1 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
-                            >> PRECISION;
+                        let y_1 =
+                            (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y)
+                                >> PRECISION;
                         unsafe {
                             *y_plane.get_unchecked_mut(y_offset + next_x) =
                                 y_1.clamp(i_bias_y, i_cap_y) as u8;
@@ -177,6 +172,40 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     }
                 }
                 _ => {}
+            }
+
+            if compute_uv_row {
+                let r = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    r0
+                } else {
+                    (r0 + r1 + 1) >> 1
+                };
+                let g = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    g0
+                } else {
+                    (g0 + g1 + 1) >> 1
+                };
+                let b = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    b0
+                } else {
+                    (b0 + b1 + 1) >> 1
+                };
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                    >> PRECISION;
+                let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                    >> PRECISION;
+                unsafe {
+                    *y_plane.get_unchecked_mut(y_offset + x) = y_0.clamp(i_bias_y, i_cap_y) as u8;
+                }
+                let uv_pos = uv_offset + ux;
+                unsafe {
+                    *uv_plane.get_unchecked_mut(uv_pos + order.get_u_position()) =
+                        cb.clamp(i_bias_y, i_cap_uv) as u8;
+                    *uv_plane.get_unchecked_mut(uv_pos + order.get_v_position()) =
+                        cr.clamp(i_bias_y, i_cap_uv) as u8;
+                }
             }
 
             ux += 2;

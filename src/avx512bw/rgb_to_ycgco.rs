@@ -30,6 +30,7 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
     start_cx: usize,
     start_ux: usize,
     width: usize,
+    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -61,7 +62,6 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
     let v_range_reduction_uv = _mm512_set1_epi32(range_reduction_uv);
 
     while cx + 64 < width {
-
         let (r_values, g_values, b_values);
 
         let px = cx * channels;
@@ -131,23 +131,25 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
         );
 
         let y_intensity = avx512_pack_u16(y_l, y_h);
-        let cg = avx512_pack_u16(cg_l, cg_h);
-        let co = avx512_pack_u16(co_l, co_h);
 
         _mm512_storeu_si512(y_ptr.add(cx) as *mut i32, y_intensity);
 
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(cg));
-                let cr_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(co));
-                _mm256_storeu_si256(cg_ptr.add(uv_x) as *mut _ as *mut __m256i, cb_h);
-                _mm256_storeu_si256(co_ptr.add(uv_x) as *mut _ as *mut __m256i, cr_h);
-                uv_x += 32;
-            }
-            YuvChromaSample::YUV444 => {
-                _mm512_storeu_si512(cg_ptr.add(uv_x) as *mut i32, cg);
-                _mm512_storeu_si512(co_ptr.add(uv_x) as *mut i32, co);
-                uv_x += 64;
+        if compute_uv_row {
+            let cg = avx512_pack_u16(cg_l, cg_h);
+            let co = avx512_pack_u16(co_l, co_h);
+            match chroma_subsampling {
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                    let cb_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(cg));
+                    let cr_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(co));
+                    _mm256_storeu_si256(cg_ptr.add(uv_x) as *mut _ as *mut __m256i, cb_h);
+                    _mm256_storeu_si256(co_ptr.add(uv_x) as *mut _ as *mut __m256i, cr_h);
+                    uv_x += 32;
+                }
+                YuvChromaSample::YUV444 => {
+                    _mm512_storeu_si512(cg_ptr.add(uv_x) as *mut i32, cg);
+                    _mm512_storeu_si512(co_ptr.add(uv_x) as *mut i32, co);
+                    uv_x += 64;
+                }
             }
         }
 

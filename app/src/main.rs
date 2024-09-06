@@ -22,7 +22,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let img = ImageReader::open("./assets/test_augea.jpg")
+    let img = ImageReader::open("./assets/test_image_2.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -238,7 +238,7 @@ fn main() {
     //
     // let end_time = Instant::now().sub(start_time);
     // println!("yuyv422_to_yuv444 time: {:?}", end_time);
-
+    rgba.fill(255);
     let start_time = Instant::now();
     yuv420_to_rgb(
         &y_plane,

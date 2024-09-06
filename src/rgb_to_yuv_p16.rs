@@ -5,9 +5,9 @@
  * // license that can be found in the LICENSE file.
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgba_to_yuv_p10;
+use crate::neon::neon_rgba_to_yuv_p16;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_rgba_to_yuv_p10;
+use crate::sse::sse_rgba_to_yuv_p16;
 use crate::yuv_support::{
     get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvChromaSample,
     YuvSourceChannels,
@@ -98,10 +98,12 @@ fn rgbx_to_yuv_impl<
         let v_st_ptr = unsafe { v_dst_ptr.add(v_offset) as *mut u16 };
         let rgb_ld_ptr = unsafe { rgb_src_ptr.add(rgba_offset) as *const u16 };
 
+        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444 || y & 1 == 0;
+
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             if _use_sse {
-                let offset = sse_rgba_to_yuv_p10::<
+                let offset = sse_rgba_to_yuv_p16::<
                     ORIGIN_CHANNELS,
                     SAMPLING,
                     ENDIANNESS,
@@ -117,6 +119,7 @@ fn rgbx_to_yuv_impl<
                     _cx,
                     _ux,
                     width as usize,
+                    compute_uv_row,
                 );
                 _cx = offset.cx;
                 _ux = offset.ux;
@@ -125,7 +128,7 @@ fn rgbx_to_yuv_impl<
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            let offset = neon_rgba_to_yuv_p10::<
+            let offset = neon_rgba_to_yuv_p16::<
                 ORIGIN_CHANNELS,
                 SAMPLING,
                 ENDIANNESS,
@@ -141,6 +144,7 @@ fn rgbx_to_yuv_impl<
                 _cx,
                 _ux,
                 width as usize,
+                compute_uv_row,
             );
             _cx = offset.cx;
             _ux = offset.ux;
@@ -149,15 +153,16 @@ fn rgbx_to_yuv_impl<
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let src = unsafe { rgb_ld_ptr.add(px) };
-            let r = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() } as i32;
-            let g = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() } as i32;
-            let b = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() } as i32;
+            let r0 = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() } as i32;
+            let g0 = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() } as i32;
+            let b0 = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() } as i32;
+
+            let mut r1 = r0;
+            let mut g1 = g0;
+            let mut b1 = b0;
+
             let y_0 =
-                (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
-                >> PRECISION;
+                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
             unsafe {
                 y_st_ptr.add(x).write_unaligned(transform_integer::<
                     ENDIANNESS,
@@ -165,44 +170,21 @@ fn rgbx_to_yuv_impl<
                     BIT_DEPTH,
                 >(y_0));
             }
-            let u_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
-                YuvChromaSample::YUV444 => _ux,
-            };
-            unsafe {
-                u_st_ptr.add(u_pos).write_unaligned(transform_integer::<
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    BIT_DEPTH,
-                >(cb));
-            }
-            let v_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
-                YuvChromaSample::YUV444 => _ux,
-            };
-            unsafe {
-                v_st_ptr.add(v_pos).write_unaligned(transform_integer::<
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    BIT_DEPTH,
-                >(cr));
-            }
+
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
                         let src = unsafe { rgb_ld_ptr.add(next_px) };
-                        let r =
-                            unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() }
-                                as i32;
-                        let g =
-                            unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() }
-                                as i32;
-                        let b =
-                            unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() }
-                                as i32;
-                        let y_1 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
-                            >> PRECISION;
+                        r1 = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() }
+                            as i32;
+                        g1 = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() }
+                            as i32;
+                        b1 = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() }
+                            as i32;
+                        let y_1 =
+                            (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y)
+                                >> PRECISION;
                         unsafe {
                             y_st_ptr.add(x + 1).write_unaligned(transform_integer::<
                                 ENDIANNESS,
@@ -213,6 +195,50 @@ fn rgbx_to_yuv_impl<
                     }
                 }
                 _ => {}
+            }
+
+            if compute_uv_row {
+                let r = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    r0
+                } else {
+                    (r0 + r1 + 1) >> 1
+                };
+                let g = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    g0
+                } else {
+                    (g0 + g1 + 1) >> 1
+                };
+                let b = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    b0
+                } else {
+                    (b0 + b1 + 1) >> 1
+                };
+                let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                    >> PRECISION;
+                let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                    >> PRECISION;
+                let u_pos = match chroma_subsampling {
+                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
+                    YuvChromaSample::YUV444 => _ux,
+                };
+                unsafe {
+                    u_st_ptr.add(u_pos).write_unaligned(transform_integer::<
+                        ENDIANNESS,
+                        BYTES_POSITION,
+                        BIT_DEPTH,
+                    >(cb));
+                }
+                let v_pos = match chroma_subsampling {
+                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
+                    YuvChromaSample::YUV444 => _ux,
+                };
+                unsafe {
+                    v_st_ptr.add(v_pos).write_unaligned(transform_integer::<
+                        ENDIANNESS,
+                        BYTES_POSITION,
+                        BIT_DEPTH,
+                    >(cr));
+                }
             }
 
             _ux += 1;

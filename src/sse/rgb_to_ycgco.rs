@@ -31,6 +31,7 @@ pub unsafe fn sse_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
     start_cx: usize,
     start_ux: usize,
     width: usize,
+    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -133,26 +134,35 @@ pub unsafe fn sse_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
         );
 
         let y_intensity = _mm_packus_epi16(y_l, y_h);
-        let cg = _mm_packus_epi16(cg_l, cg_h);
-        let co = _mm_packus_epi16(co_l, co_h);
 
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, y_intensity);
 
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cb_h = sse_pairwise_widen_avg(cg);
-                let cr_h = sse_pairwise_widen_avg(co);
-                std::ptr::copy_nonoverlapping(&cb_h as *const _ as *const u8, cg_ptr.add(uv_x), 8);
-                std::ptr::copy_nonoverlapping(&cr_h as *const _ as *const u8, co_ptr.add(uv_x), 8);
-                uv_x += 8;
-            }
-            YuvChromaSample::YUV444 => {
-                _mm_storeu_si128(cg_ptr.add(uv_x) as *mut __m128i, cg);
-                _mm_storeu_si128(co_ptr.add(uv_x) as *mut __m128i, co);
-                uv_x += 16;
+        if compute_uv_row {
+            let cg = _mm_packus_epi16(cg_l, cg_h);
+            let co = _mm_packus_epi16(co_l, co_h);
+            match chroma_subsampling {
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                    let cb_h = sse_pairwise_widen_avg(cg);
+                    let cr_h = sse_pairwise_widen_avg(co);
+                    std::ptr::copy_nonoverlapping(
+                        &cb_h as *const _ as *const u8,
+                        cg_ptr.add(uv_x),
+                        8,
+                    );
+                    std::ptr::copy_nonoverlapping(
+                        &cr_h as *const _ as *const u8,
+                        co_ptr.add(uv_x),
+                        8,
+                    );
+                    uv_x += 8;
+                }
+                YuvChromaSample::YUV444 => {
+                    _mm_storeu_si128(cg_ptr.add(uv_x) as *mut __m128i, cg);
+                    _mm_storeu_si128(co_ptr.add(uv_x) as *mut __m128i, co);
+                    uv_x += 16;
+                }
             }
         }
-
         cx += 16;
     }
 

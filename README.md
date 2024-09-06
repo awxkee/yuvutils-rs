@@ -14,6 +14,8 @@ Supports:
 - [x] Identity ( GBR )
 - [x] Sharp YUV
 
+All the methods support RGB, BGR, BGRA and RGBA
+
 # SIMD
 
 rustc `avx2`, `avx512f`, `avx512bw`, `neon`, `sse4.1` features should be set when you expect than code will run on supported device.

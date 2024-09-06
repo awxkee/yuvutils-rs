@@ -24,6 +24,7 @@ pub unsafe fn neon_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
     start_cx: usize,
     start_ux: usize,
     width: usize,
+    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -114,24 +115,26 @@ pub unsafe fn neon_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
         );
 
         let y = vcombine_u8(vqmovn_u16(y_v_low), vqmovn_u16(y_v_high));
-        let cg = vcombine_u8(vqmovn_u16(cg_low), vqmovn_u16(cg_high));
-        let co = vcombine_u8(vqmovn_u16(co_low), vqmovn_u16(co_high));
         vst1q_u8(y_ptr.add(cx), y);
 
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let cg_s = vrshrn_n_u16::<1>(vpaddlq_u8(cg));
-                let co_s = vrshrn_n_u16::<1>(vpaddlq_u8(co));
-                vst1_u8(cg_ptr.add(uv_x), cg_s);
-                vst1_u8(co_ptr.add(uv_x), co_s);
+        if compute_uv_row {
+            let cg = vcombine_u8(vqmovn_u16(cg_low), vqmovn_u16(cg_high));
+            let co = vcombine_u8(vqmovn_u16(co_low), vqmovn_u16(co_high));
+            match chroma_subsampling {
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                    let cg_s = vrshrn_n_u16::<1>(vpaddlq_u8(cg));
+                    let co_s = vrshrn_n_u16::<1>(vpaddlq_u8(co));
+                    vst1_u8(cg_ptr.add(uv_x), cg_s);
+                    vst1_u8(co_ptr.add(uv_x), co_s);
 
-                uv_x += 8;
-            }
-            YuvChromaSample::YUV444 => {
-                vst1q_u8(cg_ptr.add(uv_x), cg);
-                vst1q_u8(co_ptr.add(uv_x), co);
+                    uv_x += 8;
+                }
+                YuvChromaSample::YUV444 => {
+                    vst1q_u8(cg_ptr.add(uv_x), cg);
+                    vst1q_u8(co_ptr.add(uv_x), co);
 
-                uv_x += 16;
+                    uv_x += 16;
+                }
             }
         }
 

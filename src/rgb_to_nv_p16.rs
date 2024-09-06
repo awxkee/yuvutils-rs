@@ -82,6 +82,8 @@ fn rgbx_to_yuv_bi_planar_10_impl<
         let mut _cx = 0usize;
         let mut _ux = 0usize;
 
+        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444 || y & 1 == 0;
+
         let y_st_ptr = unsafe { y_dst_ptr.add(y_offset) as *mut u16 };
         let uv_st_ptr = unsafe { uv_dst_ptr.add(uv_offset) as *mut u16 };
         let rgb_ld_ptr = unsafe { rgb_src_ptr.add(rgba_offset) as *const u16 };
@@ -89,15 +91,16 @@ fn rgbx_to_yuv_bi_planar_10_impl<
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let src = unsafe { rgb_ld_ptr.add(px) };
-            let r = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() } as i32;
-            let g = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() } as i32;
-            let b = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() } as i32;
+            let r0 = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() } as i32;
+            let g0 = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() } as i32;
+            let b0 = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() } as i32;
+
+            let mut r1 = r0;
+            let mut g1 = g0;
+            let mut b1 = b0;
+
             let y_0 =
-                (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
-                >> PRECISION;
+                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
             unsafe {
                 y_st_ptr.add(x).write_unaligned(transform_integer::<
                     ENDIANNESS,
@@ -105,39 +108,20 @@ fn rgbx_to_yuv_bi_planar_10_impl<
                     BIT_DEPTH,
                 >(y_0));
             }
-            let u_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
-                YuvChromaSample::YUV444 => _ux,
-            };
-            unsafe {
-                let dst_ptr = uv_st_ptr.add(u_pos);
-                dst_ptr
-                    .add(nv_order.get_u_position())
-                    .write_unaligned(transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                        cb,
-                    ));
-                dst_ptr
-                    .add(nv_order.get_v_position())
-                    .write_unaligned(transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                        cr,
-                    ));
-            }
             match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
                         let src = unsafe { rgb_ld_ptr.add(next_px) };
-                        let r =
-                            unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() }
-                                as i32;
-                        let g =
-                            unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() }
-                                as i32;
-                        let b =
-                            unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() }
-                                as i32;
-                        let y_1 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
-                            >> PRECISION;
+                        r1 = unsafe { src.add(src_chans.get_r_channel_offset()).read_unaligned() }
+                            as i32;
+                        g1 = unsafe { src.add(src_chans.get_g_channel_offset()).read_unaligned() }
+                            as i32;
+                        b1 = unsafe { src.add(src_chans.get_b_channel_offset()).read_unaligned() }
+                            as i32;
+                        let y_1 =
+                            (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y)
+                                >> PRECISION;
                         unsafe {
                             y_st_ptr.add(x + 1).write_unaligned(transform_integer::<
                                 ENDIANNESS,
@@ -148,6 +132,45 @@ fn rgbx_to_yuv_bi_planar_10_impl<
                     }
                 }
                 _ => {}
+            }
+
+            if compute_uv_row {
+                let r = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    r0
+                } else {
+                    (r0 + r1 + 1) >> 1
+                };
+                let g = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    g0
+                } else {
+                    (g0 + g1 + 1) >> 1
+                };
+                let b = if chroma_subsampling == YuvChromaSample::YUV444 {
+                    b0
+                } else {
+                    (b0 + b1 + 1) >> 1
+                };
+                let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                    >> PRECISION;
+                let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                    >> PRECISION;
+                let u_pos = match chroma_subsampling {
+                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
+                    YuvChromaSample::YUV444 => _ux,
+                };
+                unsafe {
+                    let dst_ptr = uv_st_ptr.add(u_pos);
+                    dst_ptr
+                        .add(nv_order.get_u_position())
+                        .write_unaligned(
+                            transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(cb),
+                        );
+                    dst_ptr
+                        .add(nv_order.get_v_position())
+                        .write_unaligned(
+                            transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(cr),
+                        );
+                }
             }
 
             _ux += 2;

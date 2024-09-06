@@ -16,7 +16,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_rgba_to_yuv_p10<
+pub unsafe fn sse_rgba_to_yuv_p16<
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -32,6 +32,7 @@ pub unsafe fn sse_rgba_to_yuv_p10<
     start_cx: usize,
     start_ux: usize,
     width: usize,
+    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -126,26 +127,6 @@ pub unsafe fn sse_rgba_to_yuv_p10<
 
         let mut y_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(y_l), _mm_srai_epi32::<8>(y_h));
 
-        let mut cb_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cb_r));
-        cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(g_hi, v_cb_g));
-        cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(b_hi, v_cb_b));
-
-        let mut cb_l = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_lo, v_cb_r));
-        cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(g_lo, v_cb_g));
-        cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(b_lo, v_cb_b));
-
-        let mut cb_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(cb_l), _mm_srai_epi32::<8>(cb_h));
-
-        let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cr_r));
-        cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(g_hi, v_cr_g));
-        cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(b_hi, v_cr_b));
-
-        let mut cr_l = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_lo, v_cr_r));
-        cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(g_lo, v_cr_g));
-        cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(b_lo, v_cr_b));
-
-        let mut cr_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(cr_l), _mm_srai_epi32::<8>(cr_h));
-
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm_sll_epi32(y_vl, v_shift_count);
         }
@@ -156,49 +137,71 @@ pub unsafe fn sse_rgba_to_yuv_p10<
 
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, y_vl);
 
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                let mut cb_s = sse_avg_epi16(cb_vl);
-                let mut cr_s = sse_avg_epi16(cr_vl);
+        if compute_uv_row {
+            let mut cb_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cb_r));
+            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(g_hi, v_cb_g));
+            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(b_hi, v_cb_b));
 
-                if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    cb_s = _mm_sll_epi32(cb_s, v_shift_count);
-                    cr_s = _mm_sll_epi32(cr_s, v_shift_count);
+            let mut cb_l = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_lo, v_cb_r));
+            cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(g_lo, v_cb_g));
+            cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(b_lo, v_cb_b));
+
+            let mut cb_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(cb_l), _mm_srai_epi32::<8>(cb_h));
+
+            let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cr_r));
+            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(g_hi, v_cr_g));
+            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(b_hi, v_cr_b));
+
+            let mut cr_l = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_lo, v_cr_r));
+            cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(g_lo, v_cr_g));
+            cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(b_lo, v_cr_b));
+
+            let mut cr_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(cr_l), _mm_srai_epi32::<8>(cr_h));
+
+            match chroma_subsampling {
+                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                    let mut cb_s = sse_avg_epi16(cb_vl);
+                    let mut cr_s = sse_avg_epi16(cr_vl);
+
+                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                        cb_s = _mm_sll_epi32(cb_s, v_shift_count);
+                        cr_s = _mm_sll_epi32(cr_s, v_shift_count);
+                    }
+
+                    if endianness == YuvEndianness::BigEndian {
+                        cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
+                        cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+                    }
+
+                    std::ptr::copy_nonoverlapping(
+                        &cb_s as *const _ as *const u8,
+                        u_ptr.add(ux) as *mut u8,
+                        8,
+                    );
+                    std::ptr::copy_nonoverlapping(
+                        &cr_s as *const _ as *const u8,
+                        v_ptr.add(ux) as *mut u8,
+                        8,
+                    );
+
+                    ux += 4;
                 }
+                YuvChromaSample::YUV444 => {
+                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                        cb_vl = _mm_sll_epi32(cb_vl, v_shift_count);
+                        cr_vl = _mm_sll_epi32(cr_vl, v_shift_count);
+                    }
 
-                if endianness == YuvEndianness::BigEndian {
-                    cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
-                    cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+                    if endianness == YuvEndianness::BigEndian {
+                        cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
+                        cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
+                    }
+
+                    _mm_storeu_si128(u_ptr.add(ux) as *mut __m128i, cb_vl);
+                    _mm_storeu_si128(v_ptr.add(ux) as *mut __m128i, cr_vl);
+
+                    ux += 8;
                 }
-
-                std::ptr::copy_nonoverlapping(
-                    &cb_s as *const _ as *const u8,
-                    u_ptr.add(ux) as *mut u8,
-                    8,
-                );
-                std::ptr::copy_nonoverlapping(
-                    &cr_s as *const _ as *const u8,
-                    v_ptr.add(ux) as *mut u8,
-                    8,
-                );
-
-                ux += 4;
-            }
-            YuvChromaSample::YUV444 => {
-                if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    cb_vl = _mm_sll_epi32(cb_vl, v_shift_count);
-                    cr_vl = _mm_sll_epi32(cr_vl, v_shift_count);
-                }
-
-                if endianness == YuvEndianness::BigEndian {
-                    cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
-                    cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
-                }
-
-                _mm_storeu_si128(u_ptr.add(ux) as *mut __m128i, cb_vl);
-                _mm_storeu_si128(v_ptr.add(ux) as *mut __m128i, cr_vl);
-
-                ux += 8;
             }
         }
 

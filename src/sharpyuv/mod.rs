@@ -4,6 +4,8 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+mod neon;
 mod sharp_gamma;
 mod sharp_rgba_to_yuv;
 
