@@ -4,6 +4,7 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::sharpyuv::neon::neon_rgba_to_sharp_yuv;
 use crate::sharpyuv::SharpYuvGammaTransfer;
 use crate::yuv_support::*;
