@@ -96,6 +96,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     cx,
                     ux,
                     width as usize,
+                    compute_uv_row,
                 );
                 cx = processed_offset.cx;
                 ux = processed_offset.ux;
