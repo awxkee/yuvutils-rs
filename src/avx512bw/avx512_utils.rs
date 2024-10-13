@@ -15,14 +15,12 @@ use std::arch::x86_64::*;
 use crate::avx512bw::avx512_setr::{_v512_set_epu16, _v512_set_epu32};
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_pack_u16(lo: __m512i, hi: __m512i) -> __m512i {
     let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
     _mm512_permutexvar_epi64(mask, _mm512_packus_epi16(lo, hi))
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_interleave_rgb(
     a: __m512i,
     b: __m512i,
@@ -59,7 +57,6 @@ pub unsafe fn avx512_interleave_rgb(
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_rgb_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m512i) {
     let (rgb0, rgb1, rgb2) = avx512_interleave_rgb(a, b, c);
     _mm512_storeu_si512(dst as *mut i32, rgb0);
@@ -68,7 +65,6 @@ pub unsafe fn avx512_rgb_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m512i) {
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_zip(a: __m512i, b: __m512i) -> (__m512i, __m512i) {
     let low = _mm512_unpacklo_epi8(a, b);
     let high = _mm512_unpackhi_epi8(a, b);
@@ -78,7 +74,6 @@ pub unsafe fn avx512_zip(a: __m512i, b: __m512i) -> (__m512i, __m512i) {
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_interleave_rgba(
     a: __m512i,
     b: __m512i,
@@ -93,7 +88,6 @@ pub unsafe fn avx512_interleave_rgba(
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_rgba_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m512i, d: __m512i) {
     let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba(a, b, c, d);
     _mm512_storeu_si512(dst as *mut i32, rgb0);
@@ -103,7 +97,6 @@ pub unsafe fn avx512_rgba_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m512i, d
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_div_by255(v: __m512i) -> __m512i {
     let rounding = _mm512_set1_epi16(1 << 7);
     let x = _mm512_adds_epi16(v, rounding);
@@ -113,7 +106,6 @@ pub unsafe fn avx512_div_by255(v: __m512i) -> __m512i {
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_deinterleave_rgb(
     bgr0: __m512i,
     bgr1: __m512i,
@@ -147,7 +139,6 @@ pub unsafe fn avx512_deinterleave_rgb(
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_deinterleave_rgba(
     bgra0: __m512i,
     bgra1: __m512i,
@@ -176,7 +167,6 @@ pub unsafe fn avx512_deinterleave_rgba(
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_pairwise_widen_avg(v: __m512i) -> __m512i {
     let sums = _mm512_maddubs_epi16(v, _mm512_set1_epi8(1));
     let shifted = _mm512_srli_epi16::<1>(_mm512_add_epi16(sums, _mm512_set1_epi16(1)));
@@ -186,7 +176,6 @@ pub unsafe fn avx512_pairwise_widen_avg(v: __m512i) -> __m512i {
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_rgb_to_ycbcr(
     r: __m512i,
     g: __m512i,
@@ -232,7 +221,6 @@ pub unsafe fn avx512_rgb_to_ycbcr(
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_interleave_odd_epi8(a: __m512i, b: __m512i) -> __m512i {
     let mask_a = _mm512_set1_epi16(0x00FF);
     let masked_a = _mm512_slli_epi16::<8>(_mm512_and_si512(a, mask_a));
@@ -241,7 +229,6 @@ pub unsafe fn avx512_interleave_odd_epi8(a: __m512i, b: __m512i) -> __m512i {
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx512_interleave_even_epi8(a: __m512i, b: __m512i) -> __m512i {
     let mask_a = _mm512_slli_epi16::<8>(_mm512_srli_epi16::<8>(a));
     let masked_a = _mm512_and_si512(a, mask_a);
@@ -255,7 +242,6 @@ pub const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn avx2_zip(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     const MASK: i32 = shuffle(3, 1, 2, 0);
     let v0 = _mm256_permute4x64_epi64::<MASK>(a);

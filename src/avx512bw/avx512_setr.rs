@@ -13,7 +13,6 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn _v512_set_epu32(
     a15: i64,
     a14: i64,
@@ -45,7 +44,6 @@ pub unsafe fn _v512_set_epu32(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[cfg(feature = "nightly_avx512")]
 #[inline(always)]
 #[allow(dead_code)]
 pub unsafe fn _v512_set_epu16(
@@ -103,7 +101,6 @@ pub unsafe fn _v512_set_epu16(
 }
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
 pub unsafe fn _v512_set_epu8(
     a63: i64,
     a62: i64,

@@ -17,6 +17,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+#[target_feature(enable = "avx2")]
 pub fn yuy2_to_rgb_avx<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
