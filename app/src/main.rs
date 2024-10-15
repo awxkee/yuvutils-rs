@@ -114,7 +114,7 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("yuv_nv12_to_rgb time: {:?}", end_time);
     let start_time = Instant::now();
-    rgba_to_sharp_yuv420(
+    rgb_to_sharp_yuv420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,

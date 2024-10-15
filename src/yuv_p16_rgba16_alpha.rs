@@ -213,7 +213,7 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
             }
             dst_slice
                 .add(dst_chans.get_a_channel_offset())
-                .write_unaligned(a0 as u16);
+                .write_unaligned(a0);
 
             x += 1;
 
