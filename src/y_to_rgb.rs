@@ -4,7 +4,6 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -18,6 +17,10 @@ use crate::neon::neon_y_to_rgb_row;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_y_to_rgb_row;
 use crate::yuv_support::*;
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::ParallelSliceMut;
 
 // Chroma subsampling always assumed as 400
 fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
@@ -26,7 +29,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
-    height: u32,
+    _: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {
@@ -43,16 +46,26 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     let bias_y = range.bias_y as i32;
 
-    let mut y_offset = 0usize;
-    let mut rgba_offset = 0usize;
-
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    for _ in 0..height as usize {
+    let iter;
+    #[cfg(feature = "rayon")]
+    {
+        iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = rgba.chunks_exact_mut(rgba_stride as usize);
+    }
+
+    iter.enumerate().for_each(|(y, rgba)| {
+        let y_offset = y * (y_stride as usize);
+        let rgba_offset = 0usize;
+
         let mut _cx = 0usize;
 
         #[cfg(all(
@@ -125,10 +138,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 }
             }
         }
-
-        y_offset += y_stride as usize;
-        rgba_offset += rgba_stride as usize;
-    }
+    });
 }
 
 /// Convert YUV 400 planar format to RGB format.

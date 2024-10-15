@@ -9,6 +9,11 @@ use crate::neon::neon_yuv_nv_p16_to_rgba_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_nv_p16_to_rgba_row;
 use crate::yuv_support::*;
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::ParallelSliceMut;
+use std::slice;
 
 fn yuv_nv_p16_to_image_impl<
     const DESTINATION_CHANNELS: u8,
@@ -57,13 +62,15 @@ fn yuv_nv_p16_to_image_impl<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let mut y_offset = 0usize;
-    let mut uv_offset = 0usize;
-    let mut dst_offset = 0usize;
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
 
-    let y_src_ptr = y_plane.as_ptr() as *const u8;
-    let uv_src_ptr = uv_plane.as_ptr() as *const u8;
-    let dst_ptr = bgra.as_mut_ptr() as *mut u8;
+    let casted_slice = unsafe {
+        slice::from_raw_parts_mut(
+            bgra.as_mut_ptr() as *mut u8,
+            height as usize * bgra_stride as usize,
+        )
+    };
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
@@ -71,21 +78,38 @@ fn yuv_nv_p16_to_image_impl<
         YuvChromaSample::YUV444 => 1usize,
     };
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let iter;
+    #[cfg(feature = "rayon")]
+    {
+        iter = casted_slice.par_chunks_exact_mut(bgra_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = casted_slice.chunks_exact_mut(bgra_stride as usize);
+    }
 
-    for y in 0..height as usize {
+    iter.enumerate().for_each(|(y, bgra)| unsafe {
+        let y_offset = y * (y_stride as usize);
+        let uv_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+            (y >> 1) * (uv_stride as usize)
+        } else {
+            y * (uv_stride as usize)
+        };
+
         let mut _cx = 0usize;
         let mut _ux = 0usize;
 
         let msb_shift = 16 - BIT_DEPTH;
 
-        let y_ld_ptr = unsafe { y_src_ptr.add(y_offset) as *const u16 };
-        let uv_ld_ptr = unsafe { uv_src_ptr.add(uv_offset) as *const u16 };
-        let dst_st_ptr = unsafe { dst_ptr.add(dst_offset) as *mut u16 };
+        let y_src_ptr = y_plane.as_ptr() as *const u8;
+        let uv_src_ptr = uv_plane.as_ptr() as *const u8;
+
+        let y_ld_ptr = y_src_ptr.add(y_offset) as *const u16;
+        let uv_ld_ptr = uv_src_ptr.add(uv_offset) as *const u16;
+        let dst_st_ptr = bgra.as_mut_ptr() as *mut u16;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             if _use_sse {
                 let processed = sse_yuv_nv_p16_to_rgba_row::<
                     DESTINATION_CHANNELS,
@@ -110,7 +134,7 @@ fn yuv_nv_p16_to_image_impl<
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
+        {
             let processed = neon_yuv_nv_p16_to_rgba_row::<
                 DESTINATION_CHANNELS,
                 NV_ORDER,
@@ -138,17 +162,17 @@ fn yuv_nv_p16_to_image_impl<
             let mut cr_value: i32;
             match endianness {
                 YuvEndianness::BigEndian => {
-                    let mut y_vl = u16::from_be(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl = u16::from_be(unsafe {
+                    let mut y_vl = u16::from_be(y_ld_ptr.add(x).read_unaligned()) as i32;
+                    let mut cb_vl = u16::from_be(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_u_position())
-                            .read_unaligned()
-                    }) as i32;
-                    let mut cr_vl = u16::from_be(unsafe {
+                            .read_unaligned(),
+                    ) as i32;
+                    let mut cr_vl = u16::from_be(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_v_position())
-                            .read_unaligned()
-                    }) as i32;
+                            .read_unaligned(),
+                    ) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl >>= msb_shift;
                         cb_vl >>= msb_shift;
@@ -160,17 +184,17 @@ fn yuv_nv_p16_to_image_impl<
                     cr_value = cr_vl;
                 }
                 YuvEndianness::LittleEndian => {
-                    let mut y_vl = u16::from_le(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl = u16::from_le(unsafe {
+                    let mut y_vl = u16::from_le(y_ld_ptr.add(x).read_unaligned()) as i32;
+                    let mut cb_vl = u16::from_le(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_u_position())
-                            .read_unaligned()
-                    }) as i32;
-                    let mut cr_vl = u16::from_le(unsafe {
+                            .read_unaligned(),
+                    ) as i32;
+                    let mut cr_vl = u16::from_le(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_v_position())
-                            .read_unaligned()
-                    }) as i32;
+                            .read_unaligned(),
+                    ) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl >>= msb_shift;
                         cb_vl >>= msb_shift;
@@ -195,7 +219,6 @@ fn yuv_nv_p16_to_image_impl<
             }
 
             // shift right 8 due to we want to make it 8 bit instead of 10
-
             let r_p16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION;
             let b_p16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION;
             let g_p16 =
@@ -207,22 +230,20 @@ fn yuv_nv_p16_to_image_impl<
 
             let px = x * channels;
 
-            unsafe {
-                let dst_store = dst_st_ptr.add(px);
+            let dst_store = dst_st_ptr.add(px);
+            dst_store
+                .add(dst_chans.get_b_channel_offset())
+                .write_unaligned(b as u16);
+            dst_store
+                .add(dst_chans.get_g_channel_offset())
+                .write_unaligned(g as u16);
+            dst_store
+                .add(dst_chans.get_r_channel_offset())
+                .write_unaligned(r as u16);
+            if dst_chans.has_alpha() {
                 dst_store
-                    .add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b as u16);
-                dst_store
-                    .add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g as u16);
-                dst_store
-                    .add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r as u16);
-                if dst_chans.has_alpha() {
-                    dst_store
-                        .add(dst_chans.get_a_channel_offset())
-                        .write_unaligned(max_range as u16);
-                }
+                    .add(dst_chans.get_a_channel_offset())
+                    .write_unaligned(max_range as u16);
             }
 
             if chroma_subsampling == YuvChromaSample::YUV422
@@ -233,8 +254,7 @@ fn yuv_nv_p16_to_image_impl<
                     let y_value: i32 = match endianness {
                         YuvEndianness::BigEndian => {
                             let mut y_vl =
-                                u16::from_be(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
-                                    as i32;
+                                u16::from_be(y_ld_ptr.add(next_px).read_unaligned()) as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                                 y_vl >>= msb_shift;
                             }
@@ -242,8 +262,7 @@ fn yuv_nv_p16_to_image_impl<
                         }
                         YuvEndianness::LittleEndian => {
                             let mut y_vl =
-                                u16::from_le(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
-                                    as i32;
+                                u16::from_le(y_ld_ptr.add(next_px).read_unaligned()) as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                                 y_vl >>= msb_shift;
                             }
@@ -262,43 +281,27 @@ fn yuv_nv_p16_to_image_impl<
                     let g = g_p16.clamp(0, max_range);
 
                     let px = next_px * channels;
-                    unsafe {
-                        let dst_store = dst_st_ptr.add(px);
+                    let dst_store = dst_st_ptr.add(px);
+                    dst_store
+                        .add(dst_chans.get_b_channel_offset())
+                        .write_unaligned(b as u16);
+                    dst_store
+                        .add(dst_chans.get_g_channel_offset())
+                        .write_unaligned(g as u16);
+                    dst_store
+                        .add(dst_chans.get_r_channel_offset())
+                        .write_unaligned(r as u16);
+                    if dst_chans.has_alpha() {
                         dst_store
-                            .add(dst_chans.get_b_channel_offset())
-                            .write_unaligned(b as u16);
-                        dst_store
-                            .add(dst_chans.get_g_channel_offset())
-                            .write_unaligned(g as u16);
-                        dst_store
-                            .add(dst_chans.get_r_channel_offset())
-                            .write_unaligned(r as u16);
-                        if dst_chans.has_alpha() {
-                            dst_store
-                                .add(dst_chans.get_a_channel_offset())
-                                .write_unaligned(max_range as u16);
-                        }
+                            .add(dst_chans.get_a_channel_offset())
+                            .write_unaligned(max_range as u16);
                     }
                 }
             }
 
             _ux += 2;
         }
-
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
-                if y & 1 == 1 {
-                    uv_offset += uv_stride as usize;
-                }
-            }
-            YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => {
-                uv_offset += uv_stride as usize;
-            }
-        }
-
-        dst_offset += bgra_stride as usize;
-        y_offset += y_stride as usize;
-    }
+    });
 }
 
 fn yuv_nv_p16_to_image<

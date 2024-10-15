@@ -157,7 +157,6 @@ pub unsafe fn neon_rgba_to_yuv<
         vst1q_u8(y_ptr.add(cx), y);
 
         if compute_uv_row {
-
             let mut cb_h_high = vmlal_high_s16(uv_bias, r_high, v_cb_r);
             cb_h_high = vmlal_high_s16(cb_h_high, g_high, v_cb_g);
             cb_h_high = vmlal_high_s16(cb_h_high, b_high, v_cb_b);

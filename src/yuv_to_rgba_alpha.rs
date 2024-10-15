@@ -4,7 +4,6 @@
  * // Use of this source code is governed by a BSD-style
  * // license that can be found in the LICENSE file.
  */
-
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_yuv_to_rgba_alpha;
 #[cfg(all(
@@ -19,6 +18,10 @@ use crate::sse::sse_yuv_to_rgba_alpha_row;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
 use crate::{YuvRange, YuvStandardMatrix};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::ParallelSliceMut;
 
 fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &[u8],
@@ -43,6 +46,15 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         panic!("yuv_with_alpha_to_rgbx cannot be called on configuration without alpha");
     }
     let channels = dst_chans.get_channels_count();
+
+    if rgba.len() < width as usize * height as usize * channels {
+        panic!(
+            "RGBA slice size must be at least {} but is is {}",
+            width as usize * height as usize * channels,
+            rgba.len()
+        );
+    }
+
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
@@ -58,12 +70,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
-
-    let mut y_offset = 0usize;
-    let mut u_offset = 0usize;
-    let mut v_offset = 0usize;
-    let mut a_offset = 0usize;
-    let mut rgba_offset = 0usize;
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
@@ -81,7 +87,31 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    for y in 0..height as usize {
+    let iter;
+    #[cfg(feature = "rayon")]
+    {
+        iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = rgba.chunks_exact_mut(rgba_stride as usize);
+    }
+
+    iter.enumerate().for_each(|(y, rgba)| {
+        let y_offset = y * (y_stride as usize);
+        let u_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+            (y >> 1) * (u_stride as usize)
+        } else {
+            y * (u_stride as usize)
+        };
+        let v_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+            (y >> 1) * (v_stride as usize)
+        } else {
+            y * (v_stride as usize)
+        };
+        let a_offset = y * (a_stride as usize);
+        let rgba_offset = 0;
+
         #[allow(unused_variables)]
         #[allow(unused_mut)]
         let mut cx = 0usize;
@@ -205,9 +235,14 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let cr_value = unsafe { *v_plane.get_unchecked(v_pos) } as i32 - bias_uv;
 
-            let mut r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).min(255).max(0);
-            let mut b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION).min(255).max(0);
-            let mut g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST) >> PRECISION)
+            let mut r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let mut b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
+                .min(255)
+                .max(0);
+            let mut g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
+                >> PRECISION)
                 .min(255)
                 .max(0);
 
@@ -239,9 +274,15 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * y_coef;
 
-                    let mut r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).min(255).max(0);
-                    let mut b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION).min(255).max(0);
-                    let mut g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST) >> PRECISION)
+                    let mut r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let mut b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
+                        .min(255)
+                        .max(0);
+                    let mut g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value
+                        + ROUNDING_CONST)
+                        >> PRECISION)
                         .min(255)
                         .max(0);
 
@@ -268,23 +309,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             uv_x += 1;
         }
-
-        y_offset += y_stride as usize;
-        rgba_offset += rgba_stride as usize;
-        a_offset += a_stride as usize;
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
-                if y & 1 == 1 {
-                    u_offset += u_stride as usize;
-                    v_offset += v_stride as usize;
-                }
-            }
-            YuvChromaSample::YUV444 | YuvChromaSample::YUV422 => {
-                u_offset += u_stride as usize;
-                v_offset += v_stride as usize;
-            }
-        }
-    }
+    });
 }
 
 /// Convert YUV 420 planar format to RGBA format and appends provided alpha channel.

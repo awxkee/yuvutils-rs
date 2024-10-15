@@ -66,7 +66,7 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let source_ptr=  rgba_ptr.add(px);
+                let source_ptr = rgba_ptr.add(px);
                 let row_1 = _mm_loadu_si128(source_ptr as *const __m128i);
                 let row_2 = _mm_loadu_si128(source_ptr.add(16) as *const __m128i);
                 let row_3 = _mm_loadu_si128(source_ptr.add(32) as *const __m128i);
@@ -83,7 +83,7 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
                 }
             }
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let source_ptr=  rgba_ptr.add(px);
+                let source_ptr = rgba_ptr.add(px);
                 let row_1 = _mm_loadu_si128(source_ptr as *const __m128i);
                 let row_2 = _mm_loadu_si128(source_ptr.add(16) as *const __m128i);
                 let row_3 = _mm_loadu_si128(source_ptr.add(32) as *const __m128i);

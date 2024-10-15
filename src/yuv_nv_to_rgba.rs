@@ -21,6 +21,10 @@ use crate::sse::sse_yuv_nv_to_rgba;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_yuv_nv_to_rgba_row;
 use crate::yuv_support::*;
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::ParallelSliceMut;
 
 fn yuv_nv12_to_rgbx<
     const UV_ORDER: u8,
@@ -34,7 +38,7 @@ fn yuv_nv12_to_rgbx<
     bgra: &mut [u8],
     bgra_stride: u32,
     width: u32,
-    height: u32,
+    _: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {
@@ -57,9 +61,7 @@ fn yuv_nv12_to_rgbx<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let mut y_offset = 0usize;
-    let mut uv_offset = 0usize;
-    let mut dst_offset = 0usize;
+    let dst_offset = 0usize;
 
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
@@ -77,7 +79,24 @@ fn yuv_nv12_to_rgbx<
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    for y in 0..height as usize {
+    let iter;
+    #[cfg(feature = "rayon")]
+    {
+        iter = bgra.par_chunks_exact_mut(bgra_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = bgra.chunks_exact_mut(bgra_stride as usize);
+    }
+
+    iter.enumerate().for_each(|(y, bgra)| unsafe {
+        let y_offset = y * (y_stride as usize);
+        let uv_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+            (y >> 1) * (uv_stride as usize)
+        } else {
+            y * (uv_stride as usize)
+        };
+
         #[allow(unused_variables)]
         #[allow(unused_mut)]
         let mut cx = 0usize;
@@ -87,7 +106,7 @@ fn yuv_nv12_to_rgbx<
         let mut ux = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
                 let processed =
@@ -148,7 +167,7 @@ fn yuv_nv12_to_rgbx<
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
+        {
             let processed =
                 neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                     &range,
@@ -168,7 +187,7 @@ fn yuv_nv12_to_rgbx<
         }
 
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-        unsafe {
+        {
             let processed =
                 wasm_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                     &range,
@@ -188,15 +207,12 @@ fn yuv_nv12_to_rgbx<
         }
 
         for x in (cx..width as usize).step_by(iterator_step) {
-            let y_value =
-                (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
+            let y_value = (*y_plane.get_unchecked(y_offset + x) as i32 - bias_y) * y_coef;
             let cb_pos = uv_offset + ux;
-            let cb_value: i32 = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_u_position()) }
-                as i32
-                - bias_uv;
-            let cr_value: i32 = unsafe { *uv_plane.get_unchecked(cb_pos + order.get_v_position()) }
-                as i32
-                - bias_uv;
+            let cb_value: i32 =
+                *uv_plane.get_unchecked(cb_pos + order.get_u_position()) as i32 - bias_uv;
+            let cr_value: i32 =
+                *uv_plane.get_unchecked(cb_pos + order.get_v_position()) as i32 - bias_uv;
 
             let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
                 .min(255)
@@ -213,14 +229,12 @@ fn yuv_nv12_to_rgbx<
 
             let dst_shift = dst_offset + px;
 
-            unsafe {
-                let dst_slice = bgra.get_unchecked_mut(dst_shift..);
-                *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-                *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-                *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
-                if dst_chans.has_alpha() {
-                    *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
-                }
+            let dst_slice = bgra.get_unchecked_mut(dst_shift..);
+            *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+            *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+            *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+            if dst_chans.has_alpha() {
+                *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
             }
 
             if chroma_subsampling == YuvChromaSample::YUV422
@@ -228,9 +242,8 @@ fn yuv_nv12_to_rgbx<
             {
                 let next_px = x + 1;
                 if next_px < width as usize {
-                    let y_value = (unsafe { *y_plane.get_unchecked(y_offset + next_px) } as i32
-                        - bias_y)
-                        * y_coef;
+                    let y_value =
+                        (*y_plane.get_unchecked(y_offset + next_px) as i32 - bias_y) * y_coef;
 
                     let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
                         .min(255)
@@ -246,35 +259,19 @@ fn yuv_nv12_to_rgbx<
 
                     let next_px = next_px * channels;
                     let dst_shift = dst_offset + next_px;
-                    unsafe {
-                        let dst_slice = bgra.get_unchecked_mut(dst_shift..);
-                        *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-                        *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-                        *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
-                        if dst_chans.has_alpha() {
-                            *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
-                        }
+                    let dst_slice = bgra.get_unchecked_mut(dst_shift..);
+                    *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+                    *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+                    *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+                    if dst_chans.has_alpha() {
+                        *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                     }
                 }
             }
 
             ux += 2;
         }
-
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
-                if y & 1 == 1 {
-                    uv_offset += uv_stride as usize;
-                }
-            }
-            YuvChromaSample::YUV444 | YuvChromaSample::YUV422 => {
-                uv_offset += uv_stride as usize;
-            }
-        }
-
-        dst_offset += bgra_stride as usize;
-        y_offset += y_stride as usize;
-    }
+    });
 }
 
 /// Convert YUV NV12 format to BGRA format.

@@ -15,12 +15,13 @@ use crate::yuv_support::{
 use crate::{YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
 
 #[inline(always)]
-fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_DEPTH: u8>(
+fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
     v: i32,
+    bit_depth: u32,
 ) -> u16 {
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
-    let packing: i32 = 16 - BIT_DEPTH as i32;
+    let packing: i32 = 16 - bit_depth as i32;
     let packed_bytes = match bytes_position {
         YuvBytesPacking::MostSignificantBytes => v << packing,
         YuvBytesPacking::LeastSignificantBytes => v,
@@ -36,7 +37,6 @@ fn rgbx_to_yuv_impl<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: u8,
 >(
     y_plane: &mut [u16],
     y_stride: u32,
@@ -50,13 +50,15 @@ fn rgbx_to_yuv_impl<
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    bit_depth: u32,
 ) {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
-    let range = get_yuv_range(BIT_DEPTH as u32, range);
+
+    let range = get_yuv_range(bit_depth, range);
     let kr_kb = get_kr_kb(matrix);
-    let max_range_p8 = (1u32 << BIT_DEPTH as u32) - 1u32;
+    let max_range_p8 = (1u32 << bit_depth) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,
         range.range_y,
@@ -103,13 +105,29 @@ fn rgbx_to_yuv_impl<
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             if _use_sse {
-                let offset = sse_rgba_to_yuv_p16::<
-                    ORIGIN_CHANNELS,
-                    SAMPLING,
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    BIT_DEPTH,
-                >(
+                let offset =
+                    sse_rgba_to_yuv_p16::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
+                        &transform,
+                        &range,
+                        y_st_ptr,
+                        u_st_ptr,
+                        v_st_ptr,
+                        rgb_ld_ptr,
+                        _cx,
+                        _ux,
+                        width as usize,
+                        compute_uv_row,
+                        bit_depth,
+                    );
+                _cx = offset.cx;
+                _ux = offset.ux;
+            }
+        }
+
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            let offset =
+                neon_rgba_to_yuv_p16::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
                     &transform,
                     &range,
                     y_st_ptr,
@@ -120,32 +138,8 @@ fn rgbx_to_yuv_impl<
                     _ux,
                     width as usize,
                     compute_uv_row,
+                    bit_depth,
                 );
-                _cx = offset.cx;
-                _ux = offset.ux;
-            }
-        }
-
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
-            let offset = neon_rgba_to_yuv_p16::<
-                ORIGIN_CHANNELS,
-                SAMPLING,
-                ENDIANNESS,
-                BYTES_POSITION,
-                BIT_DEPTH,
-            >(
-                &transform,
-                &range,
-                y_st_ptr,
-                u_st_ptr,
-                v_st_ptr,
-                rgb_ld_ptr,
-                _cx,
-                _ux,
-                width as usize,
-                compute_uv_row,
-            );
             _cx = offset.cx;
             _ux = offset.ux;
         }
@@ -164,11 +158,11 @@ fn rgbx_to_yuv_impl<
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
             unsafe {
-                y_st_ptr.add(x).write_unaligned(transform_integer::<
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    BIT_DEPTH,
-                >(y_0));
+                y_st_ptr
+                    .add(x)
+                    .write_unaligned(transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                        y_0, bit_depth,
+                    ));
             }
 
             match chroma_subsampling {
@@ -189,8 +183,9 @@ fn rgbx_to_yuv_impl<
                             y_st_ptr.add(x + 1).write_unaligned(transform_integer::<
                                 ENDIANNESS,
                                 BYTES_POSITION,
-                                BIT_DEPTH,
-                            >(y_1));
+                            >(
+                                y_1, bit_depth
+                            ));
                         }
                     }
                 }
@@ -222,22 +217,22 @@ fn rgbx_to_yuv_impl<
                     YuvChromaSample::YUV444 => _ux,
                 };
                 unsafe {
-                    u_st_ptr.add(u_pos).write_unaligned(transform_integer::<
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        BIT_DEPTH,
-                    >(cb));
+                    u_st_ptr
+                        .add(u_pos)
+                        .write_unaligned(transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                            cb, bit_depth,
+                        ));
                 }
                 let v_pos = match chroma_subsampling {
                     YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
                     YuvChromaSample::YUV444 => _ux,
                 };
                 unsafe {
-                    v_st_ptr.add(v_pos).write_unaligned(transform_integer::<
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        BIT_DEPTH,
-                    >(cr));
+                    v_st_ptr
+                        .add(v_pos)
+                        .write_unaligned(transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                            cr, bit_depth,
+                        ));
                 }
             }
 
@@ -281,37 +276,21 @@ fn rgbx_to_yuv<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {
-    if bit_depth == 10 {
-        rgbx_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 10>(
-            y_plane,
-            y_stride,
-            u_plane,
-            u_stride,
-            v_plane,
-            v_stride,
-            rgba,
-            rgba_stride,
-            width,
-            height,
-            range,
-            matrix,
-        );
-    } else if bit_depth == 12 {
-        rgbx_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 12>(
-            y_plane,
-            y_stride,
-            u_plane,
-            u_stride,
-            v_plane,
-            v_stride,
-            rgba,
-            rgba_stride,
-            width,
-            height,
-            range,
-            matrix,
-        );
-    }
+    rgbx_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
+        y_plane,
+        y_stride,
+        u_plane,
+        u_stride,
+        v_plane,
+        v_stride,
+        rgba,
+        rgba_stride,
+        width,
+        height,
+        range,
+        matrix,
+        bit_depth,
+    );
 }
 
 /// Convert RGB image data to YUV 422 planar format with 10 or 12 bit depth.

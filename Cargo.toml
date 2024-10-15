@@ -2,7 +2,7 @@ workspace = { members = ["app"] }
 
 [package]
 name = "yuvutils-rs"
-version = "0.4.8"
+version = "0.4.9"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"
@@ -16,7 +16,9 @@ repository = "https://github.com/awxkee/yuvutils-rs"
 exclude = ["*.jpg", "assets/*"]
 
 [dependencies]
+rayon = { version = "1.10.0", optional = true }
 
 [features]
 default = []
 nightly_avx512 = []
+rayon = ["dep:rayon"]

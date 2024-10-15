@@ -24,6 +24,10 @@ For AVX-512 target feature `avx512bw` is required along with feature `nightly_av
 
 Wasm `simd128` should be enabled for implemented SIMD wasm paths support
 
+# Rayon 
+
+Some paths have multi-threading support, consider this feature if you're working on platform with multi-threading.
+
 ### Adding to project
 
 ```bash

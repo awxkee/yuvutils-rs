@@ -8,6 +8,10 @@
 use crate::sharpyuv::neon::neon_rgba_to_sharp_yuv;
 use crate::sharpyuv::SharpYuvGammaTransfer;
 use crate::yuv_support::*;
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &mut [u8],
@@ -56,22 +60,32 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     let rgb_layout_stride_len = width as usize * 3;
 
-    for y in 0..height as usize {
-        unsafe {
-            let rgb_layout_cast = rgb_layout.get_unchecked_mut((y * rgb_layout_stride_len)..);
-            let src_layout = rgba.get_unchecked((y * rgba_stride as usize)..);
-            for x in 0..width as usize {
-                let dst_layout = rgb_layout_cast.get_unchecked_mut((x * 3)..);
-                let src = src_layout.get_unchecked((x * src_chans.get_channels_count())..);
-                *dst_layout.get_unchecked_mut(0) =
-                    *linear_map_table.get_unchecked((*src.get_unchecked(0)) as usize);
-                *dst_layout.get_unchecked_mut(1) =
-                    *linear_map_table.get_unchecked((*src.get_unchecked(1)) as usize);
-                *dst_layout.get_unchecked_mut(2) =
-                    *linear_map_table.get_unchecked((*src.get_unchecked(2)) as usize);
-            }
-        }
+    let iter_linearize;
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter_linearize = rgb_layout
+            .chunks_exact_mut(rgb_layout_stride_len)
+            .zip(rgba.chunks_exact(rgba_stride as usize));
     }
+    #[cfg(feature = "rayon")]
+    {
+        iter_linearize = rgb_layout
+            .par_chunks_exact_mut(rgb_layout_stride_len)
+            .zip(rgba.par_chunks_exact(rgba_stride as usize));
+    }
+
+    iter_linearize.for_each(|(rgb_layout_cast, src_layout)| unsafe {
+        for x in 0..width as usize {
+            let dst_layout = rgb_layout_cast.get_unchecked_mut((x * 3)..);
+            let src = src_layout.get_unchecked((x * src_chans.get_channels_count())..);
+            *dst_layout.get_unchecked_mut(0) =
+                *linear_map_table.get_unchecked((*src.get_unchecked(0)) as usize);
+            *dst_layout.get_unchecked_mut(1) =
+                *linear_map_table.get_unchecked((*src.get_unchecked(1)) as usize);
+            *dst_layout.get_unchecked_mut(2) =
+                *linear_map_table.get_unchecked((*src.get_unchecked(2)) as usize);
+        }
+    });
 
     let channels = src_chans.get_channels_count();
     let range = get_yuv_range(8, range);
@@ -100,213 +114,342 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         YuvChromaSample::YUV444 => 1usize,
     };
 
-    let mut y_offset = 0usize;
-    let mut u_offset = 0usize;
-    let mut v_offset = 0usize;
-    let mut rgba_offset = 0usize;
-    let mut rgb_layout_offset = 0usize;
+    let y_iter;
+    let u_iter;
+    let v_iter;
+    let rgb_iter;
+    let rgb_linearized_iter;
 
-    for y in 0..height as usize {
-        let mut _cx = 0usize;
-        let mut _ux = 0usize;
+    #[cfg(feature = "rayon")]
+    {
+        y_iter = y_plane.par_chunks_exact_mut(y_stride as usize * 2);
+        u_iter = u_plane.par_chunks_exact_mut(u_stride as usize);
+        v_iter = v_plane.par_chunks_exact_mut(v_stride as usize);
+        rgb_iter = rgba.par_chunks_exact(rgba_stride as usize * 2);
+        rgb_linearized_iter = rgb_layout.par_chunks_exact(rgb_layout_stride_len * 2);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        y_iter = y_plane.chunks_exact_mut(y_stride as usize * 2);
+        u_iter = u_plane.chunks_exact_mut(u_stride as usize);
+        v_iter = v_plane.chunks_exact_mut(v_stride as usize);
+        rgb_iter = rgba.chunks_exact(rgba_stride as usize * 2);
+        rgb_linearized_iter = rgb_layout.chunks_exact_mut(rgb_layout_stride_len * 2);
+    }
 
-        let y_even_row = y & 1 == 0;
+    let full_iter = rgb_iter
+        .zip(rgb_linearized_iter)
+        .zip(y_iter)
+        .zip(u_iter)
+        .zip(v_iter);
 
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
-            let rgb_layout_src = rgb_layout.get_unchecked(rgb_layout_offset..);
-            let rgb_layout_next_src = if y + 1 < height as usize {
-                rgb_layout_src.get_unchecked(rgb_layout_stride_len..)
-            } else {
-                rgb_layout_src
-            };
-            let offset = neon_rgba_to_sharp_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
-                &transform,
-                &range,
-                y_plane.as_mut_ptr().add(y_offset),
-                u_plane.as_mut_ptr().add(u_offset),
-                v_plane.as_mut_ptr().add(v_offset),
-                rgba,
-                rgba_offset,
-                rgb_layout_src,
-                rgb_layout_next_src,
-                &gamma_map_table,
-                _cx,
-                _ux,
-                width as usize,
-                y_even_row,
-            );
-            _cx = offset.cx;
-            _ux = offset.ux;
-        }
+    full_iter
+        .enumerate()
+        .for_each(|(j, ((((rgba, rgb_layout), y_plane), u_plane), v_plane))| {
+            let mut y_offset = 0usize;
+            let u_offset = 0usize;
+            let v_offset = 0usize;
+            let mut rgba_offset = 0usize;
+            let mut rgb_layout_offset = 0usize;
 
-        #[allow(clippy::explicit_counter_loop)]
-        for x in (_cx..width as usize).step_by(iterator_step) {
-            unsafe {
-                let px = x * channels;
-                let rgba_shift = rgba_offset + px;
-                let src = rgba.get_unchecked(rgba_shift..);
-                let r = *src.get_unchecked(src_chans.get_r_channel_offset()) as i32;
-                let g = *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
-                let b = *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
+            let v_y = j * 2;
 
-                let rgb_layout_src = rgb_layout.get_unchecked((rgb_layout_offset + x * 3)..);
+            for y in v_y..=v_y + 1 {
+                let y_even_row = y & 1 == 0;
 
-                let sharp_r_c = if y_even_row {
-                    *rgb_layout_src.get_unchecked(src_chans.get_r_channel_offset())
-                } else {
-                    0
-                };
-                let sharp_g_c = if y_even_row {
-                    *rgb_layout_src.get_unchecked(src_chans.get_g_channel_offset())
-                } else {
-                    0
-                };
-                let sharp_b_c = if y_even_row {
-                    *rgb_layout_src.get_unchecked(src_chans.get_b_channel_offset())
-                } else {
-                    0
-                };
+                let mut _cx = 0usize;
+                let mut _ux = 0usize;
 
-                let mut sharp_r_next = sharp_r_c;
-                let mut sharp_g_next = sharp_g_c;
-                let mut sharp_b_next = sharp_b_c;
+                #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+                unsafe {
+                    let rgb_layout_src = rgb_layout.get_unchecked(rgb_layout_offset..);
+                    let rgb_layout_next_src = if y + 1 < height as usize {
+                        rgb_layout_src.get_unchecked(rgb_layout_stride_len..)
+                    } else {
+                        rgb_layout_src
+                    };
+                    let offset = neon_rgba_to_sharp_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
+                        &transform,
+                        &range,
+                        y_plane.as_mut_ptr().add(y_offset),
+                        u_plane.as_mut_ptr().add(u_offset),
+                        v_plane.as_mut_ptr().add(v_offset),
+                        rgba,
+                        rgba_offset,
+                        rgb_layout_src,
+                        rgb_layout_next_src,
+                        &gamma_map_table,
+                        _cx,
+                        _ux,
+                        width as usize,
+                        y_even_row,
+                    );
+                    _cx = offset.cx;
+                    _ux = offset.ux;
+                }
 
-                let y_0 =
-                    (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
+                #[allow(clippy::explicit_counter_loop)]
+                for x in (_cx..width as usize).step_by(iterator_step) {
+                    unsafe {
+                        let px = x * channels;
+                        let rgba_shift = rgba_offset + px;
+                        let src = rgba.get_unchecked(rgba_shift..);
+                        let r = *src.get_unchecked(src_chans.get_r_channel_offset()) as i32;
+                        let g = *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
+                        let b = *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
 
-                *y_plane.get_unchecked_mut(y_offset + x) = y_0.clamp(i_bias_y, i_cap_y) as u8;
+                        let rgb_layout_src =
+                            rgb_layout.get_unchecked((rgb_layout_offset + x * 3)..);
 
-                match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
-                        if x + 1 < width as usize {
-                            let next_px = (x + 1) * channels;
-                            let rgba_shift = rgba_offset + next_px;
-                            let src = rgba.get_unchecked(rgba_shift..);
-                            let r = *src.get_unchecked(src_chans.get_r_channel_offset()) as i32;
-                            let g = *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
-                            let b = *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
+                        let sharp_r_c = if y_even_row {
+                            *rgb_layout_src.get_unchecked(src_chans.get_r_channel_offset())
+                        } else {
+                            0
+                        };
+                        let sharp_g_c = if y_even_row {
+                            *rgb_layout_src.get_unchecked(src_chans.get_g_channel_offset())
+                        } else {
+                            0
+                        };
+                        let sharp_b_c = if y_even_row {
+                            *rgb_layout_src.get_unchecked(src_chans.get_b_channel_offset())
+                        } else {
+                            0
+                        };
 
-                            let y_1 =
-                                (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
-                                    >> PRECISION;
-                            *y_plane.get_unchecked_mut(y_offset + x + 1) =
-                                y_1.clamp(i_bias_y, i_cap_y) as u8;
+                        let mut sharp_r_next = sharp_r_c;
+                        let mut sharp_g_next = sharp_g_c;
+                        let mut sharp_b_next = sharp_b_c;
 
-                            if y_even_row {
-                                let rgb_layout_src_next = rgb_layout_src.get_unchecked(3..);
+                        let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
+                            >> PRECISION;
 
-                                sharp_r_next = *rgb_layout_src_next
+                        *y_plane.get_unchecked_mut(y_offset + x) =
+                            y_0.clamp(i_bias_y, i_cap_y) as u8;
+
+                        match chroma_subsampling {
+                            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                                if x + 1 < width as usize {
+                                    let next_px = (x + 1) * channels;
+                                    let rgba_shift = rgba_offset + next_px;
+                                    let src = rgba.get_unchecked(rgba_shift..);
+                                    let r =
+                                        *src.get_unchecked(src_chans.get_r_channel_offset()) as i32;
+                                    let g =
+                                        *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
+                                    let b =
+                                        *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
+
+                                    let y_1 = (r * transform.yr
+                                        + g * transform.yg
+                                        + b * transform.yb
+                                        + bias_y)
+                                        >> PRECISION;
+                                    *y_plane.get_unchecked_mut(y_offset + x + 1) =
+                                        y_1.clamp(i_bias_y, i_cap_y) as u8;
+
+                                    if y_even_row {
+                                        let rgb_layout_src_next = rgb_layout_src.get_unchecked(3..);
+
+                                        sharp_r_next = *rgb_layout_src_next
+                                            .get_unchecked(src_chans.get_r_channel_offset());
+                                        sharp_g_next = *rgb_layout_src_next
+                                            .get_unchecked(src_chans.get_g_channel_offset());
+                                        sharp_b_next = *rgb_layout_src_next
+                                            .get_unchecked(src_chans.get_b_channel_offset());
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+
+                        if y_even_row {
+                            let mut sharp_r_c_next_row = sharp_r_c;
+                            let mut sharp_g_c_next_row = sharp_g_c;
+                            let mut sharp_b_c_next_row = sharp_b_c;
+
+                            let mut sharp_r_next_row = sharp_r_c;
+                            let mut sharp_g_next_row = sharp_g_c;
+                            let mut sharp_b_next_row = sharp_b_c;
+
+                            if y + 1 < height as usize {
+                                let mut rgb_layout_src_next_row =
+                                    rgb_layout_src.get_unchecked(rgb_layout_stride_len..);
+                                sharp_r_c_next_row = *rgb_layout_src_next_row
                                     .get_unchecked(src_chans.get_r_channel_offset());
-                                sharp_g_next = *rgb_layout_src_next
+                                sharp_g_c_next_row = *rgb_layout_src_next_row
                                     .get_unchecked(src_chans.get_g_channel_offset());
-                                sharp_b_next = *rgb_layout_src_next
+                                sharp_b_c_next_row = *rgb_layout_src_next_row
                                     .get_unchecked(src_chans.get_b_channel_offset());
+
+                                if x + 1 < width as usize {
+                                    rgb_layout_src_next_row =
+                                        rgb_layout_src_next_row.get_unchecked(3..);
+                                    sharp_r_next_row = *rgb_layout_src_next_row
+                                        .get_unchecked(src_chans.get_r_channel_offset());
+                                    sharp_g_next_row = *rgb_layout_src_next_row
+                                        .get_unchecked(src_chans.get_g_channel_offset());
+                                    sharp_b_next_row = *rgb_layout_src_next_row
+                                        .get_unchecked(src_chans.get_b_channel_offset());
+                                }
+                            }
+
+                            const ROUNDING_CONST: i32 = 1 << 3;
+
+                            let interpolated_r = ((sharp_r_c as i32 * 9
+                                + sharp_r_next as i32 * 3
+                                + sharp_r_c_next_row as i32 * 3
+                                + sharp_r_next_row as i32
+                                + ROUNDING_CONST)
+                                >> 4) as u16;
+                            let interpolated_g = ((sharp_g_c as i32 * 9
+                                + sharp_g_next as i32 * 3
+                                + sharp_g_c_next_row as i32 * 3
+                                + sharp_g_next_row as i32
+                                + ROUNDING_CONST)
+                                >> 4) as u16;
+                            let interpolated_b = ((sharp_b_c as i32 * 9
+                                + sharp_b_next as i32 * 3
+                                + sharp_b_c_next_row as i32 * 3
+                                + sharp_b_next_row as i32
+                                + ROUNDING_CONST)
+                                >> 4) as u16;
+
+                            let corrected_r =
+                                *gamma_map_table.get_unchecked(interpolated_r as usize) as i32;
+                            let corrected_g =
+                                *gamma_map_table.get_unchecked(interpolated_g as usize) as i32;
+                            let corrected_b =
+                                *gamma_map_table.get_unchecked(interpolated_b as usize) as i32;
+
+                            let cb = (corrected_r * transform.cb_r
+                                + corrected_g * transform.cb_g
+                                + corrected_b * transform.cb_b
+                                + bias_uv)
+                                >> PRECISION;
+                            let cr = (corrected_r * transform.cr_r
+                                + corrected_g * transform.cr_g
+                                + corrected_b * transform.cr_b
+                                + bias_uv)
+                                >> PRECISION;
+
+                            let u_pos = match chroma_subsampling {
+                                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + _ux,
+                                YuvChromaSample::YUV444 => u_offset + _ux,
+                            };
+                            *u_plane.get_unchecked_mut(u_pos) = cb.clamp(i_bias_y, i_cap_uv) as u8;
+                            let v_pos = match chroma_subsampling {
+                                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + _ux,
+                                YuvChromaSample::YUV444 => v_offset + _ux,
+                            };
+                            *v_plane.get_unchecked_mut(v_pos) = cr.clamp(i_bias_y, i_cap_uv) as u8;
+                        }
+                    }
+                    _ux += 1;
+                }
+
+                rgba_offset += rgba_stride as usize;
+                y_offset += y_stride as usize;
+                rgb_layout_offset += rgb_layout_stride_len;
+            }
+        });
+
+    // Handle last row if image is odd
+    if height & 1 != 0 {
+        let skip_val = (height as usize).saturating_sub(1);
+        let skip_val_chroma = ((height as usize + 1) / 2).saturating_sub(1);
+        let y_iter = y_plane.chunks_exact_mut(y_stride as usize).skip(skip_val);
+        let u_iter = u_plane
+            .chunks_exact_mut(u_stride as usize)
+            .skip(skip_val_chroma);
+        let v_iter = v_plane
+            .chunks_exact_mut(v_stride as usize)
+            .skip(skip_val_chroma);
+        let rgb_iter = rgba.chunks_exact(rgba_stride as usize).skip(skip_val);
+        let rgb_linearized_iter = rgb_layout
+            .chunks_exact_mut(rgb_layout_stride_len)
+            .skip(skip_val);
+
+        let full_iter = rgb_iter
+            .zip(rgb_linearized_iter)
+            .zip(y_iter)
+            .zip(u_iter)
+            .zip(v_iter);
+
+        full_iter.for_each(|((((rgba, rgb_layout), y_plane), u_plane), v_plane)| {
+            let y_offset = 0usize;
+            let u_offset = 0usize;
+            let v_offset = 0usize;
+            let rgba_offset = 0usize;
+            let rgb_layout_offset = 0usize;
+
+            let mut _cx = 0usize;
+            let mut _ux = 0usize;
+
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            unsafe {
+                let rgb_layout_src = rgb_layout.get_unchecked(rgb_layout_offset..);
+                let rgb_layout_next_src = rgb_layout_src;
+                let offset = neon_rgba_to_sharp_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
+                    &transform,
+                    &range,
+                    y_plane.as_mut_ptr().add(y_offset),
+                    u_plane.as_mut_ptr().add(u_offset),
+                    v_plane.as_mut_ptr().add(v_offset),
+                    rgba,
+                    rgba_offset,
+                    rgb_layout_src,
+                    rgb_layout_next_src,
+                    &gamma_map_table,
+                    _cx,
+                    _ux,
+                    width as usize,
+                    true,
+                );
+                _cx = offset.cx;
+                _ux = offset.ux;
+            }
+
+            #[allow(clippy::explicit_counter_loop)]
+            for x in (_cx..width as usize).step_by(iterator_step) {
+                unsafe {
+                    let px = x * channels;
+                    let rgba_shift = rgba_offset + px;
+                    let src = rgba.get_unchecked(rgba_shift..);
+                    let r = *src.get_unchecked(src_chans.get_r_channel_offset()) as i32;
+                    let g = *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
+                    let b = *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
+
+                    let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
+                        >> PRECISION;
+
+                    *y_plane.get_unchecked_mut(y_offset + x) = y_0.clamp(i_bias_y, i_cap_y) as u8;
+
+                    match chroma_subsampling {
+                        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                            if x + 1 < width as usize {
+                                let next_px = (x + 1) * channels;
+                                let rgba_shift = rgba_offset + next_px;
+                                let src = rgba.get_unchecked(rgba_shift..);
+                                let r = *src.get_unchecked(src_chans.get_r_channel_offset()) as i32;
+                                let g = *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
+                                let b = *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
+
+                                let y_1 = (r * transform.yr
+                                    + g * transform.yg
+                                    + b * transform.yb
+                                    + bias_y)
+                                    >> PRECISION;
+                                *y_plane.get_unchecked_mut(y_offset + x + 1) =
+                                    y_1.clamp(i_bias_y, i_cap_y) as u8;
                             }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
-
-                if y_even_row {
-                    let mut sharp_r_c_next_row = sharp_r_c;
-                    let mut sharp_g_c_next_row = sharp_g_c;
-                    let mut sharp_b_c_next_row = sharp_b_c;
-
-                    let mut sharp_r_next_row = sharp_r_c;
-                    let mut sharp_g_next_row = sharp_g_c;
-                    let mut sharp_b_next_row = sharp_b_c;
-
-                    if y + 1 < height as usize {
-                        let mut rgb_layout_src_next_row =
-                            rgb_layout_src.get_unchecked(rgb_layout_stride_len..);
-                        sharp_r_c_next_row = *rgb_layout_src_next_row
-                            .get_unchecked(src_chans.get_r_channel_offset());
-                        sharp_g_c_next_row = *rgb_layout_src_next_row
-                            .get_unchecked(src_chans.get_g_channel_offset());
-                        sharp_b_c_next_row = *rgb_layout_src_next_row
-                            .get_unchecked(src_chans.get_b_channel_offset());
-
-                        if x + 1 < width as usize {
-                            rgb_layout_src_next_row = rgb_layout_src_next_row.get_unchecked(3..);
-                            sharp_r_next_row = *rgb_layout_src_next_row
-                                .get_unchecked(src_chans.get_r_channel_offset());
-                            sharp_g_next_row = *rgb_layout_src_next_row
-                                .get_unchecked(src_chans.get_g_channel_offset());
-                            sharp_b_next_row = *rgb_layout_src_next_row
-                                .get_unchecked(src_chans.get_b_channel_offset());
-                        }
-                    }
-
-                    const ROUNDING_CONST: i32 = 1 << 3;
-
-                    let interpolated_r = ((sharp_r_c as i32 * 9
-                        + sharp_r_next as i32 * 3
-                        + sharp_r_c_next_row as i32 * 3
-                        + sharp_r_next_row as i32
-                        + ROUNDING_CONST)
-                        >> 4) as u16;
-                    let interpolated_g = ((sharp_g_c as i32 * 9
-                        + sharp_g_next as i32 * 3
-                        + sharp_g_c_next_row as i32 * 3
-                        + sharp_g_next_row as i32
-                        + ROUNDING_CONST)
-                        >> 4) as u16;
-                    let interpolated_b = ((sharp_b_c as i32 * 9
-                        + sharp_b_next as i32 * 3
-                        + sharp_b_c_next_row as i32 * 3
-                        + sharp_b_next_row as i32
-                        + ROUNDING_CONST)
-                        >> 4) as u16;
-
-                    let corrected_r =
-                        *gamma_map_table.get_unchecked(interpolated_r as usize) as i32;
-                    let corrected_g =
-                        *gamma_map_table.get_unchecked(interpolated_g as usize) as i32;
-                    let corrected_b =
-                        *gamma_map_table.get_unchecked(interpolated_b as usize) as i32;
-
-                    let cb = (corrected_r * transform.cb_r
-                        + corrected_g * transform.cb_g
-                        + corrected_b * transform.cb_b
-                        + bias_uv)
-                        >> PRECISION;
-                    let cr = (corrected_r * transform.cr_r
-                        + corrected_g * transform.cr_g
-                        + corrected_b * transform.cr_b
-                        + bias_uv)
-                        >> PRECISION;
-
-                    let u_pos = match chroma_subsampling {
-                        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + _ux,
-                        YuvChromaSample::YUV444 => u_offset + _ux,
-                    };
-                    *u_plane.get_unchecked_mut(u_pos) = cb.clamp(i_bias_y, i_cap_uv) as u8;
-                    let v_pos = match chroma_subsampling {
-                        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + _ux,
-                        YuvChromaSample::YUV444 => v_offset + _ux,
-                    };
-                    *v_plane.get_unchecked_mut(v_pos) = cr.clamp(i_bias_y, i_cap_uv) as u8;
-                }
+                _ux += 1;
             }
-            _ux += 1;
-        }
-
-        y_offset += y_stride as usize;
-        rgba_offset += rgba_stride as usize;
-        rgb_layout_offset += rgb_layout_stride_len;
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
-                if y & 1 == 1 {
-                    u_offset += u_stride as usize;
-                    v_offset += v_stride as usize;
-                }
-            }
-            YuvChromaSample::YUV444 | YuvChromaSample::YUV422 => {
-                u_offset += u_stride as usize;
-                v_offset += v_stride as usize;
-            }
-        }
+        });
     }
 }
 

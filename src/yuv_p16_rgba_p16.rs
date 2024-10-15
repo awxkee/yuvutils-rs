@@ -5,18 +5,18 @@
  * // license that can be found in the LICENSE file.
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_p16_to_rgba_row;
-#[cfg(feature = "rayon")]
-use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-#[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
-
+use crate::neon::neon_yuv_p16_to_rgba16_row;
 use crate::yuv_support::{
     get_inverse_transform, get_kr_kb, get_yuv_range, YuvBytesPacking, YuvChromaSample,
     YuvEndianness, YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::ParallelSliceMut;
+use std::slice;
 
-pub(crate) fn yuv_p16_to_image_impl<
+pub(crate) fn yuv_p16_to_image_p16_impl<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -28,10 +28,10 @@ pub(crate) fn yuv_p16_to_image_impl<
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    rgba: &mut [u8],
+    rgba16: &mut [u16],
     rgba_stride: u32,
     width: u32,
-    _: u32,
+    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     bit_depth: usize,
@@ -44,11 +44,11 @@ pub(crate) fn yuv_p16_to_image_impl<
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let range = get_yuv_range(bit_depth as u32, range);
     let kr_kb = get_kr_kb(matrix);
-    let max_range_p10 = (1u32 << bit_depth as u32) - 1;
+    let max_range_p16 = (1u32 << bit_depth as u32) - 1;
     const PRECISION: i32 = 6;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let transform = get_inverse_transform(
-        max_range_p10,
+        max_range_p16,
         range.range_y,
         range.range_uv,
         kr_kb.kr,
@@ -65,21 +65,28 @@ pub(crate) fn yuv_p16_to_image_impl<
     let bias_uv = range.bias_uv as i32;
 
     let msb_shift = 16 - bit_depth;
-    let store_shift = PRECISION as usize + (bit_depth.saturating_sub(8));
+    let store_shift = PRECISION as usize;
 
     let dst_offset = 0usize;
+
+    let rgba_safe_align = unsafe {
+        slice::from_raw_parts_mut(
+            rgba16.as_mut_ptr() as *mut u8,
+            height as usize * rgba_stride as usize,
+        )
+    };
 
     let iter;
     #[cfg(feature = "rayon")]
     {
-        iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
+        iter = rgba_safe_align.par_chunks_exact_mut(rgba_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = rgba.chunks_exact_mut(rgba_stride as usize);
+        iter = rgba_safe_align.chunks_exact_mut(rgba_stride as usize);
     }
 
-    iter.enumerate().for_each(|(y, rgba)| unsafe {
+    iter.enumerate().for_each(|(y, rgba16)| unsafe {
         let y_offset = y * (y_stride as usize);
         let u_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
             (y >> 1) * (u_stride as usize)
@@ -103,9 +110,11 @@ pub(crate) fn yuv_p16_to_image_impl<
         let u_ld_ptr = u_src_ptr.add(u_offset) as *const u16;
         let v_ld_ptr = v_src_ptr.add(v_offset) as *const u16;
 
+        let dst = rgba16.as_mut_ptr() as *mut u16;
+
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let offset = neon_yuv_p16_to_rgba_row::<
+            let offset = neon_yuv_p16_to_rgba16_row::<
                 DESTINATION_CHANNELS,
                 SAMPLING,
                 ENDIANNESS,
@@ -114,7 +123,7 @@ pub(crate) fn yuv_p16_to_image_impl<
                 y_ld_ptr,
                 u_ld_ptr,
                 v_ld_ptr,
-                rgba,
+                dst,
                 dst_offset,
                 width,
                 &range,
@@ -167,20 +176,28 @@ pub(crate) fn yuv_p16_to_image_impl<
             let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
                 >> store_shift;
 
-            let r = r_u16.min(255).max(0);
-            let b = b_u16.min(255).max(0);
-            let g = g_u16.min(255).max(0);
+            let r = r_u16.min(max_range_p16 as i32).max(0);
+            let b = b_u16.min(max_range_p16 as i32).max(0);
+            let g = g_u16.min(max_range_p16 as i32).max(0);
 
             let px = x * channels;
 
             let rgb_offset = dst_offset + px;
 
-            let dst_slice = rgba.get_unchecked_mut(rgb_offset..);
-            *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-            *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-            *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+            let dst_slice = dst.add(rgb_offset);
+            dst_slice
+                .add(dst_chans.get_b_channel_offset())
+                .write_unaligned(b as u16);
+            dst_slice
+                .add(dst_chans.get_g_channel_offset())
+                .write_unaligned(g as u16);
+            dst_slice
+                .add(dst_chans.get_r_channel_offset())
+                .write_unaligned(r as u16);
             if dst_chans.has_alpha() {
-                *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
+                dst_slice
+                    .add(dst_chans.get_a_channel_offset())
+                    .write_unaligned(max_range_p16 as u16);
             }
 
             x += 1;
@@ -208,18 +225,26 @@ pub(crate) fn yuv_p16_to_image_impl<
                 let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
                     >> store_shift;
 
-                let r = r_u16.min(255).max(0);
-                let b = b_u16.min(255).max(0);
-                let g = g_u16.min(255).max(0);
+                let r = r_u16.min(max_range_p16 as i32).max(0);
+                let b = b_u16.min(max_range_p16 as i32).max(0);
+                let g = g_u16.min(max_range_p16 as i32).max(0);
 
                 let px = x * channels;
                 let rgb_offset = dst_offset + px;
-                let dst_slice = rgba.get_unchecked_mut(rgb_offset..);
-                *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-                *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-                *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+                let dst_slice = dst.add(rgb_offset);
+                dst_slice
+                    .add(dst_chans.get_b_channel_offset())
+                    .write_unaligned(b as u16);
+                dst_slice
+                    .add(dst_chans.get_g_channel_offset())
+                    .write_unaligned(g as u16);
+                dst_slice
+                    .add(dst_chans.get_r_channel_offset())
+                    .write_unaligned(r as u16);
                 if dst_chans.has_alpha() {
-                    *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
+                    dst_slice
+                        .add(dst_chans.get_a_channel_offset())
+                        .write_unaligned(max_range_p16 as u16);
                 }
             }
 
@@ -229,18 +254,18 @@ pub(crate) fn yuv_p16_to_image_impl<
     });
 }
 
-/// Convert YUV 420 planar format with 10-bit pixel format to BGRA format.
+/// Convert YUV 420 planar format with 8+ bit pixel format to BGRA 8+ bit-depth format.
 ///
-/// This function takes YUV 420 planar data with 10-bit precision.
-/// and converts it to BGRA format with 8-bit precision per channel
+/// This function takes YUV 420 planar data with 8+ bit precision.
+/// and converts it to BGRA format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -250,21 +275,23 @@ pub(crate) fn yuv_p16_to_image_impl<
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv420_p10_to_bgra(
+pub fn yuv420_p16_to_bgra16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    bgra: &mut [u8],
+    bgra: &mut [u16],
     bgra_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -275,7 +302,7 @@ pub fn yuv420_p10_to_bgra(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -283,7 +310,7 @@ pub fn yuv420_p10_to_bgra(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -293,7 +320,7 @@ pub fn yuv420_p10_to_bgra(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -301,7 +328,7 @@ pub fn yuv420_p10_to_bgra(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -323,22 +350,22 @@ pub fn yuv420_p10_to_bgra(
         height,
         range,
         matrix,
-        10,
+        bit_depth,
     );
 }
 
-/// Convert YUV 420 planar format with 10-bit pixel format to BGRA format.
+/// Convert YUV 420 planar format with 8+ bit pixel format to BGR 8+ bit-depth format.
 ///
-/// This function takes YUV 420 planar data with 10-bit precision.
-/// and converts it to BGR format with 8-bit precision per channel
+/// This function takes YUV 420 planar data with 8+ bit precision.
+/// and converts it to BGR format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -348,21 +375,23 @@ pub fn yuv420_p10_to_bgra(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGR data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv420_p10_to_bgr(
+pub fn yuv420_p16_to_bgr16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    bgr: &mut [u8],
+    bgr: &mut [u16],
     bgr_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -373,7 +402,7 @@ pub fn yuv420_p10_to_bgr(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -381,7 +410,7 @@ pub fn yuv420_p10_to_bgr(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -391,7 +420,7 @@ pub fn yuv420_p10_to_bgr(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -399,7 +428,7 @@ pub fn yuv420_p10_to_bgr(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -410,22 +439,22 @@ pub fn yuv420_p10_to_bgr(
     };
     dispatcher(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
-        range, matrix, 10,
+        range, matrix, bit_depth,
     );
 }
 
-/// Convert YUV 422 format with 10-bit pixel format to BGRA format .
+/// Convert YUV 422 format with 8+ bit pixel format to BGRA format 8+ bit-depth format.
 ///
-/// This function takes YUV 422 data with 10-bit precision.
-/// and converts it to BGRA format with 8-bit precision per channel.
+/// This function takes YUV 422 data with 8+ bit precision.
+/// and converts it to BGRA format with 8+ bit-depth precision per channel.
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -435,6 +464,7 @@ pub fn yuv420_p10_to_bgr(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 ///
 /// # Panics
@@ -442,15 +472,16 @@ pub fn yuv420_p10_to_bgr(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv422_p10_to_bgra(
+pub fn yuv422_p16_to_bgra16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    bgra: &mut [u8],
+    bgra: &mut [u16],
     bgra_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -461,7 +492,7 @@ pub fn yuv422_p10_to_bgra(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -469,7 +500,7 @@ pub fn yuv422_p10_to_bgra(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -479,7 +510,7 @@ pub fn yuv422_p10_to_bgra(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -487,7 +518,7 @@ pub fn yuv422_p10_to_bgra(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -509,22 +540,22 @@ pub fn yuv422_p10_to_bgra(
         height,
         range,
         matrix,
-        10,
+        bit_depth,
     );
 }
 
-/// Convert YUV 422 format with 10-bit pixel format to BGR format.
+/// Convert YUV 422 format with 8+ bit pixel format to BGR format 8+ bit-depth format.
 ///
-/// This function takes YUV 422 data with 10-bit precision.
-/// and converts it to BGR format with 8-bit precision per channel.
+/// This function takes YUV 422 data with 8+ bit precision.
+/// and converts it to BGR format with 8+ bit-depth precision per channel.
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -534,6 +565,7 @@ pub fn yuv422_p10_to_bgra(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 ///
 /// # Panics
@@ -541,15 +573,16 @@ pub fn yuv422_p10_to_bgra(
 /// This function panics if the lengths of the planes or the input BGR data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv422_p10_to_bgr(
+pub fn yuv422_p16_to_bgr16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    bgr: &mut [u8],
+    bgr: &mut [u16],
     bgr_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -560,7 +593,7 @@ pub fn yuv422_p10_to_bgr(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -568,7 +601,7 @@ pub fn yuv422_p10_to_bgr(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -578,7 +611,7 @@ pub fn yuv422_p10_to_bgr(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -586,7 +619,7 @@ pub fn yuv422_p10_to_bgr(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -597,22 +630,22 @@ pub fn yuv422_p10_to_bgr(
     };
     dispatcher(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
-        range, matrix, 10,
+        range, matrix, bit_depth,
     );
 }
 
-/// Convert YUV 420 planar format with 10-bit pixel format to RGBA format.
+/// Convert YUV 420 planar format with 8+ bit pixel format to RGBA format 8+ bit-depth format.
 ///
-/// This function takes YUV 420 planar data with 10-bit precision.
-/// and converts it to RGBA format with 8-bit precision per channel
+/// This function takes YUV 420 planar data with 8+ bit precision.
+/// and converts it to RGBA format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -622,21 +655,23 @@ pub fn yuv422_p10_to_bgr(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv420_p10_to_rgba(
+pub fn yuv420_p16_to_rgba16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    rgba: &mut [u8],
+    rgba: &mut [u16],
     rgba_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -647,7 +682,7 @@ pub fn yuv420_p10_to_rgba(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -655,7 +690,7 @@ pub fn yuv420_p10_to_rgba(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -665,7 +700,7 @@ pub fn yuv420_p10_to_rgba(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -673,7 +708,7 @@ pub fn yuv420_p10_to_rgba(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -695,22 +730,22 @@ pub fn yuv420_p10_to_rgba(
         height,
         range,
         matrix,
-        10,
+        bit_depth,
     );
 }
 
-/// Convert YUV 420 planar format with 10-bit pixel format to RGB format.
+/// Convert YUV 420 planar format with 8+ bit pixel format to RGB format 8+ bit-depth format.
 ///
-/// This function takes YUV 420 planar data with 10-bit precision.
-/// and converts it to RGB format with 8-bit precision per channel
+/// This function takes YUV 420 planar data with 8+ bit precision.
+/// and converts it to RGB format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -720,21 +755,23 @@ pub fn yuv420_p10_to_rgba(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv420_p10_to_rgb(
+pub fn yuv420_p16_to_rgb16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    rgb: &mut [u8],
+    rgb: &mut [u16],
     rgb_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -745,7 +782,7 @@ pub fn yuv420_p10_to_rgb(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -753,7 +790,7 @@ pub fn yuv420_p10_to_rgb(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -763,7 +800,7 @@ pub fn yuv420_p10_to_rgb(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -771,7 +808,7 @@ pub fn yuv420_p10_to_rgb(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -782,22 +819,22 @@ pub fn yuv420_p10_to_rgb(
     };
     dispatcher(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
-        range, matrix, 10,
+        range, matrix, bit_depth,
     );
 }
 
-/// Convert YUV 422 format with 10-bit pixel format to RGBA format.
+/// Convert YUV 422 format with 8+ bit pixel format to RGBA format 8+ bit-depth format.
 ///
-/// This function takes YUV 422 data with 10-bit precision stored.
-/// and converts it to RGBA format with 8-bit precision per channel.
+/// This function takes YUV 422 data with 8+ bit precision stored.
+/// and converts it to RGBA format with 8+ bit-depth precision per channel.
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -807,21 +844,23 @@ pub fn yuv420_p10_to_rgb(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv422_p10_to_rgba(
+pub fn yuv422_p16_to_rgba16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    rgba: &mut [u8],
+    rgba: &mut [u16],
     rgba_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -832,7 +871,7 @@ pub fn yuv422_p10_to_rgba(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -840,7 +879,7 @@ pub fn yuv422_p10_to_rgba(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -850,7 +889,7 @@ pub fn yuv422_p10_to_rgba(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -858,7 +897,7 @@ pub fn yuv422_p10_to_rgba(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -880,22 +919,22 @@ pub fn yuv422_p10_to_rgba(
         height,
         range,
         matrix,
-        10,
+        bit_depth,
     );
 }
 
-/// Convert YUV 422 format with 10-bit pixel format to RGB format.
+/// Convert YUV 422 format with 8+ bit pixel format to RGB format 8+ bit-depth format.
 ///
-/// This function takes YUV 422 data with 10-bit precision stored.
-/// and converts it to RGB format with 8-bit precision per channel.
+/// This function takes YUV 422 data with 8+ bit precision stored.
+/// and converts it to RGB format with 8+ bit-depth precision per channel.
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -905,21 +944,23 @@ pub fn yuv422_p10_to_rgba(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv422_p10_to_rgb(
+pub fn yuv422_p16_to_rgb16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    rgb: &mut [u8],
+    rgb: &mut [u16],
     rgb_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -930,7 +971,7 @@ pub fn yuv422_p10_to_rgb(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -938,7 +979,7 @@ pub fn yuv422_p10_to_rgb(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -948,7 +989,7 @@ pub fn yuv422_p10_to_rgb(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -956,7 +997,7 @@ pub fn yuv422_p10_to_rgb(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -967,22 +1008,22 @@ pub fn yuv422_p10_to_rgb(
     };
     dispatcher(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
-        range, matrix, 10,
+        range, matrix, bit_depth,
     );
 }
 
-/// Convert YUV 444 planar format with 10-bit pixel format to RGBA format.
+/// Convert YUV 444 planar format with 8+ bit pixel format to RGBA format 8+ bit-depth format.
 ///
-/// This function takes YUV 444 planar data with 10-bit precision.
-/// and converts it to RGBA format with 8-bit precision per channel
+/// This function takes YUV 444 planar data with 8+ bit precision.
+/// and converts it to RGBA format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -992,21 +1033,23 @@ pub fn yuv422_p10_to_rgb(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input RGBA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv444_p10_to_rgba(
+pub fn yuv444_p16_to_rgba16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    rgba: &mut [u8],
+    rgba: &mut [u16],
     rgba_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -1017,7 +1060,7 @@ pub fn yuv444_p10_to_rgba(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1025,7 +1068,7 @@ pub fn yuv444_p10_to_rgba(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1035,7 +1078,7 @@ pub fn yuv444_p10_to_rgba(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1043,7 +1086,7 @@ pub fn yuv444_p10_to_rgba(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1065,22 +1108,22 @@ pub fn yuv444_p10_to_rgba(
         height,
         range,
         matrix,
-        10,
+        bit_depth,
     );
 }
 
-/// Convert YUV 444 planar format with 10-bit pixel format to RGB format.
+/// Convert YUV 444 planar format with 8+ bit pixel format to RGB format 8+ bit-depth format.
 ///
-/// This function takes YUV 444 planar data with 10-bit precision.
-/// and converts it to RGB format with 8-bit precision per channel
+/// This function takes YUV 444 planar data with 8+ bit precision.
+/// and converts it to RGB format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -1090,21 +1133,23 @@ pub fn yuv444_p10_to_rgba(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv444_p10_to_rgb(
+pub fn yuv444_p16_to_rgb16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    rgb: &mut [u8],
+    rgb: &mut [u16],
     rgb_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -1115,7 +1160,7 @@ pub fn yuv444_p10_to_rgb(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1123,7 +1168,7 @@ pub fn yuv444_p10_to_rgb(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1133,7 +1178,7 @@ pub fn yuv444_p10_to_rgb(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1141,7 +1186,7 @@ pub fn yuv444_p10_to_rgb(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1152,22 +1197,22 @@ pub fn yuv444_p10_to_rgb(
     };
     dispatcher(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
-        range, matrix, 10,
+        range, matrix, bit_depth,
     );
 }
 
-/// Convert YUV 444 planar format with 10-bit pixel format to BGRA format.
+/// Convert YUV 444 planar format with 8+ bit pixel format to BGRA format 8+ bit-depth format.
 ///
-/// This function takes YUV 444 planar data with 10-bit precision.
-/// and converts it to BGRA format with 8-bit precision per channel
+/// This function takes YUV 444 planar data with 8+ bit precision.
+/// and converts it to BGRA format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -1177,21 +1222,23 @@ pub fn yuv444_p10_to_rgb(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv444_p10_to_bgra(
+pub fn yuv444_p16_to_bgra16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    bgra: &mut [u8],
+    bgra: &mut [u16],
     bgra_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -1202,7 +1249,7 @@ pub fn yuv444_p10_to_bgra(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1210,7 +1257,7 @@ pub fn yuv444_p10_to_bgra(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1220,7 +1267,7 @@ pub fn yuv444_p10_to_bgra(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1228,7 +1275,7 @@ pub fn yuv444_p10_to_bgra(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1250,22 +1297,22 @@ pub fn yuv444_p10_to_bgra(
         height,
         range,
         matrix,
-        10,
+        bit_depth,
     );
 }
 
-/// Convert YUV 444 planar format with 10-bit pixel format to BGR format.
+/// Convert YUV 444 planar format with 8+ bit pixel format to BGR format 8+ bit-depth format.
 ///
-/// This function takes YUV 444 planar data with 10-bit precision.
-/// and converts it to BGR format with 8-bit precision per channel
+/// This function takes YUV 444 planar data with 8+ bit precision.
+/// and converts it to BGR format with 8+ bit-depth precision per channel
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 10 bit depth.
+/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
 /// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 10 bit depth.
+/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
 /// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 10 bit depth.
+/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
 /// * `v_stride` - The stride (bytes per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
@@ -1275,21 +1322,23 @@ pub fn yuv444_p10_to_bgra(
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
+/// * `bit_depth` - Bit depth of source YUV planes
 ///
 /// # Panics
 ///
 /// This function panics if the lengths of the planes or the input BGR data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv444_p10_to_bgr(
+pub fn yuv444_p16_to_bgr16(
     y_plane: &[u16],
     y_stride: u32,
     u_plane: &[u16],
     u_stride: u32,
     v_plane: &[u16],
     v_stride: u32,
-    bgr: &mut [u8],
+    bgr: &mut [u16],
     bgr_stride: u32,
+    bit_depth: usize,
     width: u32,
     height: u32,
     range: YuvRange,
@@ -1300,7 +1349,7 @@ pub fn yuv444_p10_to_bgr(
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1308,7 +1357,7 @@ pub fn yuv444_p10_to_bgr(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
@@ -1318,7 +1367,7 @@ pub fn yuv444_p10_to_bgr(
         },
         YuvEndianness::LittleEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1326,7 +1375,7 @@ pub fn yuv444_p10_to_bgr(
                 >
             }
             YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_impl::<
+                yuv_p16_to_image_p16_impl::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvChromaSample::YUV444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
@@ -1337,6 +1386,6 @@ pub fn yuv444_p10_to_bgr(
     };
     dispatcher(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
-        range, matrix, 10,
+        range, matrix, bit_depth,
     );
 }

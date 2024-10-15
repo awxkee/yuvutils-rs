@@ -43,7 +43,6 @@ pub unsafe fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
     while cx + 32 < width {
-
         let (r_values, g_values, b_values);
 
         let px = cx * channels;

@@ -21,7 +21,6 @@ pub unsafe fn sse_rgba_to_yuv_p16<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: u8,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -33,6 +32,7 @@ pub unsafe fn sse_rgba_to_yuv_p16<
     start_ux: usize,
     width: usize,
     compute_uv_row: bool,
+    bit_depth: u32,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -68,7 +68,7 @@ pub unsafe fn sse_rgba_to_yuv_p16<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
+    let v_shift_count = _mm_set1_epi64x(16 - bit_depth as i64);
 
     let zeros = _mm_setzero_si128();
 

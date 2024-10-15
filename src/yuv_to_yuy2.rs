@@ -11,6 +11,10 @@ use crate::neon::yuv_to_yuy2_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuv_to_yuy2_sse_impl;
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::ParallelSliceMut;
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -37,28 +41,47 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
     width: u32,
-    height: u32,
+    _: u32,
 ) {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
 
-    let mut y_offset = 0usize;
-    let mut u_offset = 0usize;
-    let mut v_offset = 0usize;
-    let mut yuy_offset = 0usize;
+    let yuy_offset = 0usize;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx2 = is_x86_feature_detected!("avx2");
 
-    for y in 0..height as usize {
+    let iter;
+    #[cfg(feature = "rayon")]
+    {
+        iter = yuy2_store.par_chunks_exact_mut(yuy2_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = yuy2_store.chunks_exact_mut(yuy2_stride as usize);
+    }
+
+    iter.enumerate().for_each(|(y, yuy2_store)| unsafe {
+        let y_offset = y * (y_stride as usize);
+        let u_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+            (y >> 1) * (u_stride as usize)
+        } else {
+            y * (u_stride as usize)
+        };
+        let v_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+            (y >> 1) * (v_stride as usize)
+        } else {
+            y * (v_stride as usize)
+        };
+
         let mut _cx = 0usize;
         let mut _uv_x = 0usize;
         let mut _yuy2_x = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             if _use_avx2 {
                 let processed = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
                     y_plane,
@@ -122,34 +145,28 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let (u_value, v_value);
 
             if chroma_subsampling == YuvChromaSample::YUV444 {
-                u_value = unsafe {
-                    ((*u_plane.get_unchecked(u_pos) as u32
-                        + *u_plane.get_unchecked(u_pos + 1) as u32)
-                        + 1)
-                        >> 1
-                } as u8;
-                v_value = unsafe {
-                    ((*v_plane.get_unchecked(v_pos) as u32
-                        + *v_plane.get_unchecked(v_pos + 1) as u32)
-                        + 1)
-                        >> 1
-                } as u8;
+                u_value = (((*u_plane.get_unchecked(u_pos) as u32
+                    + *u_plane.get_unchecked(u_pos + 1) as u32)
+                    + 1)
+                    >> 1) as u8;
+                v_value = (((*v_plane.get_unchecked(v_pos) as u32
+                    + *v_plane.get_unchecked(v_pos + 1) as u32)
+                    + 1)
+                    >> 1) as u8;
             } else {
-                u_value = unsafe { *u_plane.get_unchecked(u_pos) };
-                v_value = unsafe { *v_plane.get_unchecked(v_pos) };
+                u_value = *u_plane.get_unchecked(u_pos);
+                v_value = *v_plane.get_unchecked(v_pos);
             }
 
-            let first_y_value = unsafe { *y_plane.get_unchecked(y_pos) };
-            let second_y_value = unsafe { *y_plane.get_unchecked(y_pos + 1) };
+            let first_y_value = *y_plane.get_unchecked(y_pos);
+            let second_y_value = *y_plane.get_unchecked(y_pos + 1);
 
             let dst_offset = yuy_offset + x * 4;
-            unsafe {
-                let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
-                *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = second_y_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
-            }
+            let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
+            *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
+            *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
+            *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = second_y_value;
+            *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
 
             _uv_x += match chroma_subsampling {
                 YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 1,
@@ -163,36 +180,19 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let v_pos = v_offset + _uv_x;
             let y_pos = y_offset + _cx;
 
-            let u_value = unsafe { *u_plane.get_unchecked(u_pos) };
-            let v_value = unsafe { *v_plane.get_unchecked(v_pos) };
+            let u_value = *u_plane.get_unchecked(u_pos);
+            let v_value = *v_plane.get_unchecked(v_pos);
 
-            let first_y_value = unsafe { *y_plane.get_unchecked(y_pos) };
+            let first_y_value = *y_plane.get_unchecked(y_pos);
 
             let dst_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
-            unsafe {
-                let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
-                *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
-                *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = 0;
-                *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
-            }
+            let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
+            *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
+            *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
+            *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = 0;
+            *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
         }
-
-        y_offset += y_stride as usize;
-        yuy_offset += yuy2_stride as usize;
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
-                if y & 1 == 1 {
-                    u_offset += u_stride as usize;
-                    v_offset += v_stride as usize;
-                }
-            }
-            YuvChromaSample::YUV444 | YuvChromaSample::YUV422 => {
-                u_offset += u_stride as usize;
-                v_offset += v_stride as usize;
-            }
-        }
-    }
+    });
 }
 
 /// Convert YUV 444 planar format to YUYV ( YUV Packed ) format.

@@ -16,6 +16,10 @@ use crate::yuv_support::{
 #[allow(unused_imports)]
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use crate::{YuvRange, YuvStandardMatrix};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     yuy2_store: &[u8],
@@ -23,7 +27,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     rgb_store: &mut [u8],
     rgb_stride: u32,
     width: u32,
-    height: u32,
+    _: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {
@@ -31,6 +35,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
+
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
@@ -50,17 +55,63 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
 
-    let mut rgb_offset = 0usize;
-    let mut yuy_offset = 0usize;
+    let rgb_iter;
+    let yuy2_iter;
+    #[cfg(feature = "rayon")]
+    {
+        rgb_iter = rgb_store.par_chunks_exact_mut(rgb_stride as usize);
+        yuy2_iter = yuy2_store.par_chunks_exact(yuy2_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        rgb_iter = rgb_store.chunks_exact_mut(rgb_stride as usize);
+        yuy2_iter = yuy2_store.chunks_exact(yuy2_stride as usize);
+    }
 
-    for _ in 0..height as usize {
-        let mut _cx = 0usize;
-        let mut _yuy2_x = 0usize;
+    rgb_iter
+        .zip(yuy2_iter)
+        .for_each(|(rgb_store, yuy2_store)| unsafe {
+            let rgb_offset = 0usize;
+            let yuy_offset = 0usize;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        {
-            if _use_avx {
-                let processed = yuy2_to_rgb_avx::<DESTINATION_CHANNELS, YUY2_SOURCE>(
+            let mut _cx = 0usize;
+            let mut _yuy2_x = 0usize;
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                if _use_avx {
+                    let processed = yuy2_to_rgb_avx::<DESTINATION_CHANNELS, YUY2_SOURCE>(
+                        &range,
+                        &inverse_transform,
+                        yuy2_store,
+                        yuy_offset,
+                        rgb_store,
+                        rgb_offset,
+                        width,
+                        YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
+                    );
+                    _cx = processed.cx;
+                    _yuy2_x = processed.x;
+                }
+                if _use_sse {
+                    let processed = yuy2_to_rgb_sse::<DESTINATION_CHANNELS, YUY2_SOURCE>(
+                        &range,
+                        &inverse_transform,
+                        yuy2_store,
+                        yuy_offset,
+                        rgb_store,
+                        rgb_offset,
+                        width,
+                        YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
+                    );
+                    _cx = processed.cx;
+                    _yuy2_x = processed.x;
+                }
+            }
+
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                let processed = yuy2_to_rgb_neon::<DESTINATION_CHANNELS, YUY2_SOURCE>(
                     &range,
                     &inverse_transform,
                     yuy2_store,
@@ -73,44 +124,12 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                 _cx = processed.cx;
                 _yuy2_x = processed.x;
             }
-            if _use_sse {
-                let processed = yuy2_to_rgb_sse::<DESTINATION_CHANNELS, YUY2_SOURCE>(
-                    &range,
-                    &inverse_transform,
-                    yuy2_store,
-                    yuy_offset,
-                    rgb_store,
-                    rgb_offset,
-                    width,
-                    YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
-                );
-                _cx = processed.cx;
-                _yuy2_x = processed.x;
-            }
-        }
 
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        {
-            let processed = yuy2_to_rgb_neon::<DESTINATION_CHANNELS, YUY2_SOURCE>(
-                &range,
-                &inverse_transform,
-                yuy2_store,
-                yuy_offset,
-                rgb_store,
-                rgb_offset,
-                width,
-                YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
-            );
-            _cx = processed.cx;
-            _yuy2_x = processed.x;
-        }
+            let max_iter = width as usize / 2;
+            for x in _yuy2_x..max_iter {
+                let rgb_pos = rgb_offset + _cx * channels;
+                let yuy2_offset = yuy_offset + x * 4;
 
-        let max_iter = width as usize / 2;
-        for x in _yuy2_x..max_iter {
-            let rgb_pos = rgb_offset + _cx * channels;
-            let yuy2_offset = yuy_offset + x * 4;
-
-            unsafe {
                 let yuy2_plane_shifted = yuy2_store.get_unchecked(yuy2_offset..);
 
                 let first_y = *yuy2_plane_shifted.get_unchecked(yuy2_source.get_first_y_position());
@@ -149,29 +168,24 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                 if dst_chans.has_alpha() {
                     *dst1.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                 }
+
+                _cx += 2;
             }
 
-            _cx += 2;
-        }
+            if width & 1 == 1 {
+                let rgb_pos = rgb_offset + (width as usize - 1) * channels;
+                let yuy2_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
 
-        if width & 1 == 1 {
-            let rgb_pos = rgb_offset + (width as usize - 1) * channels;
-            let yuy2_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
+                let yuy2_plane_shifted = yuy2_store.get_unchecked(yuy2_offset..);
 
-            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(yuy2_offset..) };
+                let first_y = *yuy2_plane_shifted.get_unchecked(yuy2_source.get_first_y_position());
+                let u_value = *yuy2_plane_shifted.get_unchecked(yuy2_source.get_u_position());
+                let v_value = *yuy2_plane_shifted.get_unchecked(yuy2_source.get_v_position());
 
-            let first_y =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_first_y_position()) };
-            let u_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_u_position()) };
-            let v_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_source.get_v_position()) };
+                let cb = u_value as i32 - bias_uv;
+                let cr = v_value as i32 - bias_uv;
+                let f_y = (first_y as i32 - bias_y) * y_coef;
 
-            let cb = u_value as i32 - bias_uv;
-            let cr = v_value as i32 - bias_uv;
-            let f_y = (first_y as i32 - bias_y) * y_coef;
-
-            unsafe {
                 let dst0 = rgb_store.get_unchecked_mut(rgb_pos..);
                 let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
                 let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
@@ -184,11 +198,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                     *dst0.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                 }
             }
-        }
-
-        rgb_offset += rgb_stride as usize;
-        yuy_offset += yuy2_stride as usize;
-    }
+        });
 }
 
 /// Convert YUYV (YUV Packed) format to RGB image.

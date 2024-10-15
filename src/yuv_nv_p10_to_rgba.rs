@@ -6,8 +6,11 @@
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_nv12_p10_to_rgba_row;
-
 use crate::yuv_support::*;
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::ParallelSliceMut;
 
 fn yuv_nv_p10_to_image_impl<
     const DESTINATION_CHANNELS: u8,
@@ -23,7 +26,7 @@ fn yuv_nv_p10_to_image_impl<
     bgra: &mut [u8],
     bgra_stride: u32,
     width: u32,
-    height: u32,
+    _: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {
@@ -54,29 +57,43 @@ fn yuv_nv_p10_to_image_impl<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let mut y_offset = 0usize;
-    let mut uv_offset = 0usize;
-    let mut dst_offset = 0usize;
-
-    let y_src_ptr = y_plane.as_ptr() as *const u8;
-    let uv_src_ptr = uv_plane.as_ptr() as *const u8;
-
     let iterator_step = match chroma_subsampling {
         YuvChromaSample::YUV420 => 2usize,
         YuvChromaSample::YUV422 => 2usize,
         YuvChromaSample::YUV444 => 1usize,
     };
 
-    for y in 0..height as usize {
+    let iter;
+    #[cfg(feature = "rayon")]
+    {
+        iter = bgra.par_chunks_exact_mut(bgra_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = bgra.chunks_exact_mut(bgra_stride as usize);
+    }
+
+    iter.enumerate().for_each(|(y, bgra)| unsafe {
+        let y_offset = y * (y_stride as usize);
+        let uv_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+            (y >> 1) * (uv_stride as usize)
+        } else {
+            y * (uv_stride as usize)
+        };
+        let dst_offset = 0usize;
+
+        let y_src_ptr = y_plane.as_ptr() as *const u8;
+        let uv_src_ptr = uv_plane.as_ptr() as *const u8;
+
         let mut _cx = 0usize;
 
         let mut _ux = 0usize;
 
-        let y_ld_ptr = unsafe { y_src_ptr.add(y_offset) as *const u16 };
-        let uv_ld_ptr = unsafe { uv_src_ptr.add(uv_offset) as *const u16 };
+        let y_ld_ptr = y_src_ptr.add(y_offset) as *const u16;
+        let uv_ld_ptr = uv_src_ptr.add(uv_offset) as *const u16;
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
+        {
             let offset = neon_yuv_nv12_p10_to_rgba_row::<
                 DESTINATION_CHANNELS,
                 NV_ORDER,
@@ -104,17 +121,17 @@ fn yuv_nv_p10_to_image_impl<
             let mut cr_value: i32;
             match endianness {
                 YuvEndianness::BigEndian => {
-                    let mut y_vl = u16::from_be(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl = u16::from_be(unsafe {
+                    let mut y_vl = u16::from_be(y_ld_ptr.add(x).read_unaligned()) as i32;
+                    let mut cb_vl = u16::from_be(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_u_position())
-                            .read_unaligned()
-                    }) as i32;
-                    let mut cr_vl = u16::from_be(unsafe {
+                            .read_unaligned(),
+                    ) as i32;
+                    let mut cr_vl = u16::from_be(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_v_position())
-                            .read_unaligned()
-                    }) as i32;
+                            .read_unaligned(),
+                    ) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl >>= 6;
                         cb_vl >>= 6;
@@ -126,17 +143,17 @@ fn yuv_nv_p10_to_image_impl<
                     cr_value = cr_vl;
                 }
                 YuvEndianness::LittleEndian => {
-                    let mut y_vl = u16::from_le(unsafe { y_ld_ptr.add(x).read_unaligned() }) as i32;
-                    let mut cb_vl = u16::from_le(unsafe {
+                    let mut y_vl = u16::from_le(y_ld_ptr.add(x).read_unaligned()) as i32;
+                    let mut cb_vl = u16::from_le(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_u_position())
-                            .read_unaligned()
-                    }) as i32;
-                    let mut cr_vl = u16::from_le(unsafe {
+                            .read_unaligned(),
+                    ) as i32;
+                    let mut cr_vl = u16::from_le(
                         uv_ld_ptr
                             .add(_ux + uv_order.get_v_position())
-                            .read_unaligned()
-                    }) as i32;
+                            .read_unaligned(),
+                    ) as i32;
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         y_vl >>= 6;
                         cb_vl >>= 6;
@@ -174,14 +191,12 @@ fn yuv_nv_p10_to_image_impl<
 
             let rgb_offset = dst_offset + px;
 
-            unsafe {
-                let dst_slice = bgra.get_unchecked_mut(rgb_offset..);
-                *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-                *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-                *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
-                if dst_chans.has_alpha() {
-                    *bgra.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
-                }
+            let dst_slice = bgra.get_unchecked_mut(rgb_offset..);
+            *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+            *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+            *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+            if dst_chans.has_alpha() {
+                *bgra.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
             }
 
             if chroma_subsampling == YuvChromaSample::YUV422
@@ -192,8 +207,7 @@ fn yuv_nv_p10_to_image_impl<
                     let y_value: i32 = match endianness {
                         YuvEndianness::BigEndian => {
                             let mut y_vl =
-                                u16::from_be(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
-                                    as i32;
+                                u16::from_be(y_ld_ptr.add(next_px).read_unaligned()) as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                                 y_vl >>= 6;
                             }
@@ -201,8 +215,7 @@ fn yuv_nv_p10_to_image_impl<
                         }
                         YuvEndianness::LittleEndian => {
                             let mut y_vl =
-                                u16::from_le(unsafe { y_ld_ptr.add(next_px).read_unaligned() })
-                                    as i32;
+                                u16::from_le(y_ld_ptr.add(next_px).read_unaligned()) as i32;
                             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                                 y_vl >>= 6;
                             }
@@ -221,35 +234,19 @@ fn yuv_nv_p10_to_image_impl<
 
                     let px = next_px * channels;
                     let rgb_offset = dst_offset + px;
-                    unsafe {
-                        let dst_slice = bgra.get_unchecked_mut(rgb_offset..);
-                        *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-                        *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-                        *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
-                        if dst_chans.has_alpha() {
-                            *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
-                        }
+                    let dst_slice = bgra.get_unchecked_mut(rgb_offset..);
+                    *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
+                    *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
+                    *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+                    if dst_chans.has_alpha() {
+                        *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
                     }
                 }
             }
 
             _ux += 2;
         }
-
-        match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
-                if y & 1 == 1 {
-                    uv_offset += uv_stride as usize;
-                }
-            }
-            YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => {
-                uv_offset += uv_stride as usize;
-            }
-        }
-
-        dst_offset += bgra_stride as usize;
-        y_offset += y_stride as usize;
-    }
+    });
 }
 
 /// Convert YUV NV12 format with 10-bit pixel format to BGRA format.
