@@ -5,11 +5,7 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 
-use yuvutils_rs::{
-    bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgba_to_yuv420_p16,
-    rgba_to_yuv444_p16, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuyv422_to_rgb,
-    SharpYuvGammaTransfer, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgba_to_sharp_yuv420, rgba_to_yuv420_p16, rgba_to_yuv444_p16, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuyv422_to_rgb, SharpYuvGammaTransfer, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -26,7 +22,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let img = ImageReader::open("./assets/test_image_2.jpg")
+    let img = ImageReader::open("./assets/main_test1.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -47,9 +43,9 @@ fn main() {
     let y_stride = width as usize * std::mem::size_of::<u8>();
     let u_stride = (width as usize + 1) / 2;
     let v_stride = (width as usize + 1) / 2;
-    let mut y_plane = vec![0u16; width as usize * height as usize];
-    let mut u_plane = vec![0u16; width as usize * u_stride];
-    let mut v_plane = vec![0u16; width as usize * v_stride];
+    let mut y_plane = vec![0u8; width as usize * height as usize];
+    let mut u_plane = vec![0u8; width as usize * u_stride];
+    let mut v_plane = vec![0u8; width as usize * v_stride];
 
     let rgba_stride = width as usize * components;
     let mut rgba = vec![0u8; height as usize * rgba_stride];
@@ -118,22 +114,20 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("yuv_nv12_to_rgb time: {:?}", end_time);
     let start_time = Instant::now();
-    rgb_to_yuv420_p16(
+    rgba_to_sharp_yuv420(
         &mut y_plane,
-        y_stride as u32 * 2,
+        y_stride as u32,
         &mut u_plane,
-        u_stride as u32 * 2,
+        u_stride as u32,
         &mut v_plane,
-        v_stride as u32 * 2,
-        &bytes_16,
-        width * components as u32 * 2,
-        10,
+        v_stride as u32,
+        &rgba,
+        width * components as u32,
         width,
         height,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
+        SharpYuvGammaTransfer::Srgb,
     );
 
     // let mut y_plane_16 = vec![0u16; width as usize * height as usize];
@@ -248,22 +242,19 @@ fn main() {
     // println!("yuyv422_to_yuv444 time: {:?}", end_time);
     rgba.fill(255);
     let start_time = Instant::now();
-    yuv420_p16_to_rgb16(
+    yuv420_to_rgb(
         &y_plane,
-        y_stride as u32 * 2,
+        y_stride as u32,
         &u_plane,
-        u_stride as u32 * 2,
+        u_stride as u32 ,
         &v_plane,
-        v_stride as u32 * 2,
-        &mut bytes_16,
-        rgba_stride as u32 * 2,
-        10,
+        v_stride as u32,
+        &mut rgba,
+        rgba_stride as u32,
         width,
         height,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     );
     let end_time = Instant::now().sub(start_time);
     println!("Backward time: {:?}", end_time);

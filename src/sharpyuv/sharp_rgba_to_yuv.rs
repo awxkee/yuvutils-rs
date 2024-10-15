@@ -376,26 +376,23 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             .zip(u_iter)
             .zip(v_iter);
 
-        full_iter.for_each(|((((rgba, rgb_layout), y_plane), u_plane), v_plane)| {
+        full_iter.for_each(|((((rgba, rgb_layout), y_plane), _), _)| {
             let y_offset = 0usize;
-            let u_offset = 0usize;
-            let v_offset = 0usize;
             let rgba_offset = 0usize;
-            let rgb_layout_offset = 0usize;
 
             let mut _cx = 0usize;
             let mut _ux = 0usize;
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
-                let rgb_layout_src = rgb_layout.get_unchecked(rgb_layout_offset..);
+                let rgb_layout_src = rgb_layout.get_unchecked(0..);
                 let rgb_layout_next_src = rgb_layout_src;
                 let offset = neon_rgba_to_sharp_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                     &transform,
                     &range,
                     y_plane.as_mut_ptr().add(y_offset),
-                    u_plane.as_mut_ptr().add(u_offset),
-                    v_plane.as_mut_ptr().add(v_offset),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
                     rgba,
                     rgba_offset,
                     rgb_layout_src,
@@ -404,7 +401,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     _cx,
                     _ux,
                     width as usize,
-                    true,
+                    false,
                 );
                 _cx = offset.cx;
                 _ux = offset.ux;
