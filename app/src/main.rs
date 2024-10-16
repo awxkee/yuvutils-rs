@@ -5,7 +5,12 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 
-use yuvutils_rs::{bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgba_to_sharp_yuv420, rgba_to_yuv420_p16, rgba_to_yuv444_p16, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuyv422_to_rgb, SharpYuvGammaTransfer, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{
+    bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16,
+    rgba_to_sharp_yuv420, rgba_to_yuv420_p16, rgba_to_yuv444_p16, yuv420_p16_to_rgb16,
+    yuv420_to_rgb, yuv420_to_yuyv422, yuyv422_to_rgb, SharpYuvGammaTransfer, YuvBytesPacking,
+    YuvEndianness, YuvRange, YuvStandardMatrix,
+};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -246,7 +251,7 @@ fn main() {
         &y_plane,
         y_stride as u32,
         &u_plane,
-        u_stride as u32 ,
+        u_stride as u32,
         &v_plane,
         v_stride as u32,
         &mut rgba,
@@ -290,8 +295,6 @@ fn main() {
     // println!("gbr_to_rgb time: {:?}", end_time);
     //
     // rgba = Vec::from(gbr);
-
-    println!("{}", std::mem::align_of::<f32>());
 
     image::save_buffer(
         "converted_sharp.png",

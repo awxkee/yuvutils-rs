@@ -35,6 +35,7 @@ mod sse;
 mod to_identity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod wasm32;
+mod y_p16_to_rgb16;
 mod y_to_rgb;
 mod ycgco_r_to_rgb;
 mod ycgco_to_rgb;
@@ -392,3 +393,4 @@ pub use yuv_p16_rgba::*;
 pub use yuv_p16_rgba16_alpha::*;
 pub use yuv_p16_rgba_alpha::*;
 pub use yuv_p16_rgba_p16::*;
+pub use y_p16_to_rgb16::*;
