@@ -1,30 +1,8 @@
 /*
- * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1.  Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2.  Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3.  Neither the name of the copyright holder nor the names of its
- * contributors may be used to endorse or promote products derived from
- * this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
+ * //
+ * // Use of this source code is governed by a BSD-style
+ * // license that can be found in the LICENSE file.
  */
 
 #[derive(Debug, Copy, Clone)]
@@ -80,18 +58,20 @@ pub fn get_inverse_transform(
     range_uv: u32,
     kr: f32,
     kb: f32,
-) -> CbCrInverseTransform<f32> {
+) -> Result<CbCrInverseTransform<f32>, String> {
     let range_uv = range_bgra as f32 / range_uv as f32;
     let y_coef = range_bgra as f32 / range_y as f32;
     let cr_coeff = (2f32 * (1f32 - kr)) * range_uv;
     let cb_coeff = (2f32 * (1f32 - kb)) * range_uv;
     let kg = 1.0f32 - kr - kb;
     if kg == 0f32 {
-        panic!("1.0f - kr - kg must not be 0");
+        return Err("1.0f - kr - kg must not be 0".parse().unwrap());
     }
     let g_coeff_1 = (2f32 * ((1f32 - kr) * kr / kg)) * range_uv;
     let g_coeff_2 = (2f32 * ((1f32 - kb) * kb / kg)) * range_uv;
-    CbCrInverseTransform::new(y_coef, cr_coeff, cb_coeff, g_coeff_1, g_coeff_2)
+    Ok(CbCrInverseTransform::new(
+        y_coef, cr_coeff, cb_coeff, g_coeff_1, g_coeff_2,
+    ))
 }
 
 #[repr(C)]
@@ -431,72 +411,6 @@ impl YuvSourceChannels {
         match self {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => 0,
             YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => 3,
-        }
-    }
-}
-
-#[repr(usize)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) enum Yuy2Description {
-    YUYV = 0,
-    UYVY = 1,
-    YVYU = 2,
-    VYUY = 3,
-}
-
-impl From<usize> for Yuy2Description {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => Yuy2Description::YUYV,
-            1 => Yuy2Description::UYVY,
-            2 => Yuy2Description::YVYU,
-            3 => Yuy2Description::VYUY,
-            _ => {
-                panic!("Not supported value {}", value)
-            }
-        }
-    }
-}
-
-impl Yuy2Description {
-    #[inline]
-    pub(crate) const fn get_u_position(&self) -> usize {
-        match self {
-            Yuy2Description::YUYV => 1,
-            Yuy2Description::UYVY => 0,
-            Yuy2Description::YVYU => 3,
-            Yuy2Description::VYUY => 2,
-        }
-    }
-
-    #[inline]
-    pub(crate) const fn get_v_position(&self) -> usize {
-        match self {
-            Yuy2Description::YUYV => 3,
-            Yuy2Description::UYVY => 2,
-            Yuy2Description::YVYU => 1,
-            Yuy2Description::VYUY => 0,
-        }
-    }
-
-    #[inline(always)]
-    pub(crate) const fn get_first_y_position(&self) -> usize {
-        match self {
-            Yuy2Description::YUYV => 0,
-            Yuy2Description::UYVY => 1,
-            Yuy2Description::YVYU => 0,
-            Yuy2Description::VYUY => 1,
-        }
-    }
-
-    #[inline]
-    pub(crate) const fn get_second_y_position(&self) -> usize {
-        match self {
-            Yuy2Description::YUYV => 2,
-            Yuy2Description::UYVY => 3,
-            Yuy2Description::YVYU => 2,
-            Yuy2Description::VYUY => 3,
         }
     }
 }

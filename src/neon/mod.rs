@@ -1,8 +1,30 @@
 /*
- * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
- * //
- * // Use of this source code is governed by a BSD-style
- * // license that can be found in the LICENSE file.
+ * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1.  Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3.  Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 mod from_identity;
@@ -44,6 +66,7 @@ pub use rgb_to_yuv_p16::neon_rgba_to_yuv_p16;
 pub use rgba_to_nv::neon_rgbx_to_nv_row;
 pub use rgba_to_yuv::neon_rgba_to_yuv;
 pub use to_identity::image_to_gbr_neon;
+pub use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;
 pub use y_to_rgb::neon_y_to_rgb_row;
 pub use ycgco_to_rgb::neon_ycgco_to_rgb_row;
 pub use ycgco_to_rgb_alpha::neon_ycgco_to_rgb_alpha_row;
@@ -60,4 +83,3 @@ pub use yuv_to_rgba_alpha::neon_yuv_to_rgba_alpha;
 pub use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
 pub use yuy2_to_rgb::yuy2_to_rgb_neon;
 pub use yuy2_to_yuv::yuy2_to_yuv_neon_impl;
-pub use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;

@@ -25,6 +25,7 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "image",
+ "yuvs",
  "yuvutils-rs",
 ]
 
@@ -993,8 +994,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "yuvs"
+version = "0.1.0"
+
+[[package]]
 name = "yuvutils-rs"
-version = "0.4.10"
+version = "0.4.11"
 dependencies = [
  "rayon",
 ]

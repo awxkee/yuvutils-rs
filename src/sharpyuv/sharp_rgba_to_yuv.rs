@@ -1,8 +1,30 @@
 /*
- * // Copyright (c) the Radzivon Bartoshyk. All rights reserved.
- * //
- * // Use of this source code is governed by a BSD-style
- * // license that can be found in the LICENSE file.
+ * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1.  Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3.  Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::sharpyuv::neon::neon_rgba_to_sharp_yuv;
@@ -356,19 +378,14 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     // Handle last row if image is odd
     if height & 1 != 0 {
-        let skip_val = (height as usize).saturating_sub(1);
-        let skip_val_chroma = ((height as usize + 1) / 2).saturating_sub(1);
-        let y_iter = y_plane.chunks_exact_mut(y_stride as usize).skip(skip_val);
-        let u_iter = u_plane
-            .chunks_exact_mut(u_stride as usize)
-            .skip(skip_val_chroma);
-        let v_iter = v_plane
-            .chunks_exact_mut(v_stride as usize)
-            .skip(skip_val_chroma);
-        let rgb_iter = rgba.chunks_exact(rgba_stride as usize).skip(skip_val);
+        let y_iter = y_plane.chunks_exact_mut(y_stride as usize).rev().take(1);
+        let u_iter = u_plane.chunks_exact_mut(u_stride as usize).rev().take(1);
+        let v_iter = v_plane.chunks_exact_mut(v_stride as usize).rev().take(1);
+        let rgb_iter = rgba.chunks_exact(rgba_stride as usize).rev().take(1);
         let rgb_linearized_iter = rgb_layout
             .chunks_exact_mut(rgb_layout_stride_len)
-            .skip(skip_val);
+            .rev()
+            .take(1);
 
         let full_iter = rgb_iter
             .zip(rgb_linearized_iter)
@@ -376,7 +393,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             .zip(u_iter)
             .zip(v_iter);
 
-        full_iter.for_each(|((((rgba, _rgb_layout), y_plane), _), _)| {
+        full_iter.for_each(|((((rgba, rgb_layout), y_plane), u_plane), v_plane)| {
             let y_offset = 0usize;
             let rgba_offset = 0usize;
 
@@ -385,14 +402,14 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
-                let rgb_layout_src = _rgb_layout.get_unchecked(0..);
+                let rgb_layout_src = rgb_layout.get_unchecked(0..);
                 let rgb_layout_next_src = rgb_layout_src;
                 let offset = neon_rgba_to_sharp_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                     &transform,
                     &range,
-                    y_plane.as_mut_ptr().add(y_offset),
-                    std::ptr::null_mut(),
-                    std::ptr::null_mut(),
+                    y_plane.as_mut_ptr(),
+                    u_plane.as_mut_ptr(),
+                    v_plane.as_mut_ptr(),
                     rgba,
                     rgba_offset,
                     rgb_layout_src,
@@ -401,7 +418,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     _cx,
                     _ux,
                     width as usize,
-                    false,
+                    true,
                 );
                 _cx = offset.cx;
                 _ux = offset.ux;
@@ -416,6 +433,17 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     let r = *src.get_unchecked(src_chans.get_r_channel_offset()) as i32;
                     let g = *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
                     let b = *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
+
+                    let rgb_layout_src =
+                        rgb_layout.get_unchecked((  x * 3)..);
+
+                    let sharp_r_c = *rgb_layout_src.get_unchecked(src_chans.get_r_channel_offset());
+                    let sharp_g_c = *rgb_layout_src.get_unchecked(src_chans.get_g_channel_offset());
+                    let sharp_b_c = *rgb_layout_src.get_unchecked(src_chans.get_b_channel_offset());
+
+                    let mut sharp_r_next = sharp_r_c;
+                    let mut sharp_g_next = sharp_g_c;
+                    let mut sharp_b_next = sharp_b_c;
 
                     let y_0 = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y)
                         >> PRECISION;
@@ -439,10 +467,77 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                                     >> PRECISION;
                                 *y_plane.get_unchecked_mut(y_offset + x + 1) =
                                     y_1.clamp(i_bias_y, i_cap_y) as u8;
+
+                                let rgb_layout_src_next = rgb_layout_src.get_unchecked(3..);
+
+                                sharp_r_next = *rgb_layout_src_next
+                                    .get_unchecked(src_chans.get_r_channel_offset());
+                                sharp_g_next = *rgb_layout_src_next
+                                    .get_unchecked(src_chans.get_g_channel_offset());
+                                sharp_b_next = *rgb_layout_src_next
+                                    .get_unchecked(src_chans.get_b_channel_offset());
                             }
                         }
                         _ => {}
                     }
+
+                    let sharp_r_c_next_row = sharp_r_c;
+                    let sharp_g_c_next_row = sharp_g_c;
+                    let sharp_b_c_next_row = sharp_b_c;
+
+                    let sharp_r_next_row = sharp_r_c;
+                    let sharp_g_next_row = sharp_g_c;
+                    let sharp_b_next_row = sharp_b_c;
+
+                    const ROUNDING_CONST: i32 = 1 << 3;
+
+                    let interpolated_r = ((sharp_r_c as i32 * 9
+                        + sharp_r_next as i32 * 3
+                        + sharp_r_c_next_row as i32 * 3
+                        + sharp_r_next_row as i32
+                        + ROUNDING_CONST)
+                        >> 4) as u16;
+                    let interpolated_g = ((sharp_g_c as i32 * 9
+                        + sharp_g_next as i32 * 3
+                        + sharp_g_c_next_row as i32 * 3
+                        + sharp_g_next_row as i32
+                        + ROUNDING_CONST)
+                        >> 4) as u16;
+                    let interpolated_b = ((sharp_b_c as i32 * 9
+                        + sharp_b_next as i32 * 3
+                        + sharp_b_c_next_row as i32 * 3
+                        + sharp_b_next_row as i32
+                        + ROUNDING_CONST)
+                        >> 4) as u16;
+
+                    let corrected_r =
+                        *gamma_map_table.get_unchecked(interpolated_r as usize) as i32;
+                    let corrected_g =
+                        *gamma_map_table.get_unchecked(interpolated_g as usize) as i32;
+                    let corrected_b =
+                        *gamma_map_table.get_unchecked(interpolated_b as usize) as i32;
+
+                    let cb = (corrected_r * transform.cb_r
+                        + corrected_g * transform.cb_g
+                        + corrected_b * transform.cb_b
+                        + bias_uv)
+                        >> PRECISION;
+                    let cr = (corrected_r * transform.cr_r
+                        + corrected_g * transform.cr_g
+                        + corrected_b * transform.cr_b
+                        + bias_uv)
+                        >> PRECISION;
+
+                    let u_pos = match chroma_subsampling {
+                        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
+                        YuvChromaSample::YUV444 => _ux,
+                    };
+                    *u_plane.get_unchecked_mut(u_pos) = cb.clamp(i_bias_y, i_cap_uv) as u8;
+                    let v_pos = match chroma_subsampling {
+                        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
+                        YuvChromaSample::YUV444 =>  _ux,
+                    };
+                    *v_plane.get_unchecked_mut(v_pos) = cr.clamp(i_bias_y, i_cap_uv) as u8;
                 }
                 _ux += 1;
             }
