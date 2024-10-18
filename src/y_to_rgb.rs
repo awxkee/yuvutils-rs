@@ -50,7 +50,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     y_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
-    width: u32,
+    _width: u32,
     _: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
@@ -89,7 +89,6 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     iter.zip(y_iter).for_each(|(rgba, y_plane)| {
         let y_offset = 0;
-        let rgba_offset = 0usize;
 
         let mut _cx = 0usize;
 
@@ -106,8 +105,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                     rgba,
                     _cx,
                     y_offset,
-                    rgba_offset,
-                    width as usize,
+                    0,
+                    _width as usize,
                 );
                 _cx = processed;
             }
@@ -122,8 +121,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 rgba,
                 _cx,
                 y_offset,
-                rgba_offset,
-                width as usize,
+                0,
+                _width as usize,
             );
             _cx = offset;
         }
@@ -137,8 +136,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 rgba,
                 _cx,
                 y_offset,
-                rgba_offset,
-                width as usize,
+                0,
+                _width as usize,
             );
             _cx = offset;
         }
