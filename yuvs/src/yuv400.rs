@@ -98,12 +98,9 @@ pub fn yuv400_to_rgb(
             let y_value = (*y_src as i32 - bias_y) * y_coef;
 
             let r = ((y_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
-            let b = ((y_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
-            let g = ((y_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
-
             rgb_dst[0] = r as u8;
-            rgb_dst[1] = g as u8;
-            rgb_dst[2] = b as u8;
+            rgb_dst[1] = r as u8;
+            rgb_dst[2] = r as u8;
         }
     }
 
