@@ -76,7 +76,7 @@ pub fn yuv400_to_rgb(
     let bias_y = range.bias_y as i32;
     const CHANNELS: usize = 3;
 
-    if rgb.len() != width * height * 3 {
+    if rgb.len() != width * height * CHANNELS {
         return Err(format!(
             "RGB image layout expected {} bytes, got {}",
             width * height * CHANNELS,

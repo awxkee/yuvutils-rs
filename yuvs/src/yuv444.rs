@@ -101,7 +101,7 @@ pub fn yuv444_to_rgb(
 
     const CHANNELS: usize = 3;
 
-    if rgb.len() != width * height * 3 {
+    if rgb.len() != width * height * CHANNELS {
         return Err(format!(
             "RGB image layout expected {} bytes, got {}",
             width * height * CHANNELS,

@@ -42,7 +42,7 @@ use crate::yuv_support::*;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 // Chroma subsampling always assumed as 400
 fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
@@ -75,17 +75,20 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
     let iter;
+    let y_iter;
     #[cfg(feature = "rayon")]
     {
         iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
+        y_iter = y_plane.par_chunks_exact(y_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
         iter = rgba.chunks_exact_mut(rgba_stride as usize);
+        y_iter = y_plane.chunks_exact(y_stride as usize);
     }
 
-    iter.enumerate().for_each(|(y, rgba)| {
-        let y_offset = y * (y_stride as usize);
+    iter.zip(y_iter).for_each(|(rgba, y_plane)| {
+        let y_offset = 0;
         let rgba_offset = 0usize;
 
         let mut _cx = 0usize;
@@ -140,24 +143,18 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             _cx = offset;
         }
 
-        for x in _cx..width as usize {
-            let y_value =
-                (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y) * y_coef;
+        let rgba_sliced = &mut rgba[(_cx * channels)..];
+        let y_sliced = &y_plane[_cx..];
+
+        for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
+            let y_value = (*y_src as i32 - bias_y) * y_coef;
 
             let r = ((y_value + ROUNDING_CONST) >> PRECISION).min(255i32).max(0);
-
-            let px = x * channels;
-
-            let rgba_shift = rgba_offset + px;
-
-            unsafe {
-                let dst = rgba.get_unchecked_mut(rgba_shift..);
-                *dst.get_unchecked_mut(destination_channels.get_r_channel_offset()) = r as u8;
-                *dst.get_unchecked_mut(destination_channels.get_g_channel_offset()) = r as u8;
-                *dst.get_unchecked_mut(destination_channels.get_b_channel_offset()) = r as u8;
-                if destination_channels.has_alpha() {
-                    *dst.get_unchecked_mut(destination_channels.get_a_channel_offset()) = 255;
-                }
+            rgba[destination_channels.get_r_channel_offset()] = r as u8;
+            rgba[destination_channels.get_g_channel_offset()] = r as u8;
+            rgba[destination_channels.get_b_channel_offset()] = r as u8;
+            if destination_channels.has_alpha() {
+                rgba[destination_channels.get_a_channel_offset()] = 255;
             }
         }
     });

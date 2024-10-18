@@ -44,6 +44,7 @@ mod from_identity_p16;
 mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
+mod ptr;
 mod rgb_to_nv_p16;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -58,7 +59,9 @@ mod to_identity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod wasm32;
 mod y_p16_to_rgb16;
+mod y_p16_with_alpha_to_rgb16;
 mod y_to_rgb;
+mod y_with_alpha_to_rgb;
 mod ycgco_r_to_rgb;
 mod ycgco_to_rgb;
 mod ycgco_to_rgb_alpha;
@@ -412,6 +415,8 @@ pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
 pub use y_p16_to_rgb16::*;
+pub use y_p16_with_alpha_to_rgb16::*;
+pub use y_with_alpha_to_rgb::*;
 pub use yuv_p16_rgba::*;
 pub use yuv_p16_rgba16_alpha::*;
 pub use yuv_p16_rgba_alpha::*;
