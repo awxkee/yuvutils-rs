@@ -88,8 +88,6 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     }
 
     iter.zip(y_iter).for_each(|(rgba, y_plane)| {
-        let y_offset = 0;
-
         let mut _cx = 0usize;
 
         #[cfg(all(
@@ -104,7 +102,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                     y_plane,
                     rgba,
                     _cx,
-                    y_offset,
+                    0,
                     0,
                     _width as usize,
                 );
@@ -120,7 +118,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 y_plane,
                 rgba,
                 _cx,
-                y_offset,
+                0,
                 0,
                 _width as usize,
             );
@@ -135,7 +133,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 y_plane,
                 rgba,
                 _cx,
-                y_offset,
+                0,
                 0,
                 _width as usize,
             );
