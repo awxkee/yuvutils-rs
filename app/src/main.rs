@@ -281,7 +281,7 @@ fn main() {
         &mut rgba,
         width as usize,
         height as usize,
-        yuvs::YuvRange::TV,
+        yuvs::YuvRange::Tv,
         yuvs::YuvStandardMatrix::Bt601,
     ).unwrap();
     let end_time = Instant::now().sub(start_time);

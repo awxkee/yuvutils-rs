@@ -148,9 +148,9 @@ pub fn get_forward_transform(
 /// Declares YUV range TV (limited) or Full
 pub enum YuvRange {
     /// Limited range Y ∈ [16 << (depth - 8), 16 << (depth - 8) + 224 << (depth - 8)], UV ∈ [-1 << (depth - 1), -1 << (depth - 1) + 1 << (depth - 1)]
-    TV,
+    Tv,
     /// Full range Y ∈ [0, 2^bit_depth - 1], UV ∈ [-1 << (depth - 1), -1 << (depth - 1) + 2^bit_depth - 1]
-    Full,
+    Pc,
 }
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
@@ -164,14 +164,14 @@ pub struct YuvChromaRange {
 
 pub const fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
     match range {
-        YuvRange::TV => YuvChromaRange {
+        YuvRange::Tv => YuvChromaRange {
             bias_y: 16 << (depth - 8),
             bias_uv: 1 << (depth - 1),
             range_y: 219 << (depth - 8),
             range_uv: 224 << (depth - 8),
             range,
         },
-        YuvRange::Full => YuvChromaRange {
+        YuvRange::Pc => YuvChromaRange {
             bias_y: 0,
             bias_uv: 1 << (depth - 1),
             range_uv: (1 << depth) - 1,
