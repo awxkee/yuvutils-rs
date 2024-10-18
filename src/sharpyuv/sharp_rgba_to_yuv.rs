@@ -434,8 +434,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     let g = *src.get_unchecked(src_chans.get_g_channel_offset()) as i32;
                     let b = *src.get_unchecked(src_chans.get_b_channel_offset()) as i32;
 
-                    let rgb_layout_src =
-                        rgb_layout.get_unchecked((  x * 3)..);
+                    let rgb_layout_src = rgb_layout.get_unchecked((x * 3)..);
 
                     let sharp_r_c = *rgb_layout_src.get_unchecked(src_chans.get_r_channel_offset());
                     let sharp_g_c = *rgb_layout_src.get_unchecked(src_chans.get_g_channel_offset());
@@ -535,7 +534,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     *u_plane.get_unchecked_mut(u_pos) = cb.clamp(i_bias_y, i_cap_uv) as u8;
                     let v_pos = match chroma_subsampling {
                         YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
-                        YuvChromaSample::YUV444 =>  _ux,
+                        YuvChromaSample::YUV444 => _ux,
                     };
                     *v_plane.get_unchecked_mut(v_pos) = cr.clamp(i_bias_y, i_cap_uv) as u8;
                 }

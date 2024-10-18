@@ -110,7 +110,9 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut ux = 0usize;
 
-        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444 || chroma_subsampling == YuvChromaSample::YUV422 || y & 1 == 0;
+        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444
+            || chroma_subsampling == YuvChromaSample::YUV422
+            || y & 1 == 0;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {

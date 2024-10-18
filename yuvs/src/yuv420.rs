@@ -198,17 +198,11 @@ pub fn yuv420_to_rgb(
         .chunks_exact(y_stride * 2)
         .remainder()
         .chunks_exact(y_stride);
-    let rgb_iter = rgb
-        .chunks_exact_mut(rgb_stride)
-        .rev();
+    let rgb_iter = rgb.chunks_exact_mut(rgb_stride).rev();
     let u_iter = u_plane.chunks_exact(u_stride).rev();
     let v_iter = v_plane.chunks_exact(v_stride).rev();
 
-    for (((y_src, u_src), v_src), rgb) in y_iter
-        .zip(u_iter)
-        .zip(v_iter)
-        .zip(rgb_iter)
-    {
+    for (((y_src, u_src), v_src), rgb) in y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter) {
         let y_iter = y_src.chunks_exact(2);
         let rgb_chunks = rgb.chunks_exact_mut(CHANNELS * 2);
         for (((y_src, u_src), v_src), rgb_dst) in y_iter.zip(u_src).zip(v_src).zip(rgb_chunks) {
@@ -216,10 +210,10 @@ pub fn yuv420_to_rgb(
             let cb_value = *u_src as i32 - bias_uv;
             let cr_value = *v_src as i32 - bias_uv;
 
-            let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
-                .clamp(0, max_value);
-            let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
-                .clamp(0, max_value);
+            let r =
+                ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
+            let b =
+                ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
             let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
                 >> PRECISION)
                 .clamp(0, max_value);
@@ -230,10 +224,10 @@ pub fn yuv420_to_rgb(
 
             let y_value = (y_src[1] as i32 - bias_y) * y_coef;
 
-            let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
-                .clamp(0, max_value);
-            let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
-                .clamp(0, max_value);
+            let r =
+                ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
+            let b =
+                ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
             let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
                 >> PRECISION)
                 .clamp(0, max_value);
@@ -258,10 +252,10 @@ pub fn yuv420_to_rgb(
             let cb_value = *u_src as i32 - bias_uv;
             let cr_value = *v_src as i32 - bias_uv;
 
-            let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
-                .clamp(0, max_value);
-            let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
-                .clamp(0, max_value);
+            let r =
+                ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
+            let b =
+                ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
             let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
                 >> PRECISION)
                 .clamp(0, max_value);

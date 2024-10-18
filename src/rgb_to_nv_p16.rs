@@ -104,7 +104,9 @@ fn rgbx_to_yuv_bi_planar_10_impl<
         let mut _cx = 0usize;
         let mut _ux = 0usize;
 
-        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444 || chroma_subsampling == YuvChromaSample::YUV422 || y & 1 == 0;
+        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444
+            || chroma_subsampling == YuvChromaSample::YUV422
+            || y & 1 == 0;
 
         let y_st_ptr = unsafe { y_dst_ptr.add(y_offset) as *mut u16 };
         let uv_st_ptr = unsafe { uv_dst_ptr.add(uv_offset) as *mut u16 };

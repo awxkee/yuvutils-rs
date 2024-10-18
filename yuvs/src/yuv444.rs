@@ -121,7 +121,8 @@ pub fn yuv444_to_rgb(
     for (((y_src, u_src), v_src), rgb) in y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter) {
         let rgb_chunks = rgb.chunks_exact_mut(CHANNELS);
 
-        for (((y_src, u_src), v_src), rgb_dst) in y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks) {
+        for (((y_src, u_src), v_src), rgb_dst) in y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks)
+        {
             let y_value = (*y_src as i32 - bias_y) * y_coef;
             let cb_value = *u_src as i32 - bias_uv;
             let cr_value = *v_src as i32 - bias_uv;

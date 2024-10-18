@@ -27,14 +27,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use image::{ColorType, EncodableLayout, GenericImageView};
 use std::fs::File;
 use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
-use image::imageops::FilterType;
-use yuvutils_rs::{bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv444, rgba_to_sharp_yuv420, rgba_to_yuv420_p16, rgba_to_yuv444_p16, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuyv422_to_rgb, SharpYuvGammaTransfer, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{
+    bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422,
+    rgb_to_yuv444, rgba_to_sharp_yuv420, rgba_to_yuv420_p16, rgba_to_yuv444_p16,
+    yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuyv422_to_rgb, SharpYuvGammaTransfer,
+    YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix,
+};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -55,7 +60,11 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
-    img = img.resize_exact(img.dimensions().0 + 1, img.dimensions().1, FilterType::Nearest);
+    img = img.resize_exact(
+        img.dimensions().0 + 1,
+        img.dimensions().1,
+        FilterType::Nearest,
+    );
     let dimensions = img.dimensions();
 
     let width = dimensions.0;
@@ -283,7 +292,8 @@ fn main() {
         height as usize,
         yuvs::YuvRange::Tv,
         yuvs::YuvStandardMatrix::Bt601,
-    ).unwrap();
+    )
+    .unwrap();
     let end_time = Instant::now().sub(start_time);
     println!("Backward time: {:?}", end_time);
 

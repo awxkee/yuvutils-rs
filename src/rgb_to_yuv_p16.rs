@@ -122,7 +122,9 @@ fn rgbx_to_yuv_impl<
         let v_st_ptr = unsafe { v_dst_ptr.add(v_offset) as *mut u16 };
         let rgb_ld_ptr = unsafe { rgb_src_ptr.add(rgba_offset) as *const u16 };
 
-        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444 || chroma_subsampling == YuvChromaSample::YUV422 || y & 1 == 0;
+        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444
+            || chroma_subsampling == YuvChromaSample::YUV422
+            || y & 1 == 0;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {

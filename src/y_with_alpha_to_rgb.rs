@@ -47,9 +47,8 @@ fn y_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8>(
 ) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
-    assert_ne!(
+    assert!(
         destination_channels.has_alpha(),
-        false,
         "YUV400 with alpha cannot be called on target image without alpha"
     );
     assert_eq!(

@@ -31,7 +31,6 @@ use crate::yuv_support::*;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-use std::ops::Add;
 use std::slice;
 
 // Chroma subsampling always assumed as 400
@@ -57,9 +56,8 @@ fn yuv400_p16_with_alpha_to_rgbx<
 
     let channels = destination_channels.get_channels_count();
 
-    assert_ne!(
+    assert!(
         destination_channels.has_alpha(),
-        false,
         "YUV400 with alpha cannot be called on target image without alpha"
     );
     assert_eq!(
