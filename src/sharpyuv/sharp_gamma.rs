@@ -145,23 +145,25 @@ impl From<u8> for SharpYuvGammaTransfer {
 }
 
 impl SharpYuvGammaTransfer {
+
     #[inline]
-    pub fn get_linearize_function(&self) -> fn(f32) -> f32 {
+    pub fn linearize(&self, value: f32) -> f32 {
         match self {
-            SharpYuvGammaTransfer::Srgb => srgb_to_linear,
-            SharpYuvGammaTransfer::Rec709 => rec709_to_linear,
-            SharpYuvGammaTransfer::Gamma2p8 => gamma2p8_to_linear,
-            SharpYuvGammaTransfer::Gamma2p2 => gamma2p2_to_linear,
+            SharpYuvGammaTransfer::Srgb => srgb_to_linear(value),
+            SharpYuvGammaTransfer::Rec709 => rec709_to_linear(value),
+            SharpYuvGammaTransfer::Gamma2p2 => gamma2p2_to_linear(value),
+            SharpYuvGammaTransfer::Gamma2p8 => gamma2p8_to_linear(value),
         }
     }
 
     #[inline]
-    pub fn get_gamma_function(&self) -> fn(f32) -> f32 {
+    pub fn gamma(&self, value: f32) -> f32 {
         match self {
-            SharpYuvGammaTransfer::Srgb => srgb_from_linear,
-            SharpYuvGammaTransfer::Rec709 => rec709_from_linear,
-            SharpYuvGammaTransfer::Gamma2p2 => gamma2p2_from_linear,
-            SharpYuvGammaTransfer::Gamma2p8 => gamma2p8_from_linear,
+            SharpYuvGammaTransfer::Srgb => srgb_from_linear(value),
+            SharpYuvGammaTransfer::Rec709 => rec709_from_linear(value),
+            SharpYuvGammaTransfer::Gamma2p2 => gamma2p2_from_linear(value),
+            SharpYuvGammaTransfer::Gamma2p8 => gamma2p8_from_linear(value),
         }
     }
+
 }

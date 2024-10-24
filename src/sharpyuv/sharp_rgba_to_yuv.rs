@@ -53,28 +53,20 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
 
-    let linearize_func = sharp_yuv_gamma_transfer.get_linearize_function();
-    let gamma_func = sharp_yuv_gamma_transfer.get_gamma_function();
-
     let mut linear_map_table = [0u16; 256];
     let mut gamma_map_table = [0u8; u16::MAX as usize + 1];
 
     let linear_scale = (1. / 255.) as f32;
     let gamma_scale = 1. / u16::MAX as f32;
 
-    for i in 0..256 {
-        unsafe {
-            let linear = linearize_func(i as f32 * linear_scale);
-            *linear_map_table.get_unchecked_mut(i as usize) =
-                (linear * u16::MAX as f32).round() as u16;
-        }
+    for (i, item) in linear_map_table.iter_mut().enumerate() {
+        let linear = sharp_yuv_gamma_transfer.linearize(i as f32 * linear_scale);
+        *item = (linear * u16::MAX as f32) as u16;
     }
 
-    for i in 0..(u16::MAX as usize + 1) {
-        unsafe {
-            let gamma = gamma_func(i as f32 * gamma_scale);
-            *gamma_map_table.get_unchecked_mut(i) = (gamma * 255.).round() as u8;
-        }
+    for (i, item) in gamma_map_table.iter_mut().enumerate() {
+        let gamma = sharp_yuv_gamma_transfer.gamma(i as f32 * gamma_scale);
+        *item = (gamma * 255.) as u8;
     }
 
     // Always using 3 Channels ( RGB etc. ) layout since we do not need a alpha channel
@@ -97,15 +89,13 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     }
 
     iter_linearize.for_each(|(rgb_layout_cast, src_layout)| unsafe {
-        for x in 0..width as usize {
-            let dst_layout = rgb_layout_cast.get_unchecked_mut((x * 3)..);
-            let src = src_layout.get_unchecked((x * src_chans.get_channels_count())..);
-            *dst_layout.get_unchecked_mut(0) =
-                *linear_map_table.get_unchecked((*src.get_unchecked(0)) as usize);
-            *dst_layout.get_unchecked_mut(1) =
-                *linear_map_table.get_unchecked((*src.get_unchecked(1)) as usize);
-            *dst_layout.get_unchecked_mut(2) =
-                *linear_map_table.get_unchecked((*src.get_unchecked(2)) as usize);
+        for (dst, src) in rgb_layout_cast
+            .chunks_exact_mut(3)
+            .zip(src_layout.chunks_exact(src_chans.get_channels_count()))
+        {
+            dst[0] = *linear_map_table.get_unchecked(src[0] as usize);
+            dst[1] = *linear_map_table.get_unchecked(src[1] as usize);
+            dst[2] = *linear_map_table.get_unchecked(src[2] as usize);
         }
     });
 
