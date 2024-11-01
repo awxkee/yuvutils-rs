@@ -31,8 +31,7 @@ use crate::neon::neon_rgba_to_yuv_p16;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgba_to_yuv_p16;
 use crate::yuv_support::{
-    get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvChromaSample,
-    YuvSourceChannels,
+    get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSample, YuvSourceChannels,
 };
 use crate::{YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
 
@@ -79,7 +78,7 @@ fn rgbx_to_yuv_impl<
     let channels = src_chans.get_channels_count();
 
     let range = get_yuv_range(bit_depth, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let max_range_p8 = (1u32 << bit_depth) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,

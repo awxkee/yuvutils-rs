@@ -35,12 +35,12 @@ use crate::sse::gbr_to_image_sse;
 use crate::yuv_support::YuvSourceChannels;
 
 fn gbr_to_image_impl<const DESTINATION_CHANNELS: u8>(
-    gbr: &[u8],
+    source_gbr: &[u8],
     gbr_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
-    height: u32,
+    _: u32,
 ) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -50,79 +50,42 @@ fn gbr_to_image_impl<const DESTINATION_CHANNELS: u8>(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_avx = std::arch::is_x86_feature_detected!("avx2");
 
-    let mut gbr_offset = 0usize;
-    let mut rgba_offset = 0usize;
-
-    for _ in 0..height as usize {
+    for (dst_row, src_row) in rgba
+        .chunks_exact_mut(rgba_stride as usize)
+        .zip(source_gbr.chunks_exact(gbr_stride as usize))
+    {
         let mut _cx = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             if _use_avx {
-                _cx = gbr_to_image_avx::<DESTINATION_CHANNELS>(
-                    gbr,
-                    gbr_offset,
-                    rgba,
-                    rgba_offset,
-                    width,
-                    _cx,
-                );
+                _cx = gbr_to_image_avx::<DESTINATION_CHANNELS>(src_row, 0, dst_row, 0, width, _cx);
             }
             if _use_sse {
-                _cx = gbr_to_image_sse::<DESTINATION_CHANNELS>(
-                    gbr,
-                    gbr_offset,
-                    rgba,
-                    rgba_offset,
-                    width,
-                    _cx,
-                );
+                _cx = gbr_to_image_sse::<DESTINATION_CHANNELS>(src_row, 0, dst_row, 0, width, _cx);
             }
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            _cx = gbr_to_image_neon::<DESTINATION_CHANNELS>(
-                gbr,
-                gbr_offset,
-                rgba,
-                rgba_offset,
-                width,
-                _cx,
-            );
+            _cx = gbr_to_image_neon::<DESTINATION_CHANNELS>(src_row, 0, dst_row, 0, width, _cx);
         }
 
-        for x in _cx..width as usize {
-            let gbr_local = unsafe { gbr.get_unchecked((gbr_offset + x * 3)..) };
-
-            let g = unsafe { *gbr_local.get_unchecked(0) };
-            let b = unsafe { *gbr_local.get_unchecked(1) };
-            let r = unsafe { *gbr_local.get_unchecked(2) };
-
-            let px = x * channels;
-
-            let rgba_shift = rgba_offset + px;
-
-            let dst_local = unsafe { rgba.get_unchecked_mut(rgba_shift..) };
-
-            unsafe {
-                *dst_local.get_unchecked_mut(destination_channels.get_r_channel_offset()) = r
-            };
-            unsafe {
-                *dst_local.get_unchecked_mut(destination_channels.get_g_channel_offset()) = g
-            };
-            unsafe {
-                *dst_local.get_unchecked_mut(destination_channels.get_b_channel_offset()) = b
-            };
+        for (dst, src) in dst_row
+            .chunks_exact_mut(channels)
+            .zip(src_row.chunks_exact(3))
+            .skip(_cx)
+        {
+            let g = src[0];
+            let b = src[1];
+            let r = src[2];
+            dst[destination_channels.get_r_channel_offset()] = r;
+            dst[destination_channels.get_g_channel_offset()] = g;
+            dst[destination_channels.get_b_channel_offset()] = b;
             if destination_channels.has_alpha() {
-                unsafe {
-                    *dst_local.get_unchecked_mut(destination_channels.get_a_channel_offset()) = 255
-                };
+                dst[destination_channels.get_a_channel_offset()] = 255;
             }
         }
-
-        gbr_offset += gbr_stride as usize;
-        rgba_offset += rgba_stride as usize;
     }
 }
 

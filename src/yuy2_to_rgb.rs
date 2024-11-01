@@ -33,7 +33,7 @@ use crate::neon::yuy2_to_rgb_neon;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuy2_to_rgb_sse;
 use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, YuvSourceChannels, Yuy2Description,
+    get_inverse_transform, get_yuv_range, YuvSourceChannels, Yuy2Description,
 };
 #[allow(unused_imports)]
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
@@ -59,7 +59,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     let channels = dst_chans.get_channels_count();
 
     let range = get_yuv_range(8, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
     const PRECISION: i32 = 6;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);

@@ -996,10 +996,13 @@ dependencies = [
 [[package]]
 name = "yuvs"
 version = "0.1.0"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.4.13"
+version = "0.5.0"
 dependencies = [
  "rayon",
 ]

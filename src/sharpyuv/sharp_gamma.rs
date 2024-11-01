@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#![forbid(unsafe_code)]
 #[inline]
 /// Linear transfer function for sRGB
 pub fn srgb_to_linear(gamma: f32) -> f32 {
@@ -145,7 +145,6 @@ impl From<u8> for SharpYuvGammaTransfer {
 }
 
 impl SharpYuvGammaTransfer {
-
     #[inline]
     pub fn linearize(&self, value: f32) -> f32 {
         match self {
@@ -165,5 +164,4 @@ impl SharpYuvGammaTransfer {
             SharpYuvGammaTransfer::Gamma2p8 => gamma2p8_from_linear(value),
         }
     }
-
 }

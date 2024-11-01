@@ -66,7 +66,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
     );
 
     let range = get_yuv_range(bit_depth, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(
         max_colors,
         range.range_y,

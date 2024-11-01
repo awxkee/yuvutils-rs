@@ -29,8 +29,8 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_p16_to_rgba16_alpha_row;
 use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, YuvBytesPacking, YuvChromaSample,
-    YuvEndianness, YuvRange, YuvSourceChannels, YuvStandardMatrix,
+    get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSample, YuvEndianness,
+    YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
@@ -71,7 +71,7 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let range = get_yuv_range(bit_depth as u32, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let max_range_p16 = (1u32 << bit_depth as u32) - 1;
     const PRECISION: i32 = 6;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);

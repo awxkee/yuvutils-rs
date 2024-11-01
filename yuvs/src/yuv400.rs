@@ -26,8 +26,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 use crate::{get_inverse_transform, get_kr_kb, get_yuv_range, YuvRange, YuvStandardMatrix};
+use num_traits::AsPrimitive;
 
 /// Converts YUV444 to Rgb
 ///
@@ -48,15 +48,19 @@ use crate::{get_inverse_transform, get_kr_kb, get_yuv_range, YuvRange, YuvStanda
 /// * `matrix`: see [YuvStandardMatrix]
 ///
 ///
-pub fn yuv400_to_rgb(
-    y_plane: &[u8],
+pub fn yuv400_to_rgba<V: Copy + AsPrimitive<i32> + 'static>(
+    y_plane: &[V],
     y_stride: usize,
-    rgb: &mut [u8],
+    rgba: &mut [V],
+    bit_depth: u32,
     width: usize,
     height: usize,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) -> Result<(), String> {
+) -> Result<(), String>
+where
+    i32: AsPrimitive<V>,
+{
     if y_plane.len() != y_stride * height {
         return Err(format!(
             "Luma plane expected {} bytes, got {}",
@@ -64,43 +68,68 @@ pub fn yuv400_to_rgb(
             y_plane.len()
         ));
     }
+    const CHANNELS: usize = 4;
+    let rgba_stride = width * CHANNELS;
+
+    // If luma plane is in full range it can be just redistributed across the image
+    if range == YuvRange::Pc {
+        let y_iter = y_plane.chunks_exact(y_stride);
+        let rgb_iter = rgba.chunks_exact_mut(rgba_stride);
+
+        for (y_src, rgb) in y_iter.zip(rgb_iter) {
+            let rgb_chunks = rgb.chunks_exact_mut(CHANNELS);
+
+            for (y_src, rgb_dst) in y_src.iter().zip(rgb_chunks) {
+                let r = *y_src;
+                rgb_dst[0] = r;
+                rgb_dst[1] = r;
+                rgb_dst[2] = r;
+                rgb_dst[3] = r;
+            }
+        }
+        return Ok(());
+    }
 
     let range = get_yuv_range(8, range);
     let kr_kb = get_kr_kb(matrix);
-    let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)?;
     const PRECISION: i32 = 6;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
-    let inverse_transform = transform.to_integers(PRECISION as u32);
+    let inverse_transform = get_inverse_transform(
+        (1 << bit_depth) - 1,
+        range.range_y,
+        range.range_uv,
+        kr_kb.kr,
+        kr_kb.kb,
+        PRECISION as u32,
+    )?;
     let y_coef = inverse_transform.y_coef;
 
     let bias_y = range.bias_y as i32;
-    const CHANNELS: usize = 3;
 
-    if rgb.len() != width * height * CHANNELS {
+    if rgba.len() != width * height * CHANNELS {
         return Err(format!(
             "RGB image layout expected {} bytes, got {}",
             width * height * CHANNELS,
-            rgb.len()
+            rgba.len()
         ));
     }
 
-    let max_value = (1 << 8) - 1;
-
-    let rgb_stride = width * CHANNELS;
+    let max_value = (1 << bit_depth) - 1;
 
     let y_iter = y_plane.chunks_exact(y_stride);
-    let rgb_iter = rgb.chunks_exact_mut(rgb_stride);
+    let rgb_iter = rgba.chunks_exact_mut(rgba_stride);
 
     for (y_src, rgb) in y_iter.zip(rgb_iter) {
         let rgb_chunks = rgb.chunks_exact_mut(CHANNELS);
 
         for (y_src, rgb_dst) in y_src.iter().zip(rgb_chunks) {
-            let y_value = (*y_src as i32 - bias_y) * y_coef;
+            let y_value = (y_src.as_() - bias_y) * y_coef;
 
             let r = ((y_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
-            rgb_dst[0] = r as u8;
-            rgb_dst[1] = r as u8;
-            rgb_dst[2] = r as u8;
+            rgb_dst[0] = r.as_();
+            rgb_dst[1] = r.as_();
+            rgb_dst[2] = r.as_();
+            rgb_dst[3] = 255.as_();
         }
     }
 

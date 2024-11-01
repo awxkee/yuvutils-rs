@@ -26,7 +26,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::yuv_error::{check_rgba_destination, check_y8_channel};
 use crate::yuv_support::*;
+use crate::YuvError;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
@@ -40,11 +42,11 @@ fn y_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8>(
     a_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
-    _: u32,
-    _: u32,
+    width: u32,
+    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     assert!(
@@ -55,8 +57,13 @@ fn y_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8>(
         channels, 4,
         "YUV400 with alpha cannot be called on target image without alpha"
     );
+
+    check_rgba_destination(rgba, rgba_stride, width, height, channels)?;
+    check_y8_channel(y_plane, y_stride, width, height)?;
+    check_y8_channel(a_plane, a_stride, width, height)?;
+
     let range = get_yuv_range(8, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
 
     const PRECISION: i32 = 6;
@@ -99,6 +106,8 @@ fn y_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 rgba[destination_channels.get_a_channel_offset()] = *a_src;
             }
         });
+
+    Ok(())
 }
 
 /// Convert YUV 400 planar format with alpha plane to RGBA format.
@@ -134,7 +143,7 @@ pub fn yuv400_with_alpha_to_rgba(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     y_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }>(
         y_plane,
         y_stride,
@@ -182,7 +191,7 @@ pub fn yuv400_with_alpha_to_bgra(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     y_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }>(
         y_plane,
         y_stride,

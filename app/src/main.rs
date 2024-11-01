@@ -32,8 +32,9 @@ use image::io::Reader as ImageReader;
 use image::{ColorType, EncodableLayout, GenericImageView};
 use std::fs::File;
 use std::io::Read;
-use std::ops::Sub;
+use std::ops::{BitXor, Sub};
 use std::time::Instant;
+use yuvs::{get_exact_inverse_transform, get_inverse_transform, get_kr_kb};
 use yuvutils_rs::{
     bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422,
     rgb_to_yuv444, rgba_to_sharp_yuv420, rgba_to_yuv420_p16, rgba_to_yuv444_p16,
@@ -56,7 +57,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/gustafson.jpg")
+    let mut img = ImageReader::open("./assets/test_image_2.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -67,7 +68,7 @@ fn main() {
     let height = dimensions.1;
 
     let src_bytes = img.as_bytes();
-    let components = match img.color() {
+    let mut components = match img.color() {
         ColorType::Rgb8 => 3,
         ColorType::Rgba8 => 4,
         _ => {
@@ -163,7 +164,8 @@ fn main() {
         YuvRange::TV,
         YuvStandardMatrix::Bt601,
         SharpYuvGammaTransfer::Srgb,
-    );
+    )
+    .unwrap();
 
     // let mut y_plane_16 = vec![0u16; width as usize * height as usize];
     // let mut u_plane_16 = vec![0u16; width as usize * height as usize];
@@ -291,9 +293,31 @@ fn main() {
         height as u32,
         YuvRange::TV,
         YuvStandardMatrix::Bt601,
-    );
+    )
+    .unwrap();
     let end_time = Instant::now().sub(start_time);
     println!("Backward time: {:?}", end_time);
+
+    let a_plane = vec![0u8; width as usize * height as usize];
+
+    // let start_time = Instant::now();
+    // yuvs::yuv420_to_rgba(
+    //     &y_plane,
+    //     y_stride as usize,
+    //     &u_plane,
+    //     u_stride as usize,
+    //     &v_plane,
+    //     v_stride as usize,
+    //     &mut rgba,
+    //     8,
+    //     width as usize,
+    //     height as usize,
+    //     yuvs::YuvRange::Tv,
+    //     yuvs::YuvStandardMatrix::Bt601,
+    // )
+    // .unwrap();
+    // let end_time = Instant::now().sub(start_time);
+    // println!("Yuvs Backward time: {:?}", end_time);
 
     // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 

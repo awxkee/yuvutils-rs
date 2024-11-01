@@ -59,7 +59,7 @@ fn yuv_nv_p10_to_image_impl<
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let range = get_yuv_range(10, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let max_range_p10 = (1u32 << 10u32) - 1u32;
     let transform = get_inverse_transform(
         max_range_p10,

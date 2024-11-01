@@ -35,8 +35,8 @@ mod yuv422;
 mod yuv444;
 mod yuv_support;
 
-pub use yuv400::yuv400_to_rgb;
-pub use yuv420::yuv420_to_rgb;
-pub use yuv422::yuv422_to_rgb;
-pub use yuv444::yuv444_to_rgb;
+pub use yuv400::yuv400_to_rgba;
+pub use yuv420::yuv420_to_rgba;
+pub use yuv422::yuv422_to_rgba;
+pub use yuv444::yuv444_to_rgba;
 pub use yuv_support::*;

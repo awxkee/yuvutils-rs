@@ -40,8 +40,10 @@ use crate::internals::*;
 use crate::neon::neon_rgba_to_yuv;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgba_to_yuv_row;
+use crate::yuv_error::{check_chroma_channel, check_rgba_destination, check_y8_channel};
 #[allow(unused_imports)]
 use crate::yuv_support::*;
+use crate::YuvError;
 
 fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &mut [u8],
@@ -56,12 +58,18 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
+
+    check_rgba_destination(rgba, rgba_stride, width, height, channels)?;
+    check_y8_channel(y_plane, y_stride, width, height)?;
+    check_chroma_channel(u_plane, u_stride, width, height, chroma_subsampling)?;
+    check_chroma_channel(v_plane, v_stride, width, height, chroma_subsampling)?;
+
     let range = get_yuv_range(8, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     const PRECISION: i32 = 8;
     let max_range_p8 = (1u32 << 8u32) - 1u32;
     let transform_precise = get_forward_transform(
@@ -249,6 +257,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     >> PRECISION;
                 let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
                     >> PRECISION;
+
                 let u_pos = match chroma_subsampling {
                     YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + ux,
                     YuvChromaSample::YUV444 => u_offset + ux,
@@ -283,6 +292,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
     }
+
+    Ok(())
 }
 
 /// Convert RGB image data to YUV 422 planar format.
@@ -323,11 +334,11 @@ pub fn rgb_to_yuv422(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
         range, matrix,
-    );
+    )
 }
 
 /// Convert BGR image data to YUV 422 planar format.
@@ -368,11 +379,11 @@ pub fn bgr_to_yuv422(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
         range, matrix,
-    );
+    )
 }
 
 /// Convert RGBA image data to YUV 422 planar format.
@@ -413,7 +424,7 @@ pub fn rgba_to_yuv422(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane,
         y_stride,
@@ -427,7 +438,7 @@ pub fn rgba_to_yuv422(
         height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert BGRA image data to YUV 422 planar format.
@@ -468,7 +479,7 @@ pub fn bgra_to_yuv422(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane,
         y_stride,
@@ -482,7 +493,7 @@ pub fn bgra_to_yuv422(
         height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert RGB image data to YUV 420 planar format.
@@ -523,11 +534,11 @@ pub fn rgb_to_yuv420(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
         range, matrix,
-    );
+    )
 }
 
 /// Convert BGR image data to YUV 420 planar format.
@@ -568,11 +579,11 @@ pub fn bgr_to_yuv420(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
         range, matrix,
-    );
+    )
 }
 
 /// Convert RGBA image data to YUV 420 planar format.
@@ -613,7 +624,7 @@ pub fn rgba_to_yuv420(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane,
         y_stride,
@@ -627,7 +638,7 @@ pub fn rgba_to_yuv420(
         height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert BGRA image data to YUV 420 planar format.
@@ -668,7 +679,7 @@ pub fn bgra_to_yuv420(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane,
         y_stride,
@@ -682,7 +693,7 @@ pub fn bgra_to_yuv420(
         height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert RGB image data to YUV 444 planar format.
@@ -723,11 +734,11 @@ pub fn rgb_to_yuv444(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, rgb, rgb_stride, width, height,
         range, matrix,
-    );
+    )
 }
 
 /// Convert BGR image data to YUV 444 planar format.
@@ -768,11 +779,11 @@ pub fn bgr_to_yuv444(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane, y_stride, u_plane, u_stride, v_plane, v_stride, bgr, bgr_stride, width, height,
         range, matrix,
-    );
+    )
 }
 
 /// Convert RGBA image data to YUV 444 planar format.
@@ -813,7 +824,7 @@ pub fn rgba_to_yuv444(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane,
         y_stride,
@@ -827,7 +838,7 @@ pub fn rgba_to_yuv444(
         height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert BGRA image data to YUV 444 planar format.
@@ -868,7 +879,7 @@ pub fn bgra_to_yuv444(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane,
         y_stride,
@@ -882,5 +893,5 @@ pub fn bgra_to_yuv444(
         height,
         range,
         matrix,
-    );
+    )
 }

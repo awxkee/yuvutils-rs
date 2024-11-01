@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_support::{
-    get_inverse_transform, get_kr_kb, get_yuv_range, YuvSourceChannels, Yuy2Description,
+    get_inverse_transform, get_yuv_range, YuvSourceChannels, Yuy2Description,
 };
 use crate::{YuvRange, YuvStandardMatrix};
 
@@ -48,7 +48,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
     let channels = dst_chans.get_channels_count();
     let range = get_yuv_range(bit_depth, range);
     let max_colors = (1 << bit_depth) - 1;
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(
         max_colors as u32,
         range.range_y,

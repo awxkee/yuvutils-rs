@@ -69,7 +69,7 @@ fn yuv_nv12_to_rgbx<
     let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
     let range = get_yuv_range(8, range);
     let channels = dst_chans.get_channels_count();
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
     const PRECISION: i32 = 6;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);

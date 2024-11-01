@@ -38,7 +38,9 @@ use crate::internals::ProcessedOffset;
 use crate::neon::neon_y_to_rgb_row;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_y_to_rgb_row;
+use crate::yuv_error::{check_rgba_destination, check_y8_channel};
 use crate::yuv_support::*;
+use crate::YuvError;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
@@ -50,15 +52,19 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     y_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
-    _width: u32,
-    _: u32,
+    width: u32,
+    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
+
+    check_rgba_destination(rgba, rgba_stride, width, height, channels)?;
+    check_y8_channel(y_plane, y_stride, width, height)?;
+
     let range = get_yuv_range(8, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
 
     const PRECISION: i32 = 6;
@@ -104,7 +110,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                     _cx,
                     0,
                     0,
-                    _width as usize,
+                    width as usize,
                 );
                 _cx = processed;
             }
@@ -120,7 +126,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 _cx,
                 0,
                 0,
-                _width as usize,
+                width as usize,
             );
             _cx = offset;
         }
@@ -135,7 +141,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 _cx,
                 0,
                 0,
-                _width as usize,
+                width as usize,
             );
             _cx = offset;
         }
@@ -155,6 +161,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             }
         }
     });
+
+    Ok(())
 }
 
 /// Convert YUV 400 planar format to RGB format.
@@ -186,7 +194,7 @@ pub fn yuv400_to_rgb(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     y_to_rgbx::<{ YuvSourceChannels::Rgb as u8 }>(
         y_plane, y_stride, rgb, rgb_stride, width, height, range, matrix,
     )
@@ -221,7 +229,7 @@ pub fn yuv400_to_bgr(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     y_to_rgbx::<{ YuvSourceChannels::Bgr as u8 }>(
         y_plane, y_stride, bgr, bgr_stride, width, height, range, matrix,
     )
@@ -256,7 +264,7 @@ pub fn yuv400_to_rgba(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     y_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }>(
         y_plane,
         y_stride,
@@ -298,7 +306,7 @@ pub fn yuv400_to_bgra(
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     y_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }>(
         y_plane,
         y_stride,

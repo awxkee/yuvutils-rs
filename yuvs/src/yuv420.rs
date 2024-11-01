@@ -29,10 +29,12 @@
 use crate::yuv_support::{
     get_inverse_transform, get_kr_kb, get_yuv_range, YuvRange, YuvStandardMatrix,
 };
+use num_traits::AsPrimitive;
 
 /// Converts YUV420 to Rgb
 ///
 /// This support not tightly packed data and crop image using stride in place.
+/// Stride here is not supports u16 as it can be in passed from FFI.
 ///
 /// # Arguments
 ///
@@ -49,19 +51,23 @@ use crate::yuv_support::{
 /// * `matrix`: see [YuvStandardMatrix]
 ///
 ///
-pub fn yuv420_to_rgb(
-    y_plane: &[u8],
+pub fn yuv420_to_rgba<V: Copy + AsPrimitive<i32> + 'static>(
+    y_plane: &[V],
     y_stride: usize,
-    u_plane: &[u8],
+    u_plane: &[V],
     u_stride: usize,
-    v_plane: &[u8],
+    v_plane: &[V],
     v_stride: usize,
-    rgb: &mut [u8],
+    rgb: &mut [V],
+    bit_depth: u32,
     width: usize,
     height: usize,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) -> Result<(), String> {
+) -> Result<(), String>
+where
+    i32: AsPrimitive<V>,
+{
     let chroma_height = (height + 1) / 2;
     if y_plane.len() != y_stride * height {
         return Err(format!(
@@ -87,12 +93,21 @@ pub fn yuv420_to_rgb(
         ));
     }
 
-    let range = get_yuv_range(8, range);
-    let kr_kb = get_kr_kb(matrix);
-    let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)?;
-    const PRECISION: i32 = 6;
+    let max_value = (1 << bit_depth) - 1;
+
+    const PRECISION: i32 = 11;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
-    let inverse_transform = transform.to_integers(PRECISION as u32);
+
+    let range = get_yuv_range(bit_depth, range);
+    let kr_kb = get_kr_kb(matrix);
+    let inverse_transform = get_inverse_transform(
+        (1 << bit_depth) - 1,
+        range.range_y,
+        range.range_uv,
+        kr_kb.kr,
+        kr_kb.kb,
+        PRECISION as u32,
+    )?;
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -102,7 +117,7 @@ pub fn yuv420_to_rgb(
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    const CHANNELS: usize = 3;
+    const CHANNELS: usize = 4;
 
     if rgb.len() != width * height * CHANNELS {
         return Err(format!(
@@ -112,14 +127,38 @@ pub fn yuv420_to_rgb(
         ));
     }
 
-    let max_value = (1 << 8) - 1;
-
     let rgb_stride = width * CHANNELS;
 
     let y_iter = y_plane.chunks_exact(y_stride * 2);
     let rgb_iter = rgb.chunks_exact_mut(rgb_stride * 2);
     let u_iter = u_plane.chunks_exact(u_stride);
     let v_iter = v_plane.chunks_exact(v_stride);
+
+    /*
+       Sample 4x4 YUV420 planar image
+       start_y + 0:  Y00 Y01 Y02 Y03
+       start_y + 4:  Y04 Y05 Y06 Y07
+       start_y + 8:  Y08 Y09 Y10 Y11
+       start_y + 12: Y12 Y13 Y14 Y15
+       start_cb + 0: Cb00 Cb01
+       start_cb + 2: Cb02 Cb03
+       start_cr + 0: Cr00 Cr01
+       start_cr + 2: Cr02 Cr03
+
+       For 4 luma components (2x2 on rows and cols) there are 1 chroma Cb/Cr components.
+       Luma channel must have always exact size as RGB target layout, but chroma is not.
+
+       We're sectioning an image by pair of rows, so each pair of luma,
+       and RGB row there is one chroma row.
+
+       As chroma is shrunk by factor of 2 then we're processing by pairs of RGB and luma,
+       for each RGB and luma pair there is one chroma component.
+
+       If image have odd width then luma channel must be exact, and we're replicating last
+       chroma component.
+
+       If image have odd height then luma channel is exact, and we're replicating last chroma rows.
+    */
 
     for (((y_src, u_src), v_src), rgb) in y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter) {
         // Since we're processing two rows in one loop we need to re-slice once more
@@ -128,10 +167,11 @@ pub fn yuv420_to_rgb(
         for (y_src, rgb) in y_iter.zip(rgb_iter) {
             let y_iter = y_src.chunks_exact(2);
             let rgb_chunks = rgb.chunks_exact_mut(CHANNELS * 2);
-            for (((y_src, u_src), v_src), rgb_dst) in y_iter.zip(u_src).zip(v_src).zip(rgb_chunks) {
-                let y_value = (y_src[0] as i32 - bias_y) * y_coef;
-                let cb_value = *u_src as i32 - bias_uv;
-                let cr_value = *v_src as i32 - bias_uv;
+            for (((y_src, &u_src), &v_src), rgb_dst) in y_iter.zip(u_src).zip(v_src).zip(rgb_chunks)
+            {
+                let y_value: i32 = (y_src[0].as_() - bias_y) * y_coef;
+                let cb_value: i32 = u_src.as_() - bias_uv;
+                let cr_value: i32 = v_src.as_() - bias_uv;
 
                 let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
                     .clamp(0, max_value);
@@ -141,11 +181,12 @@ pub fn yuv420_to_rgb(
                     >> PRECISION)
                     .clamp(0, max_value);
 
-                rgb_dst[0] = r as u8;
-                rgb_dst[1] = g as u8;
-                rgb_dst[2] = b as u8;
+                rgb_dst[0] = r.as_();
+                rgb_dst[1] = g.as_();
+                rgb_dst[2] = b.as_();
+                rgb_dst[3] = max_value.as_();
 
-                let y_value = (y_src[1] as i32 - bias_y) * y_coef;
+                let y_value = (y_src[1].as_() - bias_y) * y_coef;
 
                 let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
                     .clamp(0, max_value);
@@ -155,12 +196,13 @@ pub fn yuv420_to_rgb(
                     >> PRECISION)
                     .clamp(0, max_value);
 
-                rgb_dst[3] = r as u8;
-                rgb_dst[4] = g as u8;
-                rgb_dst[5] = b as u8;
+                rgb_dst[4] = r.as_();
+                rgb_dst[5] = g.as_();
+                rgb_dst[6] = b.as_();
+                rgb_dst[7] = max_value.as_();
             }
 
-            // Process left pixels for odd images, this should work since luma must be always exact
+            // Process remainder if width is odd.
 
             let y_left = y_src.chunks_exact(2).remainder();
             let rgb_chunks = rgb
@@ -173,9 +215,9 @@ pub fn yuv420_to_rgb(
             for (((y_src, u_src), v_src), rgb_dst) in
                 y_left.iter().zip(u_iter).zip(v_iter).zip(rgb_chunks)
             {
-                let y_value = (*y_src as i32 - bias_y) * y_coef;
-                let cb_value = *u_src as i32 - bias_uv;
-                let cr_value = *v_src as i32 - bias_uv;
+                let y_value = (y_src.as_() - bias_y) * y_coef;
+                let cb_value = u_src.as_() - bias_uv;
+                let cr_value = v_src.as_() - bias_uv;
 
                 let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
                     .clamp(0, max_value);
@@ -185,14 +227,15 @@ pub fn yuv420_to_rgb(
                     >> PRECISION)
                     .clamp(0, max_value);
 
-                rgb_dst[0] = r as u8;
-                rgb_dst[1] = g as u8;
-                rgb_dst[2] = b as u8;
+                rgb_dst[0] = r.as_();
+                rgb_dst[1] = g.as_();
+                rgb_dst[2] = b.as_();
+                rgb_dst[3] = max_value.as_();
             }
         }
     }
 
-    // Process last row
+    // Process remainder if height is odd
 
     let y_iter = y_plane
         .chunks_exact(y_stride * 2)
@@ -206,9 +249,9 @@ pub fn yuv420_to_rgb(
         let y_iter = y_src.chunks_exact(2);
         let rgb_chunks = rgb.chunks_exact_mut(CHANNELS * 2);
         for (((y_src, u_src), v_src), rgb_dst) in y_iter.zip(u_src).zip(v_src).zip(rgb_chunks) {
-            let y_value = (y_src[0] as i32 - bias_y) * y_coef;
-            let cb_value = *u_src as i32 - bias_uv;
-            let cr_value = *v_src as i32 - bias_uv;
+            let y_value = (y_src[0].as_() - bias_y) * y_coef;
+            let cb_value = u_src.as_() - bias_uv;
+            let cr_value = v_src.as_() - bias_uv;
 
             let r =
                 ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
@@ -218,11 +261,12 @@ pub fn yuv420_to_rgb(
                 >> PRECISION)
                 .clamp(0, max_value);
 
-            rgb_dst[0] = r as u8;
-            rgb_dst[1] = g as u8;
-            rgb_dst[2] = b as u8;
+            rgb_dst[0] = r.as_();
+            rgb_dst[1] = g.as_();
+            rgb_dst[2] = b.as_();
+            rgb_dst[3] = max_value.as_();
 
-            let y_value = (y_src[1] as i32 - bias_y) * y_coef;
+            let y_value = (y_src[1].as_() - bias_y) * y_coef;
 
             let r =
                 ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
@@ -232,9 +276,10 @@ pub fn yuv420_to_rgb(
                 >> PRECISION)
                 .clamp(0, max_value);
 
-            rgb_dst[3] = r as u8;
-            rgb_dst[4] = g as u8;
-            rgb_dst[5] = b as u8;
+            rgb_dst[4] = r.as_();
+            rgb_dst[5] = g.as_();
+            rgb_dst[6] = b.as_();
+            rgb_dst[7] = max_value.as_();
         }
 
         let y_left = y_src.chunks_exact(2).remainder();
@@ -245,12 +290,14 @@ pub fn yuv420_to_rgb(
         let u_iter = u_plane.iter().rev();
         let v_iter = v_plane.iter().rev();
 
+        // Process remainder if width is odd.
+
         for (((y_src, u_src), v_src), rgb_dst) in
             y_left.iter().zip(u_iter).zip(v_iter).zip(rgb_chunks)
         {
-            let y_value = (*y_src as i32 - bias_y) * y_coef;
-            let cb_value = *u_src as i32 - bias_uv;
-            let cr_value = *v_src as i32 - bias_uv;
+            let y_value = (y_src.as_() - bias_y) * y_coef;
+            let cb_value = u_src.as_() - bias_uv;
+            let cr_value = v_src.as_() - bias_uv;
 
             let r =
                 ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
@@ -260,9 +307,10 @@ pub fn yuv420_to_rgb(
                 >> PRECISION)
                 .clamp(0, max_value);
 
-            rgb_dst[0] = r as u8;
-            rgb_dst[1] = g as u8;
-            rgb_dst[2] = b as u8;
+            rgb_dst[0] = r.as_();
+            rgb_dst[1] = g.as_();
+            rgb_dst[2] = b.as_();
+            rgb_dst[3] = max_value.as_();
         }
     }
 

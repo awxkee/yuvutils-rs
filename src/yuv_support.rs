@@ -223,29 +223,31 @@ pub struct YuvBias {
     pub kb: f32,
 }
 
-pub const fn get_kr_kb(matrix: YuvStandardMatrix) -> YuvBias {
-    match matrix {
-        YuvStandardMatrix::Bt601 => YuvBias {
-            kr: 0.299f32,
-            kb: 0.114f32,
-        },
-        YuvStandardMatrix::Bt709 => YuvBias {
-            kr: 0.2126f32,
-            kb: 0.0722f32,
-        },
-        YuvStandardMatrix::Bt2020 => YuvBias {
-            kr: 0.2627f32,
-            kb: 0.0593f32,
-        },
-        YuvStandardMatrix::Smpte240 => YuvBias {
-            kr: 0.087f32,
-            kb: 0.212f32,
-        },
-        YuvStandardMatrix::Bt470_6 => YuvBias {
-            kr: 0.2220f32,
-            kb: 0.0713f32,
-        },
-        YuvStandardMatrix::Custom(kr, kb) => YuvBias { kr, kb },
+impl YuvStandardMatrix {
+    pub const fn get_kr_kb(self) -> YuvBias {
+        match self {
+            YuvStandardMatrix::Bt601 => YuvBias {
+                kr: 0.299f32,
+                kb: 0.114f32,
+            },
+            YuvStandardMatrix::Bt709 => YuvBias {
+                kr: 0.2126f32,
+                kb: 0.0722f32,
+            },
+            YuvStandardMatrix::Bt2020 => YuvBias {
+                kr: 0.2627f32,
+                kb: 0.0593f32,
+            },
+            YuvStandardMatrix::Smpte240 => YuvBias {
+                kr: 0.087f32,
+                kb: 0.212f32,
+            },
+            YuvStandardMatrix::Bt470_6 => YuvBias {
+                kr: 0.2220f32,
+                kb: 0.0713f32,
+            },
+            YuvStandardMatrix::Custom(kr, kb) => YuvBias { kr, kb },
+        }
     }
 }
 

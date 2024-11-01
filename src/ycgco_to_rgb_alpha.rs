@@ -38,8 +38,9 @@ use crate::avx512bw::avx512_ycgco_to_rgba_alpha;
 use crate::neon::neon_ycgco_to_rgb_alpha_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_ycgco_to_rgb_alpha_row;
+use crate::yuv_error::{check_chroma_channel, check_rgba_destination, check_y8_channel};
 use crate::yuv_support::*;
-use crate::YuvRange;
+use crate::{YuvError, YuvRange};
 
 fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &[u8],
@@ -56,10 +57,17 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     height: u32,
     range: YuvRange,
     premultiply_alpha: bool,
-) {
+) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
+
+    check_rgba_destination(rgba, rgba_stride, width, height, channels)?;
+    check_y8_channel(y_plane, y_stride, width, height)?;
+    check_y8_channel(a_plane, a_stride, width, height)?;
+    check_chroma_channel(cg_plane, cg_stride, width, height, chroma_subsampling)?;
+    check_chroma_channel(co_plane, co_stride, width, height, chroma_subsampling)?;
+
     let range = get_yuv_range(8, range);
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
@@ -333,6 +341,8 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
     }
+
+    Ok(())
 }
 
 /// Convert YCgCo 420 planar format to RGBA format.
@@ -376,7 +386,7 @@ pub fn ycgco420_with_alpha_to_rgba(
     height: u32,
     range: YuvRange,
     premultiply_alpha: bool,
-) {
+) -> Result<(), YuvError> {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane,
         y_stride,
@@ -436,7 +446,7 @@ pub fn ycgco420_with_alpha_to_bgra(
     height: u32,
     range: YuvRange,
     premultiply_alpha: bool,
-) {
+) -> Result<(), YuvError> {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV420 as u8 }>(
         y_plane,
         y_stride,
@@ -496,7 +506,7 @@ pub fn ycgco422_with_alpha_to_rgba(
     height: u32,
     range: YuvRange,
     premultiply_alpha: bool,
-) {
+) -> Result<(), YuvError> {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane,
         y_stride,
@@ -556,7 +566,7 @@ pub fn ycgco422_with_alpha_to_bgra(
     height: u32,
     range: YuvRange,
     premultiply_alpha: bool,
-) {
+) -> Result<(), YuvError> {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV422 as u8 }>(
         y_plane,
         y_stride,
@@ -616,7 +626,7 @@ pub fn ycgco444_with_alpha_to_rgba(
     height: u32,
     range: YuvRange,
     premultiply_alpha: bool,
-) {
+) -> Result<(), YuvError> {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane,
         y_stride,
@@ -676,7 +686,7 @@ pub fn ycgco444_with_alpha_to_bgra(
     height: u32,
     range: YuvRange,
     premultiply_alpha: bool,
-) {
+) -> Result<(), YuvError> {
     ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV444 as u8 }>(
         y_plane,
         y_stride,

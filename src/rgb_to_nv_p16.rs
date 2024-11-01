@@ -27,8 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_support::{
-    get_forward_transform, get_kr_kb, get_yuv_range, ToIntegerTransform, YuvChromaSample,
-    YuvNVOrder, YuvSourceChannels,
+    get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSample, YuvNVOrder,
+    YuvSourceChannels,
 };
 use crate::{YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
 
@@ -73,7 +73,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
     let range = get_yuv_range(BIT_DEPTH as u32, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let max_range = (1u32 << BIT_DEPTH as u32) - 1u32;
     let transform_precise =
         get_forward_transform(max_range, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);

@@ -51,7 +51,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
     let range = get_yuv_range(8, range);
-    let kr_kb = get_kr_kb(matrix);
+    let kr_kb = matrix.get_kr_kb();
     let max_range_p8 = (1u32 << 8u32) - 1;
     let transform_precise = get_forward_transform(
         max_range_p8,

@@ -27,8 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::{get_inverse_transform, get_kr_kb, get_yuv_range, YuvRange, YuvStandardMatrix};
+use num_traits::AsPrimitive;
 
-/// Converts YUV422 to Rgb
+/// Converts Yuv 422 planar format to Rgba
 ///
 /// This support not tightly packed data and crop image using stride in place.
 ///
@@ -47,19 +48,23 @@ use crate::{get_inverse_transform, get_kr_kb, get_yuv_range, YuvRange, YuvStanda
 /// * `matrix`: see [YuvStandardMatrix]
 ///
 ///
-pub fn yuv422_to_rgb(
-    y_plane: &[u8],
+pub fn yuv422_to_rgba<V: Copy + AsPrimitive<i32> + 'static>(
+    y_plane: &[V],
     y_stride: usize,
-    u_plane: &[u8],
+    u_plane: &[V],
     u_stride: usize,
-    v_plane: &[u8],
+    v_plane: &[V],
     v_stride: usize,
-    rgb: &mut [u8],
+    rgb: &mut [V],
+    bit_depth: u32,
     width: usize,
     height: usize,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) -> Result<(), String> {
+) -> Result<(), String>
+where
+    i32: AsPrimitive<V>,
+{
     if y_plane.len() != y_stride * height {
         return Err(format!(
             "Luma plane expected {} bytes, got {}",
@@ -84,12 +89,20 @@ pub fn yuv422_to_rgb(
         ));
     }
 
-    let range = get_yuv_range(8, range);
+    let max_value = (1 << bit_depth) - 1;
+
+    let range = get_yuv_range(bit_depth, range);
     let kr_kb = get_kr_kb(matrix);
-    let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)?;
-    const PRECISION: i32 = 6;
+    const PRECISION: i32 = 11;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
-    let inverse_transform = transform.to_integers(PRECISION as u32);
+    let inverse_transform = get_inverse_transform(
+        (1 << bit_depth) - 1,
+        range.range_y,
+        range.range_uv,
+        kr_kb.kr,
+        kr_kb.kb,
+        PRECISION as u32,
+    )?;
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -99,7 +112,7 @@ pub fn yuv422_to_rgb(
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    const CHANNELS: usize = 3;
+    const CHANNELS: usize = 4;
 
     if rgb.len() != width * height * CHANNELS {
         return Err(format!(
@@ -108,8 +121,6 @@ pub fn yuv422_to_rgb(
             rgb.len()
         ));
     }
-
-    let max_value = (1 << 8) - 1;
 
     let rgb_stride = width * CHANNELS;
 
@@ -123,9 +134,9 @@ pub fn yuv422_to_rgb(
         let rgb_chunks = rgb.chunks_exact_mut(CHANNELS * 2);
 
         for (((y_src, u_src), v_src), rgb_dst) in y_iter.zip(u_src).zip(v_src).zip(rgb_chunks) {
-            let y_value = (y_src[0] as i32 - bias_y) * y_coef;
-            let cb_value = *u_src as i32 - bias_uv;
-            let cr_value = *v_src as i32 - bias_uv;
+            let y_value = (y_src[0].as_() - bias_y) * y_coef;
+            let cb_value = u_src.as_() - bias_uv;
+            let cr_value = v_src.as_() - bias_uv;
 
             let r =
                 ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
@@ -135,11 +146,12 @@ pub fn yuv422_to_rgb(
                 >> PRECISION)
                 .clamp(0, max_value);
 
-            rgb_dst[0] = r as u8;
-            rgb_dst[1] = g as u8;
-            rgb_dst[2] = b as u8;
+            rgb_dst[0] = r.as_();
+            rgb_dst[1] = g.as_();
+            rgb_dst[2] = b.as_();
+            rgb_dst[3] = max_value.as_();
 
-            let y_value = (y_src[1] as i32 - bias_y) * y_coef;
+            let y_value = (y_src[1].as_() - bias_y) * y_coef;
 
             let r =
                 ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
@@ -149,9 +161,10 @@ pub fn yuv422_to_rgb(
                 >> PRECISION)
                 .clamp(0, max_value);
 
-            rgb_dst[3] = r as u8;
-            rgb_dst[4] = g as u8;
-            rgb_dst[5] = b as u8;
+            rgb_dst[4] = r.as_();
+            rgb_dst[5] = g.as_();
+            rgb_dst[6] = b.as_();
+            rgb_dst[7] = max_value.as_();
         }
 
         // Process left pixels for odd images, this should work since luma must be always exact
@@ -167,9 +180,9 @@ pub fn yuv422_to_rgb(
         for (((y_src, u_src), v_src), rgb_dst) in
             y_left.iter().zip(u_iter).zip(v_iter).zip(rgb_chunks)
         {
-            let y_value = (*y_src as i32 - bias_y) * y_coef;
-            let cb_value = *u_src as i32 - bias_uv;
-            let cr_value = *v_src as i32 - bias_uv;
+            let y_value = (y_src.as_() - bias_y) * y_coef;
+            let cb_value = u_src.as_() - bias_uv;
+            let cr_value = v_src.as_() - bias_uv;
 
             let r =
                 ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, max_value);
@@ -179,9 +192,10 @@ pub fn yuv422_to_rgb(
                 >> PRECISION)
                 .clamp(0, max_value);
 
-            rgb_dst[0] = r as u8;
-            rgb_dst[1] = g as u8;
-            rgb_dst[2] = b as u8;
+            rgb_dst[0] = r.as_();
+            rgb_dst[1] = g.as_();
+            rgb_dst[2] = b.as_();
+            rgb_dst[3] = max_value.as_();
         }
     }
 
