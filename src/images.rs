@@ -59,8 +59,8 @@ pub struct YuvBiPlanarImage<'a, T>
 where
     T: Copy + Debug,
 {
-    /// Stride here always means Elements per row.
     pub y_plane: &'a [T],
+    /// Stride here always means Elements per row.
     pub y_stride: u32,
     /// Stride here always means Elements per row.
     pub uv_plane: &'a [T],
@@ -74,12 +74,7 @@ where
     T: Copy + Debug,
 {
     pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
-        check_y8_channel(
-            self.y_plane,
-            self.y_stride,
-            self.width,
-            self.height,
-        )?;
+        check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_interleaved_chroma_channel(
             self.uv_plane,
             self.uv_stride,
@@ -178,6 +173,72 @@ where
             uv_stride: bi_planar_mut.uv_stride,
             width: bi_planar_mut.width,
             height: bi_planar_mut.height,
+        }
+    }
+}
+
+#[derive(Debug)]
+/// Represents YUV gray non-mutable image
+pub struct YuvGrayImage<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub y_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub y_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<'a, T> YuvGrayImage<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self) -> Result<(), YuvError> {
+        check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+/// Represents YUV gray mutable image
+pub struct YuvGrayImageMut<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub y_plane: BufferStoreMut<'a, T>,
+    /// Stride here always means Elements per row.
+    pub y_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<'a, T> YuvGrayImageMut<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self) -> Result<(), YuvError> {
+        check_y8_channel(
+            self.y_plane.borrow(),
+            self.y_stride,
+            self.width,
+            self.height,
+        )?;
+        Ok(())
+    }
+}
+
+impl<'a, T> YuvGrayImageMut<'a, T>
+where
+    T: Copy + Debug + Clone + Default,
+{
+    pub fn alloc(width: u32, height: u32) -> Self {
+        let y_target = vec![T::default(); width as usize * height as usize];
+        Self {
+            y_plane: BufferStoreMut::Owned(y_target),
+            y_stride: width,
+            width,
+            height,
         }
     }
 }

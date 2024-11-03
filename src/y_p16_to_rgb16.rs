@@ -29,11 +29,11 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_y_p16_to_rgba16_row;
 use crate::yuv_support::*;
+use crate::{YuvError, YuvGrayImage};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
-use std::slice;
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 // Chroma subsampling always assumed as 400
 fn yuv400_p16_to_rgbx<
@@ -41,16 +41,13 @@ fn yuv400_p16_to_rgbx<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    y_plane16: &[u16],
-    y_stride: u32,
+    gray_image: YuvGrayImage<u16>,
     rgba16: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let max_colors = (1 << bit_depth) - 1;
@@ -73,67 +70,62 @@ fn yuv400_p16_to_rgbx<
 
     let bias_y = range.bias_y as i32;
 
-    let casted_rgba = unsafe {
-        slice::from_raw_parts_mut(
-            rgba16.as_mut_ptr() as *mut u8,
-            rgba_stride as usize * height as usize,
-        )
-    };
-
     let iter;
     #[cfg(feature = "rayon")]
     {
-        iter = casted_rgba.par_chunks_exact_mut(rgba_stride as usize);
+        iter = rgba16.par_chunks_exact_mut(rgba_stride as usize).zip(
+            gray_image
+                .y_plane
+                .par_chunks_exact(gray_image.y_stride as usize),
+        );
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = casted_rgba.chunks_exact_mut(rgba_stride as usize);
+        iter = casted_rgba.chunks_exact_mut(rgba_stride as usize).zip(
+            gray_image
+                .y_plane
+                .chunks_exact(gray_image.y_stride as usize),
+        );
     }
 
-    iter.enumerate().for_each(|(y, rgba16)| unsafe {
-        let y_offset = y * (y_stride as usize);
-
+    iter.for_each(|(rgba16, y_plane)| {
         let mut _cx = 0usize;
-
-        let dst_ptr = rgba16.as_mut_ptr() as *mut u16;
-        let y_ptr = (y_plane16.as_ptr() as *const u8).add(y_offset) as *const u16;
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let offset = neon_y_p16_to_rgba16_row::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION>(
-                y_ptr,
-                dst_ptr,
-                0,
-                width,
-                &range,
-                &inverse_transform,
-                0,
-                bit_depth as usize,
-            );
-            _cx = offset.cx;
+            unsafe {
+                let offset =
+                    neon_y_p16_to_rgba16_row::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION>(
+                        y_plane.as_ptr(),
+                        rgba16.as_mut_ptr(),
+                        0,
+                        gray_image.width,
+                        &range,
+                        &inverse_transform,
+                        0,
+                        bit_depth as usize,
+                    );
+                _cx = offset.cx;
+            }
         }
 
-        for x in _cx..width as usize {
-            let y_value =
-                (y_ptr.add(x).read_unaligned() as i32 - bias_y) * y_coef;
+        for (dst, &y_src) in rgba16.chunks_exact_mut(channels).zip(y_plane).skip(_cx) {
+            let y_value = (y_src as i32 - bias_y) * y_coef;
 
             let r = ((y_value + ROUNDING_CONST) >> PRECISION)
                 .min(max_colors as i32)
                 .max(0);
 
-            let px = x * channels;
-
-            let rgba_shift = px;
-
-            let dst = dst_ptr.add(rgba_shift);
-            dst.add(destination_channels.get_r_channel_offset()).write_unaligned(r as u16);
-            dst.add(destination_channels.get_g_channel_offset()).write_unaligned(r as u16);
-            dst.add(destination_channels.get_b_channel_offset()).write_unaligned(r as u16);
+            dst[destination_channels.get_r_channel_offset()] = r as u16;
+            dst[destination_channels.get_g_channel_offset()] = r as u16;
+            dst[destination_channels.get_b_channel_offset()] = r as u16;
             if destination_channels.has_alpha() {
-                dst.add(destination_channels.get_a_channel_offset()).write_unaligned(max_colors as u16);
+                dst[destination_channels.get_a_channel_offset()] = max_colors as u16;
             }
         }
     });
+
+    Ok(())
 }
 
 /// Convert YUV 400 planar format to RGB 8+-bit format.
@@ -143,11 +135,9 @@ fn yuv400_p16_to_rgbx<
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `gray_image` - Source YUV gray image.
 /// * `rgb_data` - A mutable slice to store the converted RGB data.
+/// * `rgb_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -157,18 +147,15 @@ fn yuv400_p16_to_rgbx<
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_rgb16(
-    y_plane: &[u16],
-    y_stride: u32,
+    gray_image: YuvGrayImage<u16>,
     rgb: &mut [u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let callee = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -203,9 +190,7 @@ pub fn yuv400_p16_to_rgb16(
             }
         },
     };
-    callee(
-        y_plane, y_stride, rgb, rgb_stride, bit_depth, width, height, range, matrix,
-    );
+    callee(gray_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
 /// Convert YUV 400 planar format to BGR 8+-bit format.
@@ -215,11 +200,9 @@ pub fn yuv400_p16_to_rgb16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted BGR data.
+/// * `gray_image` - Source YUV gray image.
+/// * `bgr` - A mutable slice to store the converted BGR data.
+/// * `bgr_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -229,18 +212,15 @@ pub fn yuv400_p16_to_rgb16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_bgr16(
-    y_plane: &[u16],
-    y_stride: u32,
+    gray_image: YuvGrayImage<u16>,
     bgr: &mut [u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let callee = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -275,9 +255,7 @@ pub fn yuv400_p16_to_bgr16(
             }
         },
     };
-    callee(
-        y_plane, y_stride, bgr, bgr_stride, bit_depth, width, height, range, matrix,
-    )
+    callee(gray_image, bgr, bgr_stride, bit_depth, range, matrix)
 }
 
 /// Convert YUV 400 planar format to RGBA 8+-bit format.
@@ -287,11 +265,9 @@ pub fn yuv400_p16_to_bgr16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgba_data` - A mutable slice to store the converted RGBA data.
+/// * `gray_image` - Source YUV gray image.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -301,18 +277,15 @@ pub fn yuv400_p16_to_bgr16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_rgba16(
-    y_plane: &[u16],
-    y_stride: u32,
+    gray_image: YuvGrayImage<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let callee = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -347,17 +320,7 @@ pub fn yuv400_p16_to_rgba16(
             }
         },
     };
-    callee(
-        y_plane,
-        y_stride,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    )
+    callee(gray_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
 
 /// Convert YUV 400 planar format to BGRA 8+-bit format.
@@ -367,11 +330,9 @@ pub fn yuv400_p16_to_rgba16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+/// * `gray_image` - Source YUV gray image.
+/// * `bgra` - A mutable slice to store the converted BGRA data.
+/// * `bgra_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -381,18 +342,15 @@ pub fn yuv400_p16_to_rgba16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_bgra16(
-    y_plane: &[u16],
-    y_stride: u32,
+    gray_image: YuvGrayImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let callee = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -427,15 +385,5 @@ pub fn yuv400_p16_to_bgra16(
             }
         },
     };
-    callee(
-        y_plane,
-        y_stride,
-        bgra,
-        bgra_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    )
+    callee(gray_image, bgra, bgra_stride, bit_depth, range, matrix)
 }

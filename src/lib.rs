@@ -414,7 +414,7 @@ pub use sharpyuv::rgba_to_sharp_yuv420;
 pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
-pub use images::{BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut};
+pub use images::{BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayImage, YuvGrayImageMut};
 pub use y_p16_to_rgb16::*;
 pub use y_p16_with_alpha_to_rgb16::*;
 pub use y_with_alpha_to_rgb::*;
