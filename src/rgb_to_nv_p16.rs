@@ -30,7 +30,9 @@ use crate::yuv_support::{
     get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSample, YuvNVOrder,
     YuvSourceChannels,
 };
-use crate::{YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix};
+use crate::{
+    YuvBiPlanarImageMut, YuvBytesPacking, YuvEndianness, YuvError, YuvRange, YuvStandardMatrix,
+};
 
 #[inline(always)]
 fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_DEPTH: u8>(
@@ -57,21 +59,19 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     const BYTES_POSITION: u8,
     const BIT_DEPTH: u8,
 >(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     let nv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
+
+    bi_planar_image.check_constraints(chroma_subsampling)?;
+
     let range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range = (1u32 << BIT_DEPTH as u32) - 1u32;
@@ -90,7 +90,14 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     };
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+
+    let y_plane = bi_planar_image.y_plane.borrow_mut();
+    let uv_plane = bi_planar_image.uv_plane.borrow_mut();
+    let height = bi_planar_image.height;
+    let width = bi_planar_image.width;
+    let y_stride = bi_planar_image.y_stride * 2;
+    let uv_stride = bi_planar_image.uv_stride * 2;
 
     let mut y_offset = 0usize;
     let mut uv_offset = 0usize;
@@ -213,6 +220,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             }
         }
     }
+    Ok(())
 }
 
 fn rgbx_to_yuv_bi_planar_10<
@@ -222,18 +230,13 @@ fn rgbx_to_yuv_bi_planar_10<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     if bit_depth == 10 {
         rgbx_to_yuv_bi_planar_10_impl::<
             ORIGIN_CHANNELS,
@@ -242,18 +245,7 @@ fn rgbx_to_yuv_bi_planar_10<
             ENDIANNESS,
             BYTES_POSITION,
             10,
-        >(
-            y_plane,
-            y_stride,
-            uv_plane,
-            uv_stride,
-            rgba,
-            rgba_stride,
-            width,
-            height,
-            range,
-            matrix,
-        );
+        >(bi_planar_image, rgba, rgba_stride, range, matrix)
     } else if bit_depth == 12 {
         rgbx_to_yuv_bi_planar_10_impl::<
             ORIGIN_CHANNELS,
@@ -262,20 +254,9 @@ fn rgbx_to_yuv_bi_planar_10<
             ENDIANNESS,
             BYTES_POSITION,
             12,
-        >(
-            y_plane,
-            y_stride,
-            uv_plane,
-            uv_stride,
-            rgba,
-            rgba_stride,
-            width,
-            height,
-            range,
-            matrix,
-        );
+        >(bi_planar_image, rgba, rgba_stride, range, matrix)
     } else {
-        panic!("Bit depth {} is not implemented", bit_depth);
+        unreachable!("Bit depth {} is not implemented", bit_depth)
     }
 }
 
@@ -286,15 +267,10 @@ fn rgbx_to_yuv_bi_planar_10<
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input RGB image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the RGB image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -306,23 +282,19 @@ fn rgbx_to_yuv_bi_planar_10<
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_yuv_nv12_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgb: &[u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -365,10 +337,7 @@ pub fn rgb_to_yuv_nv12_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGB image data to YUV 420 bi-planar (NV21 10-bit) format with 10 or 12 bit depth.
@@ -378,15 +347,10 @@ pub fn rgb_to_yuv_nv12_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input RGB image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the RGB image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -398,23 +362,19 @@ pub fn rgb_to_yuv_nv12_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_yuv_nv21_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgb: &[u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -457,10 +417,7 @@ pub fn rgb_to_yuv_nv21_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGBA image data to YUV 420 bi-planar (NV12 10-bit) format with 10 or 12 bit depth.
@@ -470,15 +427,10 @@ pub fn rgb_to_yuv_nv21_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -490,23 +442,19 @@ pub fn rgb_to_yuv_nv21_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_yuv_nv12_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -549,19 +497,7 @@ pub fn rgba_to_yuv_nv12_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGBA image data to YUV 420 bi-planar (NV21 10-bit) format with 10 or 12 bit depth.
@@ -571,15 +507,10 @@ pub fn rgba_to_yuv_nv12_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -591,23 +522,19 @@ pub fn rgba_to_yuv_nv12_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_yuv_nv21_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -650,19 +577,7 @@ pub fn rgba_to_yuv_nv21_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGR image data to YUV 420 bi-planar (NV12 10-bit) format with 10 or 12 bit depth.
@@ -672,15 +587,10 @@ pub fn rgba_to_yuv_nv21_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -692,23 +602,19 @@ pub fn rgba_to_yuv_nv21_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_yuv_nv12_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgr: &[u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -751,10 +657,7 @@ pub fn bgr_to_yuv_nv12_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGR image data to YUV 420 bi-planar (NV21 10-bit) format with 10 or 12 bit depth.
@@ -764,15 +667,10 @@ pub fn bgr_to_yuv_nv12_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -784,23 +682,19 @@ pub fn bgr_to_yuv_nv12_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_yuv_nv21_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgr: &[u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -843,10 +737,7 @@ pub fn bgr_to_yuv_nv21_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGRA image data to YUV 420 bi-planar (NV12 10-bit) format with 10 or 12 bit depth.
@@ -856,15 +747,10 @@ pub fn bgr_to_yuv_nv21_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgra` - The input BGRA image data slice.
 /// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -876,23 +762,19 @@ pub fn bgr_to_yuv_nv21_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_yuv_nv12_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgra: &[u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -935,19 +817,7 @@ pub fn bgra_to_yuv_nv12_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        bgra,
-        bgra_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGRA image data to YUV 420 bi-planar (NV21 10-bit) format with 10 or 12 bit depth.
@@ -957,15 +827,10 @@ pub fn bgra_to_yuv_nv12_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgra` - The input BGRA image data slice.
 /// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -977,23 +842,19 @@ pub fn bgra_to_yuv_nv12_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_yuv_nv21_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgra: &[u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1036,19 +897,7 @@ pub fn bgra_to_yuv_nv21_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        bgra,
-        bgra_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGR image data to YUV 422 bi-planar (NV16 10-bit) format with 10 or 12 bit depth.
@@ -1058,15 +907,10 @@ pub fn bgra_to_yuv_nv21_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1078,23 +922,19 @@ pub fn bgra_to_yuv_nv21_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_yuv_nv16_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgr: &[u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1137,10 +977,7 @@ pub fn bgr_to_yuv_nv16_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGR image data to YUV 422 bi-planar (NV61 10-bit) format with 10 or 12 bit depth.
@@ -1150,15 +987,10 @@ pub fn bgr_to_yuv_nv16_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1170,23 +1002,19 @@ pub fn bgr_to_yuv_nv16_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_yuv_nv61_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgr: &[u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1229,10 +1057,7 @@ pub fn bgr_to_yuv_nv61_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGB image data to YUV 422 bi-planar (NV16 10-bit) format with 10 or 12 bit depth.
@@ -1242,15 +1067,10 @@ pub fn bgr_to_yuv_nv61_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgb` - The input RGB image data slice.
 /// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1262,23 +1082,19 @@ pub fn bgr_to_yuv_nv61_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_yuv_nv16_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgb: &[u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1321,10 +1137,7 @@ pub fn rgb_to_yuv_nv16_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGB image data to YUV 422 bi-planar (NV61 10-bit) format with 10 or 12 bit depth.
@@ -1334,15 +1147,10 @@ pub fn rgb_to_yuv_nv16_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgb` - The input RGB image data slice.
 /// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1354,23 +1162,19 @@ pub fn rgb_to_yuv_nv16_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_yuv_nv61_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgb: &[u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1413,10 +1217,7 @@ pub fn rgb_to_yuv_nv61_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGBA image data to YUV 422 bi-planar (NV16 10-bit) format with 10 or 12 bit depth.
@@ -1426,15 +1227,10 @@ pub fn rgb_to_yuv_nv61_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1446,23 +1242,19 @@ pub fn rgb_to_yuv_nv61_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_yuv_nv16_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1505,19 +1297,7 @@ pub fn rgba_to_yuv_nv16_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGBA image data to YUV 422 bi-planar (NV61 10-bit) format with 10 or 12 bit depth.
@@ -1527,15 +1307,10 @@ pub fn rgba_to_yuv_nv16_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the VU (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1547,23 +1322,19 @@ pub fn rgba_to_yuv_nv16_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_yuv_nv61_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1606,19 +1377,7 @@ pub fn rgba_to_yuv_nv61_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGRA image data to YUV 422 bi-planar (NV16 10-bit) format with 10 or 12 bit depth.
@@ -1628,15 +1387,10 @@ pub fn rgba_to_yuv_nv61_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgra` - The input BGRA image data slice.
 /// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1648,23 +1402,19 @@ pub fn rgba_to_yuv_nv61_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_yuv_nv16_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgra: &[u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1707,19 +1457,7 @@ pub fn bgra_to_yuv_nv16_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        bgra,
-        bgra_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGRA image data to YUV 422 bi-planar (NV61 10-bit) format with 10 or 12 bit depth.
@@ -1729,15 +1467,10 @@ pub fn bgra_to_yuv_nv16_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgra` - The input BGRA image data slice.
 /// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1749,23 +1482,19 @@ pub fn bgra_to_yuv_nv16_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_yuv_nv61_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgra: &[u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1808,19 +1537,7 @@ pub fn bgra_to_yuv_nv61_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        bgra,
-        bgra_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGB image data to YUV 444 bi-planar (NV24 10-bit) format with 10 or 12 bit depth.
@@ -1830,15 +1547,10 @@ pub fn bgra_to_yuv_nv61_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input RGB image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1850,23 +1562,19 @@ pub fn bgra_to_yuv_nv61_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_yuv_nv24_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgb: &[u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -1909,10 +1617,7 @@ pub fn rgb_to_yuv_nv24_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGB image data to YUV 444 bi-planar (NV42 10-bit) format with 10 or 12 bit depth.
@@ -1922,15 +1627,10 @@ pub fn rgb_to_yuv_nv24_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input RGB image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -1942,23 +1642,19 @@ pub fn rgb_to_yuv_nv24_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_yuv_nv42_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgb: &[u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -2001,10 +1697,7 @@ pub fn rgb_to_yuv_nv42_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, rgb, rgb_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGR image data to YUV 444 bi-planar (NV24 10-bit) format with 10 or 12 bit depth.
@@ -2014,15 +1707,10 @@ pub fn rgb_to_yuv_nv42_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -2034,23 +1722,19 @@ pub fn rgb_to_yuv_nv42_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_yuv_nv24_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgr: &[u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -2093,10 +1777,7 @@ pub fn bgr_to_yuv_nv24_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGR image data to YUV 444 bi-planar (NV42 10-bit) format with 10 or 12 bit depth.
@@ -2106,10 +1787,7 @@ pub fn bgr_to_yuv_nv24_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
@@ -2126,23 +1804,19 @@ pub fn bgr_to_yuv_nv24_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_yuv_nv42_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgr: &[u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -2185,10 +1859,7 @@ pub fn bgr_to_yuv_nv42_p16(
             }
         },
     };
-    dispatcher(
-        y_plane, y_stride, uv_plane, uv_stride, bgr, bgr_stride, bit_depth, width, height, range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGRA image data to YUV 444 bi-planar (NV24 10-bit) format with 10 or 12 bit depth.
@@ -2198,15 +1869,10 @@ pub fn bgr_to_yuv_nv42_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGRA image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -2218,23 +1884,19 @@ pub fn bgr_to_yuv_nv42_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_yuv_nv24_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgra: &[u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -2277,19 +1939,7 @@ pub fn bgra_to_yuv_nv24_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        bgra,
-        bgra_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
 }
 
 /// Convert BGRA image data to YUV 444 bi-planar (NV42 10-bit) format with 10 or 12 bit depth.
@@ -2299,15 +1949,10 @@ pub fn bgra_to_yuv_nv24_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `bgr` - The input BGRA image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -2319,23 +1964,19 @@ pub fn bgra_to_yuv_nv24_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_yuv_nv42_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     bgra: &[u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -2378,19 +2019,7 @@ pub fn bgra_to_yuv_nv42_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        bgra,
-        bgra_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGBA image data to YUV 444 bi-planar (NV24 10-bit) format with 10 or 12 bit depth.
@@ -2400,15 +2029,10 @@ pub fn bgra_to_yuv_nv42_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the UV (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the UV plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -2420,23 +2044,19 @@ pub fn bgra_to_yuv_nv42_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_yuv_nv24_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -2479,19 +2099,7 @@ pub fn rgba_to_yuv_nv24_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
 
 /// Convert RGBA image data to YUV 444 bi-planar (NV42 10-bit) format with 10 or 12 bit depth.
@@ -2501,15 +2109,10 @@ pub fn rgba_to_yuv_nv24_p16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `uv_plane` - A mutable slice to store the VU (chrominance) plane data.
-/// * `uv_stride` - The stride (bytes per row) for the VU plane.
+/// * `bi_planar_image` - Target Bi-Planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
+/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of final YUV
@@ -2521,23 +2124,19 @@ pub fn rgba_to_yuv_nv24_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_yuv_nv42_p16(
-    y_plane: &mut [u16],
-    y_stride: u32,
-    uv_plane: &mut [u16],
-    uv_stride: u32,
+    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
-    if bit_depth != 10 && bit_depth != 12 {
-        panic!("Only 10 and 12 bit depth is supported");
-    }
+) -> Result<(), YuvError> {
+    assert!(
+        bit_depth == 10 || bit_depth == 12,
+        "Only 10 and 12 bit depth is supported"
+    );
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -2580,17 +2179,5 @@ pub fn rgba_to_yuv_nv42_p16(
             }
         },
     };
-    dispatcher(
-        y_plane,
-        y_stride,
-        uv_plane,
-        uv_stride,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        width,
-        height,
-        range,
-        matrix,
-    );
+    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
