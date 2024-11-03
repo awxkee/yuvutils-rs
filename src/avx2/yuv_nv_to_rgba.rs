@@ -194,7 +194,7 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
             ),
             rounding_const,
         ));
-        let g_low = _mm256_srli_epi16::<3>(_mm256_mulhi_epi16(
+        let g_low = _mm256_srli_epi16::<3>(_mm256_add_epi16(
             _mm256_max_epi16(
                 _mm256_sub_epi16(
                     y_low,

@@ -30,7 +30,6 @@
 #![allow(clippy::manual_clamp)]
 #![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
-#![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod avx2;
@@ -41,9 +40,11 @@ mod avx2;
 mod avx512bw;
 mod from_identity;
 mod from_identity_p16;
+mod images;
 mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
+mod numerics;
 mod rgb_to_nv_p16;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -83,12 +84,10 @@ mod yuy2_to_rgb;
 mod yuy2_to_rgb_p16;
 mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
-mod numerics;
 
-pub use yuv_support::YuvBytesPacking;
-pub use yuv_support::YuvEndianness;
-pub use yuv_support::YuvRange;
-pub use yuv_support::YuvStandardMatrix;
+pub use yuv_support::{
+    YuvBytesPacking, YuvChromaSample, YuvEndianness, YuvRange, YuvStandardMatrix,
+};
 
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra;
@@ -415,6 +414,7 @@ pub use sharpyuv::rgba_to_sharp_yuv420;
 pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
+pub use images::{BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut};
 pub use y_p16_to_rgb16::*;
 pub use y_p16_with_alpha_to_rgb16::*;
 pub use y_with_alpha_to_rgb::*;

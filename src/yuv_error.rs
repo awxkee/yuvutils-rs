@@ -177,3 +177,39 @@ pub(crate) fn check_chroma_channel(
     }
     Ok(())
 }
+
+
+#[inline]
+pub(crate) fn check_interleaved_chroma_channel<V>(
+    data: &[V],
+    stride: u32,
+    image_width: u32,
+    image_height: u32,
+    sampling: YuvChromaSample,
+) -> Result<(), YuvError> {
+    let chroma_min_width = match sampling {
+        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => ((image_width + 1) / 2) * 2,
+        YuvChromaSample::YUV444 => image_width,
+    };
+    let chroma_height = match sampling {
+        YuvChromaSample::YUV420 => (image_height + 1) / 2,
+        YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => image_height,
+    };
+    check_overflow_v2(stride as usize, chroma_height as usize)?;
+    check_overflow_v2(chroma_min_width as usize, chroma_height as usize)?;
+    if (stride as usize * chroma_height as usize)
+        < (chroma_min_width as usize * chroma_height as usize)
+    {
+        return Err(YuvError::LumaPlaneMinimumSizeMismatch(MismatchedSize {
+            expected: chroma_min_width as usize * chroma_height as usize,
+            received: stride as usize * chroma_height as usize,
+        }));
+    }
+    if stride as usize * chroma_height as usize != data.len() {
+        return Err(YuvError::LumaPlaneSizeMismatch(MismatchedSize {
+            expected: stride as usize * chroma_height as usize,
+            received: data.len(),
+        }));
+    }
+    Ok(())
+}

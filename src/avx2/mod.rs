@@ -28,7 +28,6 @@
  */
 
 mod avx2_utils;
-mod avx2_ycbcr;
 mod avx2_ycgco;
 mod from_identity;
 mod rgb_to_nv;
