@@ -114,8 +114,8 @@ fn yuv_nv_p16_to_image_impl<
 
     let y_stride = bi_planar_image.y_stride * 2;
     let uv_stride = bi_planar_image.uv_stride * 2;
-    let y_plane = bi_planar_image.y_plane.borrow();
-    let uv_plane = bi_planar_image.uv_plane.borrow();
+    let y_plane = bi_planar_image.y_plane;
+    let uv_plane = bi_planar_image.uv_plane;
     let width = bi_planar_image.width;
 
     iter.enumerate().for_each(|(y, bgra)| unsafe {

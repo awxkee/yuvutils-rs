@@ -94,8 +94,8 @@ fn yuv_nv_p10_to_image_impl<
         iter = bgra.chunks_exact_mut(bgra_stride as usize);
     }
 
-    let y_plane = bi_planar_image.y_plane.borrow();
-    let uv_plane = bi_planar_image.uv_plane.borrow();
+    let y_plane = bi_planar_image.y_plane;
+    let uv_plane = bi_planar_image.uv_plane;
     let y_stride = bi_planar_image.y_stride * 2;
     let uv_stride = bi_planar_image.uv_stride * 2;
     let width = bi_planar_image.width;

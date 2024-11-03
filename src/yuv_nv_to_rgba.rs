@@ -115,8 +115,8 @@ fn yuv_nv12_to_rgbx<
 
     let y_stride = bi_planar_image.y_stride;
     let uv_stride = bi_planar_image.uv_stride;
-    let y_plane = bi_planar_image.y_plane.borrow();
-    let uv_plane = bi_planar_image.uv_plane.borrow();
+    let y_plane = bi_planar_image.y_plane;
+    let uv_plane = bi_planar_image.uv_plane;
     let width = bi_planar_image.width;
 
     iter.enumerate().for_each(|(y, bgra)| unsafe {

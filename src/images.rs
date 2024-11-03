@@ -54,28 +54,16 @@ impl<T: Copy + Debug> BufferStoreMut<'_, T> {
 }
 
 #[derive(Debug, Clone)]
-pub enum BufferStore<'a, T: Copy + Debug> {
-    Borrowed(&'a [T]),
-    Owned(Vec<T>),
-}
-
-impl<T: Copy + Debug> BufferStore<'_, T> {
-    pub fn borrow(&self) -> &[T] {
-        match self {
-            Self::Borrowed(p_ref) => p_ref,
-            Self::Owned(vec) => vec,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+/// Non representation of Bi-Planar YUV image
 pub struct YuvBiPlanarImage<'a, T>
 where
     T: Copy + Debug,
 {
-    pub y_plane: BufferStore<'a, T>,
+    /// Stride here always means Elements per row.
+    pub y_plane: &'a [T],
     pub y_stride: u32,
-    pub uv_plane: BufferStore<'a, T>,
+    /// Stride here always means Elements per row.
+    pub uv_plane: &'a [T],
     pub uv_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -87,13 +75,13 @@ where
 {
     pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
         check_y8_channel(
-            self.y_plane.borrow(),
+            self.y_plane,
             self.y_stride,
             self.width,
             self.height,
         )?;
         check_interleaved_chroma_channel(
-            self.uv_plane.borrow(),
+            self.uv_plane,
             self.uv_stride,
             self.width,
             self.height,
@@ -104,13 +92,16 @@ where
 }
 
 #[derive(Debug)]
+/// Mutable representation of Bi-Planar YUV image
 pub struct YuvBiPlanarImageMut<'a, T>
 where
     T: Copy + Debug,
 {
     pub y_plane: BufferStoreMut<'a, T>,
+    /// Stride here always means Elements per row.
     pub y_stride: u32,
     pub uv_plane: BufferStoreMut<'a, T>,
+    /// Stride here always means Elements per row.
     pub uv_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -165,9 +156,9 @@ where
 
     pub fn to_fixed(&'a self) -> YuvBiPlanarImage<'a, T> {
         YuvBiPlanarImage {
-            y_plane: BufferStore::Borrowed(self.y_plane.borrow()),
+            y_plane: self.y_plane.borrow(),
             y_stride: self.y_stride,
-            uv_plane: BufferStore::Borrowed(self.uv_plane.borrow()),
+            uv_plane: self.uv_plane.borrow(),
             uv_stride: self.uv_stride,
             width: self.width,
             height: self.height,
@@ -179,32 +170,11 @@ impl<'a, T> YuvBiPlanarImage<'a, T>
 where
     T: Default + Clone + Copy + Debug,
 {
-    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSample) -> Self {
-        let chroma_width = match subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => ((width as usize + 1) / 2) * 2,
-            YuvChromaSample::YUV444 => width as usize * 2,
-        };
-        let chroma_height = match subsampling {
-            YuvChromaSample::YUV420 => (height as usize + 1) / 2,
-            YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => height as usize,
-        };
-        let y_target = vec![T::default(); width as usize * height as usize];
-        let chroma_target = vec![T::default(); chroma_width * chroma_height];
-        YuvBiPlanarImage {
-            y_plane: BufferStore::Owned(y_target),
-            y_stride: width,
-            uv_plane: BufferStore::Owned(chroma_target),
-            uv_stride: chroma_width as u32,
-            width,
-            height,
-        }
-    }
-
     pub fn from_mut(bi_planar_mut: &'a YuvBiPlanarImageMut<T>) -> Self {
         YuvBiPlanarImage::<'a, T> {
-            y_plane: BufferStore::Borrowed(bi_planar_mut.y_plane.borrow()),
+            y_plane: bi_planar_mut.y_plane.borrow(),
             y_stride: bi_planar_mut.y_stride,
-            uv_plane: BufferStore::Borrowed(bi_planar_mut.uv_plane.borrow()),
+            uv_plane: bi_planar_mut.uv_plane.borrow(),
             uv_stride: bi_planar_mut.uv_stride,
             width: bi_planar_mut.width,
             height: bi_planar_mut.height,
