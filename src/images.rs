@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_error::{check_interleaved_chroma_channel, check_y8_channel};
+use crate::yuv_error::{check_chroma_channel, check_interleaved_chroma_channel, check_y8_channel};
 use crate::yuv_support::YuvChromaSample;
 use crate::YuvError;
 use std::fmt::Debug;
@@ -62,8 +62,8 @@ where
     pub y_plane: &'a [T],
     /// Stride here always means Elements per row.
     pub y_stride: u32,
-    /// Stride here always means Elements per row.
     pub uv_plane: &'a [T],
+    /// Stride here always means Elements per row.
     pub uv_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -278,5 +278,139 @@ where
         check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_y8_channel(self.a_plane, self.a_stride, self.width, self.height)?;
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+/// Non-mutable representation of Bi-Planar YUV image
+pub struct YuvPlanarImage<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub y_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub y_stride: u32,
+    pub u_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub u_stride: u32,
+    pub v_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub v_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<'a, T> YuvPlanarImage<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+        check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
+        check_chroma_channel(
+            self.u_plane,
+            self.u_stride,
+            self.width,
+            self.height,
+            subsampling,
+        )?;
+        check_chroma_channel(
+            self.v_plane,
+            self.v_stride,
+            self.width,
+            self.height,
+            subsampling,
+        )?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+/// Mutable of Bi-Planar YUV image
+pub struct YuvPlanarImageMut<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub y_plane: BufferStoreMut<'a, T>,
+    /// Stride here always means Elements per row.
+    pub y_stride: u32,
+    pub u_plane: BufferStoreMut<'a, T>,
+    /// Stride here always means Elements per row.
+    pub u_stride: u32,
+    pub v_plane: BufferStoreMut<'a, T>,
+    /// Stride here always means Elements per row.
+    pub v_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<'a, T> YuvPlanarImageMut<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+        check_y8_channel(
+            self.y_plane.borrow(),
+            self.y_stride,
+            self.width,
+            self.height,
+        )?;
+        check_chroma_channel(
+            self.u_plane.borrow(),
+            self.u_stride,
+            self.width,
+            self.height,
+            subsampling,
+        )?;
+        check_chroma_channel(
+            self.v_plane.borrow(),
+            self.v_stride,
+            self.width,
+            self.height,
+            subsampling,
+        )?;
+        Ok(())
+    }
+}
+
+impl<'a, T> YuvPlanarImageMut<'a, T>
+where
+    T: Default + Clone + Copy + Debug,
+{
+    /// Allocates mutable target Bi-Planar image with required chroma subsampling
+    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSample) -> Self {
+        let chroma_width = match subsampling {
+            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => (width as usize + 1) / 2,
+            YuvChromaSample::YUV444 => width as usize,
+        };
+        let chroma_height = match subsampling {
+            YuvChromaSample::YUV420 => (height as usize + 1) / 2,
+            YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => height as usize,
+        };
+        let y_target = vec![T::default(); width as usize * height as usize];
+        let u_target = vec![T::default(); chroma_width * chroma_height];
+        let v_target = vec![T::default(); chroma_width * chroma_height];
+        Self {
+            y_plane: BufferStoreMut::Owned(y_target),
+            y_stride: width,
+            u_plane: BufferStoreMut::Owned(u_target),
+            u_stride: chroma_width as u32,
+            v_plane: BufferStoreMut::Owned(v_target),
+            v_stride: chroma_width as u32,
+            width,
+            height,
+        }
+    }
+
+    pub fn to_fixed(&'a self) -> YuvPlanarImage<'a, T> {
+        YuvPlanarImage {
+            y_plane: self.y_plane.borrow(),
+            y_stride: self.y_stride,
+            u_plane: self.u_plane.borrow(),
+            u_stride: self.u_stride,
+            v_plane: self.v_plane.borrow(),
+            v_stride: self.v_stride,
+            width: self.width,
+            height: self.height,
+        }
     }
 }

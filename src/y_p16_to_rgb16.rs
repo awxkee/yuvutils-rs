@@ -41,7 +41,7 @@ fn yuv400_p16_to_rgbx<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    gray_image: YuvGrayImage<u16>,
+    gray_image: &YuvGrayImage<u16>,
     rgba16: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
@@ -147,7 +147,7 @@ fn yuv400_p16_to_rgbx<
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_rgb16(
-    gray_image: YuvGrayImage<u16>,
+    gray_image: &YuvGrayImage<u16>,
     rgb: &mut [u16],
     rgb_stride: u32,
     bit_depth: u32,
@@ -212,7 +212,7 @@ pub fn yuv400_p16_to_rgb16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_bgr16(
-    gray_image: YuvGrayImage<u16>,
+    gray_image: &YuvGrayImage<u16>,
     bgr: &mut [u16],
     bgr_stride: u32,
     bit_depth: u32,
@@ -277,7 +277,7 @@ pub fn yuv400_p16_to_bgr16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_rgba16(
-    gray_image: YuvGrayImage<u16>,
+    gray_image: &YuvGrayImage<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
@@ -342,7 +342,7 @@ pub fn yuv400_p16_to_rgba16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_to_bgra16(
-    gray_image: YuvGrayImage<u16>,
+    gray_image: &YuvGrayImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: u32,

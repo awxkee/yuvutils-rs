@@ -144,8 +144,8 @@ pub(crate) fn check_y8_channel<V>(
 }
 
 #[inline]
-pub(crate) fn check_chroma_channel(
-    data: &[u8],
+pub(crate) fn check_chroma_channel<V>(
+    data: &[V],
     stride: u32,
     image_width: u32,
     image_height: u32,

@@ -28,9 +28,9 @@
  */
 #![forbid(unsafe_code)]
 use crate::sharpyuv::SharpYuvGammaTransfer;
-use crate::yuv_error::{check_chroma_channel, check_rgba_destination, check_y8_channel};
+use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
-use crate::YuvError;
+use crate::{YuvError, YuvPlanarImageMut};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
@@ -310,16 +310,9 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
 }
 
 fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     sharp_yuv_gamma_transfer: SharpYuvGammaTransfer,
@@ -330,13 +323,11 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     check_rgba_destination(
         rgba,
         rgba_stride,
-        width,
-        height,
+        planar_image.width,
+        planar_image.height,
         src_chans.get_channels_count(),
     )?;
-    check_y8_channel(y_plane, y_stride, width, height)?;
-    check_chroma_channel(u_plane, u_stride, width, height, chroma_subsampling)?;
-    check_chroma_channel(v_plane, v_stride, width, height, chroma_subsampling)?;
+    planar_image.check_constraints(chroma_subsampling)?;
 
     let mut linear_map_table = [0u16; 256];
     let mut gamma_map_table = [0u8; u16::MAX as usize + 1];
@@ -355,9 +346,10 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     }
 
     // Always using 3 Channels ( RGB etc. ) layout since we do not need a alpha channel
-    let mut rgb_layout: Vec<u16> = vec![0u16; width as usize * height as usize * 3];
+    let mut rgb_layout: Vec<u16> =
+        vec![0u16; planar_image.width as usize * planar_image.height as usize * 3];
 
-    let rgb_layout_stride_len = width as usize * 3;
+    let rgb_layout_stride_len = planar_image.width as usize * 3;
 
     let iter_linearize;
     #[cfg(not(feature = "rayon"))]
@@ -405,31 +397,65 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     if chroma_subsampling == YuvChromaSample::YUV420 {
         #[cfg(feature = "rayon")]
         {
-            y_iter = y_plane.par_chunks_exact_mut(y_stride as usize * 2);
-            u_iter = u_plane.par_chunks_exact_mut(u_stride as usize);
-            v_iter = v_plane.par_chunks_exact_mut(v_stride as usize);
+            y_iter = planar_image
+                .y_plane
+                .borrow_mut()
+                .par_chunks_exact_mut(planar_image.y_stride as usize * 2);
+            u_iter = planar_image
+                .u_plane
+                .borrow_mut()
+                .par_chunks_exact_mut(planar_image.u_stride as usize);
+            v_iter = planar_image
+                .v_plane
+                .borrow_mut()
+                .par_chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.par_chunks_exact(rgba_stride as usize * 2);
         }
         #[cfg(not(feature = "rayon"))]
         {
-            y_iter = y_plane.chunks_exact_mut(y_stride as usize * 2);
-            u_iter = u_plane.chunks_exact_mut(u_stride as usize);
-            v_iter = v_plane.chunks_exact_mut(v_stride as usize);
+            y_iter = lanar_image
+                .y_plane
+                .borrow_mut()
+                .chunks_exact_mut(planar_image.y_stride as usize * 2);
+            u_iter = planar_image
+                .u_plane
+                .borrow_mut()
+                .chunks_exact_mut(planar_image.u_stride as usize);
+            v_iter =
+                planar_image.v_plane.borrow_mut()..chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.chunks_exact(rgba_stride as usize * 2);
         }
     } else {
         #[cfg(feature = "rayon")]
         {
-            y_iter = y_plane.par_chunks_exact_mut(y_stride as usize);
-            u_iter = u_plane.par_chunks_exact_mut(u_stride as usize);
-            v_iter = v_plane.par_chunks_exact_mut(v_stride as usize);
+            y_iter = planar_image
+                .y_plane
+                .borrow_mut()
+                .par_chunks_exact_mut(planar_image.y_stride as usize);
+            u_iter = planar_image
+                .u_plane
+                .borrow_mut()
+                .par_chunks_exact_mut(planar_image.u_stride as usize);
+            v_iter = planar_image
+                .v_plane
+                .borrow_mut()
+                .par_chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.par_chunks_exact(rgba_stride as usize);
         }
         #[cfg(not(feature = "rayon"))]
         {
-            y_iter = y_plane.chunks_exact_mut(y_stride as usize);
-            u_iter = u_plane.chunks_exact_mut(u_stride as usize);
-            v_iter = v_plane.chunks_exact_mut(v_stride as usize);
+            y_iter = planar_image
+                .y_plane
+                .borrow_mut()
+                .chunks_exact_mut(planar_image.y_stride as usize);
+            u_iter = planar_image
+                .u_plane
+                .borrow_mut()
+                .chunks_exact_mut(planar_image.u_stride as usize);
+            v_iter = planar_image
+                .v_plane
+                .borrow_mut()
+                .chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.chunks_exact(rgba_stride as usize);
         }
     }
@@ -443,18 +469,18 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let v_y = j * 2;
 
                 for (virtual_y, (y_plane, rgba)) in y_plane
-                    .chunks_exact_mut(y_stride as usize)
+                    .chunks_exact_mut(planar_image.y_stride as usize)
                     .zip(rgba.chunks_exact(rgba_stride as usize))
                     .enumerate()
                 {
                     let y = virtual_y + v_y;
                     let rgb_layout_start = y * rgb_layout_stride_len;
                     let rgb_layout_start_next = (y + 1) * rgb_layout_stride_len;
-                    let rgb_layout_lane =
-                        &rgb_layout[rgb_layout_start..((width as usize) * 3 + rgb_layout_start)];
-                    let rgb_layout_next_lane = if y + 1 < height as usize {
-                        &rgb_layout
-                            [rgb_layout_start_next..((width as usize) * 3 + rgb_layout_start_next)]
+                    let rgb_layout_lane = &rgb_layout
+                        [rgb_layout_start..((planar_image.width as usize) * 3 + rgb_layout_start)];
+                    let rgb_layout_next_lane = if y + 1 < planar_image.height as usize {
+                        &rgb_layout[rgb_layout_start_next
+                            ..((planar_image.width as usize) * 3 + rgb_layout_start_next)]
                     } else {
                         rgb_layout_lane
                     };
@@ -469,14 +495,14 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                         &gamma_map_table,
                         &range,
                         &transform,
-                        width as usize,
+                        planar_image.width as usize,
                     );
                 }
             } else {
                 let y = j;
                 let rgb_layout_start = y * rgb_layout_stride_len;
-                let rgb_layout_lane =
-                    &rgb_layout[rgb_layout_start..((width as usize) * 3 + rgb_layout_start)];
+                let rgb_layout_lane = &rgb_layout
+                    [rgb_layout_start..((planar_image.width as usize) * 3 + rgb_layout_start)];
                 sharpen_row422::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                     rgba,
                     y_plane,
@@ -486,16 +512,31 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     &gamma_map_table,
                     &range,
                     &transform,
-                    width as usize,
+                    planar_image.width as usize,
                 );
             }
         });
 
     // Handle last row if image is odd
-    if height & 1 != 0 && chroma_subsampling == YuvChromaSample::YUV420 {
-        let y_iter = y_plane.chunks_exact_mut(y_stride as usize).rev().take(1);
-        let u_iter = u_plane.chunks_exact_mut(u_stride as usize).rev().take(1);
-        let v_iter = v_plane.chunks_exact_mut(v_stride as usize).rev().take(1);
+    if planar_image.height & 1 != 0 && chroma_subsampling == YuvChromaSample::YUV420 {
+        let y_iter = planar_image
+            .y_plane
+            .borrow_mut()
+            .chunks_exact_mut(planar_image.y_stride as usize)
+            .rev()
+            .take(1);
+        let u_iter = planar_image
+            .u_plane
+            .borrow_mut()
+            .chunks_exact_mut(planar_image.u_stride as usize)
+            .rev()
+            .take(1);
+        let v_iter = planar_image
+            .v_plane
+            .borrow_mut()
+            .chunks_exact_mut(planar_image.v_stride as usize)
+            .rev()
+            .take(1);
         let rgb_iter = rgba.chunks_exact(rgba_stride as usize).rev().take(1);
         let rgb_linearized_iter = rgb_layout
             .chunks_exact_mut(rgb_layout_stride_len)
@@ -509,13 +550,14 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             .zip(v_iter);
 
         full_iter.for_each(|((((rgba, rgb_layout), y_plane), u_plane), v_plane)| {
-            let y = height as usize - 1;
+            let y = planar_image.height as usize - 1;
             let rgb_layout_start = y * rgb_layout_stride_len;
             let rgb_layout_start_next = (y + 1) * rgb_layout_stride_len;
-            let rgb_layout_lane =
-                &rgb_layout[rgb_layout_start..((width as usize) * 3 + rgb_layout_start)];
-            let rgb_layout_next_lane = if y + 1 < height as usize {
-                &rgb_layout[rgb_layout_start_next..((width as usize) * 3 + rgb_layout_start_next)]
+            let rgb_layout_lane = &rgb_layout
+                [rgb_layout_start..((planar_image.width as usize) * 3 + rgb_layout_start)];
+            let rgb_layout_next_lane = if y + 1 < planar_image.height as usize {
+                &rgb_layout[rgb_layout_start_next
+                    ..((planar_image.width as usize) * 3 + rgb_layout_start_next)]
             } else {
                 rgb_layout_lane
             };
@@ -530,7 +572,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 &gamma_map_table,
                 &range,
                 &transform,
-                width as usize,
+                planar_image.width as usize,
             );
         });
     }
@@ -545,16 +587,9 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Target planar image.
 /// * `rgb` - The input RGB image data slice.
 /// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -564,31 +599,17 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_sharp_yuv422(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     rgb: &[u8],
     rgb_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         rgb,
         rgb_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
@@ -602,16 +623,9 @@ pub fn rgb_to_sharp_yuv422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Target planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -621,31 +635,17 @@ pub fn rgb_to_sharp_yuv422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_sharp_yuv422(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     bgr: &[u8],
     bgr_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         bgr,
         bgr_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
@@ -659,16 +659,9 @@ pub fn bgr_to_sharp_yuv422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Target planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -678,31 +671,17 @@ pub fn bgr_to_sharp_yuv422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_sharp_yuv422(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
@@ -716,16 +695,9 @@ pub fn rgba_to_sharp_yuv422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Target planar image.
 /// * `bgra` - The input BGRA image data slice.
 /// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -735,31 +707,17 @@ pub fn rgba_to_sharp_yuv422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_sharp_yuv422(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     bgra: &[u8],
     bgra_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
@@ -792,31 +750,17 @@ pub fn bgra_to_sharp_yuv422(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgb_to_sharp_yuv420(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     rgb: &[u8],
     rgb_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         rgb,
         rgb_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
@@ -830,16 +774,9 @@ pub fn rgb_to_sharp_yuv420(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Target planar image.
 /// * `bgr` - The input BGR image data slice.
 /// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -849,31 +786,17 @@ pub fn rgb_to_sharp_yuv420(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgr_to_sharp_yuv420(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     bgr: &[u8],
     bgr_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         bgr,
         bgr_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
@@ -887,16 +810,9 @@ pub fn bgr_to_sharp_yuv420(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Target planar image.
 /// * `rgba` - The input RGBA image data slice.
 /// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -906,31 +822,17 @@ pub fn bgr_to_sharp_yuv420(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn rgba_to_sharp_yuv420(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
@@ -944,16 +846,9 @@ pub fn rgba_to_sharp_yuv420(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A mutable slice to store the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A mutable slice to store the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Target planar image.
 /// * `bgra` - The input BGRA image data slice.
 /// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `width` - The width of the image in pixels.
-/// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -963,31 +858,17 @@ pub fn rgba_to_sharp_yuv420(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn bgra_to_sharp_yuv420(
-    y_plane: &mut [u8],
-    y_stride: u32,
-    u_plane: &mut [u8],
-    u_stride: u32,
-    v_plane: &mut [u8],
-    v_stride: u32,
+    planar_image: &mut YuvPlanarImageMut<u8>,
     bgra: &[u8],
     bgra_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         gamma_transfer,
