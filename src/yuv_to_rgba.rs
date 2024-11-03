@@ -267,7 +267,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 .zip(y_plane.chunks_exact(2))
                 .zip(u_plane.iter())
                 .zip(v_plane.iter())
-                .skip(_cx)
+                .skip(_cx / 2)
             {
                 let y0_value = (y_src[0] as i32 - bias_y) * y_coef;
                 let cb_value = u_src as i32 - bias_uv;

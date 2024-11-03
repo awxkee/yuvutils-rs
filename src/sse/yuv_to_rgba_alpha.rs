@@ -48,11 +48,8 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
     u_offset: usize,
     v_offset: usize,
-    a_offset: usize,
-    rgba_offset: usize,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
@@ -74,7 +71,6 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
     let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
-    let v_min_values = _mm_setzero_si128();
     let v_g_coeff_1 = _mm_set1_epi16(transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm_set1_epi16(transform.g_coeff_2 as i16);
     let rounding_const = _mm_set1_epi16(1 << 2);
@@ -82,12 +78,9 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
     let zeros = _mm_setzero_si128();
 
     while cx + 16 < width {
-        let y_values = _mm_subs_epu8(
-            _mm_loadu_si128(y_ptr.add(y_offset + cx) as *const __m128i),
-            y_corr,
-        );
+        let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
 
-        let a_values = _mm_loadu_si128(a_ptr.add(a_offset + cx) as *const __m128i);
+        let a_values = _mm_loadu_si128(a_ptr.add(cx) as *const __m128i);
 
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
@@ -205,7 +198,7 @@ pub unsafe fn sse_yuv_to_rgba_alpha_row<const DESTINATION_CHANNELS: u8, const SA
             b_values = _mm_packus_epi16(b_low, b_high);
         }
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {

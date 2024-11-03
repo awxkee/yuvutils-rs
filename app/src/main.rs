@@ -27,20 +27,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use image::{ColorType, EncodableLayout, GenericImageView};
 use std::fs::File;
 use std::io::Read;
-use std::ops::{BitXor, Sub};
+use std::ops::Sub;
 use std::time::Instant;
-use yuvs::{get_exact_inverse_transform, get_inverse_transform, get_kr_kb};
-use yuvutils_rs::{
-    bgra_to_yuv444_p16, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422,
-    rgb_to_yuv444, rgba_to_sharp_yuv420, rgba_to_yuv420_p16, rgba_to_yuv444_p16,
-    yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv444_to_rgb, yuyv422_to_rgb,
-    SharpYuvGammaTransfer, YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{rgb_to_sharp_yuv420, rgb_to_yuv420, yuv420_to_rgb, SharpYuvGammaTransfer, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -150,7 +143,7 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("yuv_nv12_to_rgb time: {:?}", end_time);
     let start_time = Instant::now();
-    rgb_to_sharp_yuv420(
+    rgb_to_yuv420(
         &mut y_plane,
         y_stride as u32,
         &mut u_plane,
@@ -163,7 +156,6 @@ fn main() {
         height,
         YuvRange::TV,
         YuvStandardMatrix::Bt601,
-        SharpYuvGammaTransfer::Srgb,
     )
     .unwrap();
 

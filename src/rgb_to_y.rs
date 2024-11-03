@@ -72,9 +72,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         kr_kb.kr,
         kr_kb.kb,
     );
-    const PRECISION: i32 = 8;
+    const PRECISION: i32 = 12;
     let transform = transform_precise.to_integers(PRECISION as u32);
-    let precision_scale = (1 << 8) as f32;
+    let precision_scale = (1 << PRECISION) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
 
     let i_bias_y = range.bias_y as i32;

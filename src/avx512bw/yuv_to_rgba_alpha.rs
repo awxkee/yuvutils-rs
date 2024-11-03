@@ -48,11 +48,8 @@ pub unsafe fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
     u_offset: usize,
     v_offset: usize,
-    a_offset: usize,
-    rgba_offset: usize,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
@@ -79,7 +76,7 @@ pub unsafe fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
 
     while cx + 64 < width {
         let y_values = _mm512_subs_epu8(
-            _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
+            _mm512_loadu_si512(y_ptr.add(cx) as *const i32),
             y_corr,
         );
 

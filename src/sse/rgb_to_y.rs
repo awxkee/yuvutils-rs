@@ -28,7 +28,6 @@
  */
 
 use crate::sse::sse_support::{sse_deinterleave_rgb, sse_deinterleave_rgba};
-use crate::sse::sse_ycbcr::sse_rgb_to_ycbcr;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -54,12 +53,16 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
-    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    const V_SHR: i32 = 3;
+    const V_SCALE: i32 = 7;
+    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
+    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
 
-    let zeros_si = _mm_setzero_si128();
+    let zeros = _mm_setzero_si128();
 
-    let y_bias = _mm_set1_epi32(bias_y);
+    let i_bias_y = _mm_set1_epi16(range.bias_y as i16);
+    let i_cap_y = _mm_set1_epi16(range.range_y as i16 + range.bias_y as i16);
+    let y_bias = _mm_set1_epi16(bias_y);
     let v_yr = _mm_set1_epi16(transform.yr as i16);
     let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);
@@ -107,16 +110,40 @@ pub unsafe fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
             }
         }
 
-        let r_low = _mm_cvtepu8_epi16(r_values);
-        let r_high = _mm_unpackhi_epi8(r_values, zeros_si);
-        let g_low = _mm_cvtepu8_epi16(g_values);
-        let g_high = _mm_unpackhi_epi8(g_values, zeros_si);
-        let b_low = _mm_cvtepu8_epi16(b_values);
-        let b_high = _mm_unpackhi_epi8(b_values, zeros_si);
+        let r_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(r_values));
+        let r_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(r_values, zeros));
+        let g_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(g_values));
+        let g_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(g_values, zeros));
+        let b_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(b_values));
+        let b_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values, zeros));
 
-        let y_l = sse_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
+        let y_l = _mm_max_epi16(
+            _mm_min_epi16(
+                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                    y_bias,
+                    _mm_add_epi16(
+                        _mm_add_epi16(_mm_mulhi_epi16(r_low, v_yr), _mm_mulhi_epi16(g_low, v_yg)),
+                        _mm_mulhi_epi16(b_low, v_yb),
+                    ),
+                )),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
 
-        let y_h = sse_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
+        let y_h = _mm_max_epi16(
+            _mm_min_epi16(
+                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                    y_bias,
+                    _mm_add_epi16(
+                        _mm_add_epi16(_mm_mulhi_epi16(r_high, v_yr), _mm_mulhi_epi16(g_high, v_yg)),
+                        _mm_mulhi_epi16(b_high, v_yb),
+                    ),
+                )),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
 
         let y_yuv = _mm_packus_epi16(y_l, y_h);
 

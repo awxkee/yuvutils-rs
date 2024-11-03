@@ -55,11 +55,16 @@ pub unsafe fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
-    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    const V_SHR: u32 = 3;
+    const V_SCALE: u32 = 7;
+    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
+    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
+
+    let i_bias_y = _mm512_set1_epi16(range.bias_y as i16);
+    let i_cap_y = _mm512_set1_epi16(range.range_y as i16 + range.bias_y as i16);
 
     while cx + 64 < width {
-        let y_bias = _mm512_set1_epi32(bias_y);
+        let y_bias = _mm512_set1_epi16(bias_y);
         let v_yr = _mm512_set1_epi16(transform.yr as i16);
         let v_yg = _mm512_set1_epi16(transform.yg as i16);
         let v_yb = _mm512_set1_epi16(transform.yb as i16);
@@ -106,16 +111,55 @@ pub unsafe fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8>(
             }
         }
 
-        let r_low = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values));
-        let r_high = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(r_values));
-        let g_low = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values));
-        let g_high = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(g_values));
-        let b_low = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values));
-        let b_high = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(b_values));
+        let r_low =
+            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));
+        let r_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
+            _mm512_extracti64x4_epi64::<1>(r_values),
+        ));
+        let g_low =
+            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values)));
+        let g_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
+            _mm512_extracti64x4_epi64::<1>(g_values),
+        ));
+        let b_low =
+            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values)));
+        let b_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
+            _mm512_extracti64x4_epi64::<1>(b_values),
+        ));
 
-        let y_l = avx512_rgb_to_ycbcr(r_low, g_low, b_low, y_bias, v_yr, v_yg, v_yb);
+        let y_l = _mm512_max_epi16(
+            _mm512_min_epi16(
+                _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    y_bias,
+                    _mm512_add_epi16(
+                        _mm512_add_epi16(
+                            _mm512_mulhi_epi16(r_low, v_yr),
+                            _mm512_mulhi_epi16(g_low, v_yg),
+                        ),
+                        _mm512_mulhi_epi16(b_low, v_yb),
+                    ),
+                )),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
 
-        let y_h = avx512_rgb_to_ycbcr(r_high, g_high, b_high, y_bias, v_yr, v_yg, v_yb);
+        let y_h = _mm512_max_epi16(
+            _mm512_min_epi16(
+                _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    y_bias,
+                    _mm512_add_epi16(
+                        _mm512_add_epi16(
+                            _mm512_mulhi_epi16(r_high, v_yr),
+                            _mm512_mulhi_epi16(g_high, v_yg),
+                        ),
+                        _mm512_mulhi_epi16(b_high, v_yb),
+                    ),
+                )),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
 
         let y_yuv = avx512_pack_u16(y_l, y_h);
 

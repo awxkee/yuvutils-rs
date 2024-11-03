@@ -70,7 +70,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     let range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
-    const PRECISION: i32 = 8;
+    const PRECISION: i32 = 12;
     let max_range_p8 = (1u32 << 8u32) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,
@@ -144,7 +144,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ux = processed_offset.ux;
                 }
             }
-
+            
             if _use_avx {
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,

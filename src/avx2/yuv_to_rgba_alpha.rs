@@ -48,11 +48,8 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
     u_offset: usize,
     v_offset: usize,
-    a_offset: usize,
-    rgba_offset: usize,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
@@ -80,11 +77,11 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
 
     while cx + 32 < width {
         let y_values = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_ptr.add(y_offset + cx) as *const __m256i),
+            _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i),
             y_corr,
         );
 
-        let a_values = _mm256_loadu_si256(a_ptr.add(a_offset + cx) as *const __m256i);
+        let a_values = _mm256_loadu_si256(a_ptr.add(cx) as *const __m256i);
 
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
@@ -203,7 +200,7 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
             b_values = avx2_pack_u16(b_low, b_high);
         }
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
