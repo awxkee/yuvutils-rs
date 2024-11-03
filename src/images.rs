@@ -128,6 +128,7 @@ impl<'a, T> YuvBiPlanarImageMut<'a, T>
 where
     T: Default + Clone + Copy + Debug,
 {
+    /// Allocates mutable target Bi-Planar image with required chroma subsampling
     pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSample) -> Self {
         let chroma_width = match subsampling {
             YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => ((width as usize + 1) / 2) * 2,
@@ -226,12 +227,22 @@ where
         )?;
         Ok(())
     }
+
+    pub fn to_fixed(&'a self) -> YuvGrayImage<'a, T> {
+        YuvGrayImage {
+            y_plane: self.y_plane.borrow(),
+            y_stride: self.y_stride,
+            width: self.width,
+            height: self.height,
+        }
+    }
 }
 
 impl<'a, T> YuvGrayImageMut<'a, T>
 where
     T: Copy + Debug + Clone + Default,
 {
+    /// Allocates mutable target gray image
     pub fn alloc(width: u32, height: u32) -> Self {
         let y_target = vec![T::default(); width as usize * height as usize];
         Self {
@@ -240,5 +251,32 @@ where
             width,
             height,
         }
+    }
+}
+
+#[derive(Debug)]
+/// Represents YUV gray with alpha non-mutable image
+pub struct YuvGrayAlphaImage<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub y_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub y_stride: u32,
+    pub a_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub a_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<'a, T> YuvGrayAlphaImage<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self) -> Result<(), YuvError> {
+        check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
+        check_y8_channel(self.a_plane, self.a_stride, self.width, self.height)?;
+        Ok(())
     }
 }
