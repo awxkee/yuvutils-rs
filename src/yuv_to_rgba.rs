@@ -35,6 +35,7 @@ use crate::avx2::avx2_yuv_to_rgba_row;
 use crate::avx512bw::avx512_yuv_to_rgba;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_to_rgba_row;
+use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_to_rgba_row;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -46,7 +47,7 @@ use crate::YuvError;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &[u8],
@@ -74,8 +75,10 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
+    const PRECISION: i32 = 12;
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
@@ -96,24 +99,21 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    let iterator_step = match chroma_subsampling {
-        YuvChromaSample::YUV420 => 2usize,
-        YuvChromaSample::YUV422 => 2usize,
-        YuvChromaSample::YUV444 => 1usize,
-    };
-
     let iter;
     #[cfg(feature = "rayon")]
     {
-        iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
+        iter = rgba
+            .par_chunks_exact_mut(rgba_stride as usize)
+            .zip(y_plane.par_chunks_exact(y_stride as usize));
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = rgba.chunks_exact_mut(rgba_stride as usize);
+        iter = rgba
+            .chunks_exact_mut(rgba_stride as usize)
+            .zip(y_plane.chunks_exact(y_stride as usize));
     }
 
-    iter.enumerate().for_each(|(y, rgba)| unsafe {
-        let y_offset = y * (y_stride as usize);
+    iter.enumerate().for_each(|(y, (rgba, y_plane))| unsafe {
         let u_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
             (y >> 1) * (u_stride as usize)
         } else {
@@ -124,15 +124,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         } else {
             y * (v_stride as usize)
         };
-        let rgba_offset = 0;
 
-        #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut cx = 0usize;
-
-        #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut uv_x = 0usize;
+        let mut _cx = 0usize;
+        let mut _uv_x = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -145,16 +139,16 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     u_plane,
                     v_plane,
                     rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
+                    _cx,
+                    _uv_x,
+                    0,
                     u_offset,
                     v_offset,
-                    rgba_offset,
+                    0,
                     width as usize,
                 );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                _cx = processed.cx;
+                _uv_x = processed.ux;
             }
 
             if _use_avx2 {
@@ -165,16 +159,16 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     u_plane,
                     v_plane,
                     rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
+                    _cx,
+                    _uv_x,
+                    0,
                     u_offset,
                     v_offset,
-                    rgba_offset,
+                    0,
                     width as usize,
                 );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                _cx = processed.cx;
+                _uv_x = processed.ux;
             }
             if _use_sse {
                 let processed = sse_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
@@ -184,16 +178,16 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     u_plane,
                     v_plane,
                     rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
+                    _cx,
+                    _uv_x,
+                    0,
                     u_offset,
                     v_offset,
-                    rgba_offset,
+                    0,
                     width as usize,
                 );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                _cx = processed.cx;
+                _uv_x = processed.ux;
             }
         }
 
@@ -206,16 +200,16 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 u_plane,
                 v_plane,
                 rgba,
-                cx,
-                uv_x,
-                y_offset,
+                _cx,
+                _uv_x,
+                0,
                 u_offset,
                 v_offset,
-                rgba_offset,
+                0,
                 width as usize,
             );
-            cx = processed.cx;
-            uv_x = processed.ux;
+            _cx = processed.cx;
+            _uv_x = processed.ux;
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -227,85 +221,103 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 u_plane,
                 v_plane,
                 rgba,
-                cx,
-                uv_x,
-                y_offset,
+                _cx,
+                _uv_x,
                 u_offset,
                 v_offset,
-                rgba_offset,
                 width as usize,
             );
-            cx = processed.cx;
-            uv_x = processed.ux;
+            _cx = processed.cx;
+            _uv_x = processed.ux;
         }
 
-        for x in (cx..width as usize).step_by(iterator_step) {
-            let y_value = (*y_plane.get_unchecked(y_offset + x) as i32 - bias_y) * y_coef;
+        if chroma_subsampling == YuvChromaSample::YUV444 && _cx < width as usize {
+            let u_plane = &u_plane[u_offset..];
+            let v_plane = &v_plane[v_offset..];
 
-            let u_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + uv_x,
-                YuvChromaSample::YUV444 => u_offset + uv_x,
-            };
-
-            let cb_value = *u_plane.get_unchecked(u_pos) as i32 - bias_uv;
-
-            let v_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + uv_x,
-                YuvChromaSample::YUV444 => v_offset + uv_x,
-            };
-
-            let cr_value = *v_plane.get_unchecked(v_pos) as i32 - bias_uv;
-
-            let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
-            let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION).clamp(0, 255);
-            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
-                >> PRECISION)
-                .clamp(0, 255);
-
-            let px = x * channels;
-
-            let rgba_shift = rgba_offset + px;
-
-            let dst = rgba.get_unchecked_mut(rgba_shift..);
-            *dst.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
-            *dst.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-            *dst.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-            if dst_chans.has_alpha() {
-                *dst.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
-            }
-
-            if chroma_subsampling == YuvChromaSample::YUV420
-                || chroma_subsampling == YuvChromaSample::YUV422
+            for (((rgba, &y_src), &u_src), &v_src) in rgba
+                .chunks_exact_mut(channels)
+                .zip(y_plane.iter())
+                .zip(u_plane.iter())
+                .zip(v_plane.iter())
+                .skip(_cx)
             {
-                let next_x = x + 1;
-                if next_x < width as usize {
-                    let y_value =
-                        (*y_plane.get_unchecked(y_offset + next_x) as i32 - bias_y) * y_coef;
+                let y_value = (y_src as i32 - bias_y) * y_coef;
+                let cb_value = u_src as i32 - bias_uv;
+                let cr_value = v_src as i32 - bias_uv;
 
-                    let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
-                        .clamp(0, 255);
-                    let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
-                        .clamp(0, 255);
-                    let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value
-                        + ROUNDING_CONST)
-                        >> PRECISION)
-                        .clamp(0, 255);
+                let r = qrshr::<PRECISION, 8>(y_value + cr_coef * cr_value);
+                let b = qrshr::<PRECISION, 8>(y_value + cb_coef * cb_value);
+                let g = qrshr::<PRECISION, 8>(y_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
 
-                    let next_px = next_x * channels;
+                rgba[dst_chans.get_r_channel_offset()] = r as u8;
+                rgba[dst_chans.get_g_channel_offset()] = g as u8;
+                rgba[dst_chans.get_b_channel_offset()] = b as u8;
+                if dst_chans.has_alpha() {
+                    rgba[dst_chans.get_a_channel_offset()] = 255;
+                }
+            }
+        } else if _cx < width as usize {
+            let chroma_width = (width as usize + 1) / 2;
+            let u_plane = &u_plane[u_offset..(u_offset + chroma_width)];
+            let v_plane = &v_plane[v_offset..(v_offset + chroma_width)];
 
-                    let rgba_shift = rgba_offset + next_px;
+            for (((rgba, y_src), &u_src), &v_src) in rgba
+                .chunks_exact_mut(channels * 2)
+                .zip(y_plane.chunks_exact(2))
+                .zip(u_plane.iter())
+                .zip(v_plane.iter())
+                .skip(_cx)
+            {
+                let y0_value = (y_src[0] as i32 - bias_y) * y_coef;
+                let cb_value = u_src as i32 - bias_uv;
+                let cr_value = v_src as i32 - bias_uv;
 
-                    let dst = rgba.get_unchecked_mut(rgba_shift..);
-                    *dst.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
-                    *dst.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-                    *dst.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-                    if dst_chans.has_alpha() {
-                        *dst.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
-                    }
+                let r0 = qrshr::<PRECISION, 8>(y0_value + cr_coef * cr_value);
+                let b0 = qrshr::<PRECISION, 8>(y0_value + cb_coef * cb_value);
+                let g0 =
+                    qrshr::<PRECISION, 8>(y0_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+                rgba[dst_chans.get_r_channel_offset()] = r0 as u8;
+                rgba[dst_chans.get_g_channel_offset()] = g0 as u8;
+                rgba[dst_chans.get_b_channel_offset()] = b0 as u8;
+                if dst_chans.has_alpha() {
+                    rgba[dst_chans.get_a_channel_offset()] = 255;
+                }
+
+                let y1_value = (y_src[1] as i32 - bias_y) * y_coef;
+
+                let r1 = qrshr::<PRECISION, 8>(y1_value + cr_coef * cr_value);
+                let b1 = qrshr::<PRECISION, 8>(y1_value + cb_coef * cb_value);
+                let g1 =
+                    qrshr::<PRECISION, 8>(y1_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+                rgba[dst_chans.get_r_channel_offset() + channels] = r1 as u8;
+                rgba[dst_chans.get_g_channel_offset() + channels] = g1 as u8;
+                rgba[dst_chans.get_b_channel_offset() + channels] = b1 as u8;
+                if dst_chans.has_alpha() {
+                    rgba[dst_chans.get_a_channel_offset() + channels] = 255;
                 }
             }
 
-            uv_x += 1;
+            if width & 1 != 0 {
+                let y0_value = (*y_plane.last().unwrap() as i32 - bias_y) * y_coef;
+                let cb_value = *u_plane.last().unwrap() as i32 - bias_uv;
+                let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
+                let rgba = rgba.chunks_exact_mut(channels * 2).into_remainder();
+
+                let r0 = qrshr::<PRECISION, 8>(y0_value + cr_coef * cr_value);
+                let b0 = qrshr::<PRECISION, 8>(y0_value + cb_coef * cb_value);
+                let g0 =
+                    qrshr::<PRECISION, 8>(y0_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+                rgba[dst_chans.get_r_channel_offset()] = r0 as u8;
+                rgba[dst_chans.get_g_channel_offset()] = g0 as u8;
+                rgba[dst_chans.get_b_channel_offset()] = b0 as u8;
+                if dst_chans.has_alpha() {
+                    rgba[dst_chans.get_a_channel_offset()] = 255;
+                }
+            }
         }
     });
 

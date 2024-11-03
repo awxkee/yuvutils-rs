@@ -36,6 +36,7 @@ use crate::avx2::avx2_ycgco_to_rgba_alpha;
 use crate::avx512bw::avx512_ycgco_to_rgba_alpha;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_ycgco_to_rgb_alpha_row;
+use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_ycgco_to_rgb_alpha_row;
 use crate::yuv_error::{check_chroma_channel, check_rgba_destination, check_y8_channel};
@@ -84,7 +85,6 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         YuvChromaSample::YUV444 => 1usize,
     };
     const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
 
     let max_colors = (1 << 8) - 1i32;
     let precision_scale = (1 << PRECISION) as f32;
@@ -226,15 +226,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let t = y_value - cg_value;
 
-            let mut r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let mut b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let mut g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
+            let mut r = qrshr::<PRECISION, 8>(t + co_value);
+            let mut b = qrshr::<PRECISION, 8>(t - co_value);
+            let mut g = qrshr::<PRECISION, 8>(y_value + cg_value);
 
             let a_value = unsafe { *a_plane.get_unchecked(a_offset + x) };
             if premultiply_alpha {
@@ -276,15 +270,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * range_reduction_y;
 
-                    let mut r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let mut b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let mut g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
+                    let mut r = qrshr::<PRECISION, 8>(t + co_value);
+                    let mut b = qrshr::<PRECISION, 8>(t - co_value);
+                    let mut g = qrshr::<PRECISION, 8>(y_value + cg_value);
 
                     let next_px = next_x * channels;
 

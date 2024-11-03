@@ -38,6 +38,7 @@ use crate::avx512bw::avx512_ycgco_to_rgb_row;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_ycgco_to_rgb_row;
+use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_ycgco_to_rgb_row;
 use crate::yuv_error::{check_chroma_channel, check_rgba_destination, check_y8_channel};
@@ -72,7 +73,6 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let bias_uv = range.bias_uv as i32;
 
     const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
 
     let mut y_offset = 0usize;
     let mut u_offset = 0usize;
@@ -213,15 +213,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let t = y_value - cg_value;
 
-            let r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
+            let r = qrshr::<PRECISION, 8>(t + co_value);
+            let b = qrshr::<PRECISION, 8>(t - co_value);
+            let g = qrshr::<PRECISION, 8>(y_value + cg_value);
 
             let px = x * channels;
 
@@ -256,15 +250,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * range_reduction_y;
 
-                    let r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
+                    let r = qrshr::<PRECISION, 8>(t + co_value);
+                    let b = qrshr::<PRECISION, 8>(t - co_value);
+                    let g = qrshr::<PRECISION, 8>(y_value + cg_value);
 
                     let next_px = next_x * channels;
 

@@ -83,6 +83,7 @@ mod yuy2_to_rgb;
 mod yuy2_to_rgb_p16;
 mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
+mod numerics;
 
 pub use yuv_support::YuvBytesPacking;
 pub use yuv_support::YuvEndianness;

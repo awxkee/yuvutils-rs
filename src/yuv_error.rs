@@ -96,8 +96,8 @@ pub(crate) fn check_overflow_v3(v0: usize, v1: usize, v2: usize) -> Result<(), Y
 }
 
 #[inline]
-pub(crate) fn check_rgba_destination(
-    arr: &[u8],
+pub(crate) fn check_rgba_destination<V>(
+    arr: &[V],
     rgba_stride: u32,
     width: u32,
     height: u32,
@@ -120,8 +120,8 @@ pub(crate) fn check_rgba_destination(
 }
 
 #[inline]
-pub(crate) fn check_y8_channel(
-    data: &[u8],
+pub(crate) fn check_y8_channel<V>(
+    data: &[V],
     stride: u32,
     width: u32,
     height: u32,

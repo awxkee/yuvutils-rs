@@ -80,7 +80,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    const PRECISION: i32 = 6;
+    const PRECISION: i32 = 12;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let inverse_transform = transform.to_integers(PRECISION as u32);
 

@@ -26,7 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_rgb_to_y_row;
 #[cfg(all(
@@ -41,6 +40,10 @@ use crate::sse::sse_rgb_to_y;
 use crate::yuv_error::{check_rgba_destination, check_y8_channel};
 use crate::yuv_support::*;
 use crate::YuvError;
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 // Chroma subsampling always assumed as YUV 400
 fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
@@ -69,9 +72,13 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         kr_kb.kr,
         kr_kb.kb,
     );
-    let transform = transform_precise.to_integers(8);
+    const PRECISION: i32 = 8;
+    let transform = transform_precise.to_integers(PRECISION as u32);
     let precision_scale = (1 << 8) as f32;
     let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
+
+    let i_bias_y = range.bias_y as i32;
+    let i_cap_y = range.range_y as i32 + i_bias_y;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -83,10 +90,21 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    let mut y_offset = 0usize;
-    let mut rgba_offset = 0usize;
+    let iter;
+    #[cfg(feature = "rayon")]
+    {
+        iter = y_plane
+            .par_chunks_exact_mut(y_stride as usize)
+            .zip(rgba.par_chunks_exact(rgba_stride as usize));
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = y_plane
+            .chunks_exact_mut(y_stride as usize)
+            .zip(rgba.chunks_exact(rgba_stride as usize));
+    }
 
-    for _ in 0..height as usize {
+    iter.for_each(|(y_plane, rgba)| {
         let mut _cx = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -98,8 +116,8 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     &range,
                     y_plane.as_mut_ptr(),
                     rgba,
-                    y_offset,
-                    rgba_offset,
+                    0,
+                    0,
                     _cx,
                     width as usize,
                 );
@@ -111,8 +129,8 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     &range,
                     y_plane.as_mut_ptr(),
                     rgba,
-                    y_offset,
-                    rgba_offset,
+                    0,
+                    0,
                     _cx,
                     width as usize,
                 );
@@ -124,8 +142,8 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                     &range,
                     y_plane.as_mut_ptr(),
                     rgba,
-                    y_offset,
-                    rgba_offset,
+                    0,
+                    0,
                     _cx,
                     width as usize,
                 );
@@ -140,29 +158,23 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 &range,
                 y_plane.as_mut_ptr(),
                 rgba,
-                y_offset,
-                rgba_offset,
                 _cx,
                 width as usize,
             );
         }
 
-        for x in _cx..width as usize {
-            let px = x * channels;
-            let dst_offset = rgba_offset + px;
-            unsafe {
-                let dst = rgba.get_unchecked(dst_offset..);
-                let r = *dst.get_unchecked(source_channels.get_r_channel_offset()) as i32;
-                let g = *dst.get_unchecked(source_channels.get_g_channel_offset()) as i32;
-                let b = *dst.get_unchecked(source_channels.get_b_channel_offset()) as i32;
-                let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> 8;
-                *y_plane.get_unchecked_mut(y_offset + x) = y as u8;
-            }
+        for (y_dst, rgba) in y_plane
+            .iter_mut()
+            .zip(rgba.chunks_exact(channels))
+            .skip(_cx)
+        {
+            let r = rgba[source_channels.get_r_channel_offset()] as i32;
+            let g = rgba[source_channels.get_g_channel_offset()] as i32;
+            let b = rgba[source_channels.get_b_channel_offset()] as i32;
+            let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
+            *y_dst = y.clamp(i_bias_y, i_cap_y) as u8;
         }
-
-        y_offset += y_stride as usize;
-        rgba_offset += rgba_stride as usize;
-    }
+    });
 
     Ok(())
 }

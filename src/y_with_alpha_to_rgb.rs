@@ -26,27 +26,37 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::numerics::qrshr;
 use crate::yuv_error::{check_rgba_destination, check_y8_channel};
 use crate::yuv_support::*;
 use crate::YuvError;
+use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 // Chroma subsampling always assumed as 400
-fn y_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8>(
-    y_plane: &[u8],
+#[inline]
+fn y_with_alpha_to_rgbx<
+    V: Copy + AsPrimitive<i32> + 'static + Send + Sync,
+    const DESTINATION_CHANNELS: u8,
+    const BIT_DEPTH: usize,
+>(
+    y_plane: &[V],
     y_stride: u32,
-    a_plane: &[u8],
+    a_plane: &[V],
     a_stride: u32,
-    rgba: &mut [u8],
+    rgba: &mut [V],
     rgba_stride: u32,
     width: u32,
     height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) -> Result<(), YuvError> {
+) -> Result<(), YuvError>
+where
+    i32: AsPrimitive<V>,
+{
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     assert!(
@@ -57,17 +67,28 @@ fn y_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8>(
         channels, 4,
         "YUV400 with alpha cannot be called on target image without alpha"
     );
+    assert!(
+        (8..=16).contains(&BIT_DEPTH),
+        "Invalid bit depth is provided"
+    );
 
     check_rgba_destination(rgba, rgba_stride, width, height, channels)?;
     check_y8_channel(y_plane, y_stride, width, height)?;
     check_y8_channel(a_plane, a_stride, width, height)?;
 
-    let range = get_yuv_range(8, range);
-    let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
+    let max_colors = (1 << BIT_DEPTH) - 1;
 
-    const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    let range = get_yuv_range(BIT_DEPTH as u32, range);
+    let kr_kb = matrix.get_kr_kb();
+    let transform = get_inverse_transform(
+        max_colors,
+        range.range_y,
+        range.range_uv,
+        kr_kb.kr,
+        kr_kb.kb,
+    );
+
+    const PRECISION: i32 = 12;
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
 
@@ -97,12 +118,12 @@ fn y_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 .zip(a_plane)
                 .zip(rgba.chunks_exact_mut(channels))
             {
-                let y_value = (*y_src as i32 - bias_y) * y_coef;
+                let y_value = (y_src.as_() - bias_y) * y_coef;
 
-                let r = ((y_value + ROUNDING_CONST) >> PRECISION).min(255i32).max(0);
-                rgba[destination_channels.get_r_channel_offset()] = r as u8;
-                rgba[destination_channels.get_g_channel_offset()] = r as u8;
-                rgba[destination_channels.get_b_channel_offset()] = r as u8;
+                let r = qrshr::<PRECISION, BIT_DEPTH>(y_value);
+                rgba[destination_channels.get_r_channel_offset()] = r.as_();
+                rgba[destination_channels.get_g_channel_offset()] = r.as_();
+                rgba[destination_channels.get_b_channel_offset()] = r.as_();
                 rgba[destination_channels.get_a_channel_offset()] = *a_src;
             }
         });
@@ -144,7 +165,7 @@ pub fn yuv400_with_alpha_to_rgba(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    y_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }>(
+    y_with_alpha_to_rgbx::<u8, { YuvSourceChannels::Rgba as u8 }, 8>(
         y_plane,
         y_stride,
         a_plane,
@@ -192,7 +213,7 @@ pub fn yuv400_with_alpha_to_bgra(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    y_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }>(
+    y_with_alpha_to_rgbx::<u8, { YuvSourceChannels::Bgra as u8 }, 8>(
         y_plane,
         y_stride,
         a_plane,

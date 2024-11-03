@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-yuvutils-rs = { path = "..", features = [] }
+yuvutils-rs = { path = "..", features = ["rayon"] }
 image = "0.25.1"
 yuvs = {path = "../yuvs"}

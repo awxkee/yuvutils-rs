@@ -45,6 +45,7 @@ use crate::YuvError;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use crate::numerics::qrshr;
 
 // Chroma subsampling always assumed as 400
 fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
@@ -67,8 +68,10 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
 
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
+    const PRECISION: i32 = 12;
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
 
@@ -152,7 +155,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
             let y_value = (*y_src as i32 - bias_y) * y_coef;
 
-            let r = ((y_value + ROUNDING_CONST) >> PRECISION).min(255i32).max(0);
+            let r = qrshr::<PRECISION, 8>(y_value);
             rgba[destination_channels.get_r_channel_offset()] = r as u8;
             rgba[destination_channels.get_g_channel_offset()] = r as u8;
             rgba[destination_channels.get_b_channel_offset()] = r as u8;

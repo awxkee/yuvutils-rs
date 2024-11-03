@@ -352,7 +352,7 @@ fn main() {
     // rgba = Vec::from(gbr);
 
     image::save_buffer(
-        "converted_sharp.png",
+        "converted_sharp15.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

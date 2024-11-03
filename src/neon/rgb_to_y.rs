@@ -36,8 +36,6 @@ pub unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
     range: &YuvChromaRange,
     y_plane: *mut u8,
     rgba: &[u8],
-    y_offset: usize,
-    rgba_offset: usize,
     start_cx: usize,
     width: usize,
 ) -> usize {
@@ -62,7 +60,7 @@ pub unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld3q_u8(rgba_ptr.add(cx * channels));
                 if source_channels == YuvSourceChannels::Rgb {
                     r_values_u8 = rgb_values.0;
                     g_values_u8 = rgb_values.1;
@@ -74,13 +72,13 @@ pub unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
                 }
             }
             YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.0;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.2;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.0;
@@ -128,7 +126,7 @@ pub unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
         let y_low = vcombine_u16(vqshrun_n_s32::<8>(y_l_low), vqshrun_n_s32::<8>(y_l_high));
 
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
-        vst1q_u8(y_ptr.add(y_offset + cx), y);
+        vst1q_u8(y_ptr.add(cx), y);
 
         cx += 16;
     }

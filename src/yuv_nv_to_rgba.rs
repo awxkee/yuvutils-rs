@@ -38,6 +38,7 @@ use crate::avx512bw::avx512_yuv_nv_to_rgba;
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_nv_to_rgba_row;
+use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_nv_to_rgba;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -71,8 +72,10 @@ fn yuv_nv12_to_rgbx<
     let channels = dst_chans.get_channels_count();
     let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
+    const PRECISION: i32 = 12;
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
@@ -236,16 +239,9 @@ fn yuv_nv12_to_rgbx<
             let cr_value: i32 =
                 *uv_plane.get_unchecked(cb_pos + order.get_v_position()) as i32 - bias_uv;
 
-            let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
-                >> PRECISION)
-                .min(255)
-                .max(0);
+            let r = qrshr::<PRECISION, 8>(y_value + cr_coef * cr_value);
+            let b = qrshr::<PRECISION, 8>(y_value + cb_coef * cb_value);
+            let g = qrshr::<PRECISION, 8>(y_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
 
             let px = x * channels;
 
@@ -267,17 +263,10 @@ fn yuv_nv12_to_rgbx<
                     let y_value =
                         (*y_plane.get_unchecked(y_offset + next_px) as i32 - bias_y) * y_coef;
 
-                    let r = ((y_value + cr_coef * cr_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let b = ((y_value + cb_coef * cb_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let g = ((y_value - g_coef_1 * cr_value - g_coef_2 * cb_value
-                        + ROUNDING_CONST)
-                        >> PRECISION)
-                        .min(255)
-                        .max(0);
+                    let r = qrshr::<PRECISION, 8>(y_value + cr_coef * cr_value);
+                    let b = qrshr::<PRECISION, 8>(y_value + cb_coef * cb_value);
+                    let g =
+                        qrshr::<PRECISION, 8>(y_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
 
                     let next_px = next_px * channels;
                     let dst_shift = dst_offset + next_px;

@@ -28,11 +28,7 @@
  */
 
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
-use std::arch::aarch64::{
-    uint8x16x3_t, uint8x16x4_t, vcombine_u8, vdup_n_u8, vdupq_n_s16, vdupq_n_u8, vget_low_u8,
-    vld1q_u8, vmaxq_s16, vmull_high_u8, vmull_u8, vqshrun_n_s16, vreinterpretq_s16_u16, vst3q_u8,
-    vst4q_u8, vsubq_u8,
-};
+use std::arch::aarch64::*;
 
 #[inline(always)]
 pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
@@ -52,8 +48,6 @@ pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = vdupq_n_u8(range.bias_y as u8);
-    let v_luma_coeff = vdupq_n_u8(transform.y_coef as u8);
-    let v_luma_coeff_8 = vdup_n_u8(transform.y_coef as u8);
     let v_min_values = vdupq_n_s16(0i16);
     let v_alpha = vdupq_n_u8(255u8);
 
@@ -62,13 +56,19 @@ pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
 
-        let y_high = vreinterpretq_s16_u16(vmull_high_u8(y_values, v_luma_coeff));
+        let y_high = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_high_n_u8::<7>(y_values)),
+            transform.y_coef as i16,
+        );
 
-        let r_high = vqshrun_n_s16::<6>(vmaxq_s16(y_high, v_min_values));
+        let r_high = vqrshrun_n_s16::<4>(vmaxq_s16(y_high, v_min_values));
 
-        let y_low = vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_values), v_luma_coeff_8));
+        let y_low = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<7>(vget_low_u8(y_values))),
+            transform.y_coef as i16,
+        );
 
-        let r_low = vqshrun_n_s16::<6>(vmaxq_s16(y_low, v_min_values));
+        let r_low = vqrshrun_n_s16::<4>(vmaxq_s16(y_low, v_min_values));
 
         let r_values = vcombine_u8(r_low, r_high);
 
