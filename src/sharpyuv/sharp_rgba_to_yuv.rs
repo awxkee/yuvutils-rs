@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![forbid(unsafe_code)]
+
 use crate::sharpyuv::SharpYuvGammaTransfer;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -551,16 +552,8 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         full_iter.for_each(|((((rgba, rgb_layout), y_plane), u_plane), v_plane)| {
             let y = planar_image.height as usize - 1;
-            let rgb_layout_start = y * rgb_layout_stride_len;
-            let rgb_layout_start_next = (y + 1) * rgb_layout_stride_len;
-            let rgb_layout_lane = &rgb_layout
-                [rgb_layout_start..((planar_image.width as usize) * 3 + rgb_layout_start)];
-            let rgb_layout_next_lane = if y + 1 < planar_image.height as usize {
-                &rgb_layout[rgb_layout_start_next
-                    ..((planar_image.width as usize) * 3 + rgb_layout_start_next)]
-            } else {
-                rgb_layout_lane
-            };
+            let rgb_layout_lane: &[u16] = rgb_layout;
+            let rgb_layout_next_lane: &[u16] = rgb_layout;
             sharpen_row420::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                 y,
                 rgba,

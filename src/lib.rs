@@ -30,6 +30,7 @@
 #![allow(clippy::manual_clamp)]
 #![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
+extern crate core;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod avx2;
