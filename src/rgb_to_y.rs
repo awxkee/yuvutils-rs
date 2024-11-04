@@ -99,7 +99,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     {
         iter = gray_image
             .y_plane
-            .borrow_mut()
+            .as_mut()
             .par_chunks_exact_mut(gray_image.y_stride as usize)
             .zip(rgba.par_chunks_exact(rgba_stride as usize));
     }
@@ -107,7 +107,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     {
         iter = gray_image
             .y_plane
-            .borrow_mut()
+            .as_mut()
             .chunks_exact_mut(gray_image.y_stride as usize)
             .zip(rgba.chunks_exact(rgba_stride as usize));
     }

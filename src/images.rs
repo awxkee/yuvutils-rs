@@ -45,7 +45,7 @@ impl<T: Copy + Debug> BufferStoreMut<'_, T> {
         }
     }
 
-    pub fn borrow_mut(&mut self) -> &mut [T] {
+    pub fn as_mut(&mut self) -> &mut [T] {
         match self {
             Self::Borrowed(p_ref) => p_ref,
             Self::Owned(vec) => vec,
@@ -69,7 +69,7 @@ where
     pub height: u32,
 }
 
-impl<'a, T> YuvBiPlanarImage<'a, T>
+impl<T> YuvBiPlanarImage<'_, T>
 where
     T: Copy + Debug,
 {
@@ -102,7 +102,7 @@ where
     pub height: u32,
 }
 
-impl<'a, T> YuvBiPlanarImageMut<'a, T>
+impl<T> YuvBiPlanarImageMut<'_, T>
 where
     T: Copy + Debug,
 {
@@ -191,7 +191,7 @@ where
     pub height: u32,
 }
 
-impl<'a, T> YuvGrayImage<'a, T>
+impl<T> YuvGrayImage<'_, T>
 where
     T: Copy + Debug,
 {
@@ -238,7 +238,7 @@ where
     }
 }
 
-impl<'a, T> YuvGrayImageMut<'a, T>
+impl<T> YuvGrayImageMut<'_, T>
 where
     T: Copy + Debug + Clone + Default,
 {
@@ -270,7 +270,7 @@ where
     pub height: u32,
 }
 
-impl<'a, T> YuvGrayAlphaImage<'a, T>
+impl<T> YuvGrayAlphaImage<'_, T>
 where
     T: Copy + Debug,
 {
@@ -300,7 +300,7 @@ where
     pub height: u32,
 }
 
-impl<'a, T> YuvPlanarImage<'a, T>
+impl<T> YuvPlanarImage<'_, T>
 where
     T: Copy + Debug,
 {
@@ -343,7 +343,7 @@ where
     pub height: u32,
 }
 
-impl<'a, T> YuvPlanarImageMut<'a, T>
+impl<T> YuvPlanarImageMut<'_, T>
 where
     T: Copy + Debug,
 {

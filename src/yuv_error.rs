@@ -178,7 +178,6 @@ pub(crate) fn check_chroma_channel<V>(
     Ok(())
 }
 
-
 #[inline]
 pub(crate) fn check_interleaved_chroma_channel<V>(
     data: &[V],
