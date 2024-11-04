@@ -28,8 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_deinterleave_rgb, avx512_deinterleave_rgba, avx512_pack_u16, avx512_pairwise_widen_avg
-    ,
+    avx512_deinterleave_rgb, avx512_deinterleave_rgba, avx512_pack_u16, avx512_pairwise_widen_avg,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -184,7 +183,7 @@ pub unsafe fn avx512_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let y_yuv = avx512_pack_u16(y_l, y_h);
         _mm512_storeu_si512(y_ptr.add(cx) as *mut i32, y_yuv);
 
-        if compute_uv_row {
+        if chroma_subsampling != YuvChromaSample::Yuv420 || compute_uv_row {
             let cb_l = _mm512_max_epi16(
                 _mm512_min_epi16(
                     _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(

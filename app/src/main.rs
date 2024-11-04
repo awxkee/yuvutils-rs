@@ -33,11 +33,7 @@ use std::fs::File;
 use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
-use yuvutils_rs::{
-    gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv_nv12, yuv420_to_rgb,
-    yuv_nv12_to_rgb, yuv_nv12_to_rgba, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvChromaSample,
-    YuvPlanarImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv422_to_rgb, yuv444_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgba, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSample, YuvEndianness, YuvPlanarImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -54,7 +50,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/main_test1.jpg")
+    let mut img = ImageReader::open("./assets/test_image_2.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -92,22 +88,25 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSample::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::alloc(width as u32, height as u32, YuvChromaSample::Yuv444);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSample::Yuv420);
 
-    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_gbr(
+    rgb_to_yuv420_p16(
         &mut planar_image,
-        &src_bytes,
+        &bytes_16,
         rgba_stride as u32,
+        10,
         YuvRange::Full,
+        YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
     //
-    let end_time = Instant::now().sub(start_time);
-    println!("rgb_to_yuv_nv12 time: {:?}", end_time);
+    println!("rgb_to_yuv_nv12 time: {:?}", start_time.elapsed());
     // let start_time = Instant::now();
     // let vega = Vec::from(&bytes_16[bytes_16.len() / 2..(bytes_16.len() / 2 + 15)]);
     // println!("{:?}", vega);
@@ -293,63 +292,24 @@ fn main() {
 
     let fixed = bi_planar_image.to_fixed();
     let fixed_planar = planar_image.to_fixed();
+    bytes_16.fill(0);
+    let start_time = Instant::now();
 
-    gbr_to_rgb(&fixed_planar, &mut rgba, rgba_stride as u32, YuvRange::Full).unwrap();
+    yuv420_p16_to_rgb16(
+        &fixed_planar,
+        &mut bytes_16,
+        rgba_stride as u32,
+        10,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
+    )
+    .unwrap();
 
-    println!("Backward time: {:?}", end_time);
+    println!("Backward time: {:?}", start_time.elapsed());
 
-    let a_plane = vec![0u8; width as usize * height as usize];
-
-    // let start_time = Instant::now();
-    // yuvs::yuv420_to_rgba(
-    //     &y_plane,
-    //     y_stride as usize,
-    //     &u_plane,
-    //     u_stride as usize,
-    //     &v_plane,
-    //     v_stride as usize,
-    //     &mut rgba,
-    //     8,
-    //     width as usize,
-    //     height as usize,
-    //     yuvs::YuvRange::Tv,
-    //     yuvs::YuvStandardMatrix::Bt601,
-    // )
-    // .unwrap();
-    // let end_time = Instant::now().sub(start_time);
-    // println!("Yuvs Backward time: {:?}", end_time);
-
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
-
-    //
-    // let mut gbr = vec![0u8; rgba.len()];
-    //
-    // let start_time = Instant::now();
-    // rgb_to_gbr(
-    //     &rgba,
-    //     rgba_stride as u32,
-    //     &mut gbr,
-    //     rgba_stride as u32,
-    //     width,
-    //     height,
-    // );
-    //
-    // let end_time = Instant::now().sub(start_time);
-    // println!("rgb_to_gbr time: {:?}", end_time);
-    //
-    // let start_time = Instant::now();
-    // gbr_to_rgb(
-    //     &gbr,
-    //     rgba_stride as u32,
-    //     &mut rgba,
-    //     rgba_stride as u32,
-    //     width,
-    //     height,
-    // );
-    // let end_time = Instant::now().sub(start_time);
-    // println!("gbr_to_rgb time: {:?}", end_time);
-    //
-    // rgba = Vec::from(gbr);
+    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
         "converted_sharp15.png",

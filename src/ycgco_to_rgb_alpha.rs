@@ -39,7 +39,7 @@ use crate::neon::neon_ycgco_to_rgb_alpha_row;
 use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_ycgco_to_rgb_alpha_row;
-use crate::yuv_error::{check_rgba_destination, check_y8_channel};
+use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvPlanarImageWithAlpha, YuvRange};
 

@@ -183,7 +183,7 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let y_yuv = avx2_pack_u16(y_l, y_h);
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
-        if compute_uv_row {
+        if chroma_subsampling != YuvChromaSample::Yuv420 || compute_uv_row {
             let cb_l = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(

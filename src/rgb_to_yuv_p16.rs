@@ -174,7 +174,7 @@ fn rgbx_to_yuv_impl<
 
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
-            let src = unsafe { rgba.get_unchecked(px..(px + iterator_step * 2)) };
+            let src = unsafe { rgba.get_unchecked(px..(px + iterator_step * channels)) };
             let r0 = src[src_chans.get_r_channel_offset()] as i32;
             let g0 = src[src_chans.get_g_channel_offset()] as i32;
             let b0 = src[src_chans.get_b_channel_offset()] as i32;

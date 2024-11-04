@@ -168,7 +168,6 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
                         v_plane.as_ptr(),
                         a_plane.as_ptr(),
                         rgba16.as_mut_ptr(),
-                        0,
                         planar_image_with_alpha.width,
                         &range,
                         &i_transform,
@@ -176,7 +175,7 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
                         _cx,
                         bit_depth,
                     );
-                    _cx = offset.ux;
+                    _cx = offset.cx;
                 }
             }
 

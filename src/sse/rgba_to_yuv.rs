@@ -170,7 +170,7 @@ pub unsafe fn sse_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
         let y_yuv = _mm_packus_epi16(y_l, y_h);
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, y_yuv);
 
-        if compute_uv_row {
+        if chroma_subsampling != YuvChromaSample::Yuv420 || compute_uv_row {
             let cb_l = _mm_max_epi16(
                 _mm_min_epi16(
                     _mm_srai_epi16::<V_SHR>(_mm_add_epi16(

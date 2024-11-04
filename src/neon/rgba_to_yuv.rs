@@ -150,7 +150,7 @@ pub unsafe fn neon_rgba_to_yuv<
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
         vst1q_u8(y_ptr.add(cx), y);
 
-        if compute_uv_row {
+        if chroma_subsampling != YuvChromaSample::Yuv420 || compute_uv_row {
             let mut cb_high = vqrdmlahq_s16(uv_bias, r_high, v_cb_r);
             cb_high = vqrdmlahq_s16(cb_high, g_high, v_cb_g);
             cb_high = vqrdmlahq_s16(cb_high, b_high, v_cb_b);

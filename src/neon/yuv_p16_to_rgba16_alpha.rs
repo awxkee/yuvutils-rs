@@ -47,7 +47,6 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     v_ld_ptr: *const u16,
     a_ld_ptr: *const u16,
     rgba: *mut u16,
-    dst_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -170,11 +169,11 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
             YuvSourceChannels::Bgr => {}
             YuvSourceChannels::Rgba => {
                 let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u16(rgba.add(dst_offset + cx * channels), dst_pack);
+                vst4q_u16(rgba.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Bgra => {
                 let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u16(rgba.add(dst_offset + cx * channels), dst_pack);
+                vst4q_u16(rgba.add(cx * channels), dst_pack);
             }
         }
 

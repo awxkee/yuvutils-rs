@@ -41,12 +41,12 @@ pub unsafe fn neon_yuv_p16_to_rgba16_row<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const PRECISION: i32,
 >(
     y_ld_ptr: *const u16,
     u_ld_ptr: *const u16,
     v_ld_ptr: *const u16,
     rgba: *mut u16,
-    dst_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -126,9 +126,9 @@ pub unsafe fn neon_yuv_p16_to_rgba16_row<
 
         let y_high = vmull_high_s16(y_values, v_luma_coeff);
 
-        let r_high = vrshrn_n_s32::<6>(vmlal_s16(y_high, v_high, v_cr_coeff));
-        let b_high = vrshrn_n_s32::<6>(vmlal_s16(y_high, u_high, v_cb_coeff));
-        let g_high = vrshrn_n_s32::<6>(vmlal_s16(
+        let r_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_high, v_high, v_cr_coeff));
+        let b_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_high, u_high, v_cb_coeff));
+        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(
             vmlal_s16(y_high, v_high, v_g_coeff_1),
             u_high,
             v_g_coeff_2,
@@ -138,9 +138,9 @@ pub unsafe fn neon_yuv_p16_to_rgba16_row<
         let u_low = vzip1_s16(u_values_c, u_values_c);
         let v_low = vzip1_s16(v_values_c, v_values_c);
 
-        let r_low = vrshrn_n_s32::<6>(vmlal_s16(y_low, v_low, v_cr_coeff));
-        let b_low = vrshrn_n_s32::<6>(vmlal_s16(y_low, u_low, v_cb_coeff));
-        let g_low = vrshrn_n_s32::<6>(vmlal_s16(
+        let r_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_low, v_low, v_cr_coeff));
+        let b_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_low, u_low, v_cb_coeff));
+        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(
             vmlal_s16(y_low, v_low, v_g_coeff_1),
             u_low,
             v_g_coeff_2,
@@ -153,19 +153,19 @@ pub unsafe fn neon_yuv_p16_to_rgba16_row<
         match destination_channels {
             YuvSourceChannels::Rgb => {
                 let dst_pack = uint16x8x3_t(r_values, g_values, b_values);
-                vst3q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst3q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Bgr => {
                 let dst_pack = uint16x8x3_t(b_values, g_values, r_values);
-                vst3q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst3q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Rgba => {
                 let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst4q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Bgra => {
                 let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst4q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
         }
 
