@@ -198,7 +198,7 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
 ) -> Result<(), YuvError> {
     let chroma_min_width = match sampling {
         YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => ((image_width + 1) / 2) * 2,
-        YuvChromaSample::Yuv444 => image_width,
+        YuvChromaSample::Yuv444 => image_width * 2,
     };
     let chroma_height = match sampling {
         YuvChromaSample::Yuv420 => (image_height + 1) / 2,
@@ -214,7 +214,9 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
             received: stride as usize * chroma_height as usize,
         }));
     }
-    if stride as usize * chroma_height as usize != data.len() {
+    if stride as usize * chroma_height as usize != data.len()
+        || chroma_min_width as usize * chroma_height as usize != data.len()
+    {
         return Err(YuvError::LumaPlaneSizeMismatch(MismatchedSize {
             expected: stride as usize * chroma_height as usize,
             received: data.len(),
