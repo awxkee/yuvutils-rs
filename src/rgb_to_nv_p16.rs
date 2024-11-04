@@ -84,9 +84,9 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
     let iterator_step = match chroma_subsampling {
-        YuvChromaSample::YUV420 => 2usize,
-        YuvChromaSample::YUV422 => 2usize,
-        YuvChromaSample::YUV444 => 1usize,
+        YuvChromaSample::Yuv420 => 2usize,
+        YuvChromaSample::Yuv422 => 2usize,
+        YuvChromaSample::Yuv444 => 1usize,
     };
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -111,8 +111,8 @@ fn rgbx_to_yuv_bi_planar_10_impl<
         let mut _cx = 0usize;
         let mut _ux = 0usize;
 
-        let compute_uv_row = chroma_subsampling == YuvChromaSample::YUV444
-            || chroma_subsampling == YuvChromaSample::YUV422
+        let compute_uv_row = chroma_subsampling == YuvChromaSample::Yuv444
+            || chroma_subsampling == YuvChromaSample::Yuv422
             || y & 1 == 0;
 
         let y_st_ptr = unsafe { y_dst_ptr.add(y_offset) as *mut u16 };
@@ -140,7 +140,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
                 >(y_0));
             }
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
                         let src = unsafe { rgb_ld_ptr.add(next_px) };
@@ -166,17 +166,17 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             }
 
             if compute_uv_row {
-                let r = if chroma_subsampling == YuvChromaSample::YUV444 {
+                let r = if chroma_subsampling == YuvChromaSample::Yuv444 {
                     r0
                 } else {
                     (r0 + r1 + 1) >> 1
                 };
-                let g = if chroma_subsampling == YuvChromaSample::YUV444 {
+                let g = if chroma_subsampling == YuvChromaSample::Yuv444 {
                     g0
                 } else {
                     (g0 + g1 + 1) >> 1
                 };
-                let b = if chroma_subsampling == YuvChromaSample::YUV444 {
+                let b = if chroma_subsampling == YuvChromaSample::Yuv444 {
                     b0
                 } else {
                     (b0 + b1 + 1) >> 1
@@ -186,8 +186,8 @@ fn rgbx_to_yuv_bi_planar_10_impl<
                 let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
                     >> PRECISION;
                 let u_pos = match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => _ux,
-                    YuvChromaSample::YUV444 => _ux,
+                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => _ux,
+                    YuvChromaSample::Yuv444 => _ux,
                 };
                 unsafe {
                     let dst_ptr = uv_st_ptr.add(u_pos);
@@ -210,12 +210,12 @@ fn rgbx_to_yuv_bi_planar_10_impl<
         y_offset += y_stride as usize;
         rgba_offset += rgba_stride as usize;
         match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
+            YuvChromaSample::Yuv420 => {
                 if y & 1 == 1 {
                     uv_offset += uv_stride as usize;
                 }
             }
-            YuvChromaSample::YUV444 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv444 | YuvChromaSample::Yuv422 => {
                 uv_offset += uv_stride as usize;
             }
         }
@@ -301,7 +301,7 @@ pub fn rgb_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -310,7 +310,7 @@ pub fn rgb_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -321,7 +321,7 @@ pub fn rgb_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -330,7 +330,7 @@ pub fn rgb_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -381,7 +381,7 @@ pub fn rgb_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -390,7 +390,7 @@ pub fn rgb_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -401,7 +401,7 @@ pub fn rgb_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -410,7 +410,7 @@ pub fn rgb_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -461,7 +461,7 @@ pub fn rgba_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -470,7 +470,7 @@ pub fn rgba_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -481,7 +481,7 @@ pub fn rgba_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -490,7 +490,7 @@ pub fn rgba_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -541,7 +541,7 @@ pub fn rgba_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -550,7 +550,7 @@ pub fn rgba_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -561,7 +561,7 @@ pub fn rgba_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -570,7 +570,7 @@ pub fn rgba_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -621,7 +621,7 @@ pub fn bgr_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -630,7 +630,7 @@ pub fn bgr_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -641,7 +641,7 @@ pub fn bgr_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -650,7 +650,7 @@ pub fn bgr_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -701,7 +701,7 @@ pub fn bgr_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -710,7 +710,7 @@ pub fn bgr_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -721,7 +721,7 @@ pub fn bgr_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -730,7 +730,7 @@ pub fn bgr_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -781,7 +781,7 @@ pub fn bgra_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -790,7 +790,7 @@ pub fn bgra_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -801,7 +801,7 @@ pub fn bgra_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -810,7 +810,7 @@ pub fn bgra_to_yuv_nv12_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -861,7 +861,7 @@ pub fn bgra_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -870,7 +870,7 @@ pub fn bgra_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -881,7 +881,7 @@ pub fn bgra_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -890,7 +890,7 @@ pub fn bgra_to_yuv_nv21_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -941,7 +941,7 @@ pub fn bgr_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -950,7 +950,7 @@ pub fn bgr_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -961,7 +961,7 @@ pub fn bgr_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -970,7 +970,7 @@ pub fn bgr_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1021,7 +1021,7 @@ pub fn bgr_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1030,7 +1030,7 @@ pub fn bgr_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1041,7 +1041,7 @@ pub fn bgr_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1050,7 +1050,7 @@ pub fn bgr_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1101,7 +1101,7 @@ pub fn rgb_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1110,7 +1110,7 @@ pub fn rgb_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1121,7 +1121,7 @@ pub fn rgb_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1130,7 +1130,7 @@ pub fn rgb_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1181,7 +1181,7 @@ pub fn rgb_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1190,7 +1190,7 @@ pub fn rgb_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1201,7 +1201,7 @@ pub fn rgb_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1210,7 +1210,7 @@ pub fn rgb_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1261,7 +1261,7 @@ pub fn rgba_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1270,7 +1270,7 @@ pub fn rgba_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1281,7 +1281,7 @@ pub fn rgba_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1290,7 +1290,7 @@ pub fn rgba_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1341,7 +1341,7 @@ pub fn rgba_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1350,7 +1350,7 @@ pub fn rgba_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1361,7 +1361,7 @@ pub fn rgba_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1370,7 +1370,7 @@ pub fn rgba_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1421,7 +1421,7 @@ pub fn bgra_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1430,7 +1430,7 @@ pub fn bgra_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1441,7 +1441,7 @@ pub fn bgra_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1450,7 +1450,7 @@ pub fn bgra_to_yuv_nv16_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1501,7 +1501,7 @@ pub fn bgra_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1510,7 +1510,7 @@ pub fn bgra_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1521,7 +1521,7 @@ pub fn bgra_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1530,7 +1530,7 @@ pub fn bgra_to_yuv_nv61_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1581,7 +1581,7 @@ pub fn rgb_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1590,7 +1590,7 @@ pub fn rgb_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1601,7 +1601,7 @@ pub fn rgb_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1610,7 +1610,7 @@ pub fn rgb_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1661,7 +1661,7 @@ pub fn rgb_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1670,7 +1670,7 @@ pub fn rgb_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1681,7 +1681,7 @@ pub fn rgb_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1690,7 +1690,7 @@ pub fn rgb_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgb as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1741,7 +1741,7 @@ pub fn bgr_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1750,7 +1750,7 @@ pub fn bgr_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1761,7 +1761,7 @@ pub fn bgr_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1770,7 +1770,7 @@ pub fn bgr_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1823,7 +1823,7 @@ pub fn bgr_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1832,7 +1832,7 @@ pub fn bgr_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1843,7 +1843,7 @@ pub fn bgr_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1852,7 +1852,7 @@ pub fn bgr_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgr as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1903,7 +1903,7 @@ pub fn bgra_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1912,7 +1912,7 @@ pub fn bgra_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1923,7 +1923,7 @@ pub fn bgra_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1932,7 +1932,7 @@ pub fn bgra_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1983,7 +1983,7 @@ pub fn bgra_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -1992,7 +1992,7 @@ pub fn bgra_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -2003,7 +2003,7 @@ pub fn bgra_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -2012,7 +2012,7 @@ pub fn bgra_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Bgra as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -2063,7 +2063,7 @@ pub fn rgba_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -2072,7 +2072,7 @@ pub fn rgba_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -2083,7 +2083,7 @@ pub fn rgba_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -2092,7 +2092,7 @@ pub fn rgba_to_yuv_nv24_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::UV as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -2143,7 +2143,7 @@ pub fn rgba_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -2152,7 +2152,7 @@ pub fn rgba_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -2163,7 +2163,7 @@ pub fn rgba_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -2172,7 +2172,7 @@ pub fn rgba_to_yuv_nv42_p16(
                 rgbx_to_yuv_bi_planar_10::<
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >

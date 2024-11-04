@@ -160,14 +160,14 @@ pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING:
             let cg = avx512_pack_u16(cg_l, cg_h);
             let co = avx512_pack_u16(co_l, co_h);
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     let cb_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(cg));
                     let cr_h = _mm512_castsi512_si256(avx512_pairwise_widen_avg(co));
                     _mm256_storeu_si256(cg_ptr.add(uv_x) as *mut _ as *mut __m256i, cb_h);
                     _mm256_storeu_si256(co_ptr.add(uv_x) as *mut _ as *mut __m256i, cr_h);
                     uv_x += 32;
                 }
-                YuvChromaSample::YUV444 => {
+                YuvChromaSample::Yuv444 => {
                     _mm512_storeu_si512(cg_ptr.add(uv_x) as *mut i32, cg);
                     _mm512_storeu_si512(co_ptr.add(uv_x) as *mut i32, co);
                     uv_x += 64;

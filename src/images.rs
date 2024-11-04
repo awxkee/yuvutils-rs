@@ -131,12 +131,12 @@ where
     /// Allocates mutable target Bi-Planar image with required chroma subsampling
     pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSample) -> Self {
         let chroma_width = match subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => ((width as usize + 1) / 2) * 2,
-            YuvChromaSample::YUV444 => width as usize * 2,
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => ((width as usize + 1) / 2) * 2,
+            YuvChromaSample::Yuv444 => width as usize * 2,
         };
         let chroma_height = match subsampling {
-            YuvChromaSample::YUV420 => (height as usize + 1) / 2,
-            YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => height as usize,
+            YuvChromaSample::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSample::Yuv422 | YuvChromaSample::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];
         let chroma_target = vec![T::default(); chroma_width * chroma_height];
@@ -325,7 +325,7 @@ where
 }
 
 #[derive(Debug)]
-/// Mutable of Bi-Planar YUV image
+/// Mutable representation of Planar YUV image
 pub struct YuvPlanarImageMut<'a, T>
 where
     T: Copy + Debug,
@@ -376,15 +376,15 @@ impl<'a, T> YuvPlanarImageMut<'a, T>
 where
     T: Default + Clone + Copy + Debug,
 {
-    /// Allocates mutable target Bi-Planar image with required chroma subsampling
+    /// Allocates mutable target planar image with required chroma subsampling
     pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSample) -> Self {
         let chroma_width = match subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => (width as usize + 1) / 2,
-            YuvChromaSample::YUV444 => width as usize,
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => (width as usize + 1) / 2,
+            YuvChromaSample::Yuv444 => width as usize,
         };
         let chroma_height = match subsampling {
-            YuvChromaSample::YUV420 => (height as usize + 1) / 2,
-            YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => height as usize,
+            YuvChromaSample::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSample::Yuv422 | YuvChromaSample::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];
         let u_target = vec![T::default(); chroma_width * chroma_height];

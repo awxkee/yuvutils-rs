@@ -99,7 +99,7 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
                 Yuy2Description::VYUY => pixel_set.0,
             };
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSample::Yuv444 {
                 let low_u_value = _mm_unpacklo_epi8(u_value, u_value);
                 let high_u_value = _mm_unpackhi_epi8(u_value, u_value);
                 let low_v_value = _mm_unpacklo_epi8(v_value, v_value);
@@ -125,8 +125,8 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
             _yuy2_x = x;
             if x + 16 < max_x_16 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 16,
-                    YuvChromaSample::YUV444 => 32,
+                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 16,
+                    YuvChromaSample::Yuv444 => 32,
                 };
                 _cx += 32;
             }
@@ -174,7 +174,7 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
                 y_reconstructed,
             );
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSample::Yuv444 {
                 let u_value = _mm_unpacklo_epi8(u_value, u_value);
                 let v_value = _mm_unpacklo_epi8(v_value, v_value);
                 _mm_storeu_si128(u_plane.as_mut_ptr().add(u_pos) as *mut __m128i, u_value);
@@ -195,8 +195,8 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
             _yuy2_x = x;
             if x + 8 < max_x_8 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 8,
-                    YuvChromaSample::YUV444 => 16,
+                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 8,
+                    YuvChromaSample::Yuv444 => 16,
                 };
                 _cx += 16;
             }

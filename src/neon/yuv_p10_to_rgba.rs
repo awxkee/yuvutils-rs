@@ -182,10 +182,10 @@ pub unsafe fn neon_yuv_p16_to_rgba_row<
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 ux += 4;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 ux += 8;
             }
         }

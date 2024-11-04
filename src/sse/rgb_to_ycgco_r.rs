@@ -154,14 +154,14 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
         _mm_storeu_si128(y_ptr.add(cx + 8) as *mut __m128i, y_h);
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 let cg_h = sse_pairwise_avg_epi16(cg_l, cg_h);
                 let co_h = sse_pairwise_avg_epi16(co_l, co_h);
                 _mm_storeu_si128(cg_ptr.add(uv_x) as *mut __m128i, cg_h);
                 _mm_storeu_si128(co_ptr.add(uv_x) as *mut __m128i, co_h);
                 uv_x += 8;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 _mm_storeu_si128(cg_ptr.add(uv_x) as *mut __m128i, cg_l);
                 _mm_storeu_si128(cg_ptr.add(uv_x).add(8) as *mut __m128i, cg_h);
                 _mm_storeu_si128(co_ptr.add(uv_x) as *mut __m128i, co_l);

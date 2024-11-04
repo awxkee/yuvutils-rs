@@ -143,7 +143,7 @@ pub unsafe fn neon_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
             let cg = vcombine_u8(vqmovn_u16(cg_low), vqmovn_u16(cg_high));
             let co = vcombine_u8(vqmovn_u16(co_low), vqmovn_u16(co_high));
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     let cg_s = vrshrn_n_u16::<1>(vpaddlq_u8(cg));
                     let co_s = vrshrn_n_u16::<1>(vpaddlq_u8(co));
                     vst1_u8(cg_ptr.add(uv_x), cg_s);
@@ -151,7 +151,7 @@ pub unsafe fn neon_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
 
                     uv_x += 8;
                 }
-                YuvChromaSample::YUV444 => {
+                YuvChromaSample::Yuv444 => {
                     vst1q_u8(cg_ptr.add(uv_x), cg);
                     vst1q_u8(co_ptr.add(uv_x), co);
 

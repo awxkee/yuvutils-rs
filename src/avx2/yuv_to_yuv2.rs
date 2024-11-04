@@ -70,7 +70,7 @@ pub unsafe fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>
                 _mm256_loadu_si256(y_ptr.add(32) as *const __m256i),
             );
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSample::Yuv444 {
                 let u_ptr = u_plane.as_ptr().add(u_pos);
                 let full_u = (
                     _mm256_loadu_si256(u_ptr as *const __m256i),
@@ -112,8 +112,8 @@ pub unsafe fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>
 
             if x + 32 < max_x_32 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 32,
-                    YuvChromaSample::YUV444 => 64,
+                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 32,
+                    YuvChromaSample::Yuv444 => 64,
                 };
                 _cx += 64;
             }

@@ -89,7 +89,7 @@ pub unsafe fn avx512_yuv_nv_to_rgba<
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_offset + uv_x) as *const i32);
 
                 let u_values = avx512_interleave_even_epi8(uv_values, uv_values);
@@ -110,7 +110,7 @@ pub unsafe fn avx512_yuv_nv_to_rgba<
                     }
                 }
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 let offset = uv_offset + uv_x;
                 let v_str = uv_ptr.add(offset);
                 let uv_values_l = _mm512_loadu_si512(v_str as *const i32);
@@ -250,10 +250,10 @@ pub unsafe fn avx512_yuv_nv_to_rgba<
         cx += 64;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 uv_x += 64;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 uv_x += 128;
             }
         }

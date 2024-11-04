@@ -191,7 +191,7 @@ pub unsafe fn neon_rgbx_to_nv_row<
             let cr = vcombine_u8(vqmovn_u16(cr_low), vqmovn_u16(cr_high));
 
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     let cb_s = vrshrn_n_u16::<1>(vpaddlq_u8(cb));
                     let cr_s = vrshrn_n_u16::<1>(vpaddlq_u8(cr));
                     match order {
@@ -206,7 +206,7 @@ pub unsafe fn neon_rgbx_to_nv_row<
                     }
                     ux += 16;
                 }
-                YuvChromaSample::YUV444 => {
+                YuvChromaSample::Yuv444 => {
                     match order {
                         YuvNVOrder::UV => {
                             let store: uint8x16x2_t = uint8x16x2_t(cb, cr);

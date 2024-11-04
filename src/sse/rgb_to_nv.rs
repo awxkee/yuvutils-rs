@@ -246,7 +246,7 @@ pub unsafe fn sse_rgba_to_nv_row<
             let cr = _mm_packus_epi16(cr_l, cr_h);
 
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     let cb_h = sse_pairwise_widen_avg(cb);
                     let cr_h = sse_pairwise_widen_avg(cr);
                     let row0 = match order {
@@ -257,7 +257,7 @@ pub unsafe fn sse_rgba_to_nv_row<
                     _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
                     uv_x += 16;
                 }
-                YuvChromaSample::YUV444 => {
+                YuvChromaSample::Yuv444 => {
                     let row0 = match order {
                         YuvNVOrder::UV => _mm_unpacklo_epi8(cb, cr),
                         YuvNVOrder::VU => _mm_unpacklo_epi8(cr, cb),

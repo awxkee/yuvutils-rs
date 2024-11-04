@@ -91,12 +91,12 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
     iter.enumerate().for_each(|(y, yuy2_store)| unsafe {
         let y_offset = y * (y_stride as usize);
-        let u_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+        let u_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
             (y >> 1) * (u_stride as usize)
         } else {
             y * (u_stride as usize)
         };
-        let v_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
+        let v_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
             (y >> 1) * (v_stride as usize)
         } else {
             y * (v_stride as usize)
@@ -170,7 +170,7 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             let (u_value, v_value);
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSample::Yuv444 {
                 u_value = (((*u_plane.get_unchecked(u_pos) as u32
                     + *u_plane.get_unchecked(u_pos + 1) as u32)
                     + 1)
@@ -195,8 +195,8 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
 
             _uv_x += match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 1,
-                YuvChromaSample::YUV444 => 2,
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 1,
+                YuvChromaSample::Yuv444 => 2,
             };
             _cx += 2;
         }
@@ -245,7 +245,7 @@ pub fn yuv444_to_yuyv422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv444 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -275,7 +275,7 @@ pub fn yuv422_to_yuyv422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv422 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -305,7 +305,7 @@ pub fn yuv420_to_yuyv422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv420 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -335,7 +335,7 @@ pub fn yuv444_to_yvyu422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv444 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -365,7 +365,7 @@ pub fn yuv422_to_yvyu422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv422 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -395,7 +395,7 @@ pub fn yuv420_to_yvyu422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv420 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -425,7 +425,7 @@ pub fn yuv444_to_vyuy422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv444 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -455,7 +455,7 @@ pub fn yuv422_to_vyuy422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv422 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -485,7 +485,7 @@ pub fn yuv420_to_vyuy422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv420 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -515,7 +515,7 @@ pub fn yuv444_to_uyvy422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv444 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -545,7 +545,7 @@ pub fn yuv422_to_uyvy422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv422 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,
@@ -575,7 +575,7 @@ pub fn yuv420_to_uyvy422(
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<{ YuvChromaSample::Yuv420 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         yuy2_store,
         yuy2_stride,

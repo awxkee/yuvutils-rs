@@ -92,7 +92,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_offset + uv_x) as *const __m128i);
                 let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
@@ -114,7 +114,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
                     }
                 }
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 let uv_source_ptr = uv_ptr.add(uv_offset + uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
                 let row1 = _mm_loadu_si128(uv_source_ptr.add(16) as *const __m128i);
@@ -243,10 +243,10 @@ pub unsafe fn sse_yuv_nv_to_rgba<
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 uv_x += 16;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 uv_x += 32;
             }
         }
@@ -261,7 +261,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
         let (u_low_u16, v_low_u16);
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 let uv_values_ = _mm_loadu_si64(uv_ptr.add(uv_offset + uv_x));
                 let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
@@ -279,7 +279,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
                     }
                 }
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 let uv_source_ptr = uv_ptr.add(uv_offset + uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
                 let (u, v) = _mm_deinterleave_x2_epi8(row0, zeros);
@@ -364,10 +364,10 @@ pub unsafe fn sse_yuv_nv_to_rgba<
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 uv_x += 8;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 uv_x += 16;
             }
         }

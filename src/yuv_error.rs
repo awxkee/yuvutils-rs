@@ -44,17 +44,27 @@ pub enum YuvError {
     ZeroBaseSize,
     LumaPlaneSizeMismatch(MismatchedSize),
     LumaPlaneMinimumSizeMismatch(MismatchedSize),
+    ChromaPlaneMinimumSizeMismatch(MismatchedSize),
+    ChromaPlaneSizeMismatch(MismatchedSize),
 }
 
 impl Display for YuvError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            YuvError::ChromaPlaneSizeMismatch(size) => f.write_fmt(format_args!(
+                "Chroma plane have invalid size, it must be {}, but it was {}",
+                size.expected, size.received
+            )),
             YuvError::LumaPlaneSizeMismatch(size) => f.write_fmt(format_args!(
                 "Luma plane have invalid size, it must be {}, but it was {}",
                 size.expected, size.received
             )),
             YuvError::LumaPlaneMinimumSizeMismatch(size) => f.write_fmt(format_args!(
                 "Luma plane have invalid size, it must be at least {}, but it was {}",
+                size.expected, size.received
+            )),
+            YuvError::ChromaPlaneMinimumSizeMismatch(size) => f.write_fmt(format_args!(
+                "Chroma plane have invalid size, it must be at least {}, but it was {}",
                 size.expected, size.received
             )),
             YuvError::PointerOverflow => f.write_str("Image size overflow pointer capabilities"),
@@ -152,19 +162,19 @@ pub(crate) fn check_chroma_channel<V>(
     sampling: YuvChromaSample,
 ) -> Result<(), YuvError> {
     let chroma_min_width = match sampling {
-        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => (image_width + 1) / 2,
-        YuvChromaSample::YUV444 => image_width,
+        YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => (image_width + 1) / 2,
+        YuvChromaSample::Yuv444 => image_width,
     };
     let chroma_height = match sampling {
-        YuvChromaSample::YUV420 => (image_height + 1) / 2,
-        YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => image_height,
+        YuvChromaSample::Yuv420 => (image_height + 1) / 2,
+        YuvChromaSample::Yuv422 | YuvChromaSample::Yuv444 => image_height,
     };
     check_overflow_v2(stride as usize, chroma_height as usize)?;
     check_overflow_v2(chroma_min_width as usize, chroma_height as usize)?;
     if (stride as usize * chroma_height as usize)
         < (chroma_min_width as usize * chroma_height as usize)
     {
-        return Err(YuvError::LumaPlaneMinimumSizeMismatch(MismatchedSize {
+        return Err(YuvError::ChromaPlaneMinimumSizeMismatch(MismatchedSize {
             expected: chroma_min_width as usize * chroma_height as usize,
             received: stride as usize * chroma_height as usize,
         }));
@@ -187,12 +197,12 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
     sampling: YuvChromaSample,
 ) -> Result<(), YuvError> {
     let chroma_min_width = match sampling {
-        YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => ((image_width + 1) / 2) * 2,
-        YuvChromaSample::YUV444 => image_width,
+        YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => ((image_width + 1) / 2) * 2,
+        YuvChromaSample::Yuv444 => image_width,
     };
     let chroma_height = match sampling {
-        YuvChromaSample::YUV420 => (image_height + 1) / 2,
-        YuvChromaSample::YUV422 | YuvChromaSample::YUV444 => image_height,
+        YuvChromaSample::Yuv420 => (image_height + 1) / 2,
+        YuvChromaSample::Yuv422 | YuvChromaSample::Yuv444 => image_height,
     };
     check_overflow_v2(stride as usize, chroma_height as usize)?;
     check_overflow_v2(chroma_min_width as usize, chroma_height as usize)?;

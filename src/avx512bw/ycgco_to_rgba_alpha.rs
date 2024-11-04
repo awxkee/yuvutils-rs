@@ -94,7 +94,7 @@ pub unsafe fn avx512_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const S
         let v_low_u8;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
                 let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
 
@@ -108,7 +108,7 @@ pub unsafe fn avx512_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const S
                 v_low_u8 =
                     _mm256_permute4x64_epi64::<MASK>(_mm256_unpacklo_epi8(v_values, v_values));
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
                 let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
 
@@ -237,10 +237,10 @@ pub unsafe fn avx512_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const S
         cx += 64;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 uv_x += 32;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 uv_x += 64;
             }
         }

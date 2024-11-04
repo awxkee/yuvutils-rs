@@ -26,6 +26,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::{YuvBytesPacking, YuvEndianness};
+use std::ops::Shr;
 
 #[inline(always)]
 /// Saturating rounding shift right against bit depth
@@ -38,4 +40,25 @@ pub(crate) fn qrshr<const PRECISION: i32, const BIT_DEPTH: usize>(val: i32) -> i
 #[inline]
 pub(crate) fn div_by_255(v: u16) -> u8 {
     ((((v + 0x80) >> 8) + v + 0x80) >> 8).min(255) as u8
+}
+
+#[inline(always)]
+pub(crate) fn to_ne<const ENDIANNESS: u8, const BYTES_POSITION: u8>(v: u16, msb: i32) -> u16 {
+    let endianness: YuvEndianness = ENDIANNESS.into();
+    let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
+    let new_v = match endianness {
+        YuvEndianness::BigEndian => u16::from_be(v),
+        YuvEndianness::LittleEndian => u16::from_le(v),
+    };
+    match bytes_position {
+        YuvBytesPacking::MostSignificantBytes => new_v.shr(msb),
+        YuvBytesPacking::LeastSignificantBytes => new_v,
+    }
+}
+
+#[inline(always)]
+/// Saturating rounding shift right against bit depth
+pub(crate) fn qrshr_n<const PRECISION: i32>(val: i32, max: i32) -> i32 {
+    let rounding: i32 = 1 << (PRECISION - 1);
+    ((val + rounding) >> PRECISION).min(max).max(0)
 }

@@ -257,7 +257,7 @@ pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, con
             let cr = avx2_pack_u16(cr_l, cr_h);
 
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     let cb_h = avx2_pairwise_widen_avg(cb);
                     let cr_h = avx2_pairwise_widen_avg(cr);
                     let (row0, _) = match order {
@@ -267,7 +267,7 @@ pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, con
                     _mm256_storeu_si256(uv_ptr.add(uv_x) as *mut __m256i, row0);
                     uv_x += 32;
                 }
-                YuvChromaSample::YUV444 => {
+                YuvChromaSample::Yuv444 => {
                     let (row0, row1) = match order {
                         YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb, cr),
                         YuvNVOrder::VU => _mm256_interleave_x2_epi8(cr, cb),

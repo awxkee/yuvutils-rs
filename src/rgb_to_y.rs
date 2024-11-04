@@ -196,7 +196,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 ///
 /// * `gray_image` - Target gray image.
 /// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (elements per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///

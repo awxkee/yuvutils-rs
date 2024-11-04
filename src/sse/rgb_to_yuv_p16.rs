@@ -181,7 +181,7 @@ pub unsafe fn sse_rgba_to_yuv_p16<
             let mut cr_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(cr_l), _mm_srai_epi32::<8>(cr_h));
 
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     let mut cb_s = sse_avg_epi16(cb_vl);
                     let mut cr_s = sse_avg_epi16(cr_vl);
 
@@ -208,7 +208,7 @@ pub unsafe fn sse_rgba_to_yuv_p16<
 
                     ux += 4;
                 }
-                YuvChromaSample::YUV444 => {
+                YuvChromaSample::Yuv444 => {
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         cb_vl = _mm_sll_epi32(cb_vl, v_shift_count);
                         cr_vl = _mm_sll_epi32(cr_vl, v_shift_count);

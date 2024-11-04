@@ -241,7 +241,7 @@ pub unsafe fn sse_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
             let cr = _mm_packus_epi16(cr_l, cr_h);
 
             match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                     let cb_h = sse_pairwise_widen_avg(cb);
                     let cr_h = sse_pairwise_widen_avg(cr);
                     std::ptr::copy_nonoverlapping(
@@ -256,7 +256,7 @@ pub unsafe fn sse_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
                     );
                     uv_x += 8;
                 }
-                YuvChromaSample::YUV444 => {
+                YuvChromaSample::Yuv444 => {
                     _mm_storeu_si128(u_ptr.add(uv_x) as *mut __m128i, cb);
                     _mm_storeu_si128(v_ptr.add(uv_x) as *mut __m128i, cr);
                     uv_x += 16;

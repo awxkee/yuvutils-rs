@@ -96,7 +96,7 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
             Yuy2Description::VYUY => pixel_set.0,
         };
 
-        if chroma_subsampling == YuvChromaSample::YUV444 {
+        if chroma_subsampling == YuvChromaSample::Yuv444 {
             let (low_u_value, high_u_value) = _mm256_interleave_x2_epi8(u_value, u_value);
             let (low_v_value, high_v_value) = _mm256_interleave_x2_epi8(v_value, v_value);
 
@@ -120,8 +120,8 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
         _yuy2_x = x;
         if x + 32 < max_x_32 {
             _uv_x += match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 32,
-                YuvChromaSample::YUV444 => 64,
+                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 32,
+                YuvChromaSample::Yuv444 => 64,
             };
             _cx += 64;
         }

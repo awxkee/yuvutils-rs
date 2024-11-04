@@ -92,7 +92,7 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 uint8x16x2_t(y_first, y_second),
             );
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSample::Yuv444 {
                 let low_u_value = vzip1q_u8(u_value, u_value);
                 let high_u_value = vzip2q_u8(u_value, u_value);
                 let low_v_value = vzip1q_u8(v_value, v_value);
@@ -113,8 +113,8 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             _yuy2_x = x;
             if x + 16 < max_x_16 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 16,
-                    YuvChromaSample::YUV444 => 32,
+                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 16,
+                    YuvChromaSample::Yuv444 => 32,
                 };
                 _cx += 32;
             }
@@ -159,7 +159,7 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 vcombine_u8(y_first, y_second),
             );
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSample::Yuv444 {
                 let low_u_value = vzip1_u8(u_value, u_value);
                 let high_u_value = vzip2_u8(u_value, u_value);
                 let low_v_value = vzip1_u8(v_value, v_value);
@@ -180,8 +180,8 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             _yuy2_x = x;
             if x + 8 < max_x_8 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 8,
-                    YuvChromaSample::YUV444 => 16,
+                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 8,
+                    YuvChromaSample::Yuv444 => 16,
                 };
                 _cx += 16;
             }

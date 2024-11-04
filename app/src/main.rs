@@ -34,9 +34,9 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 use yuvutils_rs::{
-    rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv_nv12, yuv420_to_rgb, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgba, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvChromaSample, YuvPlanarImage,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv_nv12, yuv420_to_rgb,
+    yuv_nv12_to_rgb, yuv_nv12_to_rgba, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvChromaSample,
+    YuvPlanarImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -89,21 +89,19 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut bi_planar_image =
-        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSample::YUV420);
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSample::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::alloc(width as u32, height as u32, YuvChromaSample::YUV420);
+        YuvPlanarImageMut::alloc(width as u32, height as u32, YuvChromaSample::Yuv444);
 
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_sharp_yuv420(
+    rgb_to_gbr(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::TV,
-        YuvStandardMatrix::Bt601,
-        SharpYuvGammaTransfer::Srgb,
+        YuvRange::Full,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -296,14 +294,7 @@ fn main() {
     let fixed = bi_planar_image.to_fixed();
     let fixed_planar = planar_image.to_fixed();
 
-    yuv420_to_rgb(
-        &fixed_planar,
-        &mut rgba,
-        rgba_stride as u32,
-        YuvRange::TV,
-        YuvStandardMatrix::Bt601,
-    )
-    .unwrap();
+    gbr_to_rgb(&fixed_planar, &mut rgba, rgba_stride as u32, YuvRange::Full).unwrap();
 
     println!("Backward time: {:?}", end_time);
 

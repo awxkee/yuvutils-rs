@@ -90,7 +90,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
         let v_low_u8;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 let mut uv_values = v128_load_deinterleave_u8_x2(uv_ptr.add(uv_offset + ux));
                 if order == YuvNVOrder::VU {
                     uv_values = (uv_values.1, uv_values.0);
@@ -101,7 +101,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
                 u_low_u8 = wasm_unpacklo_i8x16(uv_values.0, uv_values.0);
                 v_low_u8 = wasm_unpacklo_i8x16(uv_values.1, uv_values.1);
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 let mut uv_values = v128_load_deinterleave_half_u8_x2(uv_ptr.add(uv_offset + ux));
                 if order == YuvNVOrder::VU {
                     uv_values = (uv_values.1, uv_values.0);
@@ -220,10 +220,10 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 ux += 16;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 ux += 32;
             }
         }

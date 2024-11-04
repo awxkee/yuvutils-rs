@@ -40,7 +40,6 @@ mod avx2;
 ))]
 mod avx512bw;
 mod from_identity;
-mod from_identity_p16;
 mod images;
 mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -305,15 +304,15 @@ pub use yuy2_to_yuv::yvyu422_to_yuv420;
 pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
-pub use from_identity::gbr_to_bgr;
-pub use from_identity::gbr_to_bgra;
-pub use from_identity::gbr_to_rgb;
-pub use from_identity::gbr_to_rgba;
+pub use from_identity::{
+    gbr_to_bgr, gbr_to_bgr_p16, gbr_to_bgra, gbr_to_bgra_p16, gbr_to_rgb, gbr_to_rgb_p16,
+    gbr_to_rgba, gbr_to_rgba_p16,
+};
 
-pub use to_identity::bgr_to_gbr;
-pub use to_identity::bgra_to_gbr;
-pub use to_identity::rgb_to_gbr;
-pub use to_identity::rgba_to_gbr;
+pub use to_identity::{
+    bgr16_to_gbr16, bgr_to_gbr, bgra16_to_gbr16, bgra_to_gbr, rgb16_to_gbr16, rgb_to_gbr,
+    rgba16_to_gbr16, rgba_to_gbr,
+};
 
 pub use rgb_to_nv_p16::bgr_to_yuv_nv12_p16;
 pub use rgb_to_nv_p16::bgr_to_yuv_nv16_p16;
@@ -399,11 +398,6 @@ pub use yuy2_to_rgb_p16::yvyu422_to_bgr_p16;
 pub use yuy2_to_rgb_p16::yvyu422_to_bgra_p16;
 pub use yuy2_to_rgb_p16::yvyu422_to_rgb_p16;
 pub use yuy2_to_rgb_p16::yvyu422_to_rgba_p16;
-
-pub use from_identity_p16::gbr_to_bgr_p16;
-pub use from_identity_p16::gbr_to_bgra_p16;
-pub use from_identity_p16::gbr_to_rgb_p16;
-pub use from_identity_p16::gbr_to_rgba_p16;
 
 pub use sharpyuv::bgr_to_sharp_yuv420;
 pub use sharpyuv::bgr_to_sharp_yuv422;

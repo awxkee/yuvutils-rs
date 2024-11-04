@@ -90,7 +90,7 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
         let v_low_u8: uint8x8_t;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 let u_values = vld1_u8(u_ptr.add(uv_x));
                 let v_values = vld1_u8(v_ptr.add(uv_x));
 
@@ -99,7 +99,7 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
                 u_low_u8 = vzip1_u8(u_values, u_values);
                 v_low_u8 = vzip1_u8(v_values, v_values);
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 let u_values = vld1q_u8(u_ptr.add(uv_x));
                 let v_values = vld1q_u8(v_ptr.add(uv_x));
 
@@ -177,10 +177,10 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
                 uv_x += 8;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSample::Yuv444 => {
                 uv_x += 16;
             }
         }
