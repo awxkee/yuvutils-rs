@@ -232,7 +232,7 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 ///
 /// # Panics
 ///
@@ -262,7 +262,7 @@ pub fn yuv444_to_yuyv422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 ///
 /// # Panics
 ///
@@ -292,7 +292,7 @@ pub fn yuv422_to_yuyv422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 ///
 /// # Panics
 ///
@@ -322,7 +322,7 @@ pub fn yuv420_to_yuyv422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 ///
 /// # Panics
 ///
@@ -352,7 +352,7 @@ pub fn yuv444_to_yvyu422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 ///
 /// # Panics
 ///
@@ -382,7 +382,7 @@ pub fn yuv422_to_yvyu422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 ///
 /// # Panics
 ///
@@ -412,7 +412,7 @@ pub fn yuv420_to_yvyu422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 ///
 /// # Panics
 ///
@@ -442,7 +442,7 @@ pub fn yuv444_to_vyuy422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 ///
 /// # Panics
 ///
@@ -472,7 +472,7 @@ pub fn yuv422_to_vyuy422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 ///
 /// # Panics
 ///
@@ -502,7 +502,7 @@ pub fn yuv420_to_vyuy422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 ///
 /// # Panics
 ///
@@ -532,7 +532,7 @@ pub fn yuv444_to_uyvy422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 ///
 /// # Panics
 ///
@@ -562,7 +562,7 @@ pub fn yuv422_to_uyvy422(
 ///
 /// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 ///
 /// # Panics
 ///

@@ -237,11 +237,11 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgb_data` - A mutable slice to store the converted RGB data.
@@ -283,11 +283,11 @@ pub fn ycgcoro420_to_rgb(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgr_data` - A mutable slice to store the converted RGB data.
@@ -329,11 +329,11 @@ pub fn ycgcoro420_to_bgr(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
@@ -384,11 +384,11 @@ pub fn ycgcoro420_to_rgba(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -439,11 +439,11 @@ pub fn ycgcoro420_to_bgra(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgb_data` - A mutable slice to store the converted RGB data.
@@ -485,11 +485,11 @@ pub fn ycgcoro422_to_rgb(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgb_data` - A mutable slice to store the converted BGR data.
@@ -531,11 +531,11 @@ pub fn ycgcoro422_to_bgr(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted RGBA data.
@@ -586,11 +586,11 @@ pub fn ycgcoro422_to_rgba(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -641,11 +641,11 @@ pub fn ycgcoro422_to_bgra(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
@@ -696,11 +696,11 @@ pub fn ycgcoro444_to_rgba(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra_data` - A mutable slice to store the converted BGRA data.
@@ -751,11 +751,11 @@ pub fn ycgcoro444_to_bgra(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgb_data` - A mutable slice to store the converted RGB data.
@@ -797,11 +797,11 @@ pub fn ycgcoro444_to_rgb(
 /// # Arguments
 ///
 /// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
+/// * `cg_stride` - The stride (components per row) for the U plane.
 /// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `co_stride` - The stride (components per row) for the V plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgr_data` - A mutable slice to store the converted RGB data.

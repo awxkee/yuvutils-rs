@@ -267,7 +267,7 @@ pub(crate) fn yuv_p16_to_image_impl<
 ///
 /// * `planar_image` - Source planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (components per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -337,7 +337,7 @@ pub fn yuv420_p10_to_bgra(
 ///
 /// * `planar_image` - Source planar image.
 /// * `bgra` - A mutable slice to store the converted BGR data.
-/// * `bgra_stride` - The stride (bytes per row) for BGR data.
+/// * `bgra_stride` - The stride (components per row) for BGR data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -407,7 +407,7 @@ pub fn yuv420_p10_to_bgr(
 ///
 /// * `planar_image` - Source planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (components per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -478,7 +478,7 @@ pub fn yuv422_p10_to_bgra(
 ///
 /// * `planar_image` - Source planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for BGR data.
+/// * `bgr_stride` - The stride (components per row) for BGR data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -549,7 +549,7 @@ pub fn yuv422_p10_to_bgr(
 ///
 /// * `planar_image` - Source planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `rgba_stride` - The stride (components per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -619,7 +619,7 @@ pub fn yuv420_p10_to_rgba(
 ///
 /// * `planar_image` - Source planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for RGB data.
+/// * `rgb_stride` - The stride (components per row) for RGB data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -689,7 +689,7 @@ pub fn yuv420_p10_to_rgb(
 ///
 /// * `planar_image` - Source planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `rgba_stride` - The stride (components per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -759,7 +759,7 @@ pub fn yuv422_p10_to_rgba(
 ///
 /// * `planar_image` - Source planar image.
 /// * `rgb_data` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for RGB data.
+/// * `rgb_stride` - The stride (components per row) for RGB data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -829,7 +829,7 @@ pub fn yuv422_p10_to_rgb(
 ///
 /// * `planar_image` - Source planar image.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `rgba_stride` - The stride (components per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -899,7 +899,7 @@ pub fn yuv444_p10_to_rgba(
 ///
 /// * `planar_image` - Source planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for RGB data.
+/// * `rgb_stride` - The stride (components per row) for RGB data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -969,7 +969,7 @@ pub fn yuv444_p10_to_rgb(
 ///
 /// * `planar_image` - Source planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (components per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -1039,7 +1039,7 @@ pub fn yuv444_p10_to_bgra(
 ///
 /// * `planar_image` - Source planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for BGR data.
+/// * `bgr_stride` - The stride (components per row) for BGR data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes

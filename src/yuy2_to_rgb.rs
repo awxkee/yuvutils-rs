@@ -228,9 +228,9 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -271,9 +271,9 @@ pub fn yuyv422_to_rgb(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -314,9 +314,9 @@ pub fn yuyv422_to_rgba(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -357,9 +357,9 @@ pub fn yuyv422_to_bgr(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -400,9 +400,9 @@ pub fn yuyv422_to_bgra(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -443,9 +443,9 @@ pub fn uyvy422_to_rgb(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -486,9 +486,9 @@ pub fn uyvy422_to_rgba(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -529,9 +529,9 @@ pub fn uyvy422_to_bgr(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -572,9 +572,9 @@ pub fn uyvy422_to_bgra(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -615,9 +615,9 @@ pub fn yvyu422_to_rgb(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -658,9 +658,9 @@ pub fn yvyu422_to_rgba(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -701,9 +701,9 @@ pub fn yvyu422_to_bgr(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -744,9 +744,9 @@ pub fn yvyu422_to_bgra(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -787,9 +787,9 @@ pub fn vyuy422_to_rgb(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -830,9 +830,9 @@ pub fn vyuy422_to_rgba(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).
@@ -873,9 +873,9 @@ pub fn vyuy422_to_bgr(
 /// # Arguments
 ///
 /// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `width` - The width of the image.
 /// * `height` - The height of the image.
 /// * `range` - The YUV range (limited or full).

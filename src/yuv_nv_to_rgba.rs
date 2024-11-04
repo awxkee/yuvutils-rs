@@ -301,7 +301,7 @@ fn yuv_nv12_to_rgbx<
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -333,7 +333,7 @@ pub fn yuv_nv12_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -365,7 +365,7 @@ pub fn yuv_nv16_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -397,7 +397,7 @@ pub fn yuv_nv61_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -429,7 +429,7 @@ pub fn yuv_nv21_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -461,7 +461,7 @@ pub fn yuv_nv16_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -493,7 +493,7 @@ pub fn yuv_nv61_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -525,7 +525,7 @@ pub fn yuv_nv12_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -557,7 +557,7 @@ pub fn yuv_nv21_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -589,7 +589,7 @@ pub fn yuv_nv12_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -621,7 +621,7 @@ pub fn yuv_nv12_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -653,7 +653,7 @@ pub fn yuv_nv16_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -685,7 +685,7 @@ pub fn yuv_nv16_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -717,7 +717,7 @@ pub fn yuv_nv61_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -749,7 +749,7 @@ pub fn yuv_nv61_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -781,7 +781,7 @@ pub fn yuv_nv21_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -813,7 +813,7 @@ pub fn yuv_nv21_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -845,7 +845,7 @@ pub fn yuv_nv42_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -877,7 +877,7 @@ pub fn yuv_nv24_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -909,7 +909,7 @@ pub fn yuv_nv24_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -941,7 +941,7 @@ pub fn yuv_nv24_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -973,7 +973,7 @@ pub fn yuv_nv24_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -1005,7 +1005,7 @@ pub fn yuv_nv42_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -1037,7 +1037,7 @@ pub fn yuv_nv42_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///

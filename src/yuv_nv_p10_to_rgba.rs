@@ -287,7 +287,7 @@ fn yuv_nv_p10_to_image_impl<
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -359,7 +359,7 @@ pub fn yuv_nv12_p10_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -431,7 +431,7 @@ pub fn yuv_nv12_p10_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -503,7 +503,7 @@ pub fn yuv_nv12_p10_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -575,7 +575,7 @@ pub fn yuv_nv12_p10_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -647,7 +647,7 @@ pub fn yuv_nv16_p10_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -719,7 +719,7 @@ pub fn yuv_nv61_p10_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted BGR data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgra_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -791,7 +791,7 @@ pub fn yuv_nv16_p10_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted BGR data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgra_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -863,7 +863,7 @@ pub fn yuv_nv61_p10_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted RGB data.
-/// * `bgra_stride` - The stride (bytes per row) for the RGB image data.
+/// * `bgra_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -935,7 +935,7 @@ pub fn yuv_nv16_p10_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted RGB data.
-/// * `bgra_stride` - The stride (bytes per row) for the RGB image data.
+/// * `bgra_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -1007,7 +1007,7 @@ pub fn yuv_nv61_p10_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted RGBA data.
-/// * `bgra_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `bgra_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -1079,7 +1079,7 @@ pub fn yuv_nv16_p10_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted RGBA data.
-/// * `bgra_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `bgra_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -1151,7 +1151,7 @@ pub fn yuv_nv61_p10_to_rgba(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -1223,7 +1223,7 @@ pub fn yuv_nv21_p10_to_bgr(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -1295,7 +1295,7 @@ pub fn yuv_nv21_p10_to_bgra(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///
@@ -1367,7 +1367,7 @@ pub fn yuv_nv21_p10_to_rgb(
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
 ///

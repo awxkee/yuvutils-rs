@@ -286,13 +286,13 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 ///
@@ -329,13 +329,13 @@ pub fn rgb_to_ycgco422(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 ///
@@ -372,13 +372,13 @@ pub fn bgr_to_ycgco422(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -425,13 +425,13 @@ pub fn rgba_to_ycgco422(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -478,13 +478,13 @@ pub fn bgra_to_ycgco422(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -522,13 +522,13 @@ pub fn rgb_to_ycgco420(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -566,13 +566,13 @@ pub fn bgr_to_ycgco420(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -619,13 +619,13 @@ pub fn rgba_to_ycgco420(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -672,13 +672,13 @@ pub fn bgra_to_ycgco420(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -716,13 +716,13 @@ pub fn rgb_to_ycgco444(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `bgr` - The input RGB image data slice.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -760,13 +760,13 @@ pub fn bgr_to_ycgco444(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).
@@ -813,13 +813,13 @@ pub fn rgba_to_ycgco444(
 /// # Arguments
 ///
 /// * `y_plane` - A mutable slice to store the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `cg_plane` - A mutable slice to store the Cg (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the Cg plane.
+/// * `cg_stride` - The stride (components per row) for the Cg plane.
 /// * `co_plane` - A mutable slice to store the Co (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the Co plane.
+/// * `co_stride` - The stride (components per row) for the Co plane.
 /// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `width` - The width of the image in pixels.
 /// * `height` - The height of the image in pixels.
 /// * `range` - The YUV range (limited or full).

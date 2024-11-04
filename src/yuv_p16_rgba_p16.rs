@@ -284,15 +284,15 @@ pub(crate) fn yuv_p16_to_image_p16_impl<
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (components per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -384,15 +384,15 @@ pub fn yuv420_p16_to_bgra16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra` - A mutable slice to store the converted BGR data.
-/// * `bgra_stride` - The stride (bytes per row) for BGR data.
+/// * `bgra_stride` - The stride (components per row) for BGR data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -473,15 +473,15 @@ pub fn yuv420_p16_to_bgr16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane
+/// * `v_stride` - The stride (components per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (components per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -574,15 +574,15 @@ pub fn yuv422_p16_to_bgra16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane
+/// * `v_stride` - The stride (components per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for BGR data.
+/// * `bgr_stride` - The stride (components per row) for BGR data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -664,15 +664,15 @@ pub fn yuv422_p16_to_bgr16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `rgba_stride` - The stride (components per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -764,15 +764,15 @@ pub fn yuv420_p16_to_rgba16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for RGB data.
+/// * `rgb_stride` - The stride (components per row) for RGB data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -853,15 +853,15 @@ pub fn yuv420_p16_to_rgb16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane
+/// * `v_stride` - The stride (components per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `rgba_stride` - The stride (components per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -953,15 +953,15 @@ pub fn yuv422_p16_to_rgba16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane
+/// * `v_stride` - The stride (components per row) for the U plane
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgb_data` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for RGB data.
+/// * `rgb_stride` - The stride (components per row) for RGB data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -1042,15 +1042,15 @@ pub fn yuv422_p16_to_rgb16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `rgba_stride` - The stride (components per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -1142,15 +1142,15 @@ pub fn yuv444_p16_to_rgba16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `rgb_data` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for RGB data.
+/// * `rgb_stride` - The stride (components per row) for RGB data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -1231,15 +1231,15 @@ pub fn yuv444_p16_to_rgb16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (components per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -1331,15 +1331,15 @@ pub fn yuv444_p16_to_bgra16(
 /// # Arguments
 ///
 /// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
+/// * `y_stride` - The stride (components per row) for the Y plane.
 /// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
+/// * `u_stride` - The stride (components per row) for the U plane.
 /// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
+/// * `v_stride` - The stride (components per row) for the U plane.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for BGR data.
+/// * `bgr_stride` - The stride (components per row) for BGR data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes

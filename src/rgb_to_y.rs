@@ -224,7 +224,7 @@ pub fn rgb_to_yuv400(
 ///
 /// * `gray_image` - Target gray image.
 /// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -252,7 +252,7 @@ pub fn rgba_to_yuv400(
 ///
 /// * `gray_image` - Target gray image.
 /// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -280,7 +280,7 @@ pub fn bgra_to_yuv400(
 ///
 /// * `gray_image` - Target gray image.
 /// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (bytes per row) for the RGB image data.
+/// * `bgr_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///

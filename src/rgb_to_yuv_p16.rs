@@ -285,7 +285,7 @@ fn rgbx_to_yuv<
 ///
 /// * `planar_image` - Target planar image.
 /// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -361,7 +361,7 @@ pub fn rgb_to_yuv422_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -437,7 +437,7 @@ pub fn bgr_to_yuv422_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -513,7 +513,7 @@ pub fn rgba_to_yuv422_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -589,7 +589,7 @@ pub fn bgra_to_yuv422_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -665,7 +665,7 @@ pub fn rgb_to_yuv420_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -741,7 +741,7 @@ pub fn bgr_to_yuv420_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -817,7 +817,7 @@ pub fn rgba_to_yuv420_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -893,7 +893,7 @@ pub fn bgra_to_yuv420_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -969,7 +969,7 @@ pub fn rgb_to_yuv444_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -1045,7 +1045,7 @@ pub fn bgr_to_yuv444_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
@@ -1121,7 +1121,7 @@ pub fn rgba_to_yuv444_p16(
 ///
 /// * `planar_image` - Target planar image.
 /// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `bit_depth` - Only 10 or 12 bit-depth is supported.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
