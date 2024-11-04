@@ -414,3 +414,50 @@ where
         }
     }
 }
+
+#[derive(Debug)]
+/// Non-mutable representation of Bi-Planar YUV image
+pub struct YuvPlanarImageWithAlpha<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub y_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub y_stride: u32,
+    pub u_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub u_stride: u32,
+    pub v_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub v_stride: u32,
+    pub a_plane: &'a [T],
+    /// Stride here always means Elements per row.
+    pub a_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<T> YuvPlanarImageWithAlpha<'_, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+        check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
+        check_y8_channel(self.a_plane, self.a_stride, self.width, self.height)?;
+        check_chroma_channel(
+            self.u_plane,
+            self.u_stride,
+            self.width,
+            self.height,
+            subsampling,
+        )?;
+        check_chroma_channel(
+            self.v_plane,
+            self.v_stride,
+            self.width,
+            self.height,
+            subsampling,
+        )?;
+        Ok(())
+    }
+}

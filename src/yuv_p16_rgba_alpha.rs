@@ -32,6 +32,7 @@ use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSample, YuvEndianness,
     YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
+use crate::{YuvError, YuvPlanarImageWithAlpha};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
@@ -43,22 +44,13 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     rgba: &mut [u8],
     rgba_stride: u32,
-    width: u32,
-    _: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     bit_depth: usize,
-) {
+) -> Result<(), YuvError> {
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
 
@@ -69,6 +61,9 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
+
+    planar_image_with_alpha.check_constraints(chroma_subsampling)?;
+
     let range = get_yuv_range(bit_depth as u32, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range_p10 = (1u32 << bit_depth as u32) - 1;
@@ -96,6 +91,16 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
     let store_shift = PRECISION as usize + a_store_shift;
 
     let dst_offset = 0usize;
+
+    let y_stride = planar_image_with_alpha.y_stride * 2;
+    let u_stride = planar_image_with_alpha.u_stride * 2;
+    let v_stride = planar_image_with_alpha.v_stride * 2;
+    let y_plane = planar_image_with_alpha.y_plane;
+    let u_plane = planar_image_with_alpha.u_plane;
+    let v_plane = planar_image_with_alpha.v_plane;
+    let a_plane = planar_image_with_alpha.a_plane;
+    let a_stride = planar_image_with_alpha.a_stride * 2;
+    let width = planar_image_with_alpha.width;
 
     let iter;
     #[cfg(feature = "rayon")]
@@ -275,6 +280,8 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
             cx += 1;
         }
     });
+
+    Ok(())
 }
 
 /// Convert YUV 420 planar format with 8+ bit pixel format to BGRA format with interleaving alpha.
@@ -284,16 +291,7 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
 /// * `bgra_stride` - The stride (bytes per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
@@ -308,24 +306,15 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv420_p16_with_alpha_to_bgra(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     bgra: &mut [u8],
     bgra_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -365,22 +354,13 @@ pub fn yuv420_p16_with_alpha_to_bgra(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 422 format with 8+ bit pixel format to BGRA format with interleaving alpha.
@@ -390,16 +370,7 @@ pub fn yuv420_p16_with_alpha_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
 /// * `bgra_stride` - The stride (bytes per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
@@ -415,24 +386,15 @@ pub fn yuv420_p16_with_alpha_to_bgra(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv422_p16_with_alpha_to_bgra(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     bgra: &mut [u8],
     bgra_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -472,22 +434,13 @@ pub fn yuv422_p16_with_alpha_to_bgra(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 420 planar format with 8+ bit pixel format to RGBA format with interleaving alpha.
@@ -497,16 +450,7 @@ pub fn yuv422_p16_with_alpha_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
 /// * `rgba_stride` - The stride (bytes per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
@@ -521,24 +465,15 @@ pub fn yuv422_p16_with_alpha_to_bgra(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv420_p16_with_alpha_to_rgba(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     rgba: &mut [u8],
     rgba_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -578,22 +513,13 @@ pub fn yuv420_p16_with_alpha_to_rgba(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 422 format with 8+ bit pixel format to RGBA format with interleaving alpha.
@@ -603,16 +529,7 @@ pub fn yuv420_p16_with_alpha_to_rgba(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
 /// * `rgba_stride` - The stride (bytes per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
@@ -627,24 +544,15 @@ pub fn yuv420_p16_with_alpha_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv422_p16_with_alpha_to_rgba(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     rgba: &mut [u8],
     rgba_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -684,22 +592,13 @@ pub fn yuv422_p16_with_alpha_to_rgba(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 444 planar format with 8+ bit pixel format to RGBA format with interleaving alpha.
@@ -709,16 +608,7 @@ pub fn yuv422_p16_with_alpha_to_rgba(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `rgba_data` - A mutable slice to store the converted RGBA data.
 /// * `rgba_stride` - The stride (bytes per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
@@ -733,24 +623,15 @@ pub fn yuv422_p16_with_alpha_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv444_p16_with_alpha_to_rgba(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     rgba: &mut [u8],
     rgba_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -790,22 +671,13 @@ pub fn yuv444_p16_with_alpha_to_rgba(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 444 planar format with 8+ bit pixel format to BGRA format with interleaving alpha.
@@ -815,16 +687,7 @@ pub fn yuv444_p16_with_alpha_to_rgba(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
 /// * `bgra_stride` - The stride (bytes per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
@@ -839,24 +702,15 @@ pub fn yuv444_p16_with_alpha_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv444_p16_with_alpha_to_bgra(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     bgra: &mut [u8],
     bgra_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -896,20 +750,11 @@ pub fn yuv444_p16_with_alpha_to_bgra(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }

@@ -33,6 +33,7 @@ use crate::neon::yuv_to_yuy2_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuv_to_yuy2_sse_impl;
 use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+use crate::{YuvError, YuvPlanarImage};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
@@ -54,19 +55,14 @@ impl YuvToYuy2Navigation {
 }
 
 fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    _: u32,
-) {
+) -> Result<(), YuvError> {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
     let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+
+    planar_image.check_constraints(chroma_subsampling)?;
 
     let yuy_offset = 0usize;
 
@@ -84,6 +80,14 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     {
         iter = yuy2_store.chunks_exact_mut(yuy2_stride as usize);
     }
+
+    let y_stride = planar_image.y_stride;
+    let u_stride = planar_image.u_stride;
+    let v_stride = planar_image.v_stride;
+    let y_plane = planar_image.y_plane;
+    let v_plane = planar_image.v_plane;
+    let u_plane = planar_image.u_plane;
+    let width = planar_image.width;
 
     iter.enumerate().for_each(|(y, yuy2_store)| unsafe {
         let y_offset = y * (y_stride as usize);
@@ -215,6 +219,7 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
         }
     });
+    Ok(())
 }
 
 /// Convert YUV 444 planar format to YUYV ( YUV Packed ) format.
@@ -225,14 +230,7 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YUYV data.
 /// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
 ///
@@ -243,29 +241,15 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_yuyv422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YUYV as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 422 planar format to YUYV ( YUV Packed ) format.
@@ -276,14 +260,7 @@ pub fn yuv444_to_yuyv422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YUYV data.
 /// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
 ///
@@ -294,29 +271,15 @@ pub fn yuv444_to_yuyv422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_yuyv422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YUYV as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 420 planar format to YUYV ( YUV Packed ) format.
@@ -327,14 +290,7 @@ pub fn yuv422_to_yuyv422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YUYV data.
 /// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
 ///
@@ -345,29 +301,15 @@ pub fn yuv422_to_yuyv422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_yuyv422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YUYV as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 444 planar format to YVYU ( YUV Packed ) format.
@@ -378,14 +320,7 @@ pub fn yuv420_to_yuyv422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YVYU data.
 /// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
 ///
@@ -396,29 +331,15 @@ pub fn yuv420_to_yuyv422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_yvyu422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::YVYU as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 422 planar format to YVYU ( YUV Packed ) format.
@@ -429,14 +350,7 @@ pub fn yuv444_to_yvyu422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YVYU data.
 /// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
 ///
@@ -447,29 +361,15 @@ pub fn yuv444_to_yvyu422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_yvyu422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::YVYU as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 420 planar format to YVYU ( YUV Packed ) format.
@@ -480,14 +380,7 @@ pub fn yuv422_to_yvyu422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted YVYU data.
 /// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
 ///
@@ -498,29 +391,15 @@ pub fn yuv422_to_yvyu422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_yvyu422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::YVYU as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 444 planar format to VYUY ( YUV Packed ) format.
@@ -531,14 +410,7 @@ pub fn yuv420_to_yvyu422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted VYUY data.
 /// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
 ///
@@ -549,29 +421,15 @@ pub fn yuv420_to_yvyu422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_vyuy422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::VYUY as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 422 planar format to VYUY ( YUV Packed ) format.
@@ -582,14 +440,7 @@ pub fn yuv444_to_vyuy422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted VYUY data.
 /// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
 ///
@@ -600,29 +451,15 @@ pub fn yuv444_to_vyuy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_vyuy422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::VYUY as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 420 planar format to VYUY ( YUV Packed ) format.
@@ -633,14 +470,7 @@ pub fn yuv422_to_vyuy422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted VYUY data.
 /// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
 ///
@@ -651,29 +481,15 @@ pub fn yuv422_to_vyuy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_vyuy422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::VYUY as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 444 planar format to UYVY ( YUV Packed ) format.
@@ -684,14 +500,7 @@ pub fn yuv420_to_vyuy422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted UYVY data.
 /// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
 ///
@@ -702,29 +511,15 @@ pub fn yuv420_to_vyuy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_uyvy422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV444 as u8 }, { Yuy2Description::UYVY as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 422 planar format to UYVY ( YUV Packed ) format.
@@ -735,14 +530,7 @@ pub fn yuv444_to_uyvy422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted UYVY data.
 /// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
 ///
@@ -753,29 +541,15 @@ pub fn yuv444_to_uyvy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_uyvy422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV422 as u8 }, { Yuy2Description::UYVY as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
 
 /// Convert YUV 420 planar format to UYVY ( YUV Packed ) format.
@@ -786,14 +560,7 @@ pub fn yuv422_to_uyvy422(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) plane data.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) plane data.
-/// * `v_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image` - Source planar image.
 /// * `yuy2_store` - A mutable slice to store the converted UYVY data.
 /// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
 ///
@@ -804,27 +571,13 @@ pub fn yuv422_to_uyvy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_uyvy422(
-    y_plane: &[u8],
-    y_stride: u32,
-    u_plane: &[u8],
-    u_stride: u32,
-    v_plane: &[u8],
-    v_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     yuy2_store: &mut [u8],
     yuy2_stride: u32,
-    width: u32,
-    height: u32,
-) {
+) -> Result<(), YuvError> {
     yuv_to_yuy2_impl::<{ YuvChromaSample::YUV420 as u8 }, { Yuy2Description::UYVY as usize }>(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
+        planar_image,
         yuy2_store,
         yuy2_stride,
-        width,
-        height,
-    );
+    )
 }
