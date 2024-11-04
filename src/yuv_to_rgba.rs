@@ -114,7 +114,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         );
     }
 
-    iter.enumerate().for_each(|(y, (rgba, y_plane))| unsafe {
+    iter.enumerate().for_each(|(y, (rgba, y_plane))| {
         let u_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
             (y >> 1) * (planar_image.u_stride as usize)
         } else {
@@ -134,7 +134,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         let mut _uv_x = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        {
+        unsafe {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
                 let processed = avx512_yuv_to_rgba::<DESTINATION_CHANNELS, SAMPLING>(
@@ -218,7 +218,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        {
+        unsafe {
             let processed = neon_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
                 &range,
                 &inverse_transform,
