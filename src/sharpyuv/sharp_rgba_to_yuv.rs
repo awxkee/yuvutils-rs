@@ -414,7 +414,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
         #[cfg(not(feature = "rayon"))]
         {
-            y_iter = lanar_image
+            y_iter = planar_image
                 .y_plane
                 .borrow_mut()
                 .chunks_exact_mut(planar_image.y_stride as usize * 2);
@@ -423,7 +423,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 .borrow_mut()
                 .chunks_exact_mut(planar_image.u_stride as usize);
             v_iter =
-                planar_image.v_plane.borrow_mut()..chunks_exact_mut(planar_image.v_stride as usize);
+                planar_image.v_plane.borrow_mut().chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.chunks_exact(rgba_stride as usize * 2);
         }
     } else {

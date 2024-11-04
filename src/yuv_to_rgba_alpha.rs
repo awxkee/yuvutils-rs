@@ -44,9 +44,8 @@ use crate::yuv_support::*;
 use crate::{YuvError, YuvRange, YuvStandardMatrix};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-use rayon::prelude::ParallelSlice;
 #[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     y_plane: &[u8],
@@ -117,7 +116,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         iter = rgba
             .chunks_exact_mut(rgba_stride as usize)
             .zip(y_plane.chunks_exact(y_stride as usize))
-            .zip(a_plane.chunks_exact_mut(a_stride as usize));
+            .zip(a_plane.chunks_exact(a_stride as usize));
     }
 
     iter.enumerate()

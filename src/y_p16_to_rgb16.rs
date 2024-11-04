@@ -81,7 +81,7 @@ fn yuv400_p16_to_rgbx<
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = casted_rgba.chunks_exact_mut(rgba_stride as usize).zip(
+        iter = rgba16.chunks_exact_mut(rgba_stride as usize).zip(
             gray_image
                 .y_plane
                 .chunks_exact(gray_image.y_stride as usize),
