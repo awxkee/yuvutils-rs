@@ -119,9 +119,9 @@ fn rgbx_to_yuv_impl<
         let rgba_offset = rgba_stride as usize * y;
 
         let rgba = &rgba[rgba_offset..];
-        let y_plane = &mut planar_image.y_plane.as_mut()[y_offset..];
-        let u_plane = &mut planar_image.u_plane.as_mut()[u_offset..];
-        let v_plane = &mut planar_image.v_plane.as_mut()[v_offset..];
+        let y_plane = &mut planar_image.y_plane.borrow_mut()[y_offset..];
+        let u_plane = &mut planar_image.u_plane.borrow_mut()[u_offset..];
+        let v_plane = &mut planar_image.v_plane.borrow_mut()[v_offset..];
 
         let mut _cx = 0usize;
         let mut _ux = 0usize;

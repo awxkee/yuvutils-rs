@@ -400,15 +400,15 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         {
             y_iter = planar_image
                 .y_plane
-                .as_mut()
+                .borrow_mut()
                 .par_chunks_exact_mut(planar_image.y_stride as usize * 2);
             u_iter = planar_image
                 .u_plane
-                .as_mut()
+                .borrow_mut()
                 .par_chunks_exact_mut(planar_image.u_stride as usize);
             v_iter = planar_image
                 .v_plane
-                .as_mut()
+                .borrow_mut()
                 .par_chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.par_chunks_exact(rgba_stride as usize * 2);
         }
@@ -416,15 +416,15 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         {
             y_iter = planar_image
                 .y_plane
-                .as_mut()
+                .borrow_mut()
                 .chunks_exact_mut(planar_image.y_stride as usize * 2);
             u_iter = planar_image
                 .u_plane
-                .as_mut()
+                .borrow_mut()
                 .chunks_exact_mut(planar_image.u_stride as usize);
             v_iter = planar_image
                 .v_plane
-                .as_mut()
+                .borrow_mut()
                 .chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.chunks_exact(rgba_stride as usize * 2);
         }
@@ -433,15 +433,15 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         {
             y_iter = planar_image
                 .y_plane
-                .as_mut()
+                .borrow_mut()
                 .par_chunks_exact_mut(planar_image.y_stride as usize);
             u_iter = planar_image
                 .u_plane
-                .as_mut()
+                .borrow_mut()
                 .par_chunks_exact_mut(planar_image.u_stride as usize);
             v_iter = planar_image
                 .v_plane
-                .as_mut()
+                .borrow_mut()
                 .par_chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.par_chunks_exact(rgba_stride as usize);
         }
@@ -449,15 +449,15 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         {
             y_iter = planar_image
                 .y_plane
-                .as_mut()
+                .borrow_mut()
                 .chunks_exact_mut(planar_image.y_stride as usize);
             u_iter = planar_image
                 .u_plane
-                .as_mut()
+                .borrow_mut()
                 .chunks_exact_mut(planar_image.u_stride as usize);
             v_iter = planar_image
                 .v_plane
-                .as_mut()
+                .borrow_mut()
                 .chunks_exact_mut(planar_image.v_stride as usize);
             rgb_iter = rgba.chunks_exact(rgba_stride as usize);
         }
@@ -524,19 +524,19 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     if planar_image.height & 1 != 0 && chroma_subsampling == YuvChromaSample::Yuv420 {
         let y_iter = planar_image
             .y_plane
-            .as_mut()
+            .borrow_mut()
             .chunks_exact_mut(planar_image.y_stride as usize)
             .rev()
             .take(1);
         let u_iter = planar_image
             .u_plane
-            .as_mut()
+            .borrow_mut()
             .chunks_exact_mut(planar_image.u_stride as usize)
             .rev()
             .take(1);
         let v_iter = planar_image
             .v_plane
-            .as_mut()
+            .borrow_mut()
             .chunks_exact_mut(planar_image.v_stride as usize)
             .rev()
             .take(1);

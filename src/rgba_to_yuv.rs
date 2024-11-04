@@ -107,9 +107,9 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    let y_plane = planar_image.y_plane.as_mut();
-    let u_plane = planar_image.u_plane.as_mut();
-    let v_plane = planar_image.v_plane.as_mut();
+    let y_plane = planar_image.y_plane.borrow_mut();
+    let u_plane = planar_image.u_plane.borrow_mut();
+    let v_plane = planar_image.v_plane.borrow_mut();
     let width = planar_image.width;
     let y_stride = planar_image.y_stride;
     let u_stride = planar_image.u_stride;

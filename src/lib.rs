@@ -30,6 +30,7 @@
 #![allow(clippy::manual_clamp)]
 #![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
+#![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 extern crate core;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

@@ -69,9 +69,9 @@ where
     image.check_constraints(YuvChromaSample::Yuv444)?;
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
 
-    let y_plane = image.y_plane.as_mut();
-    let u_plane = image.u_plane.as_mut();
-    let v_plane = image.v_plane.as_mut();
+    let y_plane = image.y_plane.borrow_mut();
+    let u_plane = image.u_plane.borrow_mut();
+    let v_plane = image.v_plane.borrow_mut();
     let y_stride = image.y_stride as usize;
     let u_stride = image.u_stride as usize;
     let v_stride = image.v_stride as usize;

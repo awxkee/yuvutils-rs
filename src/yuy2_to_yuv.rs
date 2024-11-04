@@ -57,9 +57,9 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
 
-    let y_plane = planar_image.y_plane.as_mut();
-    let u_plane = planar_image.u_plane.as_mut();
-    let v_plane = planar_image.v_plane.as_mut();
+    let y_plane = planar_image.y_plane.borrow_mut();
+    let u_plane = planar_image.u_plane.borrow_mut();
+    let v_plane = planar_image.v_plane.borrow_mut();
     let y_stride = planar_image.y_stride;
     let u_stride = planar_image.u_stride;
     let v_stride = planar_image.v_stride;

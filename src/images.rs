@@ -38,6 +38,7 @@ pub enum BufferStoreMut<'a, T: Copy + Debug> {
 }
 
 impl<T: Copy + Debug> BufferStoreMut<'_, T> {
+    #[allow(clippy::should_implement_trait)]
     pub fn borrow(&self) -> &[T] {
         match self {
             Self::Borrowed(p_ref) => p_ref,
@@ -45,7 +46,8 @@ impl<T: Copy + Debug> BufferStoreMut<'_, T> {
         }
     }
 
-    pub fn as_mut(&mut self) -> &mut [T] {
+    #[allow(clippy::should_implement_trait)]
+    pub fn borrow_mut(&mut self) -> &mut [T] {
         match self {
             Self::Borrowed(p_ref) => p_ref,
             Self::Owned(vec) => vec,

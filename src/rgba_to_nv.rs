@@ -95,9 +95,9 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
     let height = bi_planar_image.height;
     let width = bi_planar_image.width;
-    let y_plane = bi_planar_image.y_plane.as_mut();
+    let y_plane = bi_planar_image.y_plane.borrow_mut();
     let y_stride = bi_planar_image.y_stride;
-    let uv_plane = bi_planar_image.uv_plane.as_mut();
+    let uv_plane = bi_planar_image.uv_plane.borrow_mut();
     let uv_stride = bi_planar_image.uv_stride;
 
     for y in 0..height as usize {

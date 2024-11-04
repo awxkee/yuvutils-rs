@@ -179,7 +179,7 @@ pub unsafe fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
             rounding_const,
         ));
 
-        let a_values = _mm512_loadu_si512(a_plane.as_ptr().add(a_offset + cx) as *const i32);
+        let a_values = _mm512_loadu_si512(a_plane.as_ptr().add(cx) as *const i32);
 
         let (r_values, g_values, b_values);
 
@@ -203,7 +203,7 @@ pub unsafe fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
             b_values = avx512_pack_u16(b_low, b_high);
         }
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
