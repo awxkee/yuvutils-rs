@@ -28,7 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_deinterleave_rgb, avx512_deinterleave_rgba, avx512_pack_u16, avx512_rgb_to_ycbcr,
+    avx512_deinterleave_rgb, avx512_deinterleave_rgba, avx512_pack_u16,
 };
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
