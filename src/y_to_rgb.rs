@@ -49,7 +49,7 @@ use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 // Chroma subsampling always assumed as 400
 fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
-    gray_image: YuvGrayImage<u8>,
+    gray_image: &YuvGrayImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -192,7 +192,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_to_rgb(
-    gray_image: YuvGrayImage<u8>,
+    gray_image: &YuvGrayImage<u8>,
     rgb: &mut [u8],
     rgb_stride: u32,
     range: YuvRange,
@@ -219,7 +219,7 @@ pub fn yuv400_to_rgb(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_to_bgr(
-    gray_image: YuvGrayImage<u8>,
+    gray_image: &YuvGrayImage<u8>,
     bgr: &mut [u8],
     bgr_stride: u32,
     range: YuvRange,
@@ -246,7 +246,7 @@ pub fn yuv400_to_bgr(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_to_rgba(
-    gray_image: YuvGrayImage<u8>,
+    gray_image: &YuvGrayImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -273,7 +273,7 @@ pub fn yuv400_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_to_bgra(
-    gray_image: YuvGrayImage<u8>,
+    gray_image: &YuvGrayImage<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
     range: YuvRange,

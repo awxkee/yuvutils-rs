@@ -44,7 +44,7 @@ fn y_with_alpha_to_rgbx<
     const DESTINATION_CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(
-    gray_alpha_image: YuvGrayAlphaImage<V>,
+    gray_alpha_image: &YuvGrayAlphaImage<V>,
     rgba: &mut [V],
     rgba_stride: u32,
     range: YuvRange,
@@ -159,7 +159,7 @@ where
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_with_alpha_to_rgba(
-    gray_alpha_image: YuvGrayAlphaImage<u8>,
+    gray_alpha_image: &YuvGrayAlphaImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -193,7 +193,7 @@ pub fn yuv400_with_alpha_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_with_alpha_to_bgra(
-    gray_alpha_image: YuvGrayAlphaImage<u8>,
+    gray_alpha_image: &YuvGrayAlphaImage<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
     range: YuvRange,
