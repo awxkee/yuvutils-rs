@@ -299,7 +299,7 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
         }
 
         _cx = _offset.cx;
-        
+
         for (((&y_0, &u), &v), rgba) in y_dst
             .iter()
             .zip(u_dst.iter())

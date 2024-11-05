@@ -99,6 +99,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
+    #[allow(unused_variables)]
     let process_wide_row = |y_plane: &mut [u8],
                             u_plane: &mut [u8],
                             v_plane: &mut [u8],
@@ -182,7 +183,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             _offset = offset;
         }
 
-        return _offset;
+        _offset
     };
 
     let process_halved_chroma_row = |y_plane: &mut [u8],

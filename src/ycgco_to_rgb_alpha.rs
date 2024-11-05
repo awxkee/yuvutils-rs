@@ -208,6 +208,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             uv_x = processed.ux;
         }
 
+        #[allow(clippy::explicit_counter_loop)]
         for x in (cx..width as usize).step_by(iterator_step) {
             let y_value = (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y)
                 * range_reduction_y;

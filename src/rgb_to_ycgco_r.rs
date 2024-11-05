@@ -120,6 +120,7 @@ fn rgbx_to_ycgco_type_r<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const R_T
             _ux = processed.ux;
         }
 
+        #[allow(clippy::explicit_counter_loop)]
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let rgba_shift = rgba_offset + px;

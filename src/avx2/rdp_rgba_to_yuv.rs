@@ -165,8 +165,14 @@ pub unsafe fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8>(
             i_bias_y,
         );
 
-        _mm256_storeu_si256(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i, y_l);
-        _mm256_storeu_si256(y_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i, y_h);
+        _mm256_storeu_si256(
+            y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
+            y_l,
+        );
+        _mm256_storeu_si256(
+            y_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i,
+            y_h,
+        );
 
         let cb_l = _mm256_max_epi16(
             _mm256_min_epi16(

@@ -92,7 +92,7 @@ fn yuv_nv_p16_to_image_impl<
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
 
-    let process_wide_row = |rgba: &mut [u16], y_src: &[u16], uv_src: &[u16]| {
+    let process_wide_row = |_rgba: &mut [u16], _y_src: &[u16], _uv_src: &[u16]| {
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -106,9 +106,9 @@ fn yuv_nv_p16_to_image_impl<
                         BYTES_POSITION,
                         BIT_DEPTH,
                     >(
-                        y_src.as_ptr(),
-                        uv_src.as_ptr(),
-                        rgba.as_mut_ptr(),
+                        _y_src.as_ptr(),
+                        _uv_src.as_ptr(),
+                        _rgba.as_mut_ptr(),
                         bi_planar_image.width,
                         &range,
                         &i_transform,
@@ -131,9 +131,9 @@ fn yuv_nv_p16_to_image_impl<
                     BYTES_POSITION,
                     BIT_DEPTH,
                 >(
-                    y_src.as_ptr(),
-                    uv_src.as_ptr(),
-                    rgba.as_mut_ptr(),
+                    _y_src.as_ptr(),
+                    _uv_src.as_ptr(),
+                    _rgba.as_mut_ptr(),
                     bi_planar_image.width,
                     &range,
                     &i_transform,

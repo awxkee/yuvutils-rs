@@ -90,6 +90,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
     let width = bi_planar_image.width;
 
+    #[allow(unused_variables)]
     let process_wide_row =
         |y_plane: &mut [u8], uv_plane: &mut [u8], rgba: &[u8], compute_uv_row| {
             let mut _offset: ProcessedOffset = ProcessedOffset { cx: 0, ux: 0 };

@@ -97,7 +97,7 @@ fn yuv_nv12_to_rgbx<
 
     let width = bi_planar_image.width;
 
-    let process_wide_row = |bgra: &mut [u8], y_plane: &[u8], uv_plane: &[u8]| {
+    let process_wide_row = |_bgra: &mut [u8], _y_plane: &[u8], _uv_plane: &[u8]| {
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -111,9 +111,9 @@ fn yuv_nv12_to_rgbx<
                     >(
                         &range,
                         &inverse_transform,
-                        y_plane,
-                        uv_plane,
-                        bgra,
+                        _y_plane,
+                        _uv_plane,
+                        _bgra,
                         _offset.cx,
                         _offset.ux,
                         0,
@@ -132,9 +132,9 @@ fn yuv_nv12_to_rgbx<
                     >(
                         &range,
                         &inverse_transform,
-                        y_plane,
-                        uv_plane,
-                        bgra,
+                        _y_plane,
+                        _uv_plane,
+                        _bgra,
                         _offset.cx,
                         _offset.ux,
                         0,
@@ -150,9 +150,9 @@ fn yuv_nv12_to_rgbx<
                         sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                             &range,
                             &inverse_transform,
-                            y_plane,
-                            uv_plane,
-                            bgra,
+                            _y_plane,
+                            _uv_plane,
+                            _bgra,
                             _offset.cx,
                             _offset.ux,
                             0,
@@ -172,9 +172,9 @@ fn yuv_nv12_to_rgbx<
                     neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                         &range,
                         &inverse_transform,
-                        y_plane,
-                        uv_plane,
-                        bgra,
+                        _y_plane,
+                        _uv_plane,
+                        _bgra,
                         _offset.cx,
                         _offset.ux,
                         0,
@@ -193,9 +193,9 @@ fn yuv_nv12_to_rgbx<
                     wasm_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                         &range,
                         &inverse_transform,
-                        y_plane,
-                        uv_plane,
-                        bgra,
+                        _y_plane,
+                        _uv_plane,
+                        _bgra,
                         _offset.cx,
                         _offset.ux,
                         0,

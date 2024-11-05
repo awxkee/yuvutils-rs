@@ -172,6 +172,7 @@ fn rgbx_to_yuv_impl<
             _ux = offset.ux;
         }
 
+        #[allow(clippy::explicit_counter_loop)]
         for x in (_cx..width as usize).step_by(iterator_step) {
             let px = x * channels;
             let src = unsafe { rgba.get_unchecked(px..(px + iterator_step * channels)) };

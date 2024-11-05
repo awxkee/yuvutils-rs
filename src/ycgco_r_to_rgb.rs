@@ -123,6 +123,7 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
             _uv_x = offset.ux;
         }
 
+        #[allow(clippy::explicit_counter_loop)]
         for x in (_cx..width as usize).step_by(iterator_step) {
             let y_value =
                 (unsafe { y_ptr.add(x).read_unaligned() as i32 } - bias_y) * range_reduction_y;
