@@ -29,7 +29,7 @@
 use crate::avx2::avx2_utils::{
     _mm256_deinterleave_rgba_epi8, _mm256_interleave_epi8, _mm256_interleave_x2_epi8,
 };
-use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsample, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -50,7 +50,7 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
 
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;
@@ -96,7 +96,7 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
             Yuy2Description::VYUY => pixel_set.0,
         };
 
-        if chroma_subsampling == YuvChromaSample::Yuv444 {
+        if chroma_subsampling == YuvChromaSubsample::Yuv444 {
             let (low_u_value, high_u_value) = _mm256_interleave_x2_epi8(u_value, u_value);
             let (low_v_value, high_v_value) = _mm256_interleave_x2_epi8(v_value, v_value);
 
@@ -120,8 +120,8 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
         _yuy2_x = x;
         if x + 32 < max_x_32 {
             _uv_x += match chroma_subsampling {
-                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 32,
-                YuvChromaSample::Yuv444 => 64,
+                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => 32,
+                YuvChromaSubsample::Yuv444 => 64,
             };
             _cx += 64;
         }

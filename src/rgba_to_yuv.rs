@@ -55,7 +55,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
@@ -262,7 +262,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let u_stride = planar_image.u_stride as usize;
     let v_stride = planar_image.v_stride as usize;
 
-    if chroma_subsampling == YuvChromaSample::Yuv444 {
+    if chroma_subsampling == YuvChromaSubsample::Yuv444 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -308,7 +308,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 *v_dst = cr.clamp(i_bias_y, i_cap_uv) as u8;
             }
         });
-    } else if chroma_subsampling == YuvChromaSample::Yuv422 {
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv422 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -330,7 +330,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         iter.for_each(|(((y_plane, u_plane), v_plane), rgba)| {
             process_halved_chroma_row(y_plane, u_plane, v_plane, rgba, true);
         });
-    } else if chroma_subsampling == YuvChromaSample::Yuv420 {
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv420 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -397,7 +397,7 @@ pub fn rgb_to_yuv422(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         rgb,
         rgb_stride,
@@ -431,7 +431,7 @@ pub fn bgr_to_yuv422(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         bgr,
         bgr_stride,
@@ -465,7 +465,7 @@ pub fn rgba_to_yuv422(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         rgba,
         rgba_stride,
@@ -499,7 +499,7 @@ pub fn bgra_to_yuv422(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         bgra,
         bgra_stride,
@@ -533,7 +533,7 @@ pub fn rgb_to_yuv420(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         rgb,
         rgb_stride,
@@ -567,7 +567,7 @@ pub fn bgr_to_yuv420(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         bgr,
         bgr_stride,
@@ -601,7 +601,7 @@ pub fn rgba_to_yuv420(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         rgba,
         rgba_stride,
@@ -635,7 +635,7 @@ pub fn bgra_to_yuv420(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         bgra,
         bgra_stride,
@@ -669,7 +669,7 @@ pub fn rgb_to_yuv444(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         planar_image,
         rgb,
         rgb_stride,
@@ -703,7 +703,7 @@ pub fn bgr_to_yuv444(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         planar_image,
         bgr,
         bgr_stride,
@@ -737,7 +737,7 @@ pub fn rgba_to_yuv444(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         planar_image,
         rgba,
         rgba_stride,
@@ -771,7 +771,7 @@ pub fn bgra_to_yuv444(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         planar_image,
         bgra,
         bgra_stride,

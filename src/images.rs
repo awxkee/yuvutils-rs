@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_error::{check_chroma_channel, check_interleaved_chroma_channel, check_y8_channel};
-use crate::yuv_support::YuvChromaSample;
+use crate::yuv_support::YuvChromaSubsample;
 use crate::YuvError;
 use std::fmt::Debug;
 
@@ -62,10 +62,10 @@ where
     T: Copy + Debug,
 {
     pub y_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub uv_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub uv_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -75,7 +75,7 @@ impl<T> YuvBiPlanarImage<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
         check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_interleaved_chroma_channel(
             self.uv_plane,
@@ -95,10 +95,10 @@ where
     T: Copy + Debug,
 {
     pub y_plane: BufferStoreMut<'a, T>,
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub uv_plane: BufferStoreMut<'a, T>,
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub uv_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -108,7 +108,7 @@ impl<T> YuvBiPlanarImageMut<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
         check_y8_channel(
             self.y_plane.borrow(),
             self.y_stride,
@@ -131,14 +131,16 @@ where
     T: Default + Clone + Copy + Debug,
 {
     /// Allocates mutable target Bi-Planar image with required chroma subsampling
-    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSample) -> Self {
+    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsample) -> Self {
         let chroma_width = match subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => ((width as usize + 1) / 2) * 2,
-            YuvChromaSample::Yuv444 => width as usize * 2,
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+                ((width as usize + 1) / 2) * 2
+            }
+            YuvChromaSubsample::Yuv444 => width as usize * 2,
         };
         let chroma_height = match subsampling {
-            YuvChromaSample::Yuv420 => (height as usize + 1) / 2,
-            YuvChromaSample::Yuv422 | YuvChromaSample::Yuv444 => height as usize,
+            YuvChromaSubsample::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSubsample::Yuv422 | YuvChromaSubsample::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];
         let chroma_target = vec![T::default(); chroma_width * chroma_height];
@@ -187,7 +189,7 @@ where
     T: Copy + Debug,
 {
     pub y_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -210,7 +212,7 @@ where
     T: Copy + Debug,
 {
     pub y_plane: BufferStoreMut<'a, T>,
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -263,10 +265,10 @@ where
     T: Copy + Debug,
 {
     pub y_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub a_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub a_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -290,13 +292,13 @@ where
     T: Copy + Debug,
 {
     pub y_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub u_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub u_stride: u32,
     pub v_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub v_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -306,7 +308,7 @@ impl<T> YuvPlanarImage<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
         check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_chroma_channel(
             self.u_plane,
@@ -333,13 +335,13 @@ where
     T: Copy + Debug,
 {
     pub y_plane: BufferStoreMut<'a, T>,
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub u_plane: BufferStoreMut<'a, T>,
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub u_stride: u32,
     pub v_plane: BufferStoreMut<'a, T>,
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub v_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -349,7 +351,7 @@ impl<T> YuvPlanarImageMut<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
         check_y8_channel(
             self.y_plane.borrow(),
             self.y_stride,
@@ -379,14 +381,14 @@ where
     T: Default + Clone + Copy + Debug,
 {
     /// Allocates mutable target planar image with required chroma subsampling
-    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSample) -> Self {
+    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsample) -> Self {
         let chroma_width = match subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => (width as usize + 1) / 2,
-            YuvChromaSample::Yuv444 => width as usize,
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => (width as usize + 1) / 2,
+            YuvChromaSubsample::Yuv444 => width as usize,
         };
         let chroma_height = match subsampling {
-            YuvChromaSample::Yuv420 => (height as usize + 1) / 2,
-            YuvChromaSample::Yuv422 | YuvChromaSample::Yuv444 => height as usize,
+            YuvChromaSubsample::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSubsample::Yuv422 | YuvChromaSubsample::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];
         let u_target = vec![T::default(); chroma_width * chroma_height];
@@ -424,16 +426,16 @@ where
     T: Copy + Debug,
 {
     pub y_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub y_stride: u32,
     pub u_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub u_stride: u32,
     pub v_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub v_stride: u32,
     pub a_plane: &'a [T],
-    /// Stride here always means Elements per row.
+    /// Stride here always means components per row.
     pub a_stride: u32,
     pub width: u32,
     pub height: u32,
@@ -443,7 +445,7 @@ impl<T> YuvPlanarImageWithAlpha<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
         check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_y8_channel(self.a_plane, self.a_stride, self.width, self.height)?;
         check_chroma_channel(

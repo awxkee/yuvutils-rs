@@ -29,7 +29,7 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_p16_to_rgba_alpha_row;
 use crate::yuv_support::{
-    get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSample, YuvEndianness,
+    get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSubsample, YuvEndianness,
     YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 use crate::{YuvError, YuvPlanarImageWithAlpha};
@@ -59,7 +59,7 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
         "Cannot call YUV p16 to Rgb8 with alpha without real alpha"
     );
 
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
 
@@ -116,12 +116,12 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
     iter.enumerate().for_each(|(y, rgba)| unsafe {
         let y_offset = y * (y_stride as usize);
         let a_offset = y * (a_stride as usize);
-        let u_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
+        let u_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
             (y >> 1) * (u_stride as usize)
         } else {
             y * (u_stride as usize)
         };
-        let v_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
+        let v_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
             (y >> 1) * (v_stride as usize)
         } else {
             y * (v_stride as usize)
@@ -321,7 +321,7 @@ pub fn yuv420_p16_with_alpha_to_bgra(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -329,7 +329,7 @@ pub fn yuv420_p16_with_alpha_to_bgra(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -339,7 +339,7 @@ pub fn yuv420_p16_with_alpha_to_bgra(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -347,7 +347,7 @@ pub fn yuv420_p16_with_alpha_to_bgra(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -401,7 +401,7 @@ pub fn yuv422_p16_with_alpha_to_bgra(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -409,7 +409,7 @@ pub fn yuv422_p16_with_alpha_to_bgra(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -419,7 +419,7 @@ pub fn yuv422_p16_with_alpha_to_bgra(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -427,7 +427,7 @@ pub fn yuv422_p16_with_alpha_to_bgra(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -480,7 +480,7 @@ pub fn yuv420_p16_with_alpha_to_rgba(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -488,7 +488,7 @@ pub fn yuv420_p16_with_alpha_to_rgba(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -498,7 +498,7 @@ pub fn yuv420_p16_with_alpha_to_rgba(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -506,7 +506,7 @@ pub fn yuv420_p16_with_alpha_to_rgba(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv420 as u8 },
+                    { YuvChromaSubsample::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -559,7 +559,7 @@ pub fn yuv422_p16_with_alpha_to_rgba(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -567,7 +567,7 @@ pub fn yuv422_p16_with_alpha_to_rgba(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -577,7 +577,7 @@ pub fn yuv422_p16_with_alpha_to_rgba(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -585,7 +585,7 @@ pub fn yuv422_p16_with_alpha_to_rgba(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv422 as u8 },
+                    { YuvChromaSubsample::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -638,7 +638,7 @@ pub fn yuv444_p16_with_alpha_to_rgba(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -646,7 +646,7 @@ pub fn yuv444_p16_with_alpha_to_rgba(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -656,7 +656,7 @@ pub fn yuv444_p16_with_alpha_to_rgba(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -664,7 +664,7 @@ pub fn yuv444_p16_with_alpha_to_rgba(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -717,7 +717,7 @@ pub fn yuv444_p16_with_alpha_to_bgra(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -725,7 +725,7 @@ pub fn yuv444_p16_with_alpha_to_bgra(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -735,7 +735,7 @@ pub fn yuv444_p16_with_alpha_to_bgra(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -743,7 +743,7 @@ pub fn yuv444_p16_with_alpha_to_bgra(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::Yuv444 as u8 },
+                    { YuvChromaSubsample::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >

@@ -29,7 +29,7 @@
 
 use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8, shuffle};
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
+use crate::yuv_support::{YuvChromaRange, YuvChromaSubsample, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -50,7 +50,7 @@ pub unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMP
     rgba_offset: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let bias_y = range.bias_y as i32;
@@ -89,7 +89,7 @@ pub unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMP
         let v_low_u8;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
                 let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
 
@@ -103,7 +103,7 @@ pub unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMP
                 v_low_u8 =
                     _mm256_permute4x64_epi64::<MASK>(_mm256_unpacklo_epi8(v_values, v_values));
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
                 let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
 
@@ -214,10 +214,10 @@ pub unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMP
         cx += 64;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 uv_x += 32;
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 uv_x += 64;
             }
         }

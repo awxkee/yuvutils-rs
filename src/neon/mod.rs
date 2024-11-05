@@ -30,6 +30,10 @@
 mod neon_simd_support;
 mod neon_ycgco;
 mod neon_ycgco_r;
+#[cfg(feature = "rdp")]
+mod rdp_rgb_to_yuv;
+#[cfg(feature = "rdp")]
+mod rdp_yuv_to_rgba;
 mod rgb_to_y;
 mod rgb_to_ycgco;
 mod rgb_to_ycgco_r;
@@ -54,6 +58,10 @@ mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+#[cfg(feature = "rdp")]
+pub use rdp_rgb_to_yuv::rdp_neon_rgba_to_yuv;
+#[cfg(feature = "rdp")]
+pub use rdp_yuv_to_rgba::rdp_neon_yuv_to_rgba_row;
 pub use rgb_to_y::neon_rgb_to_y_row;
 pub use rgb_to_ycgco::neon_rgb_to_ycgco_row;
 pub use rgb_to_ycgco_r::neon_rgb_to_ycgcor_row;

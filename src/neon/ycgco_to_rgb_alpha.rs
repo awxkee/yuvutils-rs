@@ -29,7 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::neon::neon_simd_support::neon_premultiply_alpha;
-use crate::yuv_support::{YuvChromaRange, YuvChromaSample, YuvSourceChannels};
+use crate::yuv_support::{YuvChromaRange, YuvChromaSubsample, YuvSourceChannels};
 use std::arch::aarch64::*;
 
 #[inline(always)]
@@ -50,7 +50,7 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
     width: usize,
     premultiply_alpha: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let bias_y = range.bias_y as i32;
@@ -90,7 +90,7 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
         let v_low_u8: uint8x8_t;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 let u_values = vld1_u8(u_ptr.add(uv_x));
                 let v_values = vld1_u8(v_ptr.add(uv_x));
 
@@ -99,7 +99,7 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
                 u_low_u8 = vzip1_u8(u_values, u_values);
                 v_low_u8 = vzip1_u8(v_values, v_values);
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 let u_values = vld1q_u8(u_ptr.add(uv_x));
                 let v_values = vld1q_u8(v_ptr.add(uv_x));
 
@@ -177,10 +177,10 @@ pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const 
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 uv_x += 8;
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 uv_x += 16;
             }
         }

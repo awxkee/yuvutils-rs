@@ -29,7 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSample, YuvSourceChannels,
+    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsample, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
 
@@ -47,7 +47,7 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     v_offset: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -73,7 +73,7 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let v_low_u8: uint8x8_t;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 let u_values = vld1_u8(u_ptr.add(u_offset + uv_x));
                 let v_values = vld1_u8(v_ptr.add(v_offset + uv_x));
 
@@ -82,7 +82,7 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
                 u_low_u8 = vzip1_u8(u_values, u_values);
                 v_low_u8 = vzip1_u8(v_values, v_values);
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 let u_values = vld1q_u8(u_ptr.add(u_offset + uv_x));
                 let v_values = vld1q_u8(v_ptr.add(v_offset + uv_x));
 
@@ -183,10 +183,10 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 uv_x += 8;
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 uv_x += 16;
             }
         }
@@ -199,7 +199,7 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let v_low_u8: uint8x8_t;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 let u_values =
                     vreinterpret_u8_u32(vld1_dup_u32(u_ptr.add(u_offset + uv_x) as *const u32));
                 let v_values =
@@ -208,7 +208,7 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
                 u_low_u8 = vzip1_u8(u_values, u_values);
                 v_low_u8 = vzip1_u8(v_values, v_values);
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 let u_values = vld1_u8(u_ptr.add(u_offset + uv_x));
                 let v_values = vld1_u8(v_ptr.add(v_offset + uv_x));
 
@@ -279,10 +279,10 @@ pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 uv_x += 4;
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 uv_x += 8;
             }
         }

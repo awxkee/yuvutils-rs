@@ -31,7 +31,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndianness,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsample, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
 };
 
@@ -56,7 +56,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = bgra.as_mut_ptr();
@@ -100,7 +100,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let y_values: int16x8_t = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 let mut uv_values_u = vld2_u16(uv_ld_ptr.add(ux));
 
                 if uv_order == YuvNVOrder::VU {
@@ -127,7 +127,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                 u_low = vzip1_s16(u_values_c, u_values_c);
                 v_low = vzip1_s16(v_values_c, v_values_c);
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 let mut uv_values_u = vld2q_u16(uv_ld_ptr.add(ux));
 
                 if uv_order == YuvNVOrder::VU {
@@ -210,10 +210,10 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 ux += 8;
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 ux += 16;
             }
         }

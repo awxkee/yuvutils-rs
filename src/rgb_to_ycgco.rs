@@ -56,7 +56,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     height: u32,
     range: YuvRange,
 ) {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
     let range = get_yuv_range(8, range);
@@ -66,9 +66,9 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let max_colors = (1 << 8) - 1i32;
 
     let iterator_step = match chroma_subsampling {
-        YuvChromaSample::Yuv420 => 2usize,
-        YuvChromaSample::Yuv422 => 2usize,
-        YuvChromaSample::Yuv444 => 1usize,
+        YuvChromaSubsample::Yuv420 => 2usize,
+        YuvChromaSubsample::Yuv422 => 2usize,
+        YuvChromaSubsample::Yuv444 => 1usize,
     };
 
     let range_reduction_y =
@@ -99,8 +99,8 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut ux = 0usize;
 
-        let compute_uv_row = chroma_subsampling == YuvChromaSample::Yuv444
-            || chroma_subsampling == YuvChromaSample::Yuv422
+        let compute_uv_row = chroma_subsampling == YuvChromaSubsample::Yuv444
+            || chroma_subsampling == YuvChromaSubsample::Yuv422
             || y & 1 == 0;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -202,7 +202,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let y_0 = (hg + ((r0 * range_reduction_y + b0 * range_reduction_y) >> 2) + bias_y) >> 8;
             unsafe { *y_plane.get_unchecked_mut(y_offset + x) = y_0 as u8 };
             match chroma_subsampling {
-                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                     if x + 1 < width as usize {
                         let next_px = (x + 1) * channels;
                         let rgba_shift = rgba_offset + next_px;
@@ -225,17 +225,17 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if compute_uv_row {
-                let mut r = if chroma_subsampling == YuvChromaSample::Yuv444 {
+                let mut r = if chroma_subsampling == YuvChromaSubsample::Yuv444 {
                     r0
                 } else {
                     (r0 + r1 + 1) >> 1
                 };
-                let mut g = if chroma_subsampling == YuvChromaSample::Yuv444 {
+                let mut g = if chroma_subsampling == YuvChromaSubsample::Yuv444 {
                     g0
                 } else {
                     (g0 + g1 + 1) >> 1
                 };
-                let mut b = if chroma_subsampling == YuvChromaSample::Yuv444 {
+                let mut b = if chroma_subsampling == YuvChromaSubsample::Yuv444 {
                     b0
                 } else {
                     (b0 + b1 + 1) >> 1
@@ -246,13 +246,13 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let cg = (((g >> 1) - ((r + b) >> 2)) + bias_uv) >> 8;
                 let co = (((r - b) >> 1) + bias_uv) >> 8;
                 let u_pos = match chroma_subsampling {
-                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => cg_offset + ux,
-                    YuvChromaSample::Yuv444 => cg_offset + ux,
+                    YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => cg_offset + ux,
+                    YuvChromaSubsample::Yuv444 => cg_offset + ux,
                 };
                 unsafe { *cg_plane.get_unchecked_mut(u_pos) = cg as u8 };
                 let v_pos = match chroma_subsampling {
-                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => co_offset + ux,
-                    YuvChromaSample::Yuv444 => co_offset + ux,
+                    YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => co_offset + ux,
+                    YuvChromaSubsample::Yuv444 => co_offset + ux,
                 };
                 unsafe { *co_plane.get_unchecked_mut(v_pos) = co as u8 };
             }
@@ -263,13 +263,13 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         y_offset += y_stride as usize;
         rgba_offset += rgba_stride as usize;
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 => {
+            YuvChromaSubsample::Yuv420 => {
                 if y & 1 == 1 {
                     cg_offset += cg_stride as usize;
                     co_offset += co_stride as usize;
                 }
             }
-            YuvChromaSample::Yuv444 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv444 | YuvChromaSubsample::Yuv422 => {
                 cg_offset += cg_stride as usize;
                 co_offset += co_stride as usize;
             }
@@ -314,7 +314,7 @@ pub fn rgb_to_ycgco422(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
         height, range,
     );
@@ -357,7 +357,7 @@ pub fn bgr_to_ycgco422(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
         height, range,
     );
@@ -401,7 +401,7 @@ pub fn rgba_to_ycgco422(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         y_plane,
         y_stride,
         cg_plane,
@@ -454,7 +454,7 @@ pub fn bgra_to_ycgco422(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         y_plane,
         y_stride,
         cg_plane,
@@ -507,7 +507,7 @@ pub fn rgb_to_ycgco420(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
         height, range,
     );
@@ -551,7 +551,7 @@ pub fn bgr_to_ycgco420(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
         height, range,
     );
@@ -595,7 +595,7 @@ pub fn rgba_to_ycgco420(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         y_plane,
         y_stride,
         cg_plane,
@@ -648,7 +648,7 @@ pub fn bgra_to_ycgco420(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         y_plane,
         y_stride,
         cg_plane,
@@ -701,7 +701,7 @@ pub fn rgb_to_ycgco444(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
         height, range,
     );
@@ -745,7 +745,7 @@ pub fn bgr_to_ycgco444(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
         height, range,
     );
@@ -789,7 +789,7 @@ pub fn rgba_to_ycgco444(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         y_plane,
         y_stride,
         cg_plane,
@@ -842,7 +842,7 @@ pub fn bgra_to_ycgco444(
     height: u32,
     range: YuvRange,
 ) {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         y_plane,
         y_stride,
         cg_plane,

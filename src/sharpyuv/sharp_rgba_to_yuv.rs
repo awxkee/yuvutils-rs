@@ -318,7 +318,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     matrix: YuvStandardMatrix,
     sharp_yuv_gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
 
     check_rgba_destination(
@@ -395,7 +395,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let v_iter;
     let rgb_iter;
 
-    if chroma_subsampling == YuvChromaSample::Yuv420 {
+    if chroma_subsampling == YuvChromaSubsample::Yuv420 {
         #[cfg(feature = "rayon")]
         {
             y_iter = planar_image
@@ -468,7 +468,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     full_iter
         .enumerate()
         .for_each(|(j, (((rgba, y_plane), u_plane), v_plane))| {
-            if chroma_subsampling == YuvChromaSample::Yuv420 {
+            if chroma_subsampling == YuvChromaSubsample::Yuv420 {
                 let v_y = j * 2;
 
                 for (virtual_y, (y_plane, rgba)) in y_plane
@@ -521,7 +521,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         });
 
     // Handle last row if image is odd
-    if planar_image.height & 1 != 0 && chroma_subsampling == YuvChromaSample::Yuv420 {
+    if planar_image.height & 1 != 0 && chroma_subsampling == YuvChromaSubsample::Yuv420 {
         let y_iter = planar_image
             .y_plane
             .borrow_mut()
@@ -601,7 +601,7 @@ pub fn rgb_to_sharp_yuv422(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         rgb,
         rgb_stride,
@@ -637,7 +637,7 @@ pub fn bgr_to_sharp_yuv422(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         bgr,
         bgr_stride,
@@ -673,7 +673,7 @@ pub fn rgba_to_sharp_yuv422(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         rgba,
         rgba_stride,
@@ -709,7 +709,7 @@ pub fn bgra_to_sharp_yuv422(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_image,
         bgra,
         bgra_stride,
@@ -752,7 +752,7 @@ pub fn rgb_to_sharp_yuv420(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         rgb,
         rgb_stride,
@@ -788,7 +788,7 @@ pub fn bgr_to_sharp_yuv420(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         bgr,
         bgr_stride,
@@ -824,7 +824,7 @@ pub fn rgba_to_sharp_yuv420(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         rgba,
         rgba_stride,
@@ -860,7 +860,7 @@ pub fn bgra_to_sharp_yuv420(
     matrix: YuvStandardMatrix,
     gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    rgbx_to_sharp_yuv::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_image,
         bgra,
         bgra_stride,

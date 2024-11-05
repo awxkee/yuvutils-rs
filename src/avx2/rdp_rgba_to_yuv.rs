@@ -27,59 +27,41 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, _mm256_interleave_x2_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
-    avx2_pairwise_widen_avg,
-};
+use crate::avx2::avx2_utils::{_mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb};
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsample, YuvNVOrder, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrForwardTransform, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
-    y_plane: &mut [u8],
-    y_offset: usize,
-    uv_plane: &mut [u8],
-    uv_offset: usize,
-    rgba: &[u8],
-    rgba_offset: usize,
-    width: u32,
-    range: &YuvChromaRange,
+pub unsafe fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u8],
     start_cx: usize,
-    start_ux: usize,
-    compute_uv_row: bool,
+    width: usize,
 ) -> ProcessedOffset {
-    let order: YuvNVOrder = UV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let y_ptr = y_plane.as_mut_ptr().add(y_offset);
-    let uv_ptr = uv_plane.as_mut_ptr().add(uv_offset);
-
-    let rgba_ptr = rgba.as_ptr().add(rgba_offset);
+    let y_ptr = y_plane;
+    let u_ptr = u_plane;
+    let v_ptr = v_plane;
+    let rgba_ptr = rgba.as_ptr();
 
     let mut cx = start_cx;
-    let mut uv_x = start_ux;
 
-    const V_SHR: i32 = 3;
     const V_SCALE: i32 = 7;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
-    let bias_uv = range.bias_uv as i16 * (1 << V_SHR) + rounding_const_bias;
 
-    let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
-    let i_cap_y = _mm256_set1_epi16(range.range_y as i16 + range.bias_y as i16);
-    let i_cap_uv = _mm256_set1_epi16(range.bias_y as i16 + range.range_uv as i16);
+    let i_bias_y = _mm256_set1_epi16(-4095);
+    let i_cap_y = _mm256_set1_epi16(4096);
 
-    let y_bias = _mm256_set1_epi16(bias_y);
-    let uv_bias = _mm256_set1_epi16(bias_uv);
+    let y_bias = _mm256_set1_epi16(-4096);
+    let uv_bias = _mm256_set1_epi16(0);
     let v_yr = _mm256_set1_epi16(transform.yr as i16);
     let v_yg = _mm256_set1_epi16(transform.yg as i16);
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
@@ -90,7 +72,7 @@ pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, con
     let v_cr_g = _mm256_set1_epi16(transform.cr_g as i16);
     let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
-    while cx + 32 < width as usize {
+    while cx + 32 < width {
         let (r_values, g_values, b_values);
 
         let px = cx * channels;
@@ -151,7 +133,7 @@ pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, con
 
         let y_l = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -160,7 +142,7 @@ pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, con
                         ),
                         _mm256_mulhi_epi16(b_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -168,7 +150,7 @@ pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, con
 
         let y_h = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -177,111 +159,99 @@ pub unsafe fn avx2_rgba_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, con
                         ),
                         _mm256_mulhi_epi16(b_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
         );
 
-        let y_yuv = avx2_pack_u16(y_l, y_h);
-        _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
+        _mm256_storeu_si256(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i, y_l);
+        _mm256_storeu_si256(y_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i, y_h);
 
-        if compute_uv_row {
-            let cb_l = _mm256_max_epi16(
-                _mm256_min_epi16(
-                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
-                        uv_bias,
+        let cb_l = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhi_epi16(r_low, v_cb_r),
-                                _mm256_mulhi_epi16(g_low, v_cb_g),
-                            ),
-                            _mm256_mulhi_epi16(b_low, v_cb_b),
+                            _mm256_mulhi_epi16(r_low, v_cb_r),
+                            _mm256_mulhi_epi16(g_low, v_cb_g),
                         ),
-                    )),
-                    i_cap_uv,
+                        _mm256_mulhi_epi16(b_low, v_cb_b),
+                    ),
                 ),
-                i_bias_y,
-            );
-            let cr_l = _mm256_max_epi16(
-                _mm256_min_epi16(
-                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
-                        uv_bias,
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
+        let cr_l = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhi_epi16(r_low, v_cr_r),
-                                _mm256_mulhi_epi16(g_low, v_cr_g),
-                            ),
-                            _mm256_mulhi_epi16(b_low, v_cr_b),
+                            _mm256_mulhi_epi16(r_low, v_cr_r),
+                            _mm256_mulhi_epi16(g_low, v_cr_g),
                         ),
-                    )),
-                    i_cap_uv,
+                        _mm256_mulhi_epi16(b_low, v_cr_b),
+                    ),
                 ),
-                i_bias_y,
-            );
-            let cb_h = _mm256_max_epi16(
-                _mm256_min_epi16(
-                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
-                        uv_bias,
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
+        let cb_h = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhi_epi16(r_high, v_cb_r),
-                                _mm256_mulhi_epi16(g_high, v_cb_g),
-                            ),
-                            _mm256_mulhi_epi16(b_high, v_cb_b),
+                            _mm256_mulhi_epi16(r_high, v_cb_r),
+                            _mm256_mulhi_epi16(g_high, v_cb_g),
                         ),
-                    )),
-                    i_cap_uv,
+                        _mm256_mulhi_epi16(b_high, v_cb_b),
+                    ),
                 ),
-                i_bias_y,
-            );
-            let cr_h = _mm256_max_epi16(
-                _mm256_min_epi16(
-                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
-                        uv_bias,
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
+        let cr_h = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhi_epi16(r_high, v_cr_r),
-                                _mm256_mulhi_epi16(g_high, v_cr_g),
-                            ),
-                            _mm256_mulhi_epi16(b_high, v_cr_b),
+                            _mm256_mulhi_epi16(r_high, v_cr_r),
+                            _mm256_mulhi_epi16(g_high, v_cr_g),
                         ),
-                    )),
-                    i_cap_uv,
+                        _mm256_mulhi_epi16(b_high, v_cr_b),
+                    ),
                 ),
-                i_bias_y,
-            );
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
 
-            let cb = avx2_pack_u16(cb_l, cb_h);
-
-            let cr = avx2_pack_u16(cr_l, cr_h);
-
-            match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
-                    let cb_h = avx2_pairwise_widen_avg(cb);
-                    let cr_h = avx2_pairwise_widen_avg(cr);
-                    let (row0, _) = match order {
-                        YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb_h, cr_h),
-                        YuvNVOrder::VU => _mm256_interleave_x2_epi8(cr_h, cb_h),
-                    };
-                    _mm256_storeu_si256(uv_ptr.add(uv_x) as *mut __m256i, row0);
-                    uv_x += 32;
-                }
-                YuvChromaSubsample::Yuv444 => {
-                    let (row0, row1) = match order {
-                        YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb, cr),
-                        YuvNVOrder::VU => _mm256_interleave_x2_epi8(cr, cb),
-                    };
-                    let dst_ptr = uv_ptr.add(uv_x);
-                    _mm256_storeu_si256(dst_ptr as *mut __m256i, row0);
-                    _mm256_storeu_si256(dst_ptr.add(32) as *mut __m256i, row1);
-                    uv_x += 64;
-                }
-            }
-        }
+        _mm256_storeu_si256(
+            u_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
+            cb_l,
+        );
+        _mm256_storeu_si256(
+            u_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i,
+            cb_h,
+        );
+        _mm256_storeu_si256(
+            v_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
+            cr_l,
+        );
+        _mm256_storeu_si256(
+            v_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i,
+            cr_h,
+        );
 
         cx += 32;
     }
 
-    ProcessedOffset { cx, ux: uv_x }
+    ProcessedOffset { cx, ux: cx }
 }

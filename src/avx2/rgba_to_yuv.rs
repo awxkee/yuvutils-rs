@@ -32,7 +32,7 @@ use crate::avx2::avx2_utils::{
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSample, YuvSourceChannels,
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsample, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -53,7 +53,7 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     width: usize,
     compute_uv_row: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
@@ -183,7 +183,7 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let y_yuv = avx2_pack_u16(y_l, y_h);
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
-        if chroma_subsampling != YuvChromaSample::Yuv420 || compute_uv_row {
+        if chroma_subsampling != YuvChromaSubsample::Yuv420 || compute_uv_row {
             let cb_l = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
@@ -254,14 +254,14 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let cr = avx2_pack_u16(cr_l, cr_h);
 
             match chroma_subsampling {
-                YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                     let cb_h = _mm256_castsi256_si128(avx2_pairwise_widen_avg(cb));
                     let cr_h = _mm256_castsi256_si128(avx2_pairwise_widen_avg(cr));
                     _mm_storeu_si128(u_ptr.add(uv_x) as *mut _ as *mut __m128i, cb_h);
                     _mm_storeu_si128(v_ptr.add(uv_x) as *mut _ as *mut __m128i, cr_h);
                     uv_x += 16;
                 }
-                YuvChromaSample::Yuv444 => {
+                YuvChromaSubsample::Yuv444 => {
                     _mm256_storeu_si256(u_ptr.add(uv_x) as *mut __m256i, cb);
                     _mm256_storeu_si256(v_ptr.add(uv_x) as *mut __m256i, cr);
                     uv_x += 32;

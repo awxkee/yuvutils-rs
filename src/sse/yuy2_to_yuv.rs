@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::sse::sse_support::sse_deinterleave_rgba;
-use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsample, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -48,7 +48,7 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
 
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;
@@ -99,7 +99,7 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
                 Yuy2Description::VYUY => pixel_set.0,
             };
 
-            if chroma_subsampling == YuvChromaSample::Yuv444 {
+            if chroma_subsampling == YuvChromaSubsample::Yuv444 {
                 let low_u_value = _mm_unpacklo_epi8(u_value, u_value);
                 let high_u_value = _mm_unpackhi_epi8(u_value, u_value);
                 let low_v_value = _mm_unpacklo_epi8(v_value, v_value);
@@ -125,8 +125,8 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
             _yuy2_x = x;
             if x + 16 < max_x_16 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 16,
-                    YuvChromaSample::Yuv444 => 32,
+                    YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => 16,
+                    YuvChromaSubsample::Yuv444 => 32,
                 };
                 _cx += 32;
             }
@@ -174,7 +174,7 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
                 y_reconstructed,
             );
 
-            if chroma_subsampling == YuvChromaSample::Yuv444 {
+            if chroma_subsampling == YuvChromaSubsample::Yuv444 {
                 let u_value = _mm_unpacklo_epi8(u_value, u_value);
                 let v_value = _mm_unpacklo_epi8(v_value, v_value);
                 _mm_storeu_si128(u_plane.as_mut_ptr().add(u_pos) as *mut __m128i, u_value);
@@ -195,8 +195,8 @@ pub unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>
             _yuy2_x = x;
             if x + 8 < max_x_8 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => 8,
-                    YuvChromaSample::Yuv444 => 16,
+                    YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => 8,
+                    YuvChromaSubsample::Yuv444 => 16,
                 };
                 _cx += 16;
             }

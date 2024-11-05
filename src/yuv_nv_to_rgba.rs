@@ -48,7 +48,7 @@ use crate::{YuvBiPlanarImage, YuvError};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuv_nv12_to_rgbx<
     const UV_ORDER: u8,
@@ -63,7 +63,7 @@ fn yuv_nv12_to_rgbx<
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = YUV_CHROMA_SAMPLING.into();
 
     bi_planar_image.check_constraints(chroma_subsampling)?;
 
@@ -85,14 +85,6 @@ fn yuv_nv12_to_rgbx<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let dst_offset = 0usize;
-
-    let iterator_step = match chroma_subsampling {
-        YuvChromaSample::Yuv420 => 2usize,
-        YuvChromaSample::Yuv422 => 2usize,
-        YuvChromaSample::Yuv444 => 1usize,
-    };
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -103,191 +95,302 @@ fn yuv_nv12_to_rgbx<
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    let iter;
-    #[cfg(feature = "rayon")]
-    {
-        iter = bgra.par_chunks_exact_mut(bgra_stride as usize);
-    }
-    #[cfg(not(feature = "rayon"))]
-    {
-        iter = bgra.chunks_exact_mut(bgra_stride as usize);
-    }
-
-    let y_stride = bi_planar_image.y_stride;
-    let uv_stride = bi_planar_image.uv_stride;
-    let y_plane = bi_planar_image.y_plane;
-    let uv_plane = bi_planar_image.uv_plane;
     let width = bi_planar_image.width;
 
-    iter.enumerate().for_each(|(y, bgra)| unsafe {
-        let y_offset = y * (y_stride as usize);
-        let uv_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
-            (y >> 1) * (uv_stride as usize)
-        } else {
-            y * (uv_stride as usize)
-        };
-
-        #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut cx = 0usize;
-
-        #[allow(unused_variables)]
-        #[allow(unused_mut)]
-        let mut ux = 0usize;
-
+    let process_wide_row = |bgra: &mut [u8], y_plane: &[u8], uv_plane: &[u8]| {
+        let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            #[cfg(feature = "nightly_avx512")]
-            if _use_avx512 {
-                let processed =
-                    avx512_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+            unsafe {
+                #[cfg(feature = "nightly_avx512")]
+                if _use_avx512 {
+                    let processed = avx512_yuv_nv_to_rgba::<
+                        UV_ORDER,
+                        DESTINATION_CHANNELS,
+                        YUV_CHROMA_SAMPLING,
+                    >(
                         &range,
                         &inverse_transform,
                         y_plane,
                         uv_plane,
                         bgra,
-                        cx,
-                        ux,
-                        y_offset,
-                        uv_offset,
-                        dst_offset,
+                        _offset.cx,
+                        _offset.ux,
+                        0,
+                        0,
+                        0,
                         width as usize,
                     );
-                cx = processed.cx;
-                ux = processed.ux;
-            }
+                    _offset = processed;
+                }
 
-            if _use_avx2 {
-                let processed =
-                    avx2_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                if _use_avx2 {
+                    let processed = avx2_yuv_nv_to_rgba_row::<
+                        UV_ORDER,
+                        DESTINATION_CHANNELS,
+                        YUV_CHROMA_SAMPLING,
+                    >(
                         &range,
                         &inverse_transform,
                         y_plane,
                         uv_plane,
                         bgra,
-                        cx,
-                        ux,
-                        y_offset,
-                        uv_offset,
-                        dst_offset,
+                        _offset.cx,
+                        _offset.ux,
+                        0,
+                        0,
+                        0,
                         width as usize,
                     );
-                cx = processed.cx;
-                ux = processed.ux;
-            }
+                    _offset = processed;
+                }
 
-            if _use_sse {
-                let processed =
-                    sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &range,
-                        &inverse_transform,
-                        y_plane,
-                        uv_plane,
-                        bgra,
-                        cx,
-                        ux,
-                        y_offset,
-                        uv_offset,
-                        dst_offset,
-                        width as usize,
-                    );
-                cx = processed.cx;
-                ux = processed.ux;
+                if _use_sse {
+                    let processed =
+                        sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                            &range,
+                            &inverse_transform,
+                            y_plane,
+                            uv_plane,
+                            bgra,
+                            _offset.cx,
+                            _offset.ux,
+                            0,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    _offset = processed;
+                }
             }
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let processed =
-                neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    y_plane,
-                    uv_plane,
-                    bgra,
-                    cx,
-                    ux,
-                    y_offset,
-                    uv_offset,
-                    dst_offset,
-                    width as usize,
-                );
-            cx = processed.cx;
-            ux = processed.ux;
+            unsafe {
+                let processed =
+                    neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        y_plane,
+                        uv_plane,
+                        bgra,
+                        _offset.cx,
+                        _offset.ux,
+                        0,
+                        0,
+                        0,
+                        width as usize,
+                    );
+                _offset = processed;
+            }
         }
 
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
         {
-            let processed =
-                wasm_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    y_plane,
-                    uv_plane,
-                    bgra,
-                    cx,
-                    ux,
-                    y_offset,
-                    uv_offset,
-                    dst_offset,
-                    width as usize,
-                );
-            cx = processed.cx;
-            ux = processed.ux;
+            unsafe {
+                let processed =
+                    wasm_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        y_plane,
+                        uv_plane,
+                        bgra,
+                        _offset.cx,
+                        _offset.ux,
+                        0,
+                        0,
+                        0,
+                        width as usize,
+                    );
+                _offset = processed;
+            }
         }
 
-        for x in (cx..width as usize).step_by(iterator_step) {
-            let y_value = (*y_plane.get_unchecked(y_offset + x) as i32 - bias_y) * y_coef;
-            let cb_pos = uv_offset + ux;
-            let cb_value: i32 =
-                *uv_plane.get_unchecked(cb_pos + order.get_u_position()) as i32 - bias_uv;
-            let cr_value: i32 =
-                *uv_plane.get_unchecked(cb_pos + order.get_v_position()) as i32 - bias_uv;
+        _offset
+    };
 
-            let r = qrshr::<PRECISION, 8>(y_value + cr_coef * cr_value);
-            let b = qrshr::<PRECISION, 8>(y_value + cb_coef * cb_value);
-            let g = qrshr::<PRECISION, 8>(y_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
+    let process_halved_chroma_row = |y_src: &[u8], uv_src: &[u8], rgba: &mut [u8]| {
+        let processed = process_wide_row(rgba, y_src, uv_src);
 
-            let px = x * channels;
+        for ((rgba, y_src), uv_src) in rgba
+            .chunks_exact_mut(channels * 2)
+            .zip(y_src.chunks_exact(2))
+            .zip(uv_src.chunks_exact(2))
+            .skip(processed.cx / 2)
+        {
+            let y_vl0 = y_src[0] as i32;
+            let mut cb_value = uv_src[order.get_u_position()] as i32;
+            let mut cr_value = uv_src[order.get_v_position()] as i32;
 
-            let dst_shift = dst_offset + px;
+            let y_value0: i32 = (y_vl0 - bias_y) * y_coef;
 
-            let dst_slice = bgra.get_unchecked_mut(dst_shift..);
-            *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-            *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-            *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
+            cb_value -= bias_uv;
+            cr_value -= bias_uv;
+
+            let r0 = qrshr::<PRECISION, 8>(y_value0 + cr_coef * cr_value);
+            let b0 = qrshr::<PRECISION, 8>(y_value0 + cb_coef * cb_value);
+            let g0 = qrshr::<PRECISION, 8>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+            rgba[dst_chans.get_b_channel_offset()] = b0 as u8;
+            rgba[dst_chans.get_g_channel_offset()] = g0 as u8;
+            rgba[dst_chans.get_r_channel_offset()] = r0 as u8;
+
             if dst_chans.has_alpha() {
-                *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
+                rgba[dst_chans.get_a_channel_offset()] = 255;
             }
 
-            if chroma_subsampling == YuvChromaSample::Yuv422
-                || chroma_subsampling == YuvChromaSample::Yuv420
+            let y_vl1 = y_src[1] as i32;
+
+            let y_value1: i32 = (y_vl1 - bias_y) * y_coef;
+
+            let r1 = qrshr::<PRECISION, 8>(y_value1 + cr_coef * cr_value);
+            let b1 = qrshr::<PRECISION, 8>(y_value1 + cb_coef * cb_value);
+            let g1 = qrshr::<PRECISION, 8>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+            rgba[channels + dst_chans.get_b_channel_offset()] = b1 as u8;
+            rgba[channels + dst_chans.get_g_channel_offset()] = g1 as u8;
+            rgba[channels + dst_chans.get_r_channel_offset()] = r1 as u8;
+
+            if dst_chans.has_alpha() {
+                rgba[channels + dst_chans.get_a_channel_offset()] = 255;
+            }
+        }
+
+        if width & 1 != 0 {
+            let rgba = rgba.chunks_exact_mut(channels * 2).into_remainder();
+            let rgba = &mut rgba[0..channels];
+            let uv_src = uv_src.chunks_exact(2).last().unwrap();
+            let y_src = y_src.chunks_exact(2).remainder();
+
+            let y_vl0 = y_src[0] as i32;
+            let y_value0: i32 = (y_vl0 - bias_y) * y_coef;
+            let mut cb_value = uv_src[order.get_u_position()] as i32;
+            let mut cr_value = uv_src[order.get_v_position()] as i32;
+
+            cb_value -= bias_uv;
+            cr_value -= bias_uv;
+
+            let r0 = qrshr::<PRECISION, 8>(y_value0 + cr_coef * cr_value);
+            let b0 = qrshr::<PRECISION, 8>(y_value0 + cb_coef * cb_value);
+            let g0 = qrshr::<PRECISION, 8>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+            rgba[dst_chans.get_b_channel_offset()] = b0 as u8;
+            rgba[dst_chans.get_g_channel_offset()] = g0 as u8;
+            rgba[dst_chans.get_r_channel_offset()] = r0 as u8;
+
+            if dst_chans.has_alpha() {
+                rgba[dst_chans.get_a_channel_offset()] = 255;
+            }
+        }
+    };
+
+    let y_stride = bi_planar_image.y_stride;
+    let uv_stride = bi_planar_image.uv_stride;
+    let y_plane = bi_planar_image.y_plane;
+    let uv_plane = bi_planar_image.uv_plane;
+
+    if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = y_plane
+                .par_chunks_exact(y_stride as usize)
+                .zip(uv_plane.par_chunks_exact(uv_stride as usize))
+                .zip(bgra.par_chunks_exact_mut(bgra_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = y_plane
+                .chunks_exact(y_stride as usize)
+                .zip(uv_plane.chunks_exact(uv_stride as usize))
+                .zip(bgra.chunks_exact_mut(bgra_stride as usize));
+        }
+        iter.for_each(|((y_src, uv_src), rgba)| {
+            let processed = process_wide_row(rgba, y_src, uv_src);
+
+            for ((rgba, &y_src), uv_src) in rgba
+                .chunks_exact_mut(channels)
+                .zip(y_src.iter())
+                .zip(uv_src.chunks_exact(2))
+                .skip(processed.cx)
             {
-                let next_px = x + 1;
-                if next_px < width as usize {
-                    let y_value =
-                        (*y_plane.get_unchecked(y_offset + next_px) as i32 - bias_y) * y_coef;
+                let y_vl = y_src as i32;
+                let mut cb_value = uv_src[order.get_u_position()] as i32;
+                let mut cr_value = uv_src[order.get_v_position()] as i32;
 
-                    let r = qrshr::<PRECISION, 8>(y_value + cr_coef * cr_value);
-                    let b = qrshr::<PRECISION, 8>(y_value + cb_coef * cb_value);
-                    let g =
-                        qrshr::<PRECISION, 8>(y_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
+                let y_value: i32 = (y_vl - bias_y) * y_coef;
 
-                    let next_px = next_px * channels;
-                    let dst_shift = dst_offset + next_px;
-                    let dst_slice = bgra.get_unchecked_mut(dst_shift..);
-                    *dst_slice.get_unchecked_mut(dst_chans.get_b_channel_offset()) = b as u8;
-                    *dst_slice.get_unchecked_mut(dst_chans.get_g_channel_offset()) = g as u8;
-                    *dst_slice.get_unchecked_mut(dst_chans.get_r_channel_offset()) = r as u8;
-                    if dst_chans.has_alpha() {
-                        *dst_slice.get_unchecked_mut(dst_chans.get_a_channel_offset()) = 255;
-                    }
+                cb_value -= bias_uv;
+                cr_value -= bias_uv;
+
+                let r = qrshr::<PRECISION, 8>(y_value + cr_coef * cr_value);
+                let b = qrshr::<PRECISION, 8>(y_value + cb_coef * cb_value);
+                let g = qrshr::<PRECISION, 8>(y_value - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+                rgba[dst_chans.get_b_channel_offset()] = b as u8;
+                rgba[dst_chans.get_g_channel_offset()] = g as u8;
+                rgba[dst_chans.get_r_channel_offset()] = r as u8;
+
+                if dst_chans.has_alpha() {
+                    rgba[dst_chans.get_a_channel_offset()] = 255;
                 }
             }
-
-            ux += 2;
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv422 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = y_plane
+                .par_chunks_exact(y_stride as usize)
+                .zip(uv_plane.par_chunks_exact(uv_stride as usize))
+                .zip(bgra.par_chunks_exact_mut(bgra_stride as usize));
         }
-    });
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = y_plane
+                .chunks_exact(y_stride as usize)
+                .zip(uv_plane.chunks_exact(uv_stride as usize))
+                .zip(bgra.chunks_exact_mut(bgra_stride as usize));
+        }
+        iter.for_each(|((y_src, uv_src), rgba)| {
+            process_halved_chroma_row(y_src, uv_src, rgba);
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv420 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = y_plane
+                .par_chunks_exact(y_stride as usize * 2)
+                .zip(uv_plane.par_chunks_exact(uv_stride as usize))
+                .zip(bgra.par_chunks_exact_mut(bgra_stride as usize * 2));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = y_plane
+                .chunks_exact(y_stride as usize * 2)
+                .zip(uv_plane.chunks_exact(uv_stride as usize))
+                .zip(bgra.chunks_exact_mut(bgra_stride as usize * 2));
+        }
+        iter.for_each(|((y_src, uv_src), rgba)| {
+            for (y_src, rgba) in y_src
+                .chunks_exact(y_stride as usize)
+                .zip(rgba.chunks_exact_mut(bgra_stride as usize))
+            {
+                process_halved_chroma_row(y_src, uv_src, rgba);
+            }
+        });
+        if bi_planar_image.height & 1 != 0 {
+            let y_src = y_plane.chunks_exact(y_stride as usize * 2).remainder();
+            let uv_src = uv_plane.chunks_exact(uv_stride as usize).last().unwrap();
+            let rgba = bgra
+                .chunks_exact_mut(bgra_stride as usize * 2)
+                .into_remainder();
+            process_halved_chroma_row(y_src, uv_src, rgba);
+        }
+    } else {
+        unreachable!();
+    }
 
     Ok(())
 }
@@ -320,7 +423,7 @@ pub fn yuv_nv12_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -352,7 +455,7 @@ pub fn yuv_nv16_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -384,7 +487,7 @@ pub fn yuv_nv61_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -416,7 +519,7 @@ pub fn yuv_nv21_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -448,7 +551,7 @@ pub fn yuv_nv16_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -480,7 +583,7 @@ pub fn yuv_nv61_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -512,7 +615,7 @@ pub fn yuv_nv12_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -544,7 +647,7 @@ pub fn yuv_nv21_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -576,7 +679,7 @@ pub fn yuv_nv12_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -608,7 +711,7 @@ pub fn yuv_nv12_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -640,7 +743,7 @@ pub fn yuv_nv16_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -672,7 +775,7 @@ pub fn yuv_nv16_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -704,7 +807,7 @@ pub fn yuv_nv61_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -736,7 +839,7 @@ pub fn yuv_nv61_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSample::Yuv422 as u8 },
+        { YuvChromaSubsample::Yuv422 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -768,7 +871,7 @@ pub fn yuv_nv21_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -800,7 +903,7 @@ pub fn yuv_nv21_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSample::Yuv420 as u8 },
+        { YuvChromaSubsample::Yuv420 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -832,7 +935,7 @@ pub fn yuv_nv42_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -864,7 +967,7 @@ pub fn yuv_nv24_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -896,7 +999,7 @@ pub fn yuv_nv24_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -928,7 +1031,7 @@ pub fn yuv_nv24_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -960,7 +1063,7 @@ pub fn yuv_nv24_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -992,7 +1095,7 @@ pub fn yuv_nv42_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -1024,7 +1127,7 @@ pub fn yuv_nv42_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -1056,6 +1159,6 @@ pub fn yuv_nv42_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSample::Yuv444 as u8 },
+        { YuvChromaSubsample::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }

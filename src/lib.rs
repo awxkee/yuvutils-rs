@@ -46,6 +46,8 @@ mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
 mod numerics;
+#[cfg(feature = "rdp")]
+mod rdp;
 mod rgb_to_nv_p16;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -87,7 +89,7 @@ mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
 
 pub use yuv_support::{
-    YuvBytesPacking, YuvChromaSample, YuvEndianness, YuvRange, YuvStandardMatrix,
+    YuvBytesPacking, YuvChromaSubsample, YuvEndianness, YuvRange, YuvStandardMatrix,
 };
 
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;
@@ -422,6 +424,8 @@ pub use images::{
     BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayAlphaImage, YuvGrayImage,
     YuvGrayImageMut, YuvPlanarImage, YuvPlanarImageMut, YuvPlanarImageWithAlpha,
 };
+#[cfg(feature = "rdp")]
+pub use rdp::*;
 pub use y_p16_to_rgb16::*;
 pub use y_p16_with_alpha_to_rgb16::*;
 pub use y_with_alpha_to_rgb::*;

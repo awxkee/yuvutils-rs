@@ -29,7 +29,7 @@
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
-use crate::{YuvChromaSample, YuvError, YuvPlanarImageMut, YuvRange};
+use crate::{YuvChromaSubsample, YuvError, YuvPlanarImageMut, YuvRange};
 use num_traits::AsPrimitive;
 use std::fmt::Debug;
 
@@ -66,7 +66,7 @@ where
         "Unsupported bit depth and data type combination"
     );
 
-    image.check_constraints(YuvChromaSample::Yuv444)?;
+    image.check_constraints(YuvChromaSubsample::Yuv444)?;
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
 
     let y_plane = image.y_plane.borrow_mut();

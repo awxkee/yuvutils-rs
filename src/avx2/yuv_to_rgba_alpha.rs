@@ -30,7 +30,7 @@
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSample, YuvSourceChannels,
+    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsample, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -53,7 +53,7 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -84,7 +84,7 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 let u_values = _mm_loadu_si128(u_ptr.add(u_offset + uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(v_offset + uv_x) as *const __m128i);
 
@@ -93,7 +93,7 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
                 u_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(u_values, u_values));
                 v_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(v_values, v_values));
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 let u_values = _mm256_loadu_si256(u_ptr.add(u_offset + uv_x) as *const __m256i);
                 let v_values = _mm256_loadu_si256(v_ptr.add(v_offset + uv_x) as *const __m256i);
 
@@ -232,10 +232,10 @@ pub unsafe fn avx2_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
         cx += 32;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 uv_x += 16;
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 uv_x += 32;
             }
         }

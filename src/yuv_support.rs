@@ -86,9 +86,7 @@ pub fn get_inverse_transform(
     let cr_coeff = (2f32 * (1f32 - kr)) * range_uv;
     let cb_coeff = (2f32 * (1f32 - kb)) * range_uv;
     let kg = 1.0f32 - kr - kb;
-    if kg == 0f32 {
-        panic!("1.0f - kr - kg must not be 0");
-    }
+    assert_ne!(kg, 0., "1.0f - kr - kg must not be 0");
     let g_coeff_1 = (2f32 * ((1f32 - kr) * kr / kg)) * range_uv;
     let g_coeff_2 = (2f32 * ((1f32 - kb) * kb / kg)) * range_uv;
     CbCrInverseTransform::new(y_coef, cr_coeff, cb_coeff, g_coeff_1, g_coeff_2)
@@ -290,19 +288,19 @@ impl From<u8> for YuvNVOrder {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum YuvChromaSample {
+pub enum YuvChromaSubsample {
     Yuv420 = 0,
     Yuv422 = 1,
     Yuv444 = 2,
 }
 
-impl From<u8> for YuvChromaSample {
+impl From<u8> for YuvChromaSubsample {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
-            0 => YuvChromaSample::Yuv420,
-            1 => YuvChromaSample::Yuv422,
-            2 => YuvChromaSample::Yuv444,
+            0 => YuvChromaSubsample::Yuv420,
+            1 => YuvChromaSubsample::Yuv422,
+            2 => YuvChromaSubsample::Yuv444,
             _ => {
                 panic!("Unknown value")
             }

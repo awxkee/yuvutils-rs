@@ -31,7 +31,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndianness,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsample, YuvEndianness,
     YuvSourceChannels,
 };
 
@@ -62,7 +62,7 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         panic!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = rgba.as_mut_ptr();
@@ -192,10 +192,10 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::Yuv420 | YuvChromaSample::Yuv422 => {
+            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 ux += 4;
             }
-            YuvChromaSample::Yuv444 => {
+            YuvChromaSubsample::Yuv444 => {
                 ux += 8;
             }
         }

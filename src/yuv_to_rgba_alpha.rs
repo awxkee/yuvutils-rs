@@ -55,7 +55,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     assert!(
         dst_chans.has_alpha(),
@@ -125,12 +125,12 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     iter.enumerate()
         .for_each(|(y, ((rgba, y_plane), a_plane))| {
-            let u_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
+            let u_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
                 (y >> 1) * (u_stride as usize)
             } else {
                 y * (u_stride as usize)
             };
-            let v_offset = if chroma_subsampling == YuvChromaSample::Yuv420 {
+            let v_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
                 (y >> 1) * (v_stride as usize)
             } else {
                 y * (v_stride as usize)
@@ -232,7 +232,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 _uv_x = processed.ux;
             }
 
-            if chroma_subsampling == YuvChromaSample::Yuv444 && _cx < width as usize {
+            if chroma_subsampling == YuvChromaSubsample::Yuv444 && _cx < width as usize {
                 let u_plane = &u_plane[u_offset..];
                 let v_plane = &v_plane[v_offset..];
 
@@ -383,7 +383,7 @@ pub fn yuv420_with_alpha_to_rgba(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_with_alpha,
         rgba,
         rgba_stride,
@@ -420,7 +420,7 @@ pub fn yuv420_with_alpha_to_bgra(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv420 as u8 }>(
+    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
         planar_with_alpha,
         bgra,
         bgra_stride,
@@ -457,7 +457,7 @@ pub fn yuv422_with_alpha_to_rgba(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_with_alpha,
         rgba,
         rgba_stride,
@@ -494,7 +494,7 @@ pub fn yuv422_with_alpha_to_bgra(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv422 as u8 }>(
+    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
         planar_with_alpha,
         bgra,
         bgra_stride,
@@ -531,7 +531,7 @@ pub fn yuv444_with_alpha_to_rgba(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         planar_with_alpha,
         rgba,
         rgba_stride,
@@ -568,7 +568,7 @@ pub fn yuv444_with_alpha_to_bgra(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::Yuv444 as u8 }>(
+    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
         planar_with_alpha,
         bgra,
         bgra_stride,
