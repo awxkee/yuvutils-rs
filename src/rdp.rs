@@ -39,6 +39,10 @@ use crate::sse::{rdp_sse_yuv_to_rgba_row, sse_rdp_rgba_to_yuv_row};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{CbCrForwardTransform, CbCrInverseTransform, YuvSourceChannels};
 use crate::{YuvChromaSubsample, YuvError, YuvPlanarImage, YuvPlanarImageMut};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 #[inline(always)]
 fn rescale_fp_12<const PRECISION: i32>(v: i32) -> u16 {
@@ -108,12 +112,26 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
 
-    for (((y_dst, u_dst), v_dst), rgba) in y_plane
-        .chunks_exact_mut(planar_image.y_stride as usize)
-        .zip(u_plane.chunks_exact_mut(planar_image.u_stride as usize))
-        .zip(v_plane.chunks_exact_mut(planar_image.v_stride as usize))
-        .zip(rgba.chunks_exact(rgba_stride as usize))
+    let iter;
+    #[cfg(feature = "rayon")]
     {
+        iter = y_plane
+            .par_chunks_exact_mut(planar_image.y_stride as usize)
+            .zip(u_plane.par_chunks_exact_mut(planar_image.u_stride as usize))
+            .zip(v_plane.par_chunks_exact_mut(planar_image.v_stride as usize))
+            .zip(rgba.par_chunks_exact(rgba_stride as usize))
+    }
+
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = y_plane
+            .chunks_exact_mut(planar_image.y_stride as usize)
+            .zip(u_plane.chunks_exact_mut(planar_image.u_stride as usize))
+            .zip(v_plane.chunks_exact_mut(planar_image.v_stride as usize))
+            .zip(rgba.chunks_exact(rgba_stride as usize))
+    }
+
+    iter.for_each(|(((y_dst, u_dst), v_dst), rgba)| {
         let mut _cx = 0;
 
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
@@ -194,7 +212,7 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
             *u_dst = u;
             *v_dst = v;
         }
-    }
+    });
 
     Ok(())
 }
@@ -254,12 +272,25 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
 
-    for (((y_dst, u_dst), v_dst), rgba) in y_plane
-        .chunks_exact(planar_image.y_stride as usize)
-        .zip(u_plane.chunks_exact(planar_image.u_stride as usize))
-        .zip(v_plane.chunks_exact(planar_image.v_stride as usize))
-        .zip(rgba.chunks_exact_mut(rgba_stride as usize))
+    let iter;
+    #[cfg(feature = "rayon")]
     {
+        iter = y_plane
+            .par_chunks_exact(planar_image.y_stride as usize)
+            .zip(u_plane.par_chunks_exact(planar_image.u_stride as usize))
+            .zip(v_plane.par_chunks_exact(planar_image.v_stride as usize))
+            .zip(rgba.par_chunks_exact_mut(rgba_stride as usize));
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        iter = y_plane
+            .chunks_exact(planar_image.y_stride as usize)
+            .zip(u_plane.chunks_exact(planar_image.u_stride as usize))
+            .zip(v_plane.chunks_exact(planar_image.v_stride as usize))
+            .zip(rgba.chunks_exact_mut(rgba_stride as usize));
+    }
+
+    iter.for_each(|(((y_dst, u_dst), v_dst), rgba)| {
         let mut _cx = 0;
 
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
@@ -324,8 +355,7 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
                 rgba[ch.get_a_channel_offset()] = 255;
             }
         }
-    }
-
+    });
     Ok(())
 }
 

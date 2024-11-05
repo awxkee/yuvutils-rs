@@ -26,10 +26,15 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::numerics::qrshr_n;
 use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvSourceChannels, Yuy2Description,
 };
 use crate::{YuvRange, YuvStandardMatrix};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     yuy2_store: &[u16],
@@ -56,7 +61,6 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
         kr_kb.kr,
         kr_kb.kb,
     );
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
@@ -66,123 +70,86 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let mut rgb_offset = 0usize;
-    let mut yuy_offset = 0usize;
+    let rgb_iter;
+    let yuy2_iter;
+    #[cfg(feature = "rayon")]
+    {
+        rgb_iter = rgb_store.par_chunks_exact_mut(rgb_stride as usize);
+        yuy2_iter = yuy2_store.par_chunks_exact(yuy2_stride as usize);
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        rgb_iter = rgb_store.chunks_exact_mut(rgb_stride as usize);
+        yuy2_iter = yuy2_store.chunks_exact(yuy2_stride as usize);
+    }
 
-    for _ in 0..height as usize {
-        let mut _cx = 0usize;
-        let mut _yuy2_x = 0usize;
+    rgb_iter.zip(yuy2_iter).for_each(|(rgb_store, yuy2_store)| {
+        for (rgb, yuy2) in rgb_store
+            .chunks_exact_mut(2 * channels)
+            .zip(yuy2_store.chunks_exact(4))
+        {
+            let first_y = yuy2[yuy2_source.get_first_y_position()];
+            let second_y = yuy2[yuy2_source.get_second_y_position()];
+            let u_value = yuy2[yuy2_source.get_u_position()];
+            let v_value = yuy2[yuy2_source.get_v_position()];
 
-        let max_iter = width as usize / 2;
-        for x in _yuy2_x..max_iter {
-            unsafe {
-                let rgb_pos = _cx * channels;
-                let yuy2_offset = x * 4;
+            let cb = u_value as i32 - bias_uv;
+            let cr = v_value as i32 - bias_uv;
+            let f_y = (first_y as i32 - bias_y) * y_coef;
+            let s_y = (second_y as i32 - bias_y) * y_coef;
 
-                let src_ptr = yuy2_store.as_ptr().add(yuy_offset).add(yuy2_offset);
+            let r0 = qrshr_n::<PRECISION>(f_y + cr_coef * cr, max_colors);
+            let b0 = qrshr_n::<PRECISION>(f_y + cb_coef * cb, max_colors);
+            let g0 = qrshr_n::<PRECISION>(f_y - g_coef_1 * cr - g_coef_2 * cb, max_colors);
 
-                let dst_ptr = rgb_store.as_mut_ptr().add(rgb_offset).add(rgb_pos);
+            rgb[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgb[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgb[dst_chans.get_b_channel_offset()] = b0 as u16;
 
-                let first_y = src_ptr
-                    .add(yuy2_source.get_first_y_position())
-                    .read_unaligned();
-                let second_y = src_ptr
-                    .add(yuy2_source.get_second_y_position())
-                    .read_unaligned();
-                let u_value = src_ptr.add(yuy2_source.get_u_position()).read_unaligned();
-                let v_value = src_ptr.add(yuy2_source.get_v_position()).read_unaligned();
-
-                let cb = u_value as i32 - bias_uv;
-                let cr = v_value as i32 - bias_uv;
-                let f_y = (first_y as i32 - bias_y) * y_coef;
-                let s_y = (second_y as i32 - bias_y) * y_coef;
-
-                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
-                    .clamp(0, max_colors);
-                dst_ptr
-                    .add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b0 as u16);
-
-                if dst_chans.has_alpha() {
-                    dst_ptr
-                        .add(dst_chans.get_a_channel_offset())
-                        .write_unaligned(max_colors as u16);
-                }
-
-                let dst1 = dst_ptr.add(channels);
-
-                let r1 = ((s_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let b1 = ((s_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let g1 = ((s_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
-                    .clamp(0, max_colors);
-                dst1.add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r1 as u16);
-                dst1.add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g1 as u16);
-                dst1.add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b1 as u16);
-                if dst_chans.has_alpha() {
-                    dst1.add(dst_chans.get_a_channel_offset())
-                        .write_unaligned(max_colors as u16);
-                }
+            if dst_chans.has_alpha() {
+                rgb[dst_chans.get_a_channel_offset()] = 255;
             }
 
-            _cx += 2;
+            let r1 = qrshr_n::<PRECISION>(s_y + cr_coef * cr, max_colors);
+            let b1 = qrshr_n::<PRECISION>(s_y + cb_coef * cb, max_colors);
+            let g1 = qrshr_n::<PRECISION>(s_y - g_coef_1 * cr - g_coef_2 * cb, max_colors);
+
+            let rgb = &mut rgb[channels..channels * 2];
+
+            rgb[dst_chans.get_r_channel_offset()] = r1 as u16;
+            rgb[dst_chans.get_g_channel_offset()] = g1 as u16;
+            rgb[dst_chans.get_b_channel_offset()] = b1 as u16;
+
+            if dst_chans.has_alpha() {
+                rgb[dst_chans.get_a_channel_offset()] = 255;
+            }
         }
 
         if width & 1 == 1 {
-            unsafe {
-                let rgb_pos = (width as usize - 1) * channels;
-                let yuy2_offset = ((width as usize - 1) / 2) * 4;
+            let last_rgb = rgb_store.chunks_exact_mut(2 * channels).into_remainder();
+            let rgb = &mut last_rgb[0..channels];
+            let yuy2 = yuy2_store.chunks_exact(4).last().unwrap();
 
-                let src_ptr = ((yuy2_store.as_ptr() as *const u8).add(yuy_offset) as *const u16)
-                    .add(yuy2_offset);
+            let first_y = yuy2[yuy2_source.get_first_y_position()];
+            let u_value = yuy2[yuy2_source.get_u_position()];
+            let v_value = yuy2[yuy2_source.get_v_position()];
 
-                let dst_ptr =
-                    ((rgb_store.as_mut_ptr() as *mut u8).add(rgb_offset) as *mut u16).add(rgb_pos);
+            let cb = u_value as i32 - bias_uv;
+            let cr = v_value as i32 - bias_uv;
+            let f_y = (first_y as i32 - bias_y) * y_coef;
 
-                let first_y = src_ptr
-                    .add(yuy2_source.get_first_y_position())
-                    .read_unaligned();
-                let u_value = src_ptr.add(yuy2_source.get_u_position()).read_unaligned();
-                let v_value = src_ptr.add(yuy2_source.get_v_position()).read_unaligned();
+            let r0 = qrshr_n::<PRECISION>(f_y + cr_coef * cr, max_colors);
+            let b0 = qrshr_n::<PRECISION>(f_y + cb_coef * cb, max_colors);
+            let g0 = qrshr_n::<PRECISION>(f_y - g_coef_1 * cr - g_coef_2 * cb, max_colors);
+            rgb[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgb[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgb[dst_chans.get_b_channel_offset()] = b0 as u16;
 
-                let cb = u_value as i32 - bias_uv;
-                let cr = v_value as i32 - bias_uv;
-                let f_y = (first_y as i32 - bias_y) * y_coef;
-
-                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
-                    .clamp(0, max_colors);
-                dst_ptr
-                    .add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b0 as u16);
-                if dst_chans.has_alpha() {
-                    dst_ptr
-                        .add(dst_chans.get_a_channel_offset())
-                        .write_unaligned(max_colors as u16);
-                }
+            if dst_chans.has_alpha() {
+                rgb[dst_chans.get_a_channel_offset()] = 255;
             }
         }
-
-        rgb_offset += rgb_stride as usize;
-        yuy_offset += yuy2_stride as usize;
-    }
+    });
 }
 
 /// Convert YUYV (YUV Packed) 8+ bit depth format to RGB image.
