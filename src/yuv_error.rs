@@ -46,11 +46,20 @@ pub enum YuvError {
     LumaPlaneMinimumSizeMismatch(MismatchedSize),
     ChromaPlaneMinimumSizeMismatch(MismatchedSize),
     ChromaPlaneSizeMismatch(MismatchedSize),
+    PackedFrameSizeMismatch(MismatchedSize),
+    ImagesSizesNotMatch,
 }
 
 impl Display for YuvError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            YuvError::ImagesSizesNotMatch => {
+                f.write_str("All images size must match in one function")
+            }
+            YuvError::PackedFrameSizeMismatch(size) => f.write_fmt(format_args!(
+                "Packed YUV frame has invalid size, it must be {}, but it was {}",
+                size.expected, size.received
+            )),
             YuvError::ChromaPlaneSizeMismatch(size) => f.write_fmt(format_args!(
                 "Chroma plane have invalid size, it must be {}, but it was {}",
                 size.expected, size.received
@@ -113,6 +122,9 @@ pub(crate) fn check_rgba_destination<V>(
     height: u32,
     channels: usize,
 ) -> Result<(), YuvError> {
+    if width == 0 || height == 0 {
+        return Err(YuvError::ZeroBaseSize);
+    }
     check_overflow_v3(width as usize, height as usize, channels)?;
     if arr.len() != rgba_stride as usize * height as usize {
         return Err(YuvError::DestinationSizeMismatch(MismatchedSize {
@@ -130,12 +142,41 @@ pub(crate) fn check_rgba_destination<V>(
 }
 
 #[inline]
+pub(crate) fn check_yuv_packed<V>(
+    data: &[V],
+    stride: u32,
+    width: u32,
+    height: u32,
+) -> Result<(), YuvError> {
+    if width == 0 || height == 0 {
+        return Err(YuvError::ZeroBaseSize);
+    }
+    check_overflow_v2(stride as usize, height as usize)?;
+    check_overflow_v2(width as usize, height as usize)?;
+    let full_size = if width % 2 == 0 {
+        2 * width as usize * height as usize
+    } else {
+        2 * (width as usize + 1) * height as usize
+    };
+    if data.len() != full_size {
+        return Err(YuvError::PackedFrameSizeMismatch(MismatchedSize {
+            expected: stride as usize * height as usize,
+            received: data.len(),
+        }));
+    }
+    Ok(())
+}
+
+#[inline]
 pub(crate) fn check_y8_channel<V>(
     data: &[V],
     stride: u32,
     width: u32,
     height: u32,
 ) -> Result<(), YuvError> {
+    if width == 0 || height == 0 {
+        return Err(YuvError::ZeroBaseSize);
+    }
     check_overflow_v2(stride as usize, height as usize)?;
     check_overflow_v2(width as usize, height as usize)?;
     if (stride as usize * height as usize) < (width as usize * height as usize) {
@@ -161,6 +202,9 @@ pub(crate) fn check_chroma_channel<V>(
     image_height: u32,
     sampling: YuvChromaSubsample,
 ) -> Result<(), YuvError> {
+    if image_width == 0 || image_height == 0 {
+        return Err(YuvError::ZeroBaseSize);
+    }
     let chroma_min_width = match sampling {
         YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => (image_width + 1) / 2,
         YuvChromaSubsample::Yuv444 => image_width,
@@ -196,6 +240,9 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
     image_height: u32,
     sampling: YuvChromaSubsample,
 ) -> Result<(), YuvError> {
+    if image_width == 0 || image_height == 0 {
+        return Err(YuvError::ZeroBaseSize);
+    }
     let chroma_min_width = match sampling {
         YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => ((image_width + 1) / 2) * 2,
         YuvChromaSubsample::Yuv444 => image_width * 2,

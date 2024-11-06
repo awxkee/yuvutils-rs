@@ -34,15 +34,8 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 use yuvutils_rs::{
-    gbr_to_rgb, rdp_rgb_to_yuv444, rdp_yuv444_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420,
-    rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444,
-    rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16, rgb_to_yuv_nv16_p16,
-    rgb_to_yuv_nv24, rgb_to_yuv_nv24_p16, rgb_to_yuv_nv61_p16, yuv420_p16_to_rgb16, yuv420_to_rgb,
-    yuv422_p16_to_rgb16, yuv422_to_rgb, yuv444_p16_to_rgb16, yuv444_to_rgb, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv16_to_rgb, yuv_nv16_to_rgb_p16, yuv_nv24_to_rgb,
-    yuv_nv24_to_rgb_p16, yuv_nv61_to_rgb_p16, SharpYuvGammaTransfer, YuvBiPlanarImageMut,
-    YuvBytesPacking, YuvChromaSubsample, YuvEndianness, YuvPlanarImage, YuvPlanarImageMut,
-    YuvRange, YuvStandardMatrix,
+    rgb_to_yuv444, yuv444_to_yuyv422, yuyv422_to_rgb, yuyv422_to_yuv444, YuvBiPlanarImageMut,
+    YuvChromaSubsample, YuvPackedImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -98,12 +91,19 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsample::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsample::Yuv444);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsample::Yuv444);
 
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rdp_rgb_to_yuv444(&mut planar_image, &src_bytes, rgba_stride as u32).unwrap();
+    rgb_to_yuv444(
+        &mut planar_image,
+        &src_bytes,
+        rgba_stride as u32,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
     // bytes_16.fill(0);
     //
     println!("rgb_to_yuv_nv12 time: {:?}", start_time.elapsed());
@@ -111,68 +111,55 @@ fn main() {
     let end_time = Instant::now().sub(start_time);
     println!("Forward time: {:?}", end_time);
     // //
-    // let full_size = if width % 2 == 0 {
-    //     2 * width as usize * height as usize
-    // } else {
-    //     2 * (width as usize + 1) * height as usize
-    // };
+    let full_size = if width % 2 == 0 {
+        2 * width as usize * height as usize
+    } else {
+        2 * (width as usize + 1) * height as usize
+    };
     //
     // // println!("Full YUY2 {}", full_size);
     //
-    // let yuy2_stride = if width % 2 == 0 {
-    //     2 * width as usize
-    // } else {
-    //     2 * (width as usize + 1)
-    // };
-    //
-    // let mut yuy2_plane = vec![0u8; full_size];
+    let yuy2_stride = if width % 2 == 0 {
+        2 * width as usize
+    } else {
+        2 * (width as usize + 1)
+    };
+
+    let mut yuy2_plane = vec![0u8; full_size];
     // //
     // let start_time = Instant::now();
     // //
-    // yuv420_to_yuyv422(
-    //     &y_plane,
-    //     y_stride as u32,
-    //     &u_plane,
-    //     y_stride as u32,
-    //     &v_plane,
-    //     y_stride as u32,
-    //     &mut yuy2_plane,
-    //     yuy2_stride as u32,
-    //     width,
-    //     height,
-    // );
+    let plane = planar_image.to_fixed();
+    yuv444_to_yuyv422(&plane, &mut yuy2_plane, yuy2_stride as u32).unwrap();
     // let end_time = Instant::now().sub(start_time);
     // println!("yuv420_to_yuyv422 time: {:?}", end_time);
     // rgba.fill(0);
     // let start_time = Instant::now();
-    // yuyv422_to_rgb(
-    //     &yuy2_plane,
-    //     yuy2_stride as u32,
-    //     &mut rgba,
-    //     rgba_stride as u32,
-    //     width,
-    //     height,
-    //     YuvRange::TV,
-    //     YuvStandardMatrix::Bt709,
-    // );
+    yuyv422_to_rgb(
+        &yuy2_plane,
+        yuy2_stride as u32,
+        &mut rgba,
+        rgba_stride as u32,
+        width,
+        height,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt709,
+    );
     //
     // let end_time = Instant::now().sub(start_time);
     // println!("yuyv422_to_rgb time: {:?}", end_time);
 
     // let start_time = Instant::now();
     //
-    // yuyv422_to_yuv420(
-    //     &mut y_plane,
-    //     y_stride as u32,
-    //     &mut u_plane,
-    //     y_stride as u32,
-    //     &mut v_plane,
-    //     y_stride as u32,
-    //     &yuy2_plane,
-    //     yuy2_stride as u32,
-    //     width,
-    //     height,
-    // );
+
+    let packed_image = YuvPackedImage {
+        yuy: &yuy2_plane,
+        yuy_stride: yuy2_stride as u32,
+        width,
+        height,
+    };
+
+    yuyv422_to_yuv444(&mut planar_image, &packed_image).unwrap();
     //
     // let end_time = Instant::now().sub(start_time);
     // println!("yuyv422_to_yuv444 time: {:?}", end_time);
@@ -201,7 +188,7 @@ fn main() {
     // bytes_16.fill(0);
     let start_time = Instant::now();
 
-    rdp_yuv444_to_rgb(&fixed_planar, &mut rgba, rgba_stride as u32).unwrap();
+    // yuv444_to_rgb(&fixed_planar, &mut rgba, rgba_stride as u32, YuvRange::Limited, YuvStandardMatrix::Bt601).unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 

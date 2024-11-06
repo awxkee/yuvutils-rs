@@ -26,7 +26,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_error::{check_chroma_channel, check_interleaved_chroma_channel, check_y8_channel};
+use crate::yuv_error::{
+    check_chroma_channel, check_interleaved_chroma_channel, check_y8_channel, check_yuv_packed,
+};
 use crate::yuv_support::YuvChromaSubsample;
 use crate::YuvError;
 use std::fmt::Debug;
@@ -462,6 +464,52 @@ where
             self.height,
             subsampling,
         )?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+/// Non-mutable representation of Packed YUV image
+pub struct YuvPackedImage<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub yuy: &'a [T],
+    /// Stride here always means components per row.
+    pub yuy_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<T> YuvPackedImage<'_, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self) -> Result<(), YuvError> {
+        check_yuv_packed(self.yuy, self.yuy_stride, self.width, self.height)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+/// Mutable representation of Packed YUV image
+pub struct YuvPackedImageMut<'a, T>
+where
+    T: Copy + Debug,
+{
+    pub yuy: BufferStoreMut<'a, T>,
+    /// Stride here always means components per row.
+    pub yuy_stride: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl<T> YuvPackedImageMut<'_, T>
+where
+    T: Copy + Debug,
+{
+    pub fn check_constraints(&self) -> Result<(), YuvError> {
+        check_yuv_packed(self.yuy.borrow(), self.yuy_stride, self.width, self.height)?;
         Ok(())
     }
 }

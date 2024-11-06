@@ -4,5 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-yuvutils-rs = { path = "..", features = ["rdp", "rayon"] }
-image = "0.25.1"
+yuvutils-rs = { path = "..", features = ["rdp"] }
+image = "0.25.5"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "rdp"
+harness = false

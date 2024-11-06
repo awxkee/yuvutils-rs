@@ -422,7 +422,8 @@ pub use sharpyuv::SharpYuvGammaTransfer;
 
 pub use images::{
     BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayAlphaImage, YuvGrayImage,
-    YuvGrayImageMut, YuvPlanarImage, YuvPlanarImageMut, YuvPlanarImageWithAlpha,
+    YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImage, YuvPlanarImageMut,
+    YuvPlanarImageWithAlpha,
 };
 #[cfg(feature = "rdp")]
 pub use rdp::*;
