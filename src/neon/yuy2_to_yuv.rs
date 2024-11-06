@@ -32,13 +32,9 @@ use std::arch::aarch64::*;
 
 pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
-    y_offset: usize,
     u_plane: &mut [u8],
-    u_offset: usize,
     v_plane: &mut [u8],
-    v_offset: usize,
     yuy2_store: &[u8],
-    yuy2_offset: usize,
     width: u32,
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
@@ -54,10 +50,10 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         let max_x_8 = (width as usize / 2).saturating_sub(8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
-            let dst_offset = yuy2_offset + x * 4;
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+            let dst_offset = x * 4;
+            let u_pos = _uv_x;
+            let v_pos = _uv_x;
+            let y_pos = _cx;
 
             let pixel_set = vld4q_u8(yuy2_store.as_ptr().add(dst_offset));
             let mut y_first = match yuy2_source {
@@ -121,10 +117,10 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         }
 
         for x in (_yuy2_x..max_x_8).step_by(8) {
-            let dst_offset = yuy2_offset + x * 4;
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+            let dst_offset = x * 4;
+            let u_pos = _uv_x;
+            let v_pos = _uv_x;
+            let y_pos = _cx;
 
             let pixel_set = vld4_u8(yuy2_store.as_ptr().add(dst_offset));
             let mut y_first = match yuy2_source {

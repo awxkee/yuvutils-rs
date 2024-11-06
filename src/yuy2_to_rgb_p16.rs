@@ -43,7 +43,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
     rgb_stride: u32,
     bit_depth: u32,
     width: u32,
-    height: u32,
+    _: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) {

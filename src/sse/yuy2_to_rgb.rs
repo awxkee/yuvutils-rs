@@ -40,22 +40,13 @@ pub fn yuy2_to_rgb_sse<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     yuy2_store: &[u8],
-    yuy2_offset: usize,
     rgb: &mut [u8],
-    rgb_offset: usize,
     width: u32,
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     unsafe {
         yuy2_to_rgb_sse_impl::<DST_CHANNELS, YUY2_TARGET>(
-            range,
-            transform,
-            yuy2_store,
-            yuy2_offset,
-            rgb,
-            rgb_offset,
-            width,
-            nav,
+            range, transform, yuy2_store, rgb, width, nav,
         )
     }
 }
@@ -65,9 +56,7 @@ unsafe fn yuy2_to_rgb_sse_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     yuy2_store: &[u8],
-    yuy2_offset: usize,
     rgb: &mut [u8],
-    rgb_offset: usize,
     width: u32,
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
@@ -94,8 +83,8 @@ unsafe fn yuy2_to_rgb_sse_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
         let zeros = _mm_setzero_si128();
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
-            let yuy2_offset = yuy2_offset + x * 4;
-            let dst_pos = rgb_offset + _cx * dst_chans.get_channels_count();
+            let yuy2_offset = x * 4;
+            let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
             let yuy2_ptr = yuy2_store.as_ptr().add(yuy2_offset);
@@ -346,8 +335,8 @@ unsafe fn yuy2_to_rgb_sse_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
         }
 
         for x in (_yuy2_x..max_x_8).step_by(8) {
-            let yuy2_offset = yuy2_offset + x * 4;
-            let dst_pos = rgb_offset + _cx * dst_chans.get_channels_count();
+            let yuy2_offset = x * 4;
+            let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
             let yuy2_ptr = yuy2_store.as_ptr().add(yuy2_offset);

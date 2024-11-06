@@ -36,9 +36,7 @@ pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     yuy2_store: &[u8],
-    yuy2_offset: usize,
     rgb: &mut [u8],
-    rgb_offset: usize,
     width: u32,
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
@@ -63,8 +61,8 @@ pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
         let v_alpha = vdupq_n_u8(255u8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
-            let dst_offset = yuy2_offset + x * 4;
-            let dst_pos = rgb_offset + _cx * dst_chans.get_channels_count();
+            let dst_offset = x * 4;
+            let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
             let pixel_set = vld4q_u8(yuy2_store.as_ptr().add(dst_offset));
@@ -250,8 +248,8 @@ pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
         }
 
         for x in (_yuy2_x..max_x_8).step_by(8) {
-            let dst_offset = yuy2_offset + x * 4;
-            let dst_pos = rgb_offset + _cx * dst_chans.get_channels_count();
+            let dst_offset = x * 4;
+            let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
             let pixel_set = vld4_u8(yuy2_store.as_ptr().add(dst_offset));

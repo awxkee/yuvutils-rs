@@ -39,13 +39,9 @@ use std::arch::x86_64::*;
 #[target_feature(enable = "avx2")]
 pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
-    y_offset: usize,
     u_plane: &mut [u8],
-    u_offset: usize,
     v_plane: &mut [u8],
-    v_offset: usize,
     yuy2_store: &[u8],
-    yuy2_offset: usize,
     width: u32,
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
@@ -59,10 +55,10 @@ pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let max_x_32 = (width as usize / 2).saturating_sub(32);
 
     for x in (_yuy2_x..max_x_32).step_by(32) {
-        let dst_offset = yuy2_offset + x * 4;
-        let u_pos = u_offset + _uv_x;
-        let v_pos = v_offset + _uv_x;
-        let y_pos = y_offset + _cx;
+        let dst_offset = x * 4;
+        let u_pos = _uv_x;
+        let v_pos = _uv_x;
+        let y_pos = _cx;
 
         let yuy2_ptr = yuy2_store.as_ptr().add(dst_offset);
 

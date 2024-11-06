@@ -91,9 +91,6 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     }
 
     rgb_iter.zip(yuy2_iter).for_each(|(rgb_store, yuy2_store)| {
-        let rgb_offset = 0usize;
-        let yuy_offset = 0usize;
-
         let mut _cx = 0usize;
         let mut _yuy2_x = 0usize;
 
@@ -104,9 +101,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                     &range,
                     &inverse_transform,
                     yuy2_store,
-                    yuy_offset,
                     rgb_store,
-                    rgb_offset,
                     width,
                     YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
                 );
@@ -118,9 +113,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                     &range,
                     &inverse_transform,
                     yuy2_store,
-                    yuy_offset,
                     rgb_store,
-                    rgb_offset,
                     width,
                     YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
                 );
@@ -135,9 +128,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                 &range,
                 &inverse_transform,
                 yuy2_store,
-                yuy_offset,
                 rgb_store,
-                rgb_offset,
                 width,
                 YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
             );

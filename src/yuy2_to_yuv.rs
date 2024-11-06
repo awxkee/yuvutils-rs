@@ -36,6 +36,10 @@ use crate::yuv_support::{YuvChromaSubsample, Yuy2Description};
 #[allow(unused_imports)]
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use crate::{YuvError, YuvPlanarImageMut};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     planar_image: &mut YuvPlanarImageMut<u8>,
@@ -47,15 +51,53 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
     planar_image.check_constraints(chroma_subsampling)?;
 
-    let mut y_offset = 0usize;
-    let mut u_offset = 0usize;
-    let mut v_offset = 0usize;
-    let mut yuy_offset = 0usize;
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+
+    let width = planar_image.width;
+
+    let process_wide_row =
+        |_y_plane: &mut [u8], _u_plane: &mut [u8], _v_plane: &mut [u8], _yuy2_store: &[u8]| {
+            let mut _yuy2_nav = YuvToYuy2Navigation::new(0, 0, 0);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                _yuy2_nav = yuy2_to_yuv_neon_impl::<SAMPLING, YUY2_TARGET>(
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _yuy2_store,
+                    width,
+                    _yuy2_nav,
+                );
+            }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            unsafe {
+                if _use_avx2 {
+                    _yuy2_nav = yuy2_to_yuv_avx::<SAMPLING, YUY2_TARGET>(
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _yuy2_store,
+                        width,
+                        _yuy2_nav,
+                    );
+                }
+                if _use_sse {
+                    _yuy2_nav = yuy2_to_yuv_sse_impl::<SAMPLING, YUY2_TARGET>(
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _yuy2_store,
+                        width,
+                        _yuy2_nav,
+                    );
+                }
+            }
+            _yuy2_nav
+        };
 
     let y_plane = planar_image.y_plane.borrow_mut();
     let u_plane = planar_image.u_plane.borrow_mut();
@@ -63,142 +105,168 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let y_stride = planar_image.y_stride;
     let u_stride = planar_image.u_stride;
     let v_stride = planar_image.v_stride;
-    let width = planar_image.width;
-    let height = planar_image.height;
 
-    for y in 0..height as usize {
-        let mut _cx = 0usize;
-        let mut _uv_x = 0usize;
-        let mut _yuy2_x = 0usize;
-
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+        let iter;
+        #[cfg(feature = "rayon")]
         {
-            let processed = yuy2_to_yuv_neon_impl::<SAMPLING, YUY2_TARGET>(
-                y_plane,
-                y_offset,
-                u_plane,
-                u_offset,
-                v_plane,
-                v_offset,
-                yuy2_store,
-                yuy_offset,
-                width,
-                YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
-            );
-            _cx = processed.cx;
-            _uv_x = processed.uv_x;
-            _yuy2_x = processed.x;
+            iter = y_plane
+                .par_chunks_exact_mut(y_stride as usize)
+                .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
+                .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
+                .zip(yuy2_store.par_chunks_exact(yuy2_stride as usize));
         }
-
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
-            if _use_avx2 {
-                let processed = yuy2_to_yuv_avx::<SAMPLING, YUY2_TARGET>(
-                    y_plane,
-                    y_offset,
-                    u_plane,
-                    u_offset,
-                    v_plane,
-                    v_offset,
-                    yuy2_store,
-                    yuy_offset,
-                    width,
-                    YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
-                );
-                _cx = processed.cx;
-                _uv_x = processed.uv_x;
-                _yuy2_x = processed.x;
-            }
-            if _use_sse {
-                let processed = yuy2_to_yuv_sse_impl::<SAMPLING, YUY2_TARGET>(
-                    y_plane,
-                    y_offset,
-                    u_plane,
-                    u_offset,
-                    v_plane,
-                    v_offset,
-                    yuy2_store,
-                    yuy_offset,
-                    width,
-                    YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
-                );
-                _cx = processed.cx;
-                _uv_x = processed.uv_x;
-                _yuy2_x = processed.x;
-            }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = y_plane
+                .chunks_exact_mut(y_stride as usize)
+                .zip(u_plane.chunks_exact_mut(u_stride as usize))
+                .zip(v_plane.chunks_exact_mut(v_stride as usize))
+                .zip(yuy2_store.chunks_exact(yuy2_stride as usize));
         }
+        iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
+            let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2_src);
 
-        for x in _yuy2_x..width as usize / 2 {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
-            let yuy2_offset = yuy_offset + x * 4;
+            for (((y_dst, u_dst), v_dst), yuy2) in y_dst
+                .chunks_exact_mut(2)
+                .zip(u_dst.chunks_exact_mut(2))
+                .zip(v_dst.chunks_exact_mut(2))
+                .zip(yuy2_src.chunks_exact(4))
+                .skip(p_offset.cx)
+            {
+                let first_y_position = yuy2[yuy2_target.get_first_y_position()];
+                let second_y_position = yuy2[yuy2_target.get_second_y_position()];
+                let u_value = yuy2[yuy2_target.get_u_position()];
+                let v_value = yuy2[yuy2_target.get_v_position()];
+                y_dst[0] = first_y_position;
+                y_dst[1] = second_y_position;
+                u_dst[0] = u_value;
+                u_dst[1] = u_value;
+                v_dst[0] = v_value;
+                v_dst[1] = v_value;
+            }
 
-            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(yuy2_offset..) };
+            if width & 1 != 0 {
+                let y_dst = y_dst.last_mut().unwrap();
+                let u_dst = u_dst.last_mut().unwrap();
+                let v_dst = v_dst.last_mut().unwrap();
+                let yuy2 = yuy2_src.chunks_exact(4).remainder();
+                let yuy2 = &yuy2[0..4];
+                *y_dst = yuy2[yuy2_target.get_first_y_position()];
+                *u_dst = yuy2[yuy2_target.get_u_position()];
+                *v_dst = yuy2[yuy2_target.get_v_position()];
+            }
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv422 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = y_plane
+                .par_chunks_exact_mut(y_stride as usize)
+                .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
+                .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
+                .zip(yuy2_store.par_chunks_exact(yuy2_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = y_plane
+                .chunks_exact_mut(y_stride as usize)
+                .zip(u_plane.chunks_exact_mut(u_stride as usize))
+                .zip(v_plane.chunks_exact_mut(v_stride as usize))
+                .zip(yuy2_store.chunks_exact(yuy2_stride as usize));
+        }
+        iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
+            let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2_src);
 
-            let first_y_position =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_first_y_position()) };
-            let second_y_position =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_second_y_position()) };
-            let u_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_u_position()) };
-            let v_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_v_position()) };
+            for (((y_dst, u_dst), v_dst), yuy2) in y_dst
+                .chunks_exact_mut(2)
+                .zip(u_dst.iter_mut())
+                .zip(v_dst.iter_mut())
+                .zip(yuy2_src.chunks_exact(4))
+                .skip(p_offset.cx)
+            {
+                let first_y_position = yuy2[yuy2_target.get_first_y_position()];
+                let second_y_position = yuy2[yuy2_target.get_second_y_position()];
+                let u_value = yuy2[yuy2_target.get_u_position()];
+                let v_value = yuy2[yuy2_target.get_v_position()];
+                y_dst[0] = first_y_position;
+                y_dst[1] = second_y_position;
+                *u_dst = u_value;
+                *v_dst = v_value;
+            }
 
-            unsafe {
-                *y_plane.get_unchecked_mut(y_pos) = first_y_position;
-                *y_plane.get_unchecked_mut(y_pos + 1) = second_y_position;
-                *u_plane.get_unchecked_mut(u_pos) = u_value;
-                *v_plane.get_unchecked_mut(v_pos) = v_value;
-                if chroma_subsampling == YuvChromaSubsample::Yuv444 {
-                    *u_plane.get_unchecked_mut(u_pos + 1) = u_value;
-                    *v_plane.get_unchecked_mut(v_pos + 1) = v_value;
+            if width & 1 != 0 {
+                let y_dst = y_dst.last_mut().unwrap();
+                let u_dst = u_dst.last_mut().unwrap();
+                let v_dst = v_dst.last_mut().unwrap();
+                let yuy2 = yuy2_src.chunks_exact(4).remainder();
+                let yuy2 = &yuy2[0..4];
+                *y_dst = yuy2[yuy2_target.get_first_y_position()];
+                *u_dst = yuy2[yuy2_target.get_u_position()];
+                *v_dst = yuy2[yuy2_target.get_v_position()];
+            }
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv420 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = y_plane
+                .par_chunks_exact_mut(y_stride as usize * 2)
+                .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
+                .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
+                .zip(yuy2_store.par_chunks_exact(yuy2_stride as usize * 2));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = y_plane
+                .chunks_exact_mut(y_stride as usize * 2)
+                .zip(u_plane.chunks_exact_mut(u_stride as usize))
+                .zip(v_plane.chunks_exact_mut(v_stride as usize))
+                .zip(yuy2_store.chunks_exact(yuy2_stride as usize * 2));
+        }
+        iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
+            for (y, (y_dst, yuy2)) in y_dst
+                .chunks_exact_mut(y_stride as usize)
+                .zip(yuy2_src.chunks_exact(yuy2_stride as usize))
+                .enumerate()
+            {
+                let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2);
+
+                let process_chroma = y & 1 == 0;
+
+                for (((y_dst, u_dst), v_dst), yuy2) in y_dst
+                    .chunks_exact_mut(2)
+                    .zip(u_dst.iter_mut())
+                    .zip(v_dst.iter_mut())
+                    .zip(yuy2.chunks_exact(4))
+                    .skip(p_offset.cx)
+                {
+                    let first_y_position = yuy2[yuy2_target.get_first_y_position()];
+                    let second_y_position = yuy2[yuy2_target.get_second_y_position()];
+                    y_dst[0] = first_y_position;
+                    y_dst[1] = second_y_position;
+                    if process_chroma {
+                        let u_value = yuy2[yuy2_target.get_u_position()];
+                        let v_value = yuy2[yuy2_target.get_v_position()];
+                        *u_dst = u_value;
+                        *v_dst = v_value;
+                    }
+                }
+
+                if width & 1 != 0 {
+                    let y_dst = y_dst.last_mut().unwrap();
+                    let yuy2 = yuy2_src.chunks_exact(4).remainder();
+                    let yuy2 = &yuy2[0..4];
+                    *y_dst = yuy2[yuy2_target.get_first_y_position()];
+                    if process_chroma {
+                        let u_dst = u_dst.last_mut().unwrap();
+                        let v_dst = v_dst.last_mut().unwrap();
+                        *u_dst = yuy2[yuy2_target.get_u_position()];
+                        *v_dst = yuy2[yuy2_target.get_v_position()];
+                    }
                 }
             }
-
-            _uv_x += match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => 1,
-                YuvChromaSubsample::Yuv444 => 2,
-            };
-            _cx += 2;
-        }
-
-        if width & 1 == 1 {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
-            let yuy2_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
-
-            let yuy2_plane_shifted = unsafe { yuy2_store.get_unchecked(yuy2_offset..) };
-
-            let first_y_position =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_first_y_position()) };
-            let u_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_u_position()) };
-            let v_value =
-                unsafe { *yuy2_plane_shifted.get_unchecked(yuy2_target.get_v_position()) };
-
-            unsafe {
-                *y_plane.get_unchecked_mut(y_pos) = first_y_position;
-                *u_plane.get_unchecked_mut(u_pos) = u_value;
-                *v_plane.get_unchecked_mut(v_pos) = v_value;
-            }
-        }
-
-        y_offset += y_stride as usize;
-        yuy_offset += yuy2_stride as usize;
-        match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 => {
-                if y & 1 == 1 {
-                    u_offset += u_stride as usize;
-                    v_offset += v_stride as usize;
-                }
-            }
-            YuvChromaSubsample::Yuv444 | YuvChromaSubsample::Yuv422 => {
-                u_offset += u_stride as usize;
-                v_offset += v_stride as usize;
-            }
-        }
+        });
     }
 
     Ok(())
