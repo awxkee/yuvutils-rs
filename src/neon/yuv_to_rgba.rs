@@ -33,7 +33,6 @@ use crate::yuv_support::{
 };
 use std::arch::aarch64::*;
 
-#[inline(always)]
 pub unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,

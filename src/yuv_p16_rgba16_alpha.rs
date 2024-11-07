@@ -130,12 +130,12 @@ fn yuv_p16_to_image_alpha_ant<
                                      rgba: &mut [u16]| {
         let cx = process_wide_row(y_plane, u_plane, v_plane, a_plane, rgba);
 
-        for ((((rgba, y_src), &u_src), &v_src), &a_src) in rgba
+        for ((((rgba, y_src), &u_src), &v_src), a_src) in rgba
             .chunks_exact_mut(channels * 2)
             .zip(y_plane.chunks_exact(2))
             .zip(u_plane.iter())
             .zip(v_plane.iter())
-            .zip(a_plane.iter())
+            .zip(a_plane.chunks_exact(2))
             .skip(cx / 2)
         {
             let y_value0 =
@@ -153,7 +153,7 @@ fn yuv_p16_to_image_alpha_ant<
             rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
             rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
             rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
-            rgba0[dst_chans.get_a_channel_offset()] = a_src;
+            rgba0[dst_chans.get_a_channel_offset()] = a_src[0];
 
             let y_value1 =
                 (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32 - bias_y) * y_coef;
@@ -168,7 +168,7 @@ fn yuv_p16_to_image_alpha_ant<
             rgba1[dst_chans.get_r_channel_offset()] = r1 as u16;
             rgba1[dst_chans.get_g_channel_offset()] = g1 as u16;
             rgba1[dst_chans.get_b_channel_offset()] = b1 as u16;
-            rgba1[dst_chans.get_a_channel_offset()] = a_src;
+            rgba1[dst_chans.get_a_channel_offset()] = a_src[1];
         }
 
         if image.width & 1 != 0 {

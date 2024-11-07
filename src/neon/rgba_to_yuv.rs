@@ -33,7 +33,6 @@ use crate::yuv_support::{
 };
 use std::arch::aarch64::*;
 
-#[inline(always)]
 pub unsafe fn neon_rgba_to_yuv<
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,

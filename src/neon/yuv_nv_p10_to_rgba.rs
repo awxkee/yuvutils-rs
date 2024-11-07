@@ -35,7 +35,6 @@ use crate::yuv_support::{
     YuvNVOrder, YuvSourceChannels,
 };
 
-#[inline(always)]
 pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     const DESTINATION_CHANNELS: u8,
     const NV_ORDER: u8,

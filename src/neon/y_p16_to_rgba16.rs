@@ -34,7 +34,6 @@ use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvEndianness, YuvSourceChannels,
 };
 
-#[inline(always)]
 pub unsafe fn neon_y_p16_to_rgba16_row<
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,

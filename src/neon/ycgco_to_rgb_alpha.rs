@@ -32,7 +32,6 @@ use crate::neon::neon_simd_support::neon_premultiply_alpha;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsample, YuvSourceChannels};
 use std::arch::aarch64::*;
 
-#[inline(always)]
 pub unsafe fn neon_ycgco_to_rgb_alpha_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     y_plane: &[u8],

@@ -50,7 +50,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
-    planar_image: &YuvPlanarImage<u8>,
+    image: &YuvPlanarImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -60,14 +60,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
 
-    check_rgba_destination(
-        rgba,
-        rgba_stride,
-        planar_image.width,
-        planar_image.height,
-        channels,
-    )?;
-    planar_image.check_constraints(chroma_subsampling)?;
+    check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
+    image.check_constraints(chroma_subsampling)?;
 
     let range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
@@ -99,130 +93,35 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let iter;
     #[cfg(feature = "rayon")]
     {
-        iter = rgba.par_chunks_exact_mut(rgba_stride as usize).zip(
-            planar_image
-                .y_plane
-                .par_chunks_exact(planar_image.y_stride as usize),
-        );
+        iter = rgba
+            .par_chunks_exact_mut(rgba_stride as usize)
+            .zip(image.y_plane.par_chunks_exact(image.y_stride as usize));
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = rgba.chunks_exact_mut(rgba_stride as usize).zip(
-            planar_image
-                .y_plane
-                .chunks_exact(planar_image.y_stride as usize),
-        );
+        iter = rgba
+            .chunks_exact_mut(rgba_stride as usize)
+            .zip(image.y_plane.chunks_exact(image.y_stride as usize));
     }
 
     iter.enumerate().for_each(|(y, (rgba, y_plane))| {
         let u_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
-            (y >> 1) * (planar_image.u_stride as usize)
+            (y >> 1) * (image.u_stride as usize)
         } else {
-            y * (planar_image.u_stride as usize)
+            y * (image.u_stride as usize)
         };
         let v_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
-            (y >> 1) * (planar_image.v_stride as usize)
+            (y >> 1) * (image.v_stride as usize)
         } else {
-            y * (planar_image.v_stride as usize)
+            y * (image.v_stride as usize)
         };
 
-        let u_plane = planar_image.u_plane;
-        let v_plane = planar_image.v_plane;
-        let width = planar_image.width;
+        let u_plane = image.u_plane;
+        let v_plane = image.v_plane;
+        let width = image.width;
 
         let mut _cx = 0usize;
         let mut _uv_x = 0usize;
-
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        {
-            #[cfg(feature = "nightly_avx512")]
-            if _use_avx512 {
-                let processed = avx512_yuv_to_rgba::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
-                    _cx,
-                    _uv_x,
-                    width as usize,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
-            }
-
-            if _use_avx2 {
-                let processed = avx2_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
-                    _cx,
-                    _uv_x,
-                    width as usize,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
-            }
-            if _use_sse {
-                let processed = sse_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
-                    _cx,
-                    _uv_x,
-                    width as usize,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
-            }
-        }
-
-        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-        {
-            let processed = wasm_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
-                &range,
-                &inverse_transform,
-                y_plane,
-                u_plane,
-                v_plane,
-                rgba,
-                _cx,
-                _uv_x,
-                0,
-                u_offset,
-                v_offset,
-                0,
-                width as usize,
-            );
-            _cx = processed.cx;
-            _uv_x = processed.ux;
-        }
-
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
-            let processed = neon_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
-                &range,
-                &inverse_transform,
-                y_plane,
-                u_plane,
-                v_plane,
-                rgba,
-                _cx,
-                _uv_x,
-                u_offset,
-                v_offset,
-                width as usize,
-            );
-            _cx = processed.cx;
-            _uv_x = processed.ux;
-        }
 
         if chroma_subsampling == YuvChromaSubsample::Yuv444 && _cx < width as usize {
             let u_plane = &u_plane[u_offset..];
@@ -313,6 +212,289 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
         }
     });
+
+    let process_wide_row = |_y_plane: &[u8], _u_plane: &[u8], _v_plane: &[u8], _rgba: &mut [u8]| {
+        let mut _cx = 0usize;
+        let mut _uv_x = 0usize;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            #[cfg(feature = "nightly_avx512")]
+            if _use_avx512 {
+                let processed = avx512_yuv_to_rgba::<DESTINATION_CHANNELS, SAMPLING>(
+                    &range,
+                    &inverse_transform,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
+            }
+
+            if _use_avx2 {
+                let processed = avx2_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
+                    &range,
+                    &inverse_transform,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
+            }
+            if _use_sse {
+                let processed = sse_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
+                    &range,
+                    &inverse_transform,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
+            }
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        {
+            let processed = wasm_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
+                &range,
+                &inverse_transform,
+                _y_plane,
+                _u_plane,
+                _v_plane,
+                _rgba,
+                _cx,
+                _uv_x,
+                0,
+                u_offset,
+                v_offset,
+                0,
+                image.width as usize,
+            );
+            _cx = processed.cx;
+            _uv_x = processed.ux;
+        }
+
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            let processed = neon_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
+                &range,
+                &inverse_transform,
+                _y_plane,
+                _u_plane,
+                _v_plane,
+                _rgba,
+                _cx,
+                _uv_x,
+                0,
+                0,
+                image.width as usize,
+            );
+            _cx = processed.cx;
+            _uv_x = processed.ux;
+        }
+        _cx
+    };
+
+    const BIT_DEPTH: usize = 8;
+
+    let process_halved_chroma_row = |y_plane: &[u8],
+                                     u_plane: &[u8],
+                                     v_plane: &[u8],
+                                     rgba: &mut [u8]| {
+        let cx = process_wide_row(y_plane, u_plane, v_plane, rgba);
+
+        for (((rgba, y_src), &u_src), &v_src) in rgba
+            .chunks_exact_mut(channels * 2)
+            .zip(y_plane.chunks_exact(2))
+            .zip(u_plane.iter())
+            .zip(v_plane.iter())
+            .skip(cx / 2)
+        {
+            let y_value0 = (y_src[0] as i32 - bias_y) * y_coef;
+            let cb_value = u_src as i32 - bias_uv;
+            let cr_value = v_src as i32 - bias_uv;
+
+            let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
+            let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+            let g0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+            let rgba0 = &mut rgba[0..channels];
+
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
+            if dst_chans.has_alpha() {
+                rgba0[dst_chans.get_a_channel_offset()] = 255u8;
+            }
+
+            let y_value1 = (y_src[1] as i32 - bias_y) * y_coef;
+
+            let r1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value);
+            let b1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value);
+            let g1 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+            let rgba1 = &mut rgba[channels..channels * 2];
+
+            rgba1[dst_chans.get_r_channel_offset()] = r1 as u8;
+            rgba1[dst_chans.get_g_channel_offset()] = g1 as u8;
+            rgba1[dst_chans.get_b_channel_offset()] = b1 as u8;
+            if dst_chans.has_alpha() {
+                rgba1[dst_chans.get_a_channel_offset()] = 255u8;
+            }
+        }
+
+        if image.width & 1 != 0 {
+            let y_value0 = (*y_plane.last().unwrap() as i32 - bias_y) * y_coef;
+            let cb_value = *u_plane.last().unwrap() as i32 - bias_uv;
+            let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
+            let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
+            let rgba0 = &mut rgba[0..channels];
+
+            let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
+            let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+            let g0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
+            if dst_chans.has_alpha() {
+                rgba0[dst_chans.get_a_channel_offset()] = 255;
+            }
+        }
+    };
+
+    if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = rgba
+                .par_chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize))
+                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = rgba
+                .chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.chunks_exact(image.y_stride as usize))
+                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+        }
+        iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
+            let cx = process_wide_row(y_plane, u_plane, v_plane, rgba);
+
+            for (((rgba, &y_src), &u_src), &v_src) in rgba
+                .chunks_exact_mut(channels)
+                .zip(y_plane.iter())
+                .zip(u_plane.iter())
+                .zip(v_plane.iter())
+                .skip(cx)
+            {
+                let y_value = (y_src as i32 - bias_y) * y_coef;
+                let cb_value = u_src as i32 - bias_uv;
+                let cr_value = v_src as i32 - bias_uv;
+
+                let r = qrshr::<PRECISION, BIT_DEPTH>(y_value + cr_coef * cr_value);
+                let b = qrshr::<PRECISION, BIT_DEPTH>(y_value + cb_coef * cb_value);
+                let g = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                );
+
+                rgba[dst_chans.get_r_channel_offset()] = r as u8;
+                rgba[dst_chans.get_g_channel_offset()] = g as u8;
+                rgba[dst_chans.get_b_channel_offset()] = b as u8;
+                if dst_chans.has_alpha() {
+                    rgba[dst_chans.get_a_channel_offset()] = 255;
+                }
+            }
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv422 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = rgba
+                .par_chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize))
+                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = rgba
+                .chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.chunks_exact(image.y_stride as usize))
+                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+        }
+        iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
+            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv420 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = rgba
+                .par_chunks_exact_mut(rgba_stride as usize * 2)
+                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize * 2))
+                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = rgba
+                .chunks_exact_mut(rgba_stride as usize * 2)
+                .zip(image.y_plane.chunks_exact(image.y_stride as usize * 2))
+                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+        }
+        iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
+            for (rgba, y_plane) in rgba
+                .chunks_exact_mut(rgba_stride as usize)
+                .zip(y_plane.chunks_exact(image.y_stride as usize))
+            {
+                process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+            }
+        });
+
+        if image.height & 1 != 0 {
+            let rgba = rgba.chunks_exact_mut(rgba_stride as usize).last().unwrap();
+            let u_plane = image
+                .u_plane
+                .chunks_exact(image.u_stride as usize)
+                .last()
+                .unwrap();
+            let v_plane = image
+                .v_plane
+                .chunks_exact(image.v_stride as usize)
+                .last()
+                .unwrap();
+            let y_plane = image
+                .y_plane
+                .chunks_exact(image.y_stride as usize)
+                .last()
+                .unwrap();
+            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+        }
+    } else {
+        unreachable!();
+    }
 
     Ok(())
 }
