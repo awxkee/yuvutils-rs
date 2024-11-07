@@ -90,10 +90,13 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
         let v_low: int16x4_t;
 
         if chroma_subsampling == YuvChromaSubsample::Yuv444 {
-            let u_values_l =
+            let mut u_values_l =
                 vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(u_ld_ptr.add(ux), v_msb_shift);
-            let v_values_l =
+            let mut v_values_l =
                 vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(v_ld_ptr.add(ux), v_msb_shift);
+
+            u_values_l = vsubq_s16(u_values_l, uv_corr);
+            v_values_l = vsubq_s16(v_values_l, uv_corr);
 
             u_high = vget_high_s16(u_values_l);
             u_low = vget_low_s16(u_values_l);

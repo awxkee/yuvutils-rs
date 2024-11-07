@@ -138,7 +138,7 @@ fn rgbx_to_yuv_impl<
                     );
             }
         }
-
+        
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             _offset = neon_rgba_to_yuv_p16::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
