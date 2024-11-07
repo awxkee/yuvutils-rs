@@ -68,6 +68,6 @@ pub use yuv_nv_p16_to_rgb::sse_yuv_nv_p16_to_rgba_row;
 pub use yuv_nv_to_rgba::sse_yuv_nv_to_rgba;
 pub use yuv_to_rgba::sse_yuv_to_rgba_row;
 pub use yuv_to_rgba_alpha::sse_yuv_to_rgba_alpha_row;
-pub use yuv_to_yuy2::yuv_to_yuy2_sse_impl;
+pub use yuv_to_yuy2::yuv_to_yuy2_sse;
 pub use yuy2_to_rgb::yuy2_to_rgb_sse;
-pub use yuy2_to_yuv::yuy2_to_yuv_sse_impl;
+pub use yuy2_to_yuv::yuy2_to_yuv_sse;

@@ -36,8 +36,23 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
+    y_plane: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
+    yuy2_store: &[u8],
+    width: u32,
+    nav: YuvToYuy2Navigation,
+) -> YuvToYuy2Navigation {
+    unsafe {
+        yuy2_to_yuv_avx_impl::<SAMPLING, YUY2_TARGET>(
+            y_plane, u_plane, v_plane, yuy2_store, width, nav,
+        )
+    }
+}
+
 #[target_feature(enable = "avx2")]
-pub unsafe fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
+unsafe fn yuy2_to_yuv_avx_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
     u_plane: &mut [u8],
     v_plane: &mut [u8],

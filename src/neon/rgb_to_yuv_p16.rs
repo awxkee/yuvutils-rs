@@ -41,10 +41,10 @@ pub unsafe fn neon_rgba_to_yuv_p16<
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
-    y_plane: *mut u16,
-    u_plane: *mut u16,
-    v_plane: *mut u16,
-    rgba: *const u16,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u16],
     start_cx: usize,
     start_ux: usize,
     width: usize,
@@ -61,11 +61,9 @@ pub unsafe fn neon_rgba_to_yuv_p16<
     let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
 
-    let mut src_ptr = rgba;
-
-    let y_ptr = y_plane;
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
+    let y_ptr = y_plane.as_mut_ptr();
+    let u_ptr = u_plane.as_mut_ptr();
+    let v_ptr = v_plane.as_mut_ptr();
 
     let y_bias = vdupq_n_s32(bias_y);
     let uv_bias = vdupq_n_s32(bias_uv);
@@ -89,9 +87,11 @@ pub unsafe fn neon_rgba_to_yuv_p16<
         let g_values;
         let b_values;
 
+        let src_ptr = rgba.get_unchecked(cx * channels..);
+
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u16(src_ptr);
+                let rgb_values = vld3q_u16(src_ptr.as_ptr());
                 if source_channels == YuvSourceChannels::Rgb {
                     r_values = rgb_values.0;
                     g_values = rgb_values.1;
@@ -103,13 +103,13 @@ pub unsafe fn neon_rgba_to_yuv_p16<
                 }
             }
             YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u16(src_ptr);
+                let rgb_values = vld4q_u16(src_ptr.as_ptr());
                 r_values = rgb_values.0;
                 g_values = rgb_values.1;
                 b_values = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u16(src_ptr);
+                let rgb_values = vld4q_u16(src_ptr.as_ptr());
                 r_values = rgb_values.2;
                 g_values = rgb_values.1;
                 b_values = rgb_values.0;
@@ -233,8 +233,6 @@ pub unsafe fn neon_rgba_to_yuv_p16<
         }
 
         cx += 8;
-
-        src_ptr = src_ptr.add(channels * 8);
     }
 
     ProcessedOffset { ux, cx }

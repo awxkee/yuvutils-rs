@@ -95,41 +95,34 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         |y_plane: &mut [u8], uv_plane: &mut [u8], rgba: &[u8], compute_uv_row| {
             let mut _offset: ProcessedOffset = ProcessedOffset { cx: 0, ux: 0 };
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            unsafe {
-                if _use_avx2 {
-                    let offset = avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
-                        y_plane,
-                        0,
-                        uv_plane,
-                        0,
-                        rgba,
-                        0,
-                        width,
-                        &range,
-                        &transform,
-                        _offset.cx,
-                        _offset.ux,
-                        compute_uv_row,
-                    );
-                    _offset = offset;
-                }
-                if _use_sse {
-                    let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
-                        y_plane,
-                        0,
-                        uv_plane,
-                        0,
-                        rgba,
-                        0,
-                        width,
-                        &range,
-                        &transform,
-                        _offset.cx,
-                        _offset.ux,
-                        compute_uv_row,
-                    );
-                    _offset = offset;
-                }
+            if _use_avx2 {
+                let offset = avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                    y_plane,
+                    uv_plane,
+                    rgba,
+                    width,
+                    &range,
+                    &transform,
+                    _offset.cx,
+                    _offset.ux,
+                    compute_uv_row,
+                );
+                _offset = offset;
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if _use_sse {
+                let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                    y_plane,
+                    uv_plane,
+                    rgba,
+                    width,
+                    &range,
+                    &transform,
+                    _offset.cx,
+                    _offset.ux,
+                    compute_uv_row,
+                );
+                _offset = offset;
             }
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

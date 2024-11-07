@@ -32,7 +32,7 @@ use crate::images::YuvPackedImage;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuy2_to_yuv_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::yuy2_to_yuv_sse_impl;
+use crate::sse::yuy2_to_yuv_sse;
 use crate::yuv_support::{YuvChromaSubsample, Yuy2Description};
 #[allow(unused_imports)]
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
@@ -80,7 +80,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             }
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            unsafe {
+            {
                 if _use_avx2 {
                     _yuy2_nav = yuy2_to_yuv_avx::<SAMPLING, YUY2_TARGET>(
                         _y_plane,
@@ -92,7 +92,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                     );
                 }
                 if _use_sse {
-                    _yuy2_nav = yuy2_to_yuv_sse_impl::<SAMPLING, YUY2_TARGET>(
+                    _yuy2_nav = yuy2_to_yuv_sse::<SAMPLING, YUY2_TARGET>(
                         _y_plane,
                         _u_plane,
                         _v_plane,

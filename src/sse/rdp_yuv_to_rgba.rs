@@ -35,8 +35,24 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub fn rdp_sse_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8>(
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u16],
+    u_plane: &[u16],
+    v_plane: &[u16],
+    rgba: &mut [u8],
+    start_cx: usize,
+    width: usize,
+) -> ProcessedOffset {
+    unsafe {
+        rdp_sse_yuv_to_rgba_row_impl::<DESTINATION_CHANNELS>(
+            transform, y_plane, u_plane, v_plane, rgba, start_cx, width,
+        )
+    }
+}
+
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn rdp_sse_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8>(
+unsafe fn rdp_sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u16],
     u_plane: &[u16],

@@ -106,9 +106,9 @@ fn yuv_nv_p16_to_image_impl<
                         BYTES_POSITION,
                         BIT_DEPTH,
                     >(
-                        _y_src.as_ptr(),
-                        _uv_src.as_ptr(),
-                        _rgba.as_mut_ptr(),
+                        _y_src,
+                        _uv_src,
+                        _rgba,
                         bi_planar_image.width,
                         &range,
                         &i_transform,
@@ -178,12 +178,14 @@ fn yuv_nv_p16_to_image_impl<
                 max_range,
             );
 
-            rgba[dst_chans.get_b_channel_offset()] = b_p0 as u16;
-            rgba[dst_chans.get_g_channel_offset()] = g_p0 as u16;
-            rgba[dst_chans.get_r_channel_offset()] = r_p0 as u16;
+            let rgba0 = &mut rgba[0..channels];
+
+            rgba0[dst_chans.get_b_channel_offset()] = b_p0 as u16;
+            rgba0[dst_chans.get_g_channel_offset()] = g_p0 as u16;
+            rgba0[dst_chans.get_r_channel_offset()] = r_p0 as u16;
 
             if dst_chans.has_alpha() {
-                rgba[dst_chans.get_a_channel_offset()] = max_range as u16;
+                rgba0[dst_chans.get_a_channel_offset()] = max_range as u16;
             }
 
             let y_vl1 = to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32;
@@ -197,12 +199,14 @@ fn yuv_nv_p16_to_image_impl<
                 max_range,
             );
 
-            rgba[channels + dst_chans.get_b_channel_offset()] = b_p1 as u16;
-            rgba[channels + dst_chans.get_g_channel_offset()] = g_p1 as u16;
-            rgba[channels + dst_chans.get_r_channel_offset()] = r_p1 as u16;
+            let rgba1 = &mut rgba[channels..channels * 2];
+
+            rgba1[dst_chans.get_b_channel_offset()] = b_p1 as u16;
+            rgba1[dst_chans.get_g_channel_offset()] = g_p1 as u16;
+            rgba1[dst_chans.get_r_channel_offset()] = r_p1 as u16;
 
             if dst_chans.has_alpha() {
-                rgba[channels + dst_chans.get_a_channel_offset()] = max_range as u16;
+                rgba1[dst_chans.get_a_channel_offset()] = max_range as u16;
             }
         }
 
@@ -293,12 +297,14 @@ fn yuv_nv_p16_to_image_impl<
                     max_range,
                 );
 
-                rgba[dst_chans.get_b_channel_offset()] = b_p16 as u16;
-                rgba[dst_chans.get_g_channel_offset()] = g_p16 as u16;
-                rgba[dst_chans.get_r_channel_offset()] = r_p16 as u16;
+                let rgba0 = &mut rgba[0..channels];
+
+                rgba0[dst_chans.get_b_channel_offset()] = b_p16 as u16;
+                rgba0[dst_chans.get_g_channel_offset()] = g_p16 as u16;
+                rgba0[dst_chans.get_r_channel_offset()] = r_p16 as u16;
 
                 if dst_chans.has_alpha() {
-                    rgba[dst_chans.get_a_channel_offset()] = max_range as u16;
+                    rgba0[dst_chans.get_a_channel_offset()] = max_range as u16;
                 }
             }
         });

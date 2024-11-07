@@ -35,8 +35,24 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u8],
+    start_cx: usize,
+    width: usize,
+) -> ProcessedOffset {
+    unsafe {
+        rdp_avx2_rgba_to_yuv_impl::<ORIGIN_CHANNELS>(
+            transform, y_plane, u_plane, v_plane, rgba, start_cx, width,
+        )
+    }
+}
+
 #[target_feature(enable = "avx2")]
-pub unsafe fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8>(
+unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     y_plane: &mut [u16],
     u_plane: &mut [u16],

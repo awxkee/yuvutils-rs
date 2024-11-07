@@ -39,18 +39,41 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub fn sse_rgba_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
+    y_plane: &mut [u8],
+    uv_plane: &mut [u8],
+    rgba: &[u8],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
+    start_cx: usize,
+    start_ux: usize,
+    compute_uv_row: bool,
+) -> ProcessedOffset {
+    unsafe {
+        sse_rgba_to_nv_row_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+            y_plane,
+            uv_plane,
+            rgba,
+            width,
+            range,
+            transform,
+            start_cx,
+            start_ux,
+            compute_uv_row,
+        )
+    }
+}
+
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_rgba_to_nv_row<
+unsafe fn sse_rgba_to_nv_row_impl<
     const ORIGIN_CHANNELS: u8,
     const UV_ORDER: u8,
     const SAMPLING: u8,
 >(
     y_plane: &mut [u8],
-    y_offset: usize,
     uv_plane: &mut [u8],
-    uv_offset: usize,
     rgba: &[u8],
-    rgba_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrForwardTransform<i32>,
@@ -63,9 +86,9 @@ pub unsafe fn sse_rgba_to_nv_row<
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let y_ptr = y_plane.as_mut_ptr().add(y_offset);
-    let uv_ptr = uv_plane.as_mut_ptr().add(uv_offset);
-    let rgba_ptr = rgba.as_ptr().add(rgba_offset);
+    let y_ptr = y_plane.as_mut_ptr();
+    let uv_ptr = uv_plane.as_mut_ptr();
+    let rgba_ptr = rgba.as_ptr();
 
     let mut cx = start_cx;
     let mut uv_x = start_ux;

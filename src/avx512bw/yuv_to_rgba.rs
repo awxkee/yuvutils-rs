@@ -37,8 +37,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "avx512bw")]
-pub unsafe fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -47,10 +46,25 @@ pub unsafe fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING:
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
-    u_offset: usize,
-    v_offset: usize,
-    rgba_offset: usize,
+    width: usize,
+) -> ProcessedOffset {
+    unsafe {
+        avx512_yuv_to_rgba_impl::<DESTINATION_CHANNELS, SAMPLING>(
+            range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+        )
+    }
+}
+
+#[target_feature(enable = "avx512bw")]
+unsafe fn avx512_yuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    u_plane: &[u8],
+    v_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
@@ -76,17 +90,14 @@ pub unsafe fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING:
     let rounding_const = _mm512_set1_epi16(1 << 2);
 
     while cx + 64 < width {
-        let y_values = _mm512_subs_epu8(
-            _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
-            y_corr,
-        );
+        let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
         match chroma_subsampling {
             YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
-                let u_values = _mm256_loadu_si256(u_ptr.add(u_offset + uv_x) as *const __m256i);
-                let v_values = _mm256_loadu_si256(v_ptr.add(v_offset + uv_x) as *const __m256i);
+                let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
+                let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
 
                 const MASK: i32 = shuffle(3, 1, 2, 0);
                 u_high_u8 =
@@ -99,8 +110,8 @@ pub unsafe fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING:
                     _mm256_permute4x64_epi64::<MASK>(_mm256_unpacklo_epi8(v_values, v_values));
             }
             YuvChromaSubsample::Yuv444 => {
-                let u_values = _mm512_loadu_si512(u_ptr.add(u_offset + uv_x) as *const i32);
-                let v_values = _mm512_loadu_si512(v_ptr.add(v_offset + uv_x) as *const i32);
+                let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
+                let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
 
                 u_high_u8 = _mm512_extracti64x4_epi64::<1>(u_values);
                 v_high_u8 = _mm512_extracti64x4_epi64::<1>(v_values);
@@ -189,7 +200,7 @@ pub unsafe fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING:
         let g_values = avx512_pack_u16(g_low, g_high);
         let b_values = avx512_pack_u16(b_low, b_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {

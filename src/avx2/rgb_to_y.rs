@@ -36,22 +36,33 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "avx2")]
-pub unsafe fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
+pub fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
-    y_plane: *mut u8,
+    y_plane: &mut [u8],
     rgba: &[u8],
-    y_offset: usize,
-    rgba_offset: usize,
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    unsafe {
+        avx2_rgb_to_y_row_impl::<ORIGIN_CHANNELS>(transform, range, y_plane, rgba, start_cx, width)
+    }
+}
+
+#[target_feature(enable = "avx2")]
+pub unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: &mut [u8],
+    rgba: &[u8],
     start_cx: usize,
     width: usize,
 ) -> usize {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let y_ptr = y_plane.add(y_offset);
-    let rgba_ptr = rgba.as_ptr().add(rgba_offset);
+    let y_ptr = y_plane.as_mut_ptr();
+    let rgba_ptr = rgba.as_ptr();
 
     let mut cx = start_cx;
 

@@ -116,16 +116,14 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         let mut _cx = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
                 let processed_offset = avx512_row_rgb_to_y::<ORIGIN_CHANNELS>(
                     &transform,
                     &range,
-                    y_plane.as_mut_ptr(),
+                    y_plane,
                     rgba,
-                    0,
-                    0,
                     _cx,
                     gray_image.width as usize,
                 );
@@ -135,10 +133,8 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS>(
                     &transform,
                     &range,
-                    y_plane.as_mut_ptr(),
+                    y_plane,
                     rgba,
-                    0,
-                    0,
                     _cx,
                     gray_image.width as usize,
                 );
@@ -148,10 +144,8 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS>(
                     &transform,
                     &range,
-                    y_plane.as_mut_ptr(),
+                    y_plane,
                     rgba,
-                    0,
-                    0,
                     _cx,
                     gray_image.width as usize,
                 );

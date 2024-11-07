@@ -101,14 +101,10 @@ fn yuv_nv12_to_rgbx<
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            unsafe {
-                #[cfg(feature = "nightly_avx512")]
-                if _use_avx512 {
-                    let processed = avx512_yuv_nv_to_rgba::<
-                        UV_ORDER,
-                        DESTINATION_CHANNELS,
-                        YUV_CHROMA_SAMPLING,
-                    >(
+            #[cfg(feature = "nightly_avx512")]
+            if _use_avx512 {
+                let processed =
+                    avx512_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                         &range,
                         &inverse_transform,
                         _y_plane,
@@ -116,20 +112,14 @@ fn yuv_nv12_to_rgbx<
                         _bgra,
                         _offset.cx,
                         _offset.ux,
-                        0,
-                        0,
-                        0,
                         width as usize,
                     );
-                    _offset = processed;
-                }
+                _offset = processed;
+            }
 
-                if _use_avx2 {
-                    let processed = avx2_yuv_nv_to_rgba_row::<
-                        UV_ORDER,
-                        DESTINATION_CHANNELS,
-                        YUV_CHROMA_SAMPLING,
-                    >(
+            if _use_avx2 {
+                let processed =
+                    avx2_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                         &range,
                         &inverse_transform,
                         _y_plane,
@@ -137,31 +127,24 @@ fn yuv_nv12_to_rgbx<
                         _bgra,
                         _offset.cx,
                         _offset.ux,
-                        0,
-                        0,
-                        0,
                         width as usize,
                     );
-                    _offset = processed;
-                }
+                _offset = processed;
+            }
 
-                if _use_sse {
-                    let processed =
-                        sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                            &range,
-                            &inverse_transform,
-                            _y_plane,
-                            _uv_plane,
-                            _bgra,
-                            _offset.cx,
-                            _offset.ux,
-                            0,
-                            0,
-                            0,
-                            width as usize,
-                        );
-                    _offset = processed;
-                }
+            if _use_sse {
+                let processed =
+                    sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        _y_plane,
+                        _uv_plane,
+                        _bgra,
+                        _offset.cx,
+                        _offset.ux,
+                        width as usize,
+                    );
+                _offset = processed;
             }
         }
 

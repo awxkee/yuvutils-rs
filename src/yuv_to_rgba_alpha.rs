@@ -145,7 +145,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             let mut _uv_x = 0usize;
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            unsafe {
+            {
                 #[cfg(feature = "nightly_avx512")]
                 {
                     if _use_avx512 {
@@ -159,8 +159,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                             rgba,
                             _cx,
                             _uv_x,
-                            u_offset,
-                            v_offset,
                             width as usize,
                             premultiply_alpha,
                         );
@@ -179,8 +177,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         rgba,
                         _cx,
                         _uv_x,
-                        u_offset,
-                        v_offset,
                         width as usize,
                         premultiply_alpha,
                     );
@@ -198,8 +194,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         rgba,
                         _cx,
                         _uv_x,
-                        u_offset,
-                        v_offset,
                         width as usize,
                         premultiply_alpha,
                     );

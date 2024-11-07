@@ -134,7 +134,6 @@ pub unsafe fn _mm256_store_interleaved_epi8(
 }
 
 #[inline]
-#[target_feature(enable = "avx2")]
 pub unsafe fn avx2_interleave_odd(x: __m256i) -> __m256i {
     #[rustfmt::skip]
     let shuffle = _mm256_setr_epi8(1, 1, 3, 3,
@@ -149,7 +148,6 @@ pub unsafe fn avx2_interleave_odd(x: __m256i) -> __m256i {
 }
 
 #[inline]
-#[target_feature(enable = "avx2")]
 pub unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
     #[rustfmt::skip]
     let shuffle = _mm256_setr_epi8(0, 0, 2, 2,
@@ -207,7 +205,6 @@ pub unsafe fn avx2_interleave_rgb(
 }
 
 #[inline]
-#[target_feature(enable = "avx2")]
 pub unsafe fn avx2_deinterleave_rgb(
     rgb0: __m256i,
     rgb1: __m256i,

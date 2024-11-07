@@ -109,18 +109,17 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                             compute_uv_row| {
         let mut _offset = ProcessedOffset { ux: cx, cx: ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             #[cfg(feature = "nightly_avx512")]
             {
                 if _use_avx512 {
                     let processed_offset = avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                         &transform,
                         &range,
-                        y_plane.as_mut_ptr(),
-                        u_plane.as_mut_ptr(),
-                        v_plane.as_mut_ptr(),
+                        y_plane,
+                        u_plane,
+                        v_plane,
                         rgba,
-                        0,
                         _offset.cx,
                         _offset.ux,
                         planar_image.width as usize,
@@ -134,11 +133,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &range,
-                    y_plane.as_mut_ptr(),
-                    u_plane.as_mut_ptr(),
-                    v_plane.as_mut_ptr(),
+                    y_plane,
+                    u_plane,
+                    v_plane,
                     rgba,
-                    0,
                     _offset.cx,
                     _offset.ux,
                     planar_image.width as usize,
@@ -151,11 +149,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &range,
-                    y_plane.as_mut_ptr(),
-                    u_plane.as_mut_ptr(),
-                    v_plane.as_mut_ptr(),
+                    y_plane,
+                    u_plane,
+                    v_plane,
                     rgba,
-                    0,
                     _offset.cx,
                     _offset.ux,
                     planar_image.width as usize,

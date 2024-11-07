@@ -38,8 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_yuv_nv_to_rgba<
+pub fn sse_yuv_nv_to_rgba<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
@@ -51,9 +50,28 @@ pub unsafe fn sse_yuv_nv_to_rgba<
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
-    uv_offset: usize,
-    rgba_offset: usize,
+    width: usize,
+) -> ProcessedOffset {
+    unsafe {
+        sse_yuv_nv_to_rgba_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+            range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+        )
+    }
+}
+
+#[target_feature(enable = "sse4.1")]
+unsafe fn sse_yuv_nv_to_rgba_impl<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    uv_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
@@ -84,16 +102,13 @@ pub unsafe fn sse_yuv_nv_to_rgba<
     let distribute_shuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
 
     while cx + 16 < width {
-        let y_values = _mm_subs_epu8(
-            _mm_loadu_si128(y_ptr.add(y_offset + cx) as *const __m128i),
-            y_corr,
-        );
+        let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
 
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
         match chroma_subsampling {
             YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
-                let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_offset + uv_x) as *const __m128i);
+                let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_x) as *const __m128i);
                 let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
                 u = _mm_shuffle_epi8(u, distribute_shuffle);
@@ -115,7 +130,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
                 }
             }
             YuvChromaSubsample::Yuv444 => {
-                let uv_source_ptr = uv_ptr.add(uv_offset + uv_x);
+                let uv_source_ptr = uv_ptr.add(uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
                 let row1 = _mm_loadu_si128(uv_source_ptr.add(16) as *const __m128i);
                 let (u, v) = _mm_deinterleave_x2_epi8(row0, row1);
@@ -211,7 +226,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
         let g_values = _mm_packus_epi16(g_low, g_high);
         let b_values = _mm_packus_epi16(b_low, b_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
@@ -253,16 +268,13 @@ pub unsafe fn sse_yuv_nv_to_rgba<
     }
 
     while cx + 8 < width {
-        let y_values = _mm_subs_epi8(
-            _mm_loadu_si128(y_ptr.add(y_offset + cx) as *const __m128i),
-            y_corr,
-        );
+        let y_values = _mm_subs_epi8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
 
         let (u_low_u16, v_low_u16);
 
         match chroma_subsampling {
             YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
-                let uv_values_ = _mm_loadu_si64(uv_ptr.add(uv_offset + uv_x));
+                let uv_values_ = _mm_loadu_si64(uv_ptr.add(uv_x));
                 let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
                 u = _mm_shuffle_epi8(u, distribute_shuffle);
@@ -280,7 +292,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
                 }
             }
             YuvChromaSubsample::Yuv444 => {
-                let uv_source_ptr = uv_ptr.add(uv_offset + uv_x);
+                let uv_source_ptr = uv_ptr.add(uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
                 let (u, v) = _mm_deinterleave_x2_epi8(row0, zeros);
 
@@ -336,7 +348,7 @@ pub unsafe fn sse_yuv_nv_to_rgba<
         let g_values = _mm_packus_epi16(g_low, zeros);
         let b_values = _mm_packus_epi16(b_low, zeros);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
         let dst_ptr = rgba_ptr.add(dst_shift);
         match destination_channels {
             YuvSourceChannels::Rgb => {

@@ -37,8 +37,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "avx2")]
-pub unsafe fn avx2_yuv_nv_to_rgba_row<
+pub fn avx2_yuv_nv_to_rgba_row<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
@@ -50,9 +49,28 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
-    uv_offset: usize,
-    rgba_offset: usize,
+    width: usize,
+) -> ProcessedOffset {
+    unsafe {
+        avx2_yuv_nv_to_rgba_row_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+            range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+        )
+    }
+}
+
+#[target_feature(enable = "avx2")]
+unsafe fn avx2_yuv_nv_to_rgba_row_impl<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    uv_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
@@ -78,16 +96,14 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
     let rounding_const = _mm256_set1_epi16(1 << 2);
 
     while cx + 32 < width {
-        let y_values = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_ptr.add(y_offset + cx) as *const __m256i),
-            y_corr,
-        );
+        let y_values =
+            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
         match chroma_subsampling {
             YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
-                let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_offset + uv_x) as *const __m256i);
+                let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const __m256i);
 
                 let u_values = avx2_interleave_even(uv_values);
                 let v_values = avx2_interleave_odd(uv_values);
@@ -108,7 +124,7 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
                 }
             }
             YuvChromaSubsample::Yuv444 => {
-                let offset = uv_offset + uv_x;
+                let offset = uv_x;
                 let src_ptr = uv_ptr.add(offset);
                 let row0 = _mm256_loadu_si256(src_ptr as *const __m256i);
                 let row1 = _mm256_loadu_si256(src_ptr.add(32) as *const __m256i);
@@ -212,7 +228,7 @@ pub unsafe fn avx2_yuv_nv_to_rgba_row<
         let g_values = avx2_pack_u16(g_low, g_high);
         let b_values = avx2_pack_u16(b_low, b_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {

@@ -47,9 +47,41 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
     const BYTES_POSITION: u8,
     const BIT_DEPTH: u8,
 >(
-    y_ld_ptr: *const u16,
-    uv_ld_ptr: *const u16,
-    bgra: *mut u16,
+    y_ld_ptr: &[u16],
+    uv_ld_ptr: &[u16],
+    bgra: &mut [u16],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    start_cx: usize,
+    start_ux: usize,
+) -> ProcessedOffset {
+    unsafe {
+        sse_yuv_nv_p16_to_rgba_row_impl::<
+            DESTINATION_CHANNELS,
+            NV_ORDER,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            BIT_DEPTH,
+        >(
+            y_ld_ptr, uv_ld_ptr, bgra, width, range, transform, start_cx, start_ux,
+        )
+    }
+}
+
+#[target_feature(enable = "sse4.1")]
+unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
+    const DESTINATION_CHANNELS: u8,
+    const NV_ORDER: u8,
+    const SAMPLING: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const BIT_DEPTH: u8,
+>(
+    y_ld_ptr: &[u16],
+    uv_ld_ptr: &[u16],
+    bgra: &mut [u16],
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -71,7 +103,7 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let mut dst_ptr = bgra;
+    let dst_ptr = bgra;
 
     let v_max_colors = _mm_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
 
@@ -100,7 +132,9 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
         let u_low;
         let v_low;
 
-        let mut y_vl = _mm_loadu_si128(y_ld_ptr.add(cx) as *const __m128i);
+        let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
+
+        let mut y_vl = _mm_loadu_si128(y_ld_ptr.get_unchecked(cx..).as_ptr() as *const __m128i);
         if endianness == YuvEndianness::BigEndian {
             y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
@@ -111,7 +145,7 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
 
         match chroma_subsampling {
             YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
-                let uv_ld = uv_ld_ptr.add(ux);
+                let uv_ld = uv_ld_ptr.get_unchecked(ux..).as_ptr();
 
                 let row0 = _mm_loadu_si128(uv_ld as *const __m128i);
 
@@ -145,7 +179,7 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
                 v_low = _mm_unpacklo_epi32(v_values_32, v_values_32);
             }
             YuvChromaSubsample::Yuv444 => {
-                let uv_ld = uv_ld_ptr.add(ux);
+                let uv_ld = uv_ld_ptr.get_unchecked(ux..).as_ptr();
                 let row0 = _mm_loadu_si128(uv_ld as *const __m128i);
                 let row1 = _mm_loadu_si128(uv_ld.add(8) as *const __m128i);
                 let mut uv_values_u = _mm_deinterleave_x2_epi16(row0, row1);
@@ -226,37 +260,65 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
         match destination_channels {
             YuvSourceChannels::Rgb => {
                 let dst_pack = _mm_interleave_rgb_epi16(r_values, g_values, b_values);
-                _mm_storeu_si128(dst_ptr as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(dst_ptr.add(8) as *mut __m128i, dst_pack.1);
-                _mm_storeu_si128(dst_ptr.add(16) as *mut __m128i, dst_pack.2);
+                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.1,
+                );
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.2,
+                );
             }
             YuvSourceChannels::Bgr => {
                 let dst_pack = _mm_interleave_rgb_epi16(b_values, g_values, r_values);
-                _mm_storeu_si128(dst_ptr as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(dst_ptr.add(8) as *mut __m128i, dst_pack.1);
-                _mm_storeu_si128(dst_ptr.add(16) as *mut __m128i, dst_pack.2);
+                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.1,
+                );
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.2,
+                );
             }
             YuvSourceChannels::Rgba => {
                 let dst_pack =
                     _mm_interleave_rgba_epi16(r_values, g_values, b_values, v_max_colors);
-                _mm_storeu_si128(dst_ptr as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(dst_ptr.add(8) as *mut __m128i, dst_pack.1);
-                _mm_storeu_si128(dst_ptr.add(16) as *mut __m128i, dst_pack.2);
-                _mm_storeu_si128(dst_ptr.add(24) as *mut __m128i, dst_pack.3);
+                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.1,
+                );
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.2,
+                );
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(24..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.3,
+                );
             }
             YuvSourceChannels::Bgra => {
                 let dst_pack =
                     _mm_interleave_rgba_epi16(b_values, g_values, r_values, v_max_colors);
-                _mm_storeu_si128(dst_ptr as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(dst_ptr.add(8) as *mut __m128i, dst_pack.1);
-                _mm_storeu_si128(dst_ptr.add(16) as *mut __m128i, dst_pack.2);
-                _mm_storeu_si128(dst_ptr.add(24) as *mut __m128i, dst_pack.3);
+                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.1,
+                );
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.2,
+                );
+                _mm_storeu_si128(
+                    dst_ptr.get_unchecked_mut(24..).as_mut_ptr() as *mut __m128i,
+                    dst_pack.3,
+                );
             }
         }
 
         cx += 8;
-        dst_ptr = dst_ptr.add(8 * channels);
-
         match chroma_subsampling {
             YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
                 ux += 8;

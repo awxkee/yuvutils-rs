@@ -31,13 +31,14 @@ use crate::avx2::yuv_to_yuy2_avx2_row;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuv_to_yuy2_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::yuv_to_yuy2_sse_impl;
+use crate::sse::yuv_to_yuy2_sse;
 use crate::yuv_support::{YuvChromaSubsample, Yuy2Description};
-use crate::{YuvError, YuvPlanarImage};
+use crate::{YuvError, YuvPackedImageMut, YuvPlanarImage};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use std::fmt::Debug;
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -54,171 +55,440 @@ impl YuvToYuy2Navigation {
     }
 }
 
-fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
-    planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
-) -> Result<(), YuvError> {
-    let yuy2_target: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+pub(crate) trait AveragesIntensity<V> {
+    fn averages(self, other: V) -> V;
+}
 
-    planar_image.check_constraints(chroma_subsampling)?;
-
-    let yuy_offset = 0usize;
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx2 = is_x86_feature_detected!("avx2");
-
-    let iter;
-    #[cfg(feature = "rayon")]
-    {
-        iter = yuy2_store.par_chunks_exact_mut(yuy2_stride as usize);
+impl AveragesIntensity<u8> for u8 {
+    #[inline(always)]
+    fn averages(self, other: u8) -> u8 {
+        ((self as u16 + other as u16 + 1) >> 1) as u8
     }
-    #[cfg(not(feature = "rayon"))]
-    {
-        iter = yuy2_store.chunks_exact_mut(yuy2_stride as usize);
+}
+
+impl AveragesIntensity<u16> for u16 {
+    #[inline(always)]
+    fn averages(self, other: u16) -> u16 {
+        ((self as u32 + other as u32 + 1) >> 1) as u16
     }
+}
 
-    let y_stride = planar_image.y_stride;
-    let u_stride = planar_image.u_stride;
-    let v_stride = planar_image.v_stride;
-    let y_plane = planar_image.y_plane;
-    let v_plane = planar_image.v_plane;
-    let u_plane = planar_image.u_plane;
-    let width = planar_image.width;
+pub(crate) trait ProcessWideRow<V> {
+    fn process_wide_row<const SAMPLING: u8, const YUY2_TARGET: usize>(
+        yuy2: &mut [V],
+        y_src: &[V],
+        u_src: &[V],
+        v_src: &[V],
+        width: usize,
+    ) -> usize;
+}
 
-    iter.enumerate().for_each(|(y, yuy2_store)| unsafe {
-        let y_offset = y * (y_stride as usize);
-        let u_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
-            (y >> 1) * (u_stride as usize)
-        } else {
-            y * (u_stride as usize)
-        };
-        let v_offset = if chroma_subsampling == YuvChromaSubsample::Yuv420 {
-            (y >> 1) * (v_stride as usize)
-        } else {
-            y * (v_stride as usize)
-        };
+impl ProcessWideRow<u8> for u8 {
+    fn process_wide_row<const SAMPLING: u8, const YUY2_TARGET: usize>(
+        _yuy2: &mut [u8],
+        _y_src: &[u8],
+        _u_src: &[u8],
+        _v_src: &[u8],
+        _width: usize,
+    ) -> usize {
+        let mut _processed = 0usize;
 
-        let mut _cx = 0usize;
-        let mut _uv_x = 0usize;
-        let mut _yuy2_x = 0usize;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        let mut _use_sse = is_x86_feature_detected!("sse4.1");
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        let mut _use_avx2 = is_x86_feature_detected!("avx2");
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            let mut nav = YuvToYuy2Navigation::new(0, 0, 0);
             if _use_avx2 {
-                let processed = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
-                    y_plane,
-                    y_offset,
-                    u_plane,
-                    u_offset,
-                    v_plane,
-                    v_offset,
-                    yuy2_store,
-                    yuy_offset,
-                    width,
-                    YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
+                nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
+                    _y_src,
+                    0,
+                    _u_src,
+                    0,
+                    _v_src,
+                    0,
+                    _yuy2,
+                    0,
+                    _width as u32,
+                    nav,
                 );
-                _cx = processed.cx;
-                _uv_x = processed.uv_x;
-                _yuy2_x = processed.x;
             }
             if _use_sse {
-                let processed = yuv_to_yuy2_sse_impl::<SAMPLING, YUY2_TARGET>(
-                    y_plane,
-                    y_offset,
-                    u_plane,
-                    u_offset,
-                    v_plane,
-                    v_offset,
-                    yuy2_store,
-                    yuy_offset,
-                    width,
-                    YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
+                nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
+                    _y_src,
+                    0,
+                    _u_src,
+                    0,
+                    _v_src,
+                    0,
+                    _yuy2,
+                    0,
+                    _width as u32,
+                    nav,
                 );
-                _cx = processed.cx;
-                _uv_x = processed.uv_x;
-                _yuy2_x = processed.x;
             }
+            _processed = nav.cx;
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             let processed = yuv_to_yuy2_neon_impl::<SAMPLING, YUY2_TARGET>(
-                y_plane,
-                y_offset,
-                u_plane,
-                u_offset,
-                v_plane,
-                v_offset,
-                yuy2_store,
-                yuy_offset,
-                width,
-                YuvToYuy2Navigation::new(_cx, _uv_x, _yuy2_x),
+                _y_src,
+                0,
+                _u_src,
+                0,
+                _v_src,
+                0,
+                _yuy2,
+                0,
+                _width as u32,
+                YuvToYuy2Navigation::new(0, 0, 0),
             );
-            _cx = processed.cx;
-            _uv_x = processed.uv_x;
-            _yuy2_x = processed.x;
+            _processed = processed.cx;
+        }
+        _processed
+    }
+}
+
+impl ProcessWideRow<u16> for u16 {
+    fn process_wide_row<const SAMPLING: u8, const YUY2_TARGET: usize>(
+        _: &mut [u16],
+        _: &[u16],
+        _: &[u16],
+        _: &[u16],
+        _: usize,
+    ) -> usize {
+        0
+    }
+}
+
+pub(crate) fn yuv_to_yuy2_impl<
+    V: Copy + Debug + Send + Sync + AveragesIntensity<V> + Default + ProcessWideRow<V>,
+    const SAMPLING: u8,
+    const YUY2_TARGET: usize,
+>(
+    planar_image: &YuvPlanarImage<V>,
+    packed_image: &mut YuvPackedImageMut<V>,
+) -> Result<(), YuvError> {
+    let yuy2_target: Yuy2Description = YUY2_TARGET.into();
+    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+
+    planar_image.check_constraints(chroma_subsampling)?;
+    packed_image.check_constraints()?;
+    if planar_image.width != packed_image.width || planar_image.height != packed_image.height {
+        return Err(YuvError::ImagesSizesNotMatch);
+    }
+
+    let width = planar_image.width;
+
+    if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = packed_image
+                .yuy
+                .borrow_mut()
+                .par_chunks_exact_mut(packed_image.yuy_stride as usize)
+                .zip(
+                    planar_image
+                        .y_plane
+                        .par_chunks_exact(planar_image.y_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .u_plane
+                        .par_chunks_exact(planar_image.u_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .v_plane
+                        .par_chunks_exact(planar_image.v_stride as usize),
+                );
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = packed_image
+                .yuy
+                .borrow_mut()
+                .chunks_exact_mut(packed_image.yuy_stride as usize)
+                .zip(
+                    planar_image
+                        .y_plane
+                        .chunks_exact(planar_image.y_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .u_plane
+                        .chunks_exact(planar_image.u_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .v_plane
+                        .chunks_exact(planar_image.v_stride as usize),
+                );
         }
 
-        for x in _yuy2_x..width as usize / 2 {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+        iter.for_each(|(((yuy2, y_src), u_src), v_src)| {
+            let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
+                yuy2,
+                y_src,
+                u_src,
+                v_src,
+                width as usize,
+            );
 
-            let (u_value, v_value);
-
-            if chroma_subsampling == YuvChromaSubsample::Yuv444 {
-                u_value = (((*u_plane.get_unchecked(u_pos) as u32
-                    + *u_plane.get_unchecked(u_pos + 1) as u32)
-                    + 1)
-                    >> 1) as u8;
-                v_value = (((*v_plane.get_unchecked(v_pos) as u32
-                    + *v_plane.get_unchecked(v_pos + 1) as u32)
-                    + 1)
-                    >> 1) as u8;
-            } else {
-                u_value = *u_plane.get_unchecked(u_pos);
-                v_value = *v_plane.get_unchecked(v_pos);
+            for (((yuy2, y_src), u_src), v_src) in yuy2
+                .chunks_exact_mut(4)
+                .zip(y_src.chunks_exact(2))
+                .zip(u_src.chunks_exact(2))
+                .zip(v_src.chunks_exact(2))
+                .skip(processed)
+            {
+                yuy2[yuy2_target.get_first_y_position()] = y_src[0];
+                yuy2[yuy2_target.get_second_y_position()] = y_src[1];
+                yuy2[yuy2_target.get_u_position()] = u_src[0].averages(u_src[1]);
+                yuy2[yuy2_target.get_v_position()] = v_src[0].averages(v_src[1]);
             }
 
-            let first_y_value = *y_plane.get_unchecked(y_pos);
-            let second_y_value = *y_plane.get_unchecked(y_pos + 1);
-
-            let dst_offset = yuy_offset + x * 4;
-            let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
-            *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
-            *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
-            *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = second_y_value;
-            *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
-
-            _uv_x += match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => 1,
-                YuvChromaSubsample::Yuv444 => 2,
-            };
-            _cx += 2;
+            if width & 1 != 0 {
+                let yuy2 = yuy2.chunks_exact_mut(4).last().unwrap();
+                let yuy2 = &mut yuy2[0..4];
+                let last_y = y_src.last().unwrap();
+                let last_u = u_src.last().unwrap();
+                let last_v = v_src.last().unwrap();
+                yuy2[yuy2_target.get_first_y_position()] = *last_y;
+                yuy2[yuy2_target.get_u_position()] = *last_u;
+                yuy2[yuy2_target.get_second_y_position()] = V::default();
+                yuy2[yuy2_target.get_v_position()] = *last_v;
+            }
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv422 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = packed_image
+                .yuy
+                .borrow_mut()
+                .par_chunks_exact_mut(packed_image.yuy_stride as usize)
+                .zip(
+                    planar_image
+                        .y_plane
+                        .par_chunks_exact(planar_image.y_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .u_plane
+                        .par_chunks_exact(planar_image.u_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .v_plane
+                        .par_chunks_exact(planar_image.v_stride as usize),
+                );
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = packed_image
+                .yuy
+                .borrow_mut()
+                .chunks_exact_mut(packed_image.yuy_stride as usize)
+                .zip(
+                    planar_image
+                        .y_plane
+                        .chunks_exact(planar_image.y_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .u_plane
+                        .chunks_exact(planar_image.u_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .v_plane
+                        .chunks_exact(planar_image.v_stride as usize),
+                );
         }
 
-        if width & 1 == 1 {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+        iter.for_each(|(((yuy2, y_src), u_src), v_src)| {
+            let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
+                yuy2,
+                y_src,
+                u_src,
+                v_src,
+                width as usize,
+            );
 
-            let u_value = *u_plane.get_unchecked(u_pos);
-            let v_value = *v_plane.get_unchecked(v_pos);
+            for (((yuy2, y_src), u_src), v_src) in yuy2
+                .chunks_exact_mut(4)
+                .zip(y_src.chunks_exact(2))
+                .zip(u_src.iter())
+                .zip(v_src.iter())
+                .skip(processed)
+            {
+                yuy2[yuy2_target.get_first_y_position()] = y_src[0];
+                yuy2[yuy2_target.get_second_y_position()] = y_src[1];
+                yuy2[yuy2_target.get_u_position()] = *u_src;
+                yuy2[yuy2_target.get_v_position()] = *v_src;
+            }
 
-            let first_y_value = *y_plane.get_unchecked(y_pos);
-
-            let dst_offset = yuy_offset + ((width as usize - 1) / 2) * 4;
-            let dst_store = yuy2_store.get_unchecked_mut(dst_offset..);
-            *dst_store.get_unchecked_mut(yuy2_target.get_first_y_position()) = first_y_value;
-            *dst_store.get_unchecked_mut(yuy2_target.get_u_position()) = u_value;
-            *dst_store.get_unchecked_mut(yuy2_target.get_second_y_position()) = 0;
-            *dst_store.get_unchecked_mut(yuy2_target.get_v_position()) = v_value;
+            if width & 1 != 0 {
+                let yuy2 = yuy2.chunks_exact_mut(4).last().unwrap();
+                let yuy2 = &mut yuy2[0..4];
+                let last_y = y_src.last().unwrap();
+                let last_u = u_src.last().unwrap();
+                let last_v = v_src.last().unwrap();
+                yuy2[yuy2_target.get_first_y_position()] = *last_y;
+                yuy2[yuy2_target.get_u_position()] = *last_u;
+                yuy2[yuy2_target.get_second_y_position()] = V::default();
+                yuy2[yuy2_target.get_v_position()] = *last_v;
+            }
+        });
+    } else if chroma_subsampling == YuvChromaSubsample::Yuv420 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = packed_image
+                .yuy
+                .borrow_mut()
+                .par_chunks_exact_mut(packed_image.yuy_stride as usize * 2)
+                .zip(
+                    planar_image
+                        .y_plane
+                        .par_chunks_exact(planar_image.y_stride as usize * 2),
+                )
+                .zip(
+                    planar_image
+                        .u_plane
+                        .par_chunks_exact(planar_image.u_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .v_plane
+                        .par_chunks_exact(planar_image.v_stride as usize),
+                );
         }
-    });
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = packed_image
+                .yuy
+                .borrow_mut()
+                .chunks_exact_mut(packed_image.yuy_stride as usize * 2)
+                .zip(
+                    planar_image
+                        .y_plane
+                        .chunks_exact(planar_image.y_stride as usize * 2),
+                )
+                .zip(
+                    planar_image
+                        .u_plane
+                        .chunks_exact(planar_image.u_stride as usize),
+                )
+                .zip(
+                    planar_image
+                        .v_plane
+                        .chunks_exact(planar_image.v_stride as usize),
+                );
+        }
+
+        iter.for_each(|(((yuy2, y_src), u_src), v_src)| {
+            for (yuy2, y_src) in yuy2
+                .chunks_exact_mut(packed_image.yuy_stride as usize)
+                .zip(y_src.chunks_exact(planar_image.y_stride as usize))
+            {
+                let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
+                    yuy2,
+                    y_src,
+                    u_src,
+                    v_src,
+                    width as usize,
+                );
+
+                for (((yuy2, y_src), u_src), v_src) in yuy2
+                    .chunks_exact_mut(4)
+                    .zip(y_src.chunks_exact(2))
+                    .zip(u_src.iter())
+                    .zip(v_src.iter())
+                    .skip(processed)
+                {
+                    yuy2[yuy2_target.get_first_y_position()] = y_src[0];
+                    yuy2[yuy2_target.get_second_y_position()] = y_src[1];
+                    yuy2[yuy2_target.get_u_position()] = *u_src;
+                    yuy2[yuy2_target.get_v_position()] = *v_src;
+                }
+
+                if width & 1 != 0 {
+                    let yuy2 = yuy2.chunks_exact_mut(4).last().unwrap();
+                    let yuy2 = &mut yuy2[0..4];
+                    let last_y = y_src.last().unwrap();
+                    let last_u = u_src.last().unwrap();
+                    let last_v = v_src.last().unwrap();
+                    yuy2[yuy2_target.get_first_y_position()] = *last_y;
+                    yuy2[yuy2_target.get_u_position()] = *last_u;
+                    yuy2[yuy2_target.get_second_y_position()] = V::default();
+                    yuy2[yuy2_target.get_v_position()] = *last_v;
+                }
+            }
+        });
+
+        if planar_image.height & 1 != 0 {
+            let rem_yuy = packed_image
+                .yuy
+                .borrow_mut()
+                .chunks_exact_mut(packed_image.yuy_stride as usize * 2)
+                .into_remainder();
+            let rem_y = planar_image
+                .y_plane
+                .chunks_exact(planar_image.y_stride as usize * 2)
+                .remainder();
+            let last_u = planar_image
+                .u_plane
+                .chunks_exact(planar_image.u_stride as usize)
+                .last()
+                .unwrap();
+            let last_v = planar_image
+                .v_plane
+                .chunks_exact(planar_image.v_stride as usize)
+                .last()
+                .unwrap();
+
+            let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
+                rem_yuy,
+                rem_y,
+                last_u,
+                last_v,
+                width as usize,
+            );
+
+            for (((yuy2, y_src), u_src), v_src) in rem_yuy
+                .chunks_exact_mut(4)
+                .zip(rem_y.chunks_exact(2))
+                .zip(last_u.iter())
+                .zip(last_v.iter())
+                .skip(processed)
+            {
+                yuy2[yuy2_target.get_first_y_position()] = y_src[0];
+                yuy2[yuy2_target.get_second_y_position()] = y_src[1];
+                yuy2[yuy2_target.get_u_position()] = *u_src;
+                yuy2[yuy2_target.get_v_position()] = *v_src;
+            }
+
+            if width & 1 != 0 {
+                let yuy2 = rem_yuy.chunks_exact_mut(4).last().unwrap();
+                let yuy2 = &mut yuy2[0..4];
+                let last_y = rem_y.last().unwrap();
+                let last_u = last_u.last().unwrap();
+                let last_v = last_v.last().unwrap();
+                yuy2[yuy2_target.get_first_y_position()] = *last_y;
+                yuy2[yuy2_target.get_u_position()] = *last_u;
+                yuy2[yuy2_target.get_second_y_position()] = V::default();
+                yuy2[yuy2_target.get_v_position()] = *last_v;
+            }
+        }
+    } else {
+        unreachable!();
+    }
     Ok(())
 }
 
@@ -230,9 +500,8 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 ///
 /// # Panics
 ///
@@ -241,14 +510,12 @@ fn yuv_to_yuy2_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_yuyv422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -260,9 +527,8 @@ pub fn yuv444_to_yuyv422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 ///
 /// # Panics
 ///
@@ -271,14 +537,12 @@ pub fn yuv444_to_yuyv422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_yuyv422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -290,9 +554,8 @@ pub fn yuv422_to_yuyv422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (components per row) for the YUYV plane.
 ///
 /// # Panics
 ///
@@ -301,14 +564,12 @@ pub fn yuv422_to_yuyv422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_yuyv422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -320,9 +581,8 @@ pub fn yuv420_to_yuyv422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 ///
 /// # Panics
 ///
@@ -331,14 +591,12 @@ pub fn yuv420_to_yuyv422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_yvyu422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -350,9 +608,8 @@ pub fn yuv444_to_yvyu422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 ///
 /// # Panics
 ///
@@ -361,14 +618,12 @@ pub fn yuv444_to_yvyu422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_yvyu422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -380,9 +635,8 @@ pub fn yuv422_to_yvyu422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (components per row) for the YVYU plane.
 ///
 /// # Panics
 ///
@@ -391,14 +645,12 @@ pub fn yuv422_to_yvyu422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_yvyu422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -410,9 +662,8 @@ pub fn yuv420_to_yvyu422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 ///
 /// # Panics
 ///
@@ -421,14 +672,12 @@ pub fn yuv420_to_yvyu422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_vyuy422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -440,9 +689,8 @@ pub fn yuv444_to_vyuy422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 ///
 /// # Panics
 ///
@@ -451,14 +699,12 @@ pub fn yuv444_to_vyuy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_vyuy422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -470,9 +716,8 @@ pub fn yuv422_to_vyuy422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (components per row) for the VYUY plane.
 ///
 /// # Panics
 ///
@@ -481,14 +726,12 @@ pub fn yuv422_to_vyuy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_vyuy422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -500,9 +743,8 @@ pub fn yuv420_to_vyuy422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 ///
 /// # Panics
 ///
@@ -511,14 +753,12 @@ pub fn yuv420_to_vyuy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv444_to_uyvy422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -530,9 +770,8 @@ pub fn yuv444_to_uyvy422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 ///
 /// # Panics
 ///
@@ -541,14 +780,12 @@ pub fn yuv444_to_uyvy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv422_to_uyvy422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }
 
@@ -560,9 +797,8 @@ pub fn yuv422_to_uyvy422(
 ///
 /// # Arguments
 ///
+/// * `packed_image` - Target packed frame image.
 /// * `planar_image` - Source planar image.
-/// * `yuy2_store` - A mutable slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (components per row) for the UYVY plane.
 ///
 /// # Panics
 ///
@@ -571,13 +807,11 @@ pub fn yuv422_to_uyvy422(
 /// Panic will be received if buffer doesn't expand with (width + 1) size for odd width
 ///
 pub fn yuv420_to_uyvy422(
+    packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
-    yuy2_store: &mut [u8],
-    yuy2_stride: u32,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<{ YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
     )
 }

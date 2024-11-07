@@ -35,12 +35,29 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_rdp_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8>(
+pub fn sse_rdp_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
-    y_plane: *mut u16,
-    u_plane: *mut u16,
-    v_plane: *mut u16,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    unsafe {
+        sse_rdp_rgba_to_yuv_row_impl::<ORIGIN_CHANNELS>(
+            transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+        )
+    }
+}
+
+#[target_feature(enable = "sse4.1")]
+unsafe fn sse_rdp_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
     rgba: &[u8],
     start_cx: usize,
     start_ux: usize,
@@ -49,9 +66,9 @@ pub unsafe fn sse_rdp_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8>(
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let y_ptr = y_plane;
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
+    let y_ptr = y_plane.as_mut_ptr();
+    let u_ptr = u_plane.as_mut_ptr();
+    let v_ptr = v_plane.as_mut_ptr();
     let rgba_ptr = rgba.as_ptr();
 
     let mut cx = start_cx;

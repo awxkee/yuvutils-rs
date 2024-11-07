@@ -41,6 +41,7 @@ mod avx2;
 ))]
 mod avx512bw;
 mod from_identity;
+mod from_identity_alpha;
 mod images;
 mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -420,6 +421,10 @@ pub use sharpyuv::rgba_to_sharp_yuv420;
 pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
+pub use from_identity_alpha::{
+    gbr_with_alpha_to_bgra, gbr_with_alpha_to_bgra_p16, gbr_with_alpha_to_rgba,
+    gbr_with_alpha_to_rgba_p16,
+};
 pub use images::{
     BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayAlphaImage, YuvGrayImage,
     YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImage, YuvPlanarImageMut,

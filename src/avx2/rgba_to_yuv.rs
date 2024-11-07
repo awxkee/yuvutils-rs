@@ -39,15 +39,42 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "avx2")]
-pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+pub fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
-    y_plane: *mut u8,
-    u_plane: *mut u8,
-    v_plane: *mut u8,
+    y_plane: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
     rgba: &[u8],
-    rgba_offset: usize,
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+    compute_uv_row: bool,
+) -> ProcessedOffset {
+    unsafe {
+        avx2_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING>(
+            transform,
+            range,
+            y_plane,
+            u_plane,
+            v_plane,
+            rgba,
+            start_cx,
+            start_ux,
+            width,
+            compute_uv_row,
+        )
+    }
+}
+
+#[target_feature(enable = "avx2")]
+unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
+    rgba: &[u8],
     start_cx: usize,
     start_ux: usize,
     width: usize,
@@ -57,10 +84,10 @@ pub unsafe fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let y_ptr = y_plane;
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
-    let rgba_ptr = rgba.as_ptr().add(rgba_offset);
+    let y_ptr = y_plane.as_mut_ptr();
+    let u_ptr = u_plane.as_mut_ptr();
+    let v_ptr = v_plane.as_mut_ptr();
+    let rgba_ptr = rgba.as_ptr();
 
     let mut cx = start_cx;
     let mut uv_x = start_ux;

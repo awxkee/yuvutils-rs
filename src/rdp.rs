@@ -154,34 +154,28 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            unsafe {
-                if use_avx {
-                    let offset = rdp_avx2_rgba_to_yuv::<ORIGIN_CHANNELS>(
-                        &b_transform,
-                        y_dst,
-                        u_dst,
-                        v_dst,
-                        rgba,
-                        _offset.cx,
-                        planar_image.width as usize,
-                    );
-                    _offset = offset;
-                }
+            if use_avx {
+                _offset = rdp_avx2_rgba_to_yuv::<ORIGIN_CHANNELS>(
+                    &b_transform,
+                    y_dst,
+                    u_dst,
+                    v_dst,
+                    rgba,
+                    _offset.cx,
+                    planar_image.width as usize,
+                );
             }
-            unsafe {
-                if use_sse {
-                    let offset = sse_rdp_rgba_to_yuv_row::<ORIGIN_CHANNELS>(
-                        &b_transform,
-                        y_dst.as_mut_ptr(),
-                        u_dst.as_mut_ptr(),
-                        v_dst.as_mut_ptr(),
-                        rgba,
-                        _offset.cx,
-                        _offset.ux,
-                        planar_image.width as usize,
-                    );
-                    _offset = offset;
-                }
+            if use_sse {
+                _offset = sse_rdp_rgba_to_yuv_row::<ORIGIN_CHANNELS>(
+                    &b_transform,
+                    y_dst,
+                    u_dst,
+                    v_dst,
+                    rgba,
+                    _offset.cx,
+                    _offset.ux,
+                    planar_image.width as usize,
+                );
             }
         }
 
@@ -313,19 +307,17 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            unsafe {
-                if use_sse {
-                    let offset = rdp_sse_yuv_to_rgba_row::<ORIGIN_CHANNELS>(
-                        &b_transform,
-                        y_dst,
-                        u_dst,
-                        v_dst,
-                        rgba,
-                        _offset.cx,
-                        planar_image.width as usize,
-                    );
-                    _offset = offset;
-                }
+            if use_sse {
+                let offset = rdp_sse_yuv_to_rgba_row::<ORIGIN_CHANNELS>(
+                    &b_transform,
+                    y_dst,
+                    u_dst,
+                    v_dst,
+                    rgba,
+                    _offset.cx,
+                    planar_image.width as usize,
+                );
+                _offset = offset;
             }
         }
 

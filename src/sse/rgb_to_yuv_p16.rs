@@ -37,8 +37,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_rgba_to_yuv_p16<
+pub fn sse_rgba_to_yuv_p16<
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -46,10 +45,46 @@ pub unsafe fn sse_rgba_to_yuv_p16<
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
-    y_plane: *mut u16,
-    u_plane: *mut u16,
-    v_plane: *mut u16,
-    rgba: *const u16,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u16],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+    compute_uv_row: bool,
+    bit_depth: u32,
+) -> ProcessedOffset {
+    unsafe {
+        sse_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
+            transform,
+            range,
+            y_plane,
+            u_plane,
+            v_plane,
+            rgba,
+            start_cx,
+            start_ux,
+            width,
+            compute_uv_row,
+            bit_depth,
+        )
+    }
+}
+
+#[target_feature(enable = "sse4.1")]
+unsafe fn sse_rgba_to_yuv_impl<
+    const ORIGIN_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u16],
     start_cx: usize,
     start_ux: usize,
     width: usize,
@@ -66,7 +101,7 @@ pub unsafe fn sse_rgba_to_yuv_p16<
     let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
 
-    let mut src_ptr = rgba;
+    let src_ptr = rgba;
 
     let y_ptr = y_plane;
     let u_ptr = u_plane;
@@ -99,9 +134,11 @@ pub unsafe fn sse_rgba_to_yuv_p16<
         let g_values;
         let b_values;
 
-        let row0 = _mm_loadu_si128(src_ptr as *const __m128i);
-        let row1 = _mm_loadu_si128(src_ptr.add(8) as *const __m128i);
-        let row2 = _mm_loadu_si128(src_ptr.add(16) as *const __m128i);
+        let src_ptr = src_ptr.get_unchecked(cx * channels..);
+
+        let row0 = _mm_loadu_si128(src_ptr.as_ptr() as *const __m128i);
+        let row1 = _mm_loadu_si128(src_ptr.get_unchecked(8..).as_ptr() as *const __m128i);
+        let row2 = _mm_loadu_si128(src_ptr.get_unchecked(16..).as_ptr() as *const __m128i);
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
@@ -117,14 +154,14 @@ pub unsafe fn sse_rgba_to_yuv_p16<
                 }
             }
             YuvSourceChannels::Rgba => {
-                let row3 = _mm_loadu_si128(src_ptr.add(24) as *const __m128i);
+                let row3 = _mm_loadu_si128(src_ptr.get_unchecked(24..).as_ptr() as *const __m128i);
                 let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
                 r_values = rgb_values.0;
                 g_values = rgb_values.1;
                 b_values = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let row3 = _mm_loadu_si128(src_ptr.add(24) as *const __m128i);
+                let row3 = _mm_loadu_si128(src_ptr.get_unchecked(24..).as_ptr() as *const __m128i);
                 let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
                 r_values = rgb_values.2;
                 g_values = rgb_values.1;
@@ -157,7 +194,10 @@ pub unsafe fn sse_rgba_to_yuv_p16<
             y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
 
-        _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, y_vl);
+        _mm_storeu_si128(
+            y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m128i,
+            y_vl,
+        );
 
         if compute_uv_row {
             let mut cb_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cb_r));
@@ -197,12 +237,12 @@ pub unsafe fn sse_rgba_to_yuv_p16<
 
                     std::ptr::copy_nonoverlapping(
                         &cb_s as *const _ as *const u8,
-                        u_ptr.add(ux) as *mut u8,
+                        u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
                         8,
                     );
                     std::ptr::copy_nonoverlapping(
                         &cr_s as *const _ as *const u8,
-                        v_ptr.add(ux) as *mut u8,
+                        v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
                         8,
                     );
 
@@ -219,8 +259,14 @@ pub unsafe fn sse_rgba_to_yuv_p16<
                         cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
                     }
 
-                    _mm_storeu_si128(u_ptr.add(ux) as *mut __m128i, cb_vl);
-                    _mm_storeu_si128(v_ptr.add(ux) as *mut __m128i, cr_vl);
+                    _mm_storeu_si128(
+                        u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                        cb_vl,
+                    );
+                    _mm_storeu_si128(
+                        v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                        cr_vl,
+                    );
 
                     ux += 8;
                 }
@@ -228,8 +274,6 @@ pub unsafe fn sse_rgba_to_yuv_p16<
         }
 
         cx += 8;
-
-        src_ptr = src_ptr.add(channels * 8);
     }
 
     ProcessedOffset { ux, cx }
