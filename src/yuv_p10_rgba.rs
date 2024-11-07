@@ -99,8 +99,6 @@ fn yuv_p16_to_image_ant<
         ((val + rounding) >> total_shift).min(max_value).max(0)
     }
 
-    let dst_offset = 0usize;
-
     let process_wide_row =
         |_y_plane: &[u16], _u_plane: &[u16], _v_plane: &[u16], _rgba: &mut [u8]| {
             let mut _cx = 0usize;
@@ -119,7 +117,7 @@ fn yuv_p16_to_image_ant<
                         _u_plane.as_ptr(),
                         _v_plane.as_ptr(),
                         _rgba,
-                        dst_offset,
+                        0,
                         image.width,
                         &range,
                         &i_transform,
