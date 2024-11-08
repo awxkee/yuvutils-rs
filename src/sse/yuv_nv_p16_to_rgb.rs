@@ -46,6 +46,7 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const BIT_DEPTH: u8,
+    const PRECISION: i32,
 >(
     y_ld_ptr: &[u16],
     uv_ld_ptr: &[u16],
@@ -64,6 +65,7 @@ pub unsafe fn sse_yuv_nv_p16_to_rgba_row<
             ENDIANNESS,
             BYTES_POSITION,
             BIT_DEPTH,
+            PRECISION,
         >(
             y_ld_ptr, uv_ld_ptr, bgra, width, range, transform, start_cx, start_ux,
         )
@@ -78,6 +80,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const BIT_DEPTH: u8,
+    const PRECISION: i32,
 >(
     y_ld_ptr: &[u16],
     uv_ld_ptr: &[u16],
@@ -201,8 +204,8 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                 }
                 let u_values_c = _mm_sub_epi16(u_vl, uv_corr_q);
                 let v_values_c = _mm_sub_epi16(v_vl, uv_corr_q);
-                u_high = _mm_cvtepi16_epi32(_mm_slli_si128::<8>(u_values_c));
-                v_high = _mm_cvtepi16_epi32(_mm_slli_si128::<8>(v_values_c));
+                u_high = _mm_unpackhi_epi16(u_values_c, zeros);
+                v_high = _mm_unpackhi_epi16(v_values_c, zeros);
                 u_low = _mm_cvtepi16_epi32(u_values_c);
                 v_low = _mm_cvtepi16_epi32(v_values_c);
             }
@@ -210,15 +213,15 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
 
         let y_high = _mm_madd_epi16(_mm_unpackhi_epi16(y_values, zeros), v_luma_coeff);
 
-        let r_high = _mm_srai_epi32::<6>(_mm_add_epi32(
+        let r_high = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
             _mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_cr_coeff)),
             rounding_const,
         ));
-        let b_high = _mm_srai_epi32::<6>(_mm_add_epi32(
+        let b_high = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
             _mm_add_epi32(y_high, _mm_madd_epi16(u_high, v_cb_coeff)),
             rounding_const,
         ));
-        let g_high = _mm_srai_epi32::<6>(_mm_add_epi32(
+        let g_high = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
             _mm_add_epi32(
                 _mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_g_coeff_1)),
                 _mm_madd_epi16(u_high, v_g_coeff_2),
@@ -228,15 +231,15 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
 
         let y_low = _mm_madd_epi16(_mm_unpacklo_epi16(y_values, zeros), v_luma_coeff);
 
-        let r_low = _mm_srai_epi32::<6>(_mm_add_epi32(
+        let r_low = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
             _mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_cr_coeff)),
             rounding_const,
         ));
-        let b_low = _mm_srai_epi32::<6>(_mm_add_epi32(
+        let b_low = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
             _mm_add_epi32(y_low, _mm_madd_epi16(u_low, v_cb_coeff)),
             rounding_const,
         ));
-        let g_low = _mm_srai_epi32::<6>(_mm_add_epi32(
+        let g_low = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
             _mm_add_epi32(
                 _mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_g_coeff_1)),
                 _mm_madd_epi16(u_low, v_g_coeff_2),

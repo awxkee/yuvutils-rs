@@ -78,7 +78,7 @@ fn yuv_nv_p16_to_image_impl<
         channels,
     )?;
 
-    const PRECISION: i32 = 6;
+    const PRECISION: i32 = 12;
     let i_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
@@ -105,6 +105,7 @@ fn yuv_nv_p16_to_image_impl<
                         ENDIANNESS,
                         BYTES_POSITION,
                         BIT_DEPTH,
+                        PRECISION,
                     >(
                         _y_src,
                         _uv_src,
@@ -130,6 +131,7 @@ fn yuv_nv_p16_to_image_impl<
                     ENDIANNESS,
                     BYTES_POSITION,
                     BIT_DEPTH,
+                    PRECISION,
                 >(
                     _y_src.as_ptr(),
                     _uv_src.as_ptr(),

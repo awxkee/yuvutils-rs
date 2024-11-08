@@ -10,6 +10,3 @@ image = "0.25.5"
 [dev-dependencies]
 criterion = "0.5.1"
 
-[[bench]]
-name = "rdp"
-harness = false
