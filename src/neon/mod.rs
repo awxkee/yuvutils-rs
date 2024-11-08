@@ -27,8 +27,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-mod from_identity;
-mod from_identity_p16;
 mod neon_simd_support;
 mod neon_ycgco;
 mod neon_ycgco_r;
@@ -38,7 +36,6 @@ mod rgb_to_ycgco_r;
 mod rgb_to_yuv_p16;
 mod rgba_to_nv;
 mod rgba_to_yuv;
-mod to_identity;
 mod y_p16_to_rgba16;
 mod y_to_rgb;
 mod ycgco_to_rgb;
@@ -57,15 +54,12 @@ mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
-pub use from_identity::gbr_to_image_neon;
-pub use from_identity_p16::gbr_to_image_neon_p16;
 pub use rgb_to_y::neon_rgb_to_y_row;
 pub use rgb_to_ycgco::neon_rgb_to_ycgco_row;
 pub use rgb_to_ycgco_r::neon_rgb_to_ycgcor_row;
 pub use rgb_to_yuv_p16::neon_rgba_to_yuv_p16;
 pub use rgba_to_nv::neon_rgbx_to_nv_row;
 pub use rgba_to_yuv::neon_rgba_to_yuv;
-pub use to_identity::image_to_gbr_neon;
 pub use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;
 pub use y_to_rgb::neon_y_to_rgb_row;
 pub use ycgco_to_rgb::neon_ycgco_to_rgb_row;

@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
 
 #[inline(always)]
@@ -42,4 +43,38 @@ pub unsafe fn neon_premultiply_alpha(v: uint8x16_t, a_values: uint8x16_t) -> uin
     let hi = neon_div_by_255(acc_hi);
     let lo = neon_div_by_255(acc_lo);
     vcombine_u8(lo, hi)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vld_s16_endian<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
+    ptr: *const u16,
+    msb: int16x4_t,
+) -> int16x4_t {
+    let endianness: YuvEndianness = ENDIANNESS.into();
+    let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
+    let mut v = vld1_u16(ptr);
+    if endianness == YuvEndianness::BigEndian {
+        v = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v)));
+    }
+    if bytes_position == YuvBytesPacking::MostSignificantBytes {
+        v = vshl_u16(v, msb);
+    }
+    vreinterpret_s16_u16(v)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vldq_s16_endian<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
+    ptr: *const u16,
+    msb: int16x8_t,
+) -> int16x8_t {
+    let endianness: YuvEndianness = ENDIANNESS.into();
+    let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
+    let mut v = vld1q_u16(ptr);
+    if endianness == YuvEndianness::BigEndian {
+        v = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v)));
+    }
+    if bytes_position == YuvBytesPacking::MostSignificantBytes {
+        v = vshlq_u16(v, msb);
+    }
+    vreinterpretq_s16_u16(v)
 }

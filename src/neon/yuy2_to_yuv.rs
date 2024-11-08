@@ -26,24 +26,20 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
 
 pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
-    y_offset: usize,
     u_plane: &mut [u8],
-    u_offset: usize,
     v_plane: &mut [u8],
-    v_offset: usize,
     yuy2_store: &[u8],
-    yuy2_offset: usize,
     width: u32,
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;
@@ -54,10 +50,10 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         let max_x_8 = (width as usize / 2).saturating_sub(8);
 
         for x in (_yuy2_x..max_x_16).step_by(16) {
-            let dst_offset = yuy2_offset + x * 4;
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+            let dst_offset = x * 4;
+            let u_pos = _uv_x;
+            let v_pos = _uv_x;
+            let y_pos = _cx;
 
             let pixel_set = vld4q_u8(yuy2_store.as_ptr().add(dst_offset));
             let mut y_first = match yuy2_source {
@@ -92,7 +88,7 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 uint8x16x2_t(y_first, y_second),
             );
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                 let low_u_value = vzip1q_u8(u_value, u_value);
                 let high_u_value = vzip2q_u8(u_value, u_value);
                 let low_v_value = vzip1q_u8(v_value, v_value);
@@ -113,18 +109,18 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             _yuy2_x = x;
             if x + 16 < max_x_16 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 16,
-                    YuvChromaSample::YUV444 => 32,
+                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
+                    YuvChromaSubsampling::Yuv444 => 32,
                 };
                 _cx += 32;
             }
         }
 
         for x in (_yuy2_x..max_x_8).step_by(8) {
-            let dst_offset = yuy2_offset + x * 4;
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+            let dst_offset = x * 4;
+            let u_pos = _uv_x;
+            let v_pos = _uv_x;
+            let y_pos = _cx;
 
             let pixel_set = vld4_u8(yuy2_store.as_ptr().add(dst_offset));
             let mut y_first = match yuy2_source {
@@ -159,7 +155,7 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 vcombine_u8(y_first, y_second),
             );
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                 let low_u_value = vzip1_u8(u_value, u_value);
                 let high_u_value = vzip2_u8(u_value, u_value);
                 let low_v_value = vzip1_u8(v_value, v_value);
@@ -180,8 +176,8 @@ pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             _yuy2_x = x;
             if x + 8 < max_x_8 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 8,
-                    YuvChromaSample::YUV444 => 16,
+                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
+                    YuvChromaSubsampling::Yuv444 => 16,
                 };
                 _cx += 16;
             }

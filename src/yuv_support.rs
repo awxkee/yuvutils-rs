@@ -86,9 +86,7 @@ pub fn get_inverse_transform(
     let cr_coeff = (2f32 * (1f32 - kr)) * range_uv;
     let cb_coeff = (2f32 * (1f32 - kb)) * range_uv;
     let kg = 1.0f32 - kr - kb;
-    if kg == 0f32 {
-        panic!("1.0f - kr - kg must not be 0");
-    }
+    assert_ne!(kg, 0., "1.0f - kr - kg must not be 0");
     let g_coeff_1 = (2f32 * ((1f32 - kr) * kr / kg)) * range_uv;
     let g_coeff_2 = (2f32 * ((1f32 - kb) * kb / kg)) * range_uv;
     CbCrInverseTransform::new(y_coef, cr_coeff, cb_coeff, g_coeff_1, g_coeff_2)
@@ -168,7 +166,7 @@ pub fn get_forward_transform(
 /// Declares YUV range TV (limited) or Full
 pub enum YuvRange {
     /// Limited range Y ∈ [16 << (depth - 8), 16 << (depth - 8) + 224 << (depth - 8)], UV ∈ [-1 << (depth - 1), -1 << (depth - 1) + 1 << (depth - 1)]
-    TV,
+    Limited,
     /// Full range Y ∈ [0, 2^bit_depth - 1], UV ∈ [-1 << (depth - 1), -1 << (depth - 1) + 2^bit_depth - 1]
     Full,
 }
@@ -184,7 +182,7 @@ pub struct YuvChromaRange {
 
 pub const fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
     match range {
-        YuvRange::TV => YuvChromaRange {
+        YuvRange::Limited => YuvChromaRange {
             bias_y: 16 << (depth - 8),
             bias_uv: 1 << (depth - 1),
             range_y: 219 << (depth - 8),
@@ -290,19 +288,19 @@ impl From<u8> for YuvNVOrder {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum YuvChromaSample {
-    YUV420 = 0,
-    YUV422 = 1,
-    YUV444 = 2,
+pub enum YuvChromaSubsampling {
+    Yuv420 = 0,
+    Yuv422 = 1,
+    Yuv444 = 2,
 }
 
-impl From<u8> for YuvChromaSample {
+impl From<u8> for YuvChromaSubsampling {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
-            0 => YuvChromaSample::YUV420,
-            1 => YuvChromaSample::YUV422,
-            2 => YuvChromaSample::YUV444,
+            0 => YuvChromaSubsampling::Yuv420,
+            1 => YuvChromaSubsampling::Yuv422,
+            2 => YuvChromaSubsampling::Yuv444,
             _ => {
                 panic!("Unknown value")
             }

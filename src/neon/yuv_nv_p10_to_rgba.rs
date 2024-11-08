@@ -31,11 +31,10 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndianness,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
 };
 
-#[inline(always)]
 pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     const DESTINATION_CHANNELS: u8,
     const NV_ORDER: u8,
@@ -56,7 +55,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = bgra.as_mut_ptr();
@@ -100,7 +99,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let y_values: int16x8_t = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let mut uv_values_u = vld2_u16(uv_ld_ptr.add(ux));
 
                 if uv_order == YuvNVOrder::VU {
@@ -127,7 +126,7 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                 u_low = vzip1_s16(u_values_c, u_values_c);
                 v_low = vzip1_s16(v_values_c, v_values_c);
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let mut uv_values_u = vld2q_u16(uv_ld_ptr.add(ux));
 
                 if uv_order == YuvNVOrder::VU {
@@ -210,10 +209,10 @@ pub unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 ux += 8;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 ux += 16;
             }
         }

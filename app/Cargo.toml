@@ -5,5 +5,8 @@ edition = "2021"
 
 [dependencies]
 yuvutils-rs = { path = "..", features = [] }
-image = "0.25.1"
-yuvs = {path = "../yuvs"}
+image = "0.25.5"
+
+[dev-dependencies]
+criterion = "0.5.1"
+

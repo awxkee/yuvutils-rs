@@ -31,7 +31,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSample, YuvEndianness,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvSourceChannels,
 };
 
@@ -41,6 +41,8 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
+    const PRECISION: i32,
 >(
     y_ld_ptr: *const u16,
     u_ld_ptr: *const u16,
@@ -53,7 +55,6 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     transform: &CbCrInverseTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    bit_depth: usize,
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     if destination_channels == YuvSourceChannels::Rgb
@@ -62,7 +63,7 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         panic!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = rgba.as_mut_ptr();
@@ -75,8 +76,8 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     let v_min_values = vdupq_n_s16(0i16);
     let v_g_coeff_1 = vdup_n_s16(-(transform.g_coeff_1 as i16));
     let v_g_coeff_2 = vdup_n_s16(-(transform.g_coeff_2 as i16));
-    let v_msb_shift = vdupq_n_s16(bit_depth as i16 - 16);
-    let v_store_shift = vdupq_n_s16(8 - (bit_depth as i16));
+    let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
+    let v_store_shift = vdupq_n_s16(8 - (BIT_DEPTH as i16));
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -141,9 +142,9 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
 
         let y_high = vmull_high_s16(y_values, v_luma_coeff);
 
-        let r_high = vrshrn_n_s32::<6>(vmlal_s16(y_high, v_high, v_cr_coeff));
-        let b_high = vrshrn_n_s32::<6>(vmlal_s16(y_high, u_high, v_cb_coeff));
-        let g_high = vrshrn_n_s32::<6>(vmlal_s16(
+        let r_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_high, v_high, v_cr_coeff));
+        let b_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_high, u_high, v_cb_coeff));
+        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(
             vmlal_s16(y_high, v_high, v_g_coeff_1),
             u_high,
             v_g_coeff_2,
@@ -153,9 +154,9 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         let u_low = vzip1_s16(u_values_c, u_values_c);
         let v_low = vzip1_s16(v_values_c, v_values_c);
 
-        let r_low = vrshrn_n_s32::<6>(vmlal_s16(y_low, v_low, v_cr_coeff));
-        let b_low = vrshrn_n_s32::<6>(vmlal_s16(y_low, u_low, v_cb_coeff));
-        let g_low = vrshrn_n_s32::<6>(vmlal_s16(
+        let r_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_low, v_low, v_cr_coeff));
+        let b_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_low, u_low, v_cb_coeff));
+        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(
             vmlal_s16(y_low, v_low, v_g_coeff_1),
             u_low,
             v_g_coeff_2,
@@ -192,10 +193,10 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 ux += 4;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 ux += 8;
             }
         }

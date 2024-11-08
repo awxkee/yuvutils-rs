@@ -28,55 +28,50 @@
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_p16_to_rgba16_alpha_row;
+use crate::numerics::{qrshr, to_ne};
+use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSample, YuvEndianness,
+    get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
     YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
+use crate::{YuvError, YuvPlanarImageWithAlpha};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
-use rayon::prelude::ParallelSliceMut;
-use std::slice;
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
-pub(crate) fn yuv_p16_to_image_alpha_impl<
+fn yuv_p16_to_image_alpha_ant<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
 >(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    image: &YuvPlanarImageWithAlpha<u16>,
     rgba16: &mut [u16],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    bit_depth: usize,
-) {
+) -> Result<(), YuvError> {
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
 
-    if dst_chans == YuvSourceChannels::Rgb || dst_chans == YuvSourceChannels::Bgr {
-        panic!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
-    }
+    assert!(
+        dst_chans != YuvSourceChannels::Rgb && dst_chans != YuvSourceChannels::Bgr,
+        "Cannot call YUV p16 to Rgb8 with alpha without real alpha"
+    );
 
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
-    let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
-    let range = get_yuv_range(bit_depth as u32, range);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p16 = (1u32 << bit_depth as u32) - 1;
-    const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+
+    image.check_constraints(chroma_subsampling)?;
+    check_rgba_destination(rgba16, rgba_stride, image.width, image.height, channels)?;
+
+    let max_range_p16 = ((1u32 << BIT_DEPTH as u32) - 1) as i32;
+    const PRECISION: i32 = 12;
     let transform = get_inverse_transform(
-        max_range_p16,
+        max_range_p16 as u32,
         range.range_y,
         range.range_uv,
         kr_kb.kr,
@@ -92,210 +87,285 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let msb_shift = 16 - bit_depth;
-    let store_shift = PRECISION as usize;
+    let msb_shift = (16 - BIT_DEPTH) as i32;
 
-    let dst_offset = 0usize;
-
-    let rgba_safe_align = unsafe {
-        slice::from_raw_parts_mut(
-            rgba16.as_mut_ptr() as *mut u8,
-            height as usize * rgba_stride as usize,
-        )
-    };
-
-    let iter;
-    #[cfg(feature = "rayon")]
-    {
-        iter = rgba_safe_align.par_chunks_exact_mut(rgba_stride as usize);
-    }
-    #[cfg(not(feature = "rayon"))]
-    {
-        iter = rgba_safe_align.chunks_exact_mut(rgba_stride as usize);
-    }
-
-    iter.enumerate().for_each(|(y, rgba16)| unsafe {
-        let y_offset = y * (y_stride as usize);
-        let a_offset = y * (a_stride as usize);
-        let u_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
-            (y >> 1) * (u_stride as usize)
-        } else {
-            y * (u_stride as usize)
-        };
-        let v_offset = if chroma_subsampling == YuvChromaSample::YUV420 {
-            (y >> 1) * (v_stride as usize)
-        } else {
-            y * (v_stride as usize)
-        };
-
-        let y_src_ptr = y_plane.as_ptr() as *const u8;
-        let u_src_ptr = u_plane.as_ptr() as *const u8;
-        let v_src_ptr = v_plane.as_ptr() as *const u8;
-        let a_src_ptr = a_plane.as_ptr() as *const u8;
-
-        let mut x = 0usize;
-        let mut cx = 0usize;
-
-        let y_ld_ptr = y_src_ptr.add(y_offset) as *const u16;
-        let u_ld_ptr = u_src_ptr.add(u_offset) as *const u16;
-        let v_ld_ptr = v_src_ptr.add(v_offset) as *const u16;
-        let a_ld_ptr = a_src_ptr.add(a_offset) as *const u16;
-
+    let process_wide_row = |_y_plane: &[u16],
+                            _u_plane: &[u16],
+                            _v_plane: &[u16],
+                            _a_plane: &[u16],
+                            _rgba: &mut [u16]| {
+        let mut _cx = 0usize;
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let offset = neon_yuv_p16_to_rgba16_alpha_row::<
-                DESTINATION_CHANNELS,
-                SAMPLING,
-                ENDIANNESS,
-                BYTES_POSITION,
-            >(
-                y_ld_ptr,
-                u_ld_ptr,
-                v_ld_ptr,
-                a_ld_ptr,
-                rgba16.as_mut_ptr() as *mut u16,
-                dst_offset,
-                width,
-                &range,
-                &i_transform,
-                x,
-                cx,
-                bit_depth,
-            );
-            x = offset.cx;
-            cx = offset.ux;
+            unsafe {
+                let offset = neon_yuv_p16_to_rgba16_alpha_row::<
+                    DESTINATION_CHANNELS,
+                    SAMPLING,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    PRECISION,
+                    BIT_DEPTH,
+                >(
+                    _y_plane.as_ptr(),
+                    _u_plane.as_ptr(),
+                    _v_plane.as_ptr(),
+                    _a_plane.as_ptr(),
+                    _rgba.as_mut_ptr(),
+                    image.width,
+                    &range,
+                    &i_transform,
+                    0,
+                    0,
+                );
+                _cx = offset.cx;
+            }
+        }
+        _cx
+    };
+
+    let process_halved_chroma_row = |y_plane: &[u16],
+                                     u_plane: &[u16],
+                                     v_plane: &[u16],
+                                     a_plane: &[u16],
+                                     rgba: &mut [u16]| {
+        let cx = process_wide_row(y_plane, u_plane, v_plane, a_plane, rgba);
+
+        for ((((rgba, y_src), &u_src), &v_src), a_src) in rgba
+            .chunks_exact_mut(channels * 2)
+            .zip(y_plane.chunks_exact(2))
+            .zip(u_plane.iter())
+            .zip(v_plane.iter())
+            .zip(a_plane.chunks_exact(2))
+            .skip(cx / 2)
+        {
+            let y_value0 =
+                (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[0], msb_shift) as i32 - bias_y) * y_coef;
+            let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
+            let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
+
+            let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
+            let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+            let g0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+            let rgba0 = &mut rgba[0..channels];
+
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
+            rgba0[dst_chans.get_a_channel_offset()] = a_src[0];
+
+            let y_value1 =
+                (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32 - bias_y) * y_coef;
+
+            let r1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value);
+            let b1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value);
+            let g1 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+
+            let rgba1 = &mut rgba[channels..channels * 2];
+
+            rgba1[dst_chans.get_r_channel_offset()] = r1 as u16;
+            rgba1[dst_chans.get_g_channel_offset()] = g1 as u16;
+            rgba1[dst_chans.get_b_channel_offset()] = b1 as u16;
+            rgba1[dst_chans.get_a_channel_offset()] = a_src[1];
         }
 
-        while x < width as usize {
-            let y_value: i32;
-            let cb_value: i32;
-            let cr_value: i32;
-            match endianness {
-                YuvEndianness::BigEndian => {
-                    let mut y_vl = u16::from_be(y_ld_ptr.add(x).read_unaligned()) as i32;
-                    let mut cb_vl = u16::from_be(u_ld_ptr.add(cx).read_unaligned()) as i32;
-                    let mut cr_vl = u16::from_be(v_ld_ptr.add(cx).read_unaligned()) as i32;
-                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        y_vl >>= msb_shift;
-                        cb_vl >>= msb_shift;
-                        cr_vl >>= msb_shift;
-                    }
-                    y_value = (y_vl - bias_y) * y_coef;
+        if image.width & 1 != 0 {
+            let y_value0 = (to_ne::<ENDIANNESS, BYTES_POSITION>(*y_plane.last().unwrap(), msb_shift)
+                as i32
+                - bias_y)
+                * y_coef;
+            let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*u_plane.last().unwrap(), msb_shift)
+                as i32
+                - bias_uv;
+            let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*v_plane.last().unwrap(), msb_shift)
+                as i32
+                - bias_uv;
+            let a_value = *a_plane.last().unwrap();
+            let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
+            let rgba0 = &mut rgba[0..channels];
 
-                    cb_value = cb_vl - bias_uv;
-                    cr_value = cr_vl - bias_uv;
-                }
-                YuvEndianness::LittleEndian => {
-                    let mut y_vl = u16::from_le(y_ld_ptr.add(x).read_unaligned()) as i32;
-                    let mut cb_vl = u16::from_le(u_ld_ptr.add(cx).read_unaligned()) as i32;
-                    let mut cr_vl = u16::from_le(v_ld_ptr.add(cx).read_unaligned()) as i32;
-                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        y_vl >>= msb_shift;
-                        cb_vl >>= msb_shift;
-                        cr_vl >>= msb_shift;
-                    }
-                    y_value = (y_vl - bias_y) * y_coef;
-
-                    cb_value = cb_vl - bias_uv;
-                    cr_value = cr_vl - bias_uv;
-                }
-            }
-
-            let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> store_shift;
-            let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> store_shift;
-            let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
-                >> store_shift;
-
-            let r = r_u16.min(max_range_p16 as i32).max(0);
-            let b = b_u16.min(max_range_p16 as i32).max(0);
-            let g = g_u16.min(max_range_p16 as i32).max(0);
-
-            let px = x * channels;
-
-            let rgb_offset = dst_offset + px;
-
-            let dst_slice = (rgba16.as_mut_ptr() as *mut u16).add(rgb_offset);
-
-            dst_slice
-                .add(dst_chans.get_b_channel_offset())
-                .write_unaligned(b as u16);
-            dst_slice
-                .add(dst_chans.get_g_channel_offset())
-                .write_unaligned(g as u16);
-            dst_slice
-                .add(dst_chans.get_r_channel_offset())
-                .write_unaligned(r as u16);
-            let mut a0 = if endianness == YuvEndianness::BigEndian {
-                u16::from_be(a_ld_ptr.add(x).read_unaligned())
-            } else {
-                u16::from_le(a_ld_ptr.add(x).read_unaligned())
-            };
-            if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                a0 >>= msb_shift;
-            }
-            dst_slice
-                .add(dst_chans.get_a_channel_offset())
-                .write_unaligned(a0);
-
-            x += 1;
-
-            if x + 1 < width as usize {
-                let y_value: i32 = match endianness {
-                    YuvEndianness::BigEndian => {
-                        let mut y_vl = u16::from_be(y_ld_ptr.add(x).read_unaligned()) as i32;
-                        if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                            y_vl >>= msb_shift;
-                        }
-                        (y_vl - bias_y) * y_coef
-                    }
-                    YuvEndianness::LittleEndian => {
-                        let mut y_vl = u16::from_le(y_ld_ptr.add(x).read_unaligned()) as i32;
-                        if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                            y_vl >>= msb_shift;
-                        }
-                        (y_vl - bias_y) * y_coef
-                    }
-                };
-
-                let r_u16 = (y_value + cr_coef * cr_value + ROUNDING_CONST) >> store_shift;
-                let b_u16 = (y_value + cb_coef * cb_value + ROUNDING_CONST) >> store_shift;
-                let g_u16 = (y_value - g_coef_1 * cr_value - g_coef_2 * cb_value + ROUNDING_CONST)
-                    >> store_shift;
-
-                let r = r_u16.min(max_range_p16 as i32).max(0);
-                let b = b_u16.min(max_range_p16 as i32).max(0);
-                let g = g_u16.min(max_range_p16 as i32).max(0);
-
-                let mut a1 = if endianness == YuvEndianness::BigEndian {
-                    u16::from_be(a_ld_ptr.add(x).read_unaligned())
-                } else {
-                    u16::from_le(a_ld_ptr.add(x).read_unaligned())
-                };
-                if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    a1 >>= msb_shift;
-                }
-
-                let px = x * channels;
-                let rgb_offset = dst_offset + px;
-                let dst_slice = (rgba16.as_mut_ptr() as *mut u16).add(rgb_offset);
-                dst_slice
-                    .add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b as u16);
-                dst_slice
-                    .add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g as u16);
-                dst_slice
-                    .add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r as u16);
-                dst_slice
-                    .add(dst_chans.get_a_channel_offset())
-                    .write_unaligned(a1);
-            }
-
-            x += 1;
-            cx += 1;
+            let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
+            let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+            let g0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
+            rgba0[dst_chans.get_a_channel_offset()] = a_value;
         }
-    });
+    };
+
+    if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = rgba16
+                .par_chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize))
+                .zip(image.a_plane.par_chunks_exact(image.a_stride as usize))
+                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = rgba16
+                .chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.chunks_exact(image.y_stride as usize))
+                .zip(image.a_plane.chunks_exact(image.a_stride as usize))
+                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+        }
+        iter.for_each(|((((rgba, y_plane), a_plane), u_plane), v_plane)| {
+            let cx = process_wide_row(y_plane, u_plane, v_plane, a_plane, rgba);
+
+            for ((((rgba, &y_src), &u_src), &v_src), &a_src) in rgba
+                .chunks_exact_mut(channels)
+                .zip(y_plane.iter())
+                .zip(u_plane.iter())
+                .zip(v_plane.iter())
+                .zip(a_plane.iter())
+                .skip(cx)
+            {
+                let y_value = (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src, msb_shift) as i32
+                    - bias_y)
+                    * y_coef;
+                let cb_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
+                let cr_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
+
+                let r = qrshr::<PRECISION, BIT_DEPTH>(y_value + cr_coef * cr_value);
+                let b = qrshr::<PRECISION, BIT_DEPTH>(y_value + cb_coef * cb_value);
+                let g = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                );
+
+                rgba[dst_chans.get_r_channel_offset()] = r as u16;
+                rgba[dst_chans.get_g_channel_offset()] = g as u16;
+                rgba[dst_chans.get_b_channel_offset()] = b as u16;
+                rgba[dst_chans.get_a_channel_offset()] = a_src;
+            }
+        });
+    } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = rgba16
+                .par_chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize))
+                .zip(image.a_plane.par_chunks_exact(image.a_stride as usize))
+                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = rgba16
+                .chunks_exact_mut(rgba_stride as usize)
+                .zip(image.y_plane.chunks_exact(image.y_stride as usize))
+                .zip(image.a_plane.chunks_exact(image.a_stride as usize))
+                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+        }
+        iter.for_each(|((((rgba, y_plane), a_plane), u_plane), v_plane)| {
+            process_halved_chroma_row(y_plane, u_plane, v_plane, a_plane, rgba);
+        });
+    } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
+        let iter;
+        #[cfg(feature = "rayon")]
+        {
+            iter = rgba16
+                .par_chunks_exact_mut(rgba_stride as usize * 2)
+                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize * 2))
+                .zip(image.a_plane.par_chunks_exact(image.a_stride as usize * 2))
+                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = rgba16
+                .chunks_exact_mut(rgba_stride as usize * 2)
+                .zip(image.y_plane.chunks_exact(image.y_stride as usize * 2))
+                .zip(image.a_plane.chunks_exact(image.a_stride as usize * 2))
+                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
+                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+        }
+        iter.for_each(|((((rgba, y_plane), a_plane), u_plane), v_plane)| {
+            for ((rgba, y_plane), a_plane) in rgba
+                .chunks_exact_mut(rgba_stride as usize)
+                .zip(y_plane.chunks_exact(image.y_stride as usize))
+                .zip(a_plane.chunks_exact(image.a_stride as usize))
+            {
+                process_halved_chroma_row(y_plane, u_plane, v_plane, a_plane, rgba);
+            }
+        });
+
+        if image.height & 1 != 0 {
+            let rgba = rgba16
+                .chunks_exact_mut(rgba_stride as usize)
+                .last()
+                .unwrap();
+            let u_plane = image
+                .u_plane
+                .chunks_exact(image.u_stride as usize)
+                .last()
+                .unwrap();
+            let v_plane = image
+                .v_plane
+                .chunks_exact(image.v_stride as usize)
+                .last()
+                .unwrap();
+            let a_plane = image
+                .a_plane
+                .chunks_exact(image.a_stride as usize)
+                .last()
+                .unwrap();
+            let y_plane = image
+                .y_plane
+                .chunks_exact(image.y_stride as usize)
+                .last()
+                .unwrap();
+            process_halved_chroma_row(y_plane, u_plane, v_plane, a_plane, rgba);
+        }
+    } else {
+        unreachable!();
+    }
+    Ok(())
+}
+
+pub(crate) fn yuv_p16_to_image_alpha_impl<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+>(
+    image: &YuvPlanarImageWithAlpha<u16>,
+    rgba16: &mut [u16],
+    rgba_stride: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    bit_depth: usize,
+) -> Result<(), YuvError> {
+    if bit_depth == 10 {
+        yuv_p16_to_image_alpha_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 10>(
+            image,
+            rgba16,
+            rgba_stride,
+            range,
+            matrix,
+        )
+    } else if bit_depth == 12 {
+        yuv_p16_to_image_alpha_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 12>(
+            image,
+            rgba16,
+            rgba_stride,
+            range,
+            matrix,
+        )
+    } else {
+        unimplemented!("Only 10 and 12 bit depth is implemented");
+    }
 }
 
 /// Convert YUV 420 planar format with 8+ bit pixel format to BGRA 8+ bit-depth format with interleaving alpha.
@@ -305,18 +375,9 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (elements per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -329,30 +390,21 @@ pub(crate) fn yuv_p16_to_image_alpha_impl<
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv420_p16_with_alpha_to_bgra16(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -360,7 +412,7 @@ pub fn yuv420_p16_with_alpha_to_bgra16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -370,7 +422,7 @@ pub fn yuv420_p16_with_alpha_to_bgra16(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -378,7 +430,7 @@ pub fn yuv420_p16_with_alpha_to_bgra16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -386,22 +438,13 @@ pub fn yuv420_p16_with_alpha_to_bgra16(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 422 format with 8+ bit pixel format to BGRA 8+ bit-depth format with interleaving alpha.
@@ -411,18 +454,9 @@ pub fn yuv420_p16_with_alpha_to_bgra16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (elements per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -436,30 +470,21 @@ pub fn yuv420_p16_with_alpha_to_bgra16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv422_p16_with_alpha_to_bgra16(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -467,7 +492,7 @@ pub fn yuv422_p16_with_alpha_to_bgra16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -477,7 +502,7 @@ pub fn yuv422_p16_with_alpha_to_bgra16(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -485,7 +510,7 @@ pub fn yuv422_p16_with_alpha_to_bgra16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -493,22 +518,13 @@ pub fn yuv422_p16_with_alpha_to_bgra16(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 420 planar format with 8+ bit pixel format to RGBA 8+ bit-depth format with interleaving alpha.
@@ -518,18 +534,9 @@ pub fn yuv422_p16_with_alpha_to_bgra16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `rgba_stride` - The stride (elements per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -542,30 +549,21 @@ pub fn yuv422_p16_with_alpha_to_bgra16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv420_p16_with_alpha_to_rgba16(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -573,7 +571,7 @@ pub fn yuv420_p16_with_alpha_to_rgba16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -583,7 +581,7 @@ pub fn yuv420_p16_with_alpha_to_rgba16(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -591,7 +589,7 @@ pub fn yuv420_p16_with_alpha_to_rgba16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV420 as u8 },
+                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -599,22 +597,13 @@ pub fn yuv420_p16_with_alpha_to_rgba16(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 422 format with 8+ bit pixel format to RGBA 8+ bit-depth format with interleaving alpha.
@@ -624,18 +613,9 @@ pub fn yuv420_p16_with_alpha_to_rgba16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgba_data` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - The stride (elements per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -648,30 +628,21 @@ pub fn yuv420_p16_with_alpha_to_rgba16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv422_p16_with_alpha_to_rgba16(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -679,7 +650,7 @@ pub fn yuv422_p16_with_alpha_to_rgba16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -689,7 +660,7 @@ pub fn yuv422_p16_with_alpha_to_rgba16(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -697,7 +668,7 @@ pub fn yuv422_p16_with_alpha_to_rgba16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV422 as u8 },
+                    { YuvChromaSubsampling::Yuv422 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -705,22 +676,13 @@ pub fn yuv422_p16_with_alpha_to_rgba16(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 444 planar format with 8+ bit pixel format to RGBA 8+ bit-depth format with interleaving alpha.
@@ -730,18 +692,9 @@ pub fn yuv422_p16_with_alpha_to_rgba16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgba_data` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for RGBA data.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - The stride (elements per row) for RGBA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -754,30 +707,21 @@ pub fn yuv422_p16_with_alpha_to_rgba16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv444_p16_with_alpha_to_rgba16(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -785,7 +729,7 @@ pub fn yuv444_p16_with_alpha_to_rgba16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -795,7 +739,7 @@ pub fn yuv444_p16_with_alpha_to_rgba16(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -803,7 +747,7 @@ pub fn yuv444_p16_with_alpha_to_rgba16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Rgba as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -811,22 +755,13 @@ pub fn yuv444_p16_with_alpha_to_rgba16(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }
 
 /// Convert YUV 444 planar format with 8+ bit pixel format to BGRA 8+ bit-depth format with interleaving alpha.
@@ -836,18 +771,9 @@ pub fn yuv444_p16_with_alpha_to_rgba16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` -  A slice containing Y (luminance) with 8+ bit depth.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `u_plane` - A slice to load the U (chrominance) with 8+ bit depth.
-/// * `u_stride` - The stride (bytes per row) for the U plane.
-/// * `v_plane` - A slice to load the V (chrominance) with 8+ bit depth.
-/// * `v_stride` - The stride (bytes per row) for the U plane.
-/// * `a_plane` - A slice to load the alpha with 8+ bit depth.
-/// * `a_stride` - The stride (bytes per row) for the Alpha plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
+/// * `planar_image_with_alpha` -  Source planar image with alpha.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for BGRA data.
+/// * `bgra_stride` - The stride (elements per row) for BGRA data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
@@ -860,30 +786,21 @@ pub fn yuv444_p16_with_alpha_to_rgba16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv444_p16_with_alpha_to_bgra16(
-    y_plane: &[u16],
-    y_stride: u32,
-    u_plane: &[u16],
-    u_stride: u32,
-    v_plane: &[u16],
-    v_stride: u32,
-    a_plane: &[u16],
-    a_stride: u32,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: usize,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let dispatcher = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -891,7 +808,7 @@ pub fn yuv444_p16_with_alpha_to_bgra16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::BigEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -901,7 +818,7 @@ pub fn yuv444_p16_with_alpha_to_bgra16(
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
                 >
@@ -909,7 +826,7 @@ pub fn yuv444_p16_with_alpha_to_bgra16(
             YuvBytesPacking::LeastSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
                     { YuvSourceChannels::Bgra as u8 },
-                    { YuvChromaSample::YUV444 as u8 },
+                    { YuvChromaSubsampling::Yuv444 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -917,20 +834,11 @@ pub fn yuv444_p16_with_alpha_to_bgra16(
         },
     };
     dispatcher(
-        y_plane,
-        y_stride,
-        u_plane,
-        u_stride,
-        v_plane,
-        v_stride,
-        a_plane,
-        a_stride,
+        planar_image_with_alpha,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
         matrix,
         bit_depth,
-    );
+    )
 }

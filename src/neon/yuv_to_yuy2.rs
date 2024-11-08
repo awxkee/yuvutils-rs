@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_support::{YuvChromaSample, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
 
@@ -43,7 +43,7 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     let shuffle_table: [u8; 16] = [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15];
 
@@ -65,7 +65,7 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let v_pixels;
             let y_pixels = vld1q_u8_x2(y_plane.as_ptr().add(y_pos));
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                 let full_u = vld1q_u8_x2(u_plane.as_ptr().add(u_pos));
                 let full_v = vld1q_u8_x2(v_plane.as_ptr().add(v_pos));
 
@@ -97,8 +97,8 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             if x + 16 < max_x_16 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 16,
-                    YuvChromaSample::YUV444 => 32,
+                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
+                    YuvChromaSubsampling::Yuv444 => 32,
                 };
                 _cx += 32;
             }
@@ -115,7 +115,7 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             y_pixels = vld1q_u8(y_plane.as_ptr().add(y_pos));
 
-            if chroma_subsampling == YuvChromaSample::YUV444 {
+            if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                 let full_u = vld1q_u8(u_plane.as_ptr().add(u_pos));
                 let full_v = vld1q_u8(v_plane.as_ptr().add(v_pos));
 
@@ -152,8 +152,8 @@ pub fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             if x + 8 < max_x_8 {
                 _uv_x += match chroma_subsampling {
-                    YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => 8,
-                    YuvChromaSample::YUV444 => 16,
+                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
+                    YuvChromaSubsampling::Yuv444 => 16,
                 };
                 _cx += 16;
             }

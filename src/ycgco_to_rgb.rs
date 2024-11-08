@@ -38,41 +38,38 @@ use crate::avx512bw::avx512_ycgco_to_rgb_row;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_ycgco_to_rgb_row;
+use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_ycgco_to_rgb_row;
-use crate::yuv_error::{check_chroma_channel, check_rgba_destination, check_y8_channel};
+use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
-use crate::YuvError;
+use crate::{YuvError, YuvPlanarImage};
 
 fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
-    check_rgba_destination(rgba, rgba_stride, width, height, channels)?;
-    check_y8_channel(y_plane, y_stride, width, height)?;
-    check_chroma_channel(cg_plane, cg_stride, width, height, chroma_subsampling)?;
-    check_chroma_channel(co_plane, co_stride, width, height, chroma_subsampling)?;
+    check_rgba_destination(
+        rgba,
+        rgba_stride,
+        planar_image.width,
+        planar_image.height,
+        channels,
+    )?;
+    planar_image.check_constraints(chroma_subsampling)?;
 
     let range = get_yuv_range(8, range);
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
     const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
 
     let mut y_offset = 0usize;
     let mut u_offset = 0usize;
@@ -80,9 +77,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let mut rgba_offset = 0usize;
 
     let iterator_step = match chroma_subsampling {
-        YuvChromaSample::YUV420 => 2usize,
-        YuvChromaSample::YUV422 => 2usize,
-        YuvChromaSample::YUV444 => 1usize,
+        YuvChromaSubsampling::Yuv420 => 2usize,
+        YuvChromaSubsampling::Yuv422 => 2usize,
+        YuvChromaSubsampling::Yuv444 => 1usize,
     };
 
     let max_colors = (1 << 8) - 1i32;
@@ -103,7 +100,15 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    for y in 0..height as usize {
+    let y_plane = planar_image.y_plane;
+    let cg_plane = planar_image.u_plane;
+    let co_plane = planar_image.v_plane;
+    let width = planar_image.width;
+    let y_stride = planar_image.y_stride;
+    let co_stride = planar_image.v_stride;
+    let cg_stride = planar_image.u_stride;
+
+    for y in 0..planar_image.height as usize {
         #[allow(unused_variables)]
         #[allow(unused_mut)]
         let mut cx = 0usize;
@@ -191,21 +196,22 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             uv_x = processed.ux;
         }
 
+        #[allow(clippy::explicit_counter_loop)]
         for x in (cx..width as usize).step_by(iterator_step) {
             let y_value = (unsafe { *y_plane.get_unchecked(y_offset + x) } as i32 - bias_y)
                 * range_reduction_y;
 
             let cg_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => u_offset + uv_x,
-                YuvChromaSample::YUV444 => u_offset + uv_x,
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => u_offset + uv_x,
+                YuvChromaSubsampling::Yuv444 => u_offset + uv_x,
             };
 
             let cg_value =
                 (unsafe { *cg_plane.get_unchecked(cg_pos) } as i32 - bias_uv) * range_reduction_uv;
 
             let v_pos = match chroma_subsampling {
-                YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => v_offset + uv_x,
-                YuvChromaSample::YUV444 => v_offset + uv_x,
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => v_offset + uv_x,
+                YuvChromaSubsampling::Yuv444 => v_offset + uv_x,
             };
 
             let co_value =
@@ -213,15 +219,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let t = y_value - cg_value;
 
-            let r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
-            let g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
-                .min(255)
-                .max(0);
+            let r = qrshr::<PRECISION, 8>(t + co_value);
+            let b = qrshr::<PRECISION, 8>(t - co_value);
+            let g = qrshr::<PRECISION, 8>(y_value + cg_value);
 
             let px = x * channels;
 
@@ -247,8 +247,8 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 };
             }
 
-            if chroma_subsampling == YuvChromaSample::YUV420
-                || chroma_subsampling == YuvChromaSample::YUV422
+            if chroma_subsampling == YuvChromaSubsampling::Yuv420
+                || chroma_subsampling == YuvChromaSubsampling::Yuv422
             {
                 let next_x = x + 1;
                 if next_x < width as usize {
@@ -256,15 +256,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         - bias_y)
                         * range_reduction_y;
 
-                    let r = ((t + co_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let b = ((t - co_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
-                    let g = ((y_value + cg_value + ROUNDING_CONST) >> PRECISION)
-                        .min(255)
-                        .max(0);
+                    let r = qrshr::<PRECISION, 8>(t + co_value);
+                    let b = qrshr::<PRECISION, 8>(t - co_value);
+                    let g = qrshr::<PRECISION, 8>(y_value + cg_value);
 
                     let next_px = next_x * channels;
 
@@ -301,13 +295,13 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         y_offset += y_stride as usize;
         rgba_offset += rgba_stride as usize;
         match chroma_subsampling {
-            YuvChromaSample::YUV420 => {
+            YuvChromaSubsampling::Yuv420 => {
                 if y & 1 == 1 {
                     u_offset += cg_stride as usize;
                     v_offset += co_stride as usize;
                 }
             }
-            YuvChromaSample::YUV444 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv444 | YuvChromaSubsampling::Yuv422 => {
                 u_offset += cg_stride as usize;
                 v_offset += co_stride as usize;
             }
@@ -324,15 +318,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted RGB data.
+/// * `planar_image` - Source planar image.
+/// * `rgb` - A mutable slice to store the converted RGB data.
+/// * `rgb_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -341,21 +329,16 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco420_to_rgb(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     rgb: &mut [u8],
     rgb_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
-        height, range,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
+        planar_image,
+        rgb,
+        rgb_stride,
+        range,
     )
 }
 
@@ -366,15 +349,9 @@ pub fn ycgco420_to_rgb(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted BGR data.
+/// * `planar_image` - Source planar image.
+/// * `bgr` - A mutable slice to store the converted BGR data.
+/// * `bgr_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -383,21 +360,16 @@ pub fn ycgco420_to_rgb(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco420_to_bgr(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     bgr: &mut [u8],
     bgr_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
-        height, range,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
+        planar_image,
+        bgr,
+        bgr_stride,
+        range,
     )
 }
 
@@ -408,15 +380,9 @@ pub fn ycgco420_to_bgr(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgba_data` - A mutable slice to store the converted RGBA data.
+/// * `planar_image` - Source planar image.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -425,29 +391,15 @@ pub fn ycgco420_to_bgr(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco420_to_rgba(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        cg_plane,
-        cg_stride,
-        co_plane,
-        co_stride,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
+        planar_image,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
     )
 }
@@ -459,15 +411,9 @@ pub fn ycgco420_to_rgba(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+/// * `planar_image` - Source planar image.
+/// * `bgra` - A mutable slice to store the converted BGRA data.
+/// * `bgra_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -476,29 +422,15 @@ pub fn ycgco420_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco420_to_bgra(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV420 as u8 }>(
-        y_plane,
-        y_stride,
-        cg_plane,
-        cg_stride,
-        co_plane,
-        co_stride,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
+        planar_image,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
     )
 }
@@ -510,15 +442,11 @@ pub fn ycgco420_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
+/// * `planar_image` - Source planar image.
 /// * `width` - The width of the YUV image.
 /// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted RGB data.
+/// * `rgb` - A mutable slice to store the converted RGB data.
+/// * `rgb_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -527,21 +455,16 @@ pub fn ycgco420_to_bgra(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco422_to_rgb(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     rgb: &mut [u8],
     rgb_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
-        height, range,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
+        planar_image,
+        rgb,
+        rgb_stride,
+        range,
     )
 }
 
@@ -552,15 +475,9 @@ pub fn ycgco422_to_rgb(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted BGR data.
+/// * `planar_image` - Source planar image.
+/// * `bgr` - A mutable slice to store the converted BGR data.
+/// * `bgr_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -569,21 +486,16 @@ pub fn ycgco422_to_rgb(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco422_to_bgr(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     bgr: &mut [u8],
     bgr_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
-        height, range,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
+        planar_image,
+        bgr,
+        bgr_stride,
+        range,
     )
 }
 
@@ -594,15 +506,9 @@ pub fn ycgco422_to_bgr(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `bgra_data` - A mutable slice to store the converted RGBA data.
+/// * `planar_image` - Source planar image.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -611,29 +517,15 @@ pub fn ycgco422_to_bgr(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco422_to_rgba(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        cg_plane,
-        cg_stride,
-        co_plane,
-        co_stride,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
+        planar_image,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
     )
 }
@@ -645,15 +537,9 @@ pub fn ycgco422_to_rgba(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+/// * `planar_image` - Source planar image.
+/// * `bgra` - A mutable slice to store the converted BGRA data.
+/// * `bgra_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -662,29 +548,15 @@ pub fn ycgco422_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco422_to_bgra(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV422 as u8 }>(
-        y_plane,
-        y_stride,
-        cg_plane,
-        cg_stride,
-        co_plane,
-        co_stride,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
+        planar_image,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
     )
 }
@@ -696,15 +568,9 @@ pub fn ycgco422_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgba_data` - A mutable slice to store the converted RGBA data.
+/// * `planar_image` - Source planar image.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -713,29 +579,15 @@ pub fn ycgco422_to_bgra(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco444_to_rgba(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane,
-        y_stride,
-        cg_plane,
-        cg_stride,
-        co_plane,
-        co_stride,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+        planar_image,
         rgba,
         rgba_stride,
-        width,
-        height,
         range,
     )
 }
@@ -747,15 +599,9 @@ pub fn ycgco444_to_rgba(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+/// * `planar_image` - Source planar image.
+/// * `bgra` - A mutable slice to store the converted BGRA data.
+/// * `bgra_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -764,29 +610,15 @@ pub fn ycgco444_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco444_to_bgra(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane,
-        y_stride,
-        cg_plane,
-        cg_stride,
-        co_plane,
-        co_stride,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+        planar_image,
         bgra,
         bgra_stride,
-        width,
-        height,
         range,
     )
 }
@@ -798,15 +630,9 @@ pub fn ycgco444_to_bgra(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted RGB data.
+/// * `planar_image` - Source planar image.
+/// * `rgb` - A mutable slice to store the converted RGB data.
+/// * `rgb_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -815,21 +641,16 @@ pub fn ycgco444_to_bgra(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco444_to_rgb(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     rgb: &mut [u8],
     rgb_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, rgb, rgb_stride, width,
-        height, range,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+        planar_image,
+        rgb,
+        rgb_stride,
+        range,
     )
 }
 
@@ -840,15 +661,9 @@ pub fn ycgco444_to_rgb(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `cg_plane` - A slice to load the U (chrominance) plane data.
-/// * `cg_stride` - The stride (bytes per row) for the U plane.
-/// * `co_plane` - A slice to load the V (chrominance) plane data.
-/// * `co_stride` - The stride (bytes per row) for the V plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgb_data` - A mutable slice to store the converted BGR data.
+/// * `planar_image` - Source planar image.
+/// * `bgr` - A mutable slice to store the converted BGR data.
+/// * `bgr_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 ///
 /// # Panics
@@ -857,20 +672,15 @@ pub fn ycgco444_to_rgb(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco444_to_bgr(
-    y_plane: &[u8],
-    y_stride: u32,
-    cg_plane: &[u8],
-    cg_stride: u32,
-    co_plane: &[u8],
-    co_stride: u32,
+    planar_image: &YuvPlanarImage<u8>,
     bgr: &mut [u8],
     bgr_stride: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSample::YUV444 as u8 }>(
-        y_plane, y_stride, cg_plane, cg_stride, co_plane, co_stride, bgr, bgr_stride, width,
-        height, range,
+    ycgco_ro_rgbx::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+        planar_image,
+        bgr,
+        bgr_stride,
+        range,
     )
 }

@@ -60,23 +60,23 @@ pub unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
 
     while cx + 64 < width {
         let y_values = _mm512_subs_epi8(
-            _mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32),
+            _mm512_slli_epi16::<7>(_mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32)),
             y_corr,
         );
 
-        let y_high = _mm512_mullo_epi16(
+        let y_high = _mm512_mulhi_epi16(
             _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(y_values)),
             v_luma_coeff,
         );
 
-        let r_high = _mm512_srli_epi16::<6>(_mm512_max_epi16(y_high, v_min_values));
+        let r_high = _mm512_srli_epi16::<3>(_mm512_max_epi16(y_high, v_min_values));
 
-        let y_low = _mm512_mullo_epi16(
-            _mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values)),
+        let y_low = _mm512_mulhi_epi16(
+            _mm512_slli_epi16::<7>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values))),
             v_luma_coeff,
         );
 
-        let r_low = _mm512_srli_epi16::<6>(_mm512_adds_epi16(
+        let r_low = _mm512_srli_epi16::<3>(_mm512_adds_epi16(
             _mm512_max_epi16(y_low, v_min_values),
             rounding_const,
         ));

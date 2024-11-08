@@ -33,44 +33,6 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline]
-pub unsafe fn sse_rgb_to_ycbcr(
-    r: __m128i,
-    g: __m128i,
-    b: __m128i,
-    bias: __m128i,
-    coeff_r: __m128i,
-    coeff_g: __m128i,
-    coeff_b: __m128i,
-) -> __m128i {
-    let zeros_si = _mm_setzero_si128();
-    let r_l = _mm_unpacklo_epi16(r, zeros_si);
-    let g_l = _mm_unpacklo_epi16(g, zeros_si);
-    let b_l = _mm_unpacklo_epi16(b, zeros_si);
-
-    let vl = _mm_srai_epi32::<8>(_mm_add_epi32(
-        bias,
-        _mm_add_epi32(
-            _mm_add_epi32(_mm_madd_epi16(coeff_r, r_l), _mm_madd_epi16(coeff_g, g_l)),
-            _mm_madd_epi16(coeff_b, b_l),
-        ),
-    ));
-
-    let r_h = _mm_unpackhi_epi16(r, zeros_si);
-    let g_h = _mm_unpackhi_epi16(g, zeros_si);
-    let b_h = _mm_unpackhi_epi16(b, zeros_si);
-
-    let vh = _mm_srai_epi32::<8>(_mm_add_epi32(
-        bias,
-        _mm_add_epi32(
-            _mm_add_epi32(_mm_madd_epi16(coeff_r, r_h), _mm_madd_epi16(coeff_g, g_h)),
-            _mm_madd_epi16(coeff_b, b_h),
-        ),
-    ));
-
-    _mm_packus_epi32(vl, vh)
-}
-
-#[inline]
 pub unsafe fn sse_rgb_to_ycgco(
     r: __m128i,
     g: __m128i,

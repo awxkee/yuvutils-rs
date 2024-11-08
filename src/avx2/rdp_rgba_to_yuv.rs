@@ -27,57 +27,66 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
-};
-use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
+use crate::avx2::avx2_utils::{_mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb};
+use crate::internals::ProcessedOffset;
+use crate::yuv_support::{CbCrForwardTransform, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
+pub fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
-    range: &YuvChromaRange,
-    y_plane: &mut [u8],
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
     rgba: &[u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) -> ProcessedOffset {
     unsafe {
-        avx2_rgb_to_y_row_impl::<ORIGIN_CHANNELS>(transform, range, y_plane, rgba, start_cx, width)
+        rdp_avx2_rgba_to_yuv_impl::<ORIGIN_CHANNELS>(
+            transform, y_plane, u_plane, v_plane, rgba, start_cx, width,
+        )
     }
 }
 
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
+unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
-    range: &YuvChromaRange,
-    y_plane: &mut [u8],
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
     rgba: &[u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) -> ProcessedOffset {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let y_ptr = y_plane.as_mut_ptr();
+    let y_ptr = y_plane;
+    let u_ptr = u_plane;
+    let v_ptr = v_plane;
     let rgba_ptr = rgba.as_ptr();
 
     let mut cx = start_cx;
 
-    const V_SHR: i32 = 3;
     const V_SCALE: i32 = 7;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
 
-    let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
-    let i_cap_y = _mm256_set1_epi16(range.range_y as i16 + range.bias_y as i16);
+    let i_bias_y = _mm256_set1_epi16(-4095);
+    let i_cap_y = _mm256_set1_epi16(4096);
 
-    let y_bias = _mm256_set1_epi16(bias_y);
+    let y_bias = _mm256_set1_epi16(-4096);
+    let uv_bias = _mm256_set1_epi16(0);
     let v_yr = _mm256_set1_epi16(transform.yr as i16);
     let v_yg = _mm256_set1_epi16(transform.yg as i16);
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
+    let v_cb_r = _mm256_set1_epi16(transform.cb_r as i16);
+    let v_cb_g = _mm256_set1_epi16(transform.cb_g as i16);
+    let v_cb_b = _mm256_set1_epi16(transform.cb_b as i16);
+    let v_cr_r = _mm256_set1_epi16(transform.cr_r as i16);
+    let v_cr_g = _mm256_set1_epi16(transform.cr_g as i16);
+    let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
     while cx + 32 < width {
         let (r_values, g_values, b_values);
@@ -140,7 +149,7 @@ pub unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
 
         let y_l = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -149,7 +158,7 @@ pub unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhi_epi16(b_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -157,7 +166,7 @@ pub unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
 
         let y_h = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -166,18 +175,105 @@ pub unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhi_epi16(b_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
         );
 
-        let y_yuv = avx2_pack_u16(y_l, y_h);
+        _mm256_storeu_si256(
+            y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
+            y_l,
+        );
+        _mm256_storeu_si256(
+            y_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i,
+            y_h,
+        );
 
-        _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
+        let cb_l = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
+                        _mm256_add_epi16(
+                            _mm256_mulhi_epi16(r_low, v_cb_r),
+                            _mm256_mulhi_epi16(g_low, v_cb_g),
+                        ),
+                        _mm256_mulhi_epi16(b_low, v_cb_b),
+                    ),
+                ),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
+        let cr_l = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
+                        _mm256_add_epi16(
+                            _mm256_mulhi_epi16(r_low, v_cr_r),
+                            _mm256_mulhi_epi16(g_low, v_cr_g),
+                        ),
+                        _mm256_mulhi_epi16(b_low, v_cr_b),
+                    ),
+                ),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
+        let cb_h = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
+                        _mm256_add_epi16(
+                            _mm256_mulhi_epi16(r_high, v_cb_r),
+                            _mm256_mulhi_epi16(g_high, v_cb_g),
+                        ),
+                        _mm256_mulhi_epi16(b_high, v_cb_b),
+                    ),
+                ),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
+        let cr_h = _mm256_max_epi16(
+            _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
+                    _mm256_add_epi16(
+                        _mm256_add_epi16(
+                            _mm256_mulhi_epi16(r_high, v_cr_r),
+                            _mm256_mulhi_epi16(g_high, v_cr_g),
+                        ),
+                        _mm256_mulhi_epi16(b_high, v_cr_b),
+                    ),
+                ),
+                i_cap_y,
+            ),
+            i_bias_y,
+        );
+
+        _mm256_storeu_si256(
+            u_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
+            cb_l,
+        );
+        _mm256_storeu_si256(
+            u_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i,
+            cb_h,
+        );
+        _mm256_storeu_si256(
+            v_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
+            cr_l,
+        );
+        _mm256_storeu_si256(
+            v_ptr.get_unchecked_mut((cx + 16)..).as_mut_ptr() as *mut __m256i,
+            cr_h,
+        );
 
         cx += 32;
     }
 
-    cx
+    ProcessedOffset { cx, ux: cx }
 }

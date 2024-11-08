@@ -27,11 +27,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_support::*;
+use crate::{YuvError, YuvGrayAlphaImage};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-use std::slice;
 
 // Chroma subsampling always assumed as 400
 fn yuv400_p16_with_alpha_to_rgbx<
@@ -39,22 +39,19 @@ fn yuv400_p16_with_alpha_to_rgbx<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    y_plane16: &[u16],
-    y_stride: u32,
-    a_plane16: &[u16],
-    a_stride: u32,
+    gray_alpha_image: &YuvGrayAlphaImage<u16>,
     rgba16: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let max_colors = (1 << bit_depth) - 1;
 
     let channels = destination_channels.get_channels_count();
+
+    gray_alpha_image.check_constraints()?;
 
     assert!(
         destination_channels.has_alpha(),
@@ -75,81 +72,55 @@ fn yuv400_p16_with_alpha_to_rgbx<
         kr_kb.kb,
     );
 
-    const PRECISION: i32 = 6;
+    const PRECISION: i32 = 12;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
 
     let bias_y = range.bias_y as i32;
 
-    let casted_rgba = unsafe {
-        slice::from_raw_parts_mut(
-            rgba16.as_mut_ptr() as *mut u8,
-            rgba_stride as usize * height as usize,
-        )
-    };
-
-    let casted_y_plane = unsafe {
-        slice::from_raw_parts(
-            y_plane16.as_ptr() as *const u8,
-            y_stride as usize * height as usize,
-        )
-    };
-
-    let casted_a_plane = unsafe {
-        slice::from_raw_parts(
-            a_plane16.as_ptr() as *const u8,
-            a_stride as usize * height as usize,
-        )
-    };
-
     let iter;
     let y_iter;
     let a_iter;
     #[cfg(feature = "rayon")]
     {
-        iter = casted_rgba.par_chunks_exact_mut(rgba_stride as usize);
-        y_iter = casted_y_plane.par_chunks_exact(y_stride as usize);
-        a_iter = casted_a_plane.par_chunks_exact(a_stride as usize);
+        iter = rgba16.par_chunks_exact_mut(rgba_stride as usize);
+        y_iter = gray_alpha_image
+            .y_plane
+            .par_chunks_exact(gray_alpha_image.y_stride as usize);
+        a_iter = gray_alpha_image
+            .a_plane
+            .par_chunks_exact(gray_alpha_image.a_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = casted_rgba.chunks_exact_mut(rgba_stride as usize);
-        y_iter = casted_y_plane.chunks_exact(y_stride as usize);
-        a_iter = casted_a_plane.chunks_exact(a_stride as usize);
+        iter = rgba16.chunks_exact_mut(rgba_stride as usize);
+        y_iter = gray_alpha_image
+            .y_plane
+            .chunks_exact(gray_alpha_image.y_stride as usize);
+        a_iter = gray_alpha_image
+            .a_plane
+            .chunks_exact(gray_alpha_image.a_stride as usize);
     }
 
     iter.zip(y_iter)
         .zip(a_iter)
-        .for_each(|((rgba16, y_plane16), a_plane16)| unsafe {
-            let mut _cx = 0usize;
-
-            let dst_ptr = rgba16.as_mut_ptr() as *mut u16;
-            let y_ptr = y_plane16.as_ptr() as *const u16;
-            let a_ptr = a_plane16.as_ptr() as *const u16;
-
-            for x in _cx..width as usize {
-                let y_value = (y_ptr.add(x).read_unaligned() as i32 - bias_y) * y_coef;
-
-                let r = ((y_value + ROUNDING_CONST) >> PRECISION)
+        .for_each(|((rgba16, y_plane16), a_plane16)| {
+            for ((&y_src, &a_src), rgba) in y_plane16
+                .iter()
+                .zip(a_plane16)
+                .zip(rgba16.chunks_exact_mut(channels))
+            {
+                let r = (((y_src as i32 - bias_y) * y_coef + ROUNDING_CONST) >> PRECISION)
                     .min(max_colors as i32)
                     .max(0);
-
-                let px = x * channels;
-
-                let rgba_shift = px;
-
-                let dst = dst_ptr.add(rgba_shift);
-                dst.add(destination_channels.get_r_channel_offset())
-                    .write_unaligned(r as u16);
-                dst.add(destination_channels.get_g_channel_offset())
-                    .write_unaligned(r as u16);
-                dst.add(destination_channels.get_b_channel_offset())
-                    .write_unaligned(r as u16);
-                dst.add(destination_channels.get_a_channel_offset())
-                    .write_unaligned(a_ptr.add(x).read_unaligned());
+                rgba[destination_channels.get_r_channel_offset()] = r as u16;
+                rgba[destination_channels.get_g_channel_offset()] = r as u16;
+                rgba[destination_channels.get_b_channel_offset()] = r as u16;
+                rgba[destination_channels.get_a_channel_offset()] = a_src;
             }
         });
+    Ok(())
 }
 
 /// Convert YUV 400 planar format with alpha plane to RGBA 8+-bit format.
@@ -159,11 +130,9 @@ fn yuv400_p16_with_alpha_to_rgbx<
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `rgba_data` - A mutable slice to store the converted RGBA data.
+/// * `gray_alpha_image` - Source gray image with alpha.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -173,20 +142,15 @@ fn yuv400_p16_with_alpha_to_rgbx<
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_with_alpha_to_rgba16(
-    y_plane: &[u16],
-    y_stride: u32,
-    a_plane16: &[u16],
-    a_stride: u32,
+    gray_alpha_image: &YuvGrayAlphaImage<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let callee = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -222,15 +186,10 @@ pub fn yuv400_p16_with_alpha_to_rgba16(
         },
     };
     callee(
-        y_plane,
-        y_stride,
-        a_plane16,
-        a_stride,
+        gray_alpha_image,
         rgba,
         rgba_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
     )
@@ -243,11 +202,9 @@ pub fn yuv400_p16_with_alpha_to_rgba16(
 ///
 /// # Arguments
 ///
-/// * `y_plane` - A slice to load the Y (luminance) plane data.
-/// * `y_stride` - The stride (bytes per row) for the Y plane.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `bgra_data` - A mutable slice to store the converted BGRA data.
+/// * `gray_alpha_image` - Source gray image with alpha.
+/// * `bgra` - A mutable slice to store the converted BGRA data.
+/// * `bgra_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -257,20 +214,15 @@ pub fn yuv400_p16_with_alpha_to_rgba16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_with_alpha_to_bgra16(
-    y_plane: &[u16],
-    y_stride: u32,
-    a_plane16: &[u16],
-    a_stride: u32,
+    gray_alpha_image: &YuvGrayAlphaImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
     bytes_packing: YuvBytesPacking,
-) {
+) -> Result<(), YuvError> {
     let callee = match endianness {
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
@@ -306,15 +258,10 @@ pub fn yuv400_p16_with_alpha_to_bgra16(
         },
     };
     callee(
-        y_plane,
-        y_stride,
-        a_plane16,
-        a_stride,
+        gray_alpha_image,
         bgra,
         bgra_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
     )

@@ -29,7 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSample, YuvNVOrder, YuvSourceChannels,
+    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
 
@@ -52,7 +52,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let chroma_subsampling: YuvChromaSample = YUV_CHROMA_SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
     let channels = destination_channels.get_channels_count();
 
     let y_ptr = y_plane.as_ptr();
@@ -61,12 +61,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
 
     let y_corr = vdupq_n_u8(range.bias_y as u8);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
-    let v_luma_coeff = vdupq_n_u8(transform.y_coef as u8);
-    let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
-    let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
     let v_min_values = vdupq_n_s16(0i16);
-    let v_g_coeff_1 = vdupq_n_s16(-(transform.g_coeff_1 as i16));
-    let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
     let v_alpha = vdupq_n_u8(255u8);
 
     let mut cx = start_cx;
@@ -81,7 +76,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
         let v_low_u8: uint8x8_t;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let mut uv_values = vld2_u8(uv_ptr.add(uv_offset + ux));
                 if order == YuvNVOrder::VU {
                     uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
@@ -92,7 +87,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
                 u_low_u8 = vzip1_u8(uv_values.0, uv_values.0);
                 v_low_u8 = vzip1_u8(uv_values.1, uv_values.1);
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let mut uv_values = vld2q_u8(uv_ptr.add(uv_offset + ux));
                 if order == YuvNVOrder::VU {
                     uv_values = uint8x16x2_t(uv_values.1, uv_values.0);
@@ -104,46 +99,62 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
             }
         }
 
-        let u_high = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_high_u8)), uv_corr);
-        let v_high = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_high_u8)), uv_corr);
-        let y_high = vreinterpretq_s16_u16(vmull_high_u8(y_values, v_luma_coeff));
+        let u_high = vshlq_n_s16::<7>(vsubq_s16(
+            vreinterpretq_s16_u16(vmovl_u8(u_high_u8)),
+            uv_corr,
+        ));
+        let v_high = vshlq_n_s16::<7>(vsubq_s16(
+            vreinterpretq_s16_u16(vmovl_u8(v_high_u8)),
+            uv_corr,
+        ));
+        let y_v_shl = vshll_high_n_u8::<7>(y_values);
+        let y_high = vqrdmulhq_n_s16(vreinterpretq_s16_u16(y_v_shl), transform.y_coef as i16);
 
-        let r_high = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(y_high, vmulq_s16(v_high, v_cr_coeff)),
+        let r_high = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vaddq_s16(y_high, vqrdmulhq_n_s16(v_high, transform.cr_coef as i16)),
             v_min_values,
         ));
-        let b_high = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(y_high, vmulq_s16(u_high, v_cb_coeff)),
+        let b_high = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vaddq_s16(y_high, vqrdmulhq_n_s16(u_high, transform.cb_coef as i16)),
             v_min_values,
         ));
-        let g_high = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(
+        let g_high = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vsubq_s16(
                 y_high,
-                vqaddq_s16(
-                    vmulq_s16(v_high, v_g_coeff_1),
-                    vmulq_s16(u_high, v_g_coeff_2),
+                vaddq_s16(
+                    vqrdmulhq_n_s16(v_high, transform.g_coeff_1 as i16),
+                    vqrdmulhq_n_s16(u_high, transform.g_coeff_2 as i16),
                 ),
             ),
             v_min_values,
         ));
 
-        let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
-        let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_low_u8)), uv_corr);
-        let y_low =
-            vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_values), vget_low_u8(v_luma_coeff)));
+        let u_low = vshlq_n_s16::<7>(vsubq_s16(
+            vreinterpretq_s16_u16(vmovl_u8(u_low_u8)),
+            uv_corr,
+        ));
+        let v_low = vshlq_n_s16::<7>(vsubq_s16(
+            vreinterpretq_s16_u16(vmovl_u8(v_low_u8)),
+            uv_corr,
+        ));
+        let y_v_shl = vshll_n_u8::<7>(vget_low_u8(y_values));
+        let y_low = vqrdmulhq_n_s16(vreinterpretq_s16_u16(y_v_shl), transform.y_coef as i16);
 
-        let r_low = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(y_low, vmulq_s16(v_low, v_cr_coeff)),
+        let r_low = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vaddq_s16(y_low, vqrdmulhq_n_s16(v_low, transform.cr_coef as i16)),
             v_min_values,
         ));
-        let b_low = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(y_low, vmulq_s16(u_low, v_cb_coeff)),
+        let b_low = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vaddq_s16(y_low, vqrdmulhq_n_s16(u_low, transform.cb_coef as i16)),
             v_min_values,
         ));
-        let g_low = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(
+        let g_low = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vsubq_s16(
                 y_low,
-                vqaddq_s16(vmulq_s16(v_low, v_g_coeff_1), vmulq_s16(u_low, v_g_coeff_2)),
+                vaddq_s16(
+                    vqrdmulhq_n_s16(v_low, transform.g_coeff_1 as i16),
+                    vqrdmulhq_n_s16(u_low, transform.g_coeff_2 as i16),
+                ),
             ),
             v_min_values,
         ));
@@ -176,10 +187,10 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 ux += 16;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 ux += 32;
             }
         }
@@ -195,7 +206,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
         let mut v_low_u8: uint8x8_t;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_values = vld1_u8(uv_ptr.add(uv_offset + ux));
 
                 u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
@@ -208,7 +219,7 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
                     v_low_u8 = new_v;
                 }
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let mut uv_values = vld2_u8(uv_ptr.add(uv_offset + ux));
                 if order == YuvNVOrder::VU {
                     uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
@@ -218,22 +229,34 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
             }
         }
 
-        let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
-        let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_low_u8)), uv_corr);
-        let y_low = vreinterpretq_s16_u16(vmull_u8(y_values, vget_low_u8(v_luma_coeff)));
+        let u_low = vshlq_n_s16::<7>(vsubq_s16(
+            vreinterpretq_s16_u16(vmovl_u8(u_low_u8)),
+            uv_corr,
+        ));
+        let v_low = vshlq_n_s16::<7>(vsubq_s16(
+            vreinterpretq_s16_u16(vmovl_u8(v_low_u8)),
+            uv_corr,
+        ));
+        let y_low = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<7>(y_values)),
+            transform.y_coef as i16,
+        );
 
-        let r_low = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(y_low, vmulq_s16(v_low, v_cr_coeff)),
+        let r_low = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vaddq_s16(y_low, vqrdmulhq_n_s16(v_low, transform.cr_coef as i16)),
             v_min_values,
         ));
-        let b_low = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(y_low, vmulq_s16(u_low, v_cb_coeff)),
+        let b_low = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vaddq_s16(y_low, vqrdmulhq_n_s16(u_low, transform.cb_coef as i16)),
             v_min_values,
         ));
-        let g_low = vqrshrun_n_s16::<6>(vmaxq_s16(
-            vqaddq_s16(
+        let g_low = vqrshrun_n_s16::<4>(vmaxq_s16(
+            vsubq_s16(
                 y_low,
-                vqaddq_s16(vmulq_s16(v_low, v_g_coeff_1), vmulq_s16(u_low, v_g_coeff_2)),
+                vaddq_s16(
+                    vqrdmulhq_n_s16(v_low, transform.g_coeff_1 as i16),
+                    vqrdmulhq_n_s16(u_low, transform.g_coeff_2 as i16),
+                ),
             ),
             v_min_values,
         ));
@@ -268,10 +291,10 @@ pub unsafe fn neon_yuv_nv_to_rgba_row<
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSample::YUV420 | YuvChromaSample::YUV422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 ux += 8;
             }
-            YuvChromaSample::YUV444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 ux += 16;
             }
         }

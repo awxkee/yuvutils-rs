@@ -26,26 +26,39 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::numerics::qrshr_n;
+use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvSourceChannels, Yuy2Description,
 };
-use crate::{YuvRange, YuvStandardMatrix};
+use crate::{YuvError, YuvPackedImage, YuvRange, YuvStandardMatrix};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgb_store: &mut [u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     let yuy2_source: Yuy2Description = YUY2_SOURCE.into();
-    const PRECISION: i32 = 6;
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
+
+    packed_image.check_constraints()?;
+    check_rgba_destination(
+        rgb_store,
+        rgb_stride,
+        packed_image.width,
+        packed_image.height,
+        channels,
+    )?;
+
+    const PRECISION: i32 = 6;
     let range = get_yuv_range(bit_depth, range);
     let max_colors = (1 << bit_depth) - 1;
     let kr_kb = matrix.get_kr_kb();
@@ -56,7 +69,6 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
         kr_kb.kr,
         kr_kb.kb,
     );
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
@@ -66,125 +78,91 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let mut rgb_offset = 0usize;
-    let mut yuy_offset = 0usize;
-
-    for _ in 0..height as usize {
-        let mut _cx = 0usize;
-        let mut _yuy2_x = 0usize;
-
-        let max_iter = width as usize / 2;
-        for x in _yuy2_x..max_iter {
-            unsafe {
-                let rgb_pos = _cx * channels;
-                let yuy2_offset = x * 4;
-
-                let src_ptr = ((yuy2_store.as_ptr() as *const u8).add(yuy_offset) as *const u16)
-                    .add(yuy2_offset);
-
-                let dst_ptr =
-                    ((rgb_store.as_mut_ptr() as *mut u8).add(rgb_offset) as *mut u16).add(rgb_pos);
-
-                let first_y = src_ptr
-                    .add(yuy2_source.get_first_y_position())
-                    .read_unaligned();
-                let second_y = src_ptr
-                    .add(yuy2_source.get_second_y_position())
-                    .read_unaligned();
-                let u_value = src_ptr.add(yuy2_source.get_u_position()).read_unaligned();
-                let v_value = src_ptr.add(yuy2_source.get_v_position()).read_unaligned();
-
-                let cb = u_value as i32 - bias_uv;
-                let cr = v_value as i32 - bias_uv;
-                let f_y = (first_y as i32 - bias_y) * y_coef;
-                let s_y = (second_y as i32 - bias_y) * y_coef;
-
-                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
-                    .clamp(0, max_colors);
-                dst_ptr
-                    .add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b0 as u16);
-
-                if dst_chans.has_alpha() {
-                    dst_ptr
-                        .add(dst_chans.get_a_channel_offset())
-                        .write_unaligned(max_colors as u16);
-                }
-
-                let dst1 = dst_ptr.add(channels);
-
-                let r1 = ((s_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let b1 = ((s_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let g1 = ((s_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
-                    .clamp(0, max_colors);
-                dst1.add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r1 as u16);
-                dst1.add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g1 as u16);
-                dst1.add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b1 as u16);
-                if dst_chans.has_alpha() {
-                    dst1.add(dst_chans.get_a_channel_offset())
-                        .write_unaligned(max_colors as u16);
-                }
-            }
-
-            _cx += 2;
-        }
-
-        if width & 1 == 1 {
-            unsafe {
-                let rgb_pos = (width as usize - 1) * channels;
-                let yuy2_offset = ((width as usize - 1) / 2) * 4;
-
-                let src_ptr = ((yuy2_store.as_ptr() as *const u8).add(yuy_offset) as *const u16)
-                    .add(yuy2_offset);
-
-                let dst_ptr =
-                    ((rgb_store.as_mut_ptr() as *mut u8).add(rgb_offset) as *mut u16).add(rgb_pos);
-
-                let first_y = src_ptr
-                    .add(yuy2_source.get_first_y_position())
-                    .read_unaligned();
-                let u_value = src_ptr.add(yuy2_source.get_u_position()).read_unaligned();
-                let v_value = src_ptr.add(yuy2_source.get_v_position()).read_unaligned();
-
-                let cb = u_value as i32 - bias_uv;
-                let cr = v_value as i32 - bias_uv;
-                let f_y = (first_y as i32 - bias_y) * y_coef;
-
-                let r0 = ((f_y + cr_coef * cr + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let b0 = ((f_y + cb_coef * cb + ROUNDING_CONST) >> PRECISION).clamp(0, max_colors);
-                let g0 = ((f_y - g_coef_1 * cr - g_coef_2 * cb + ROUNDING_CONST) >> PRECISION)
-                    .clamp(0, max_colors);
-                dst_ptr
-                    .add(dst_chans.get_r_channel_offset())
-                    .write_unaligned(r0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_g_channel_offset())
-                    .write_unaligned(g0 as u16);
-                dst_ptr
-                    .add(dst_chans.get_b_channel_offset())
-                    .write_unaligned(b0 as u16);
-                if dst_chans.has_alpha() {
-                    dst_ptr
-                        .add(dst_chans.get_a_channel_offset())
-                        .write_unaligned(max_colors as u16);
-                }
-            }
-        }
-
-        rgb_offset += rgb_stride as usize;
-        yuy_offset += yuy2_stride as usize;
+    let rgb_iter;
+    let yuy2_iter;
+    #[cfg(feature = "rayon")]
+    {
+        rgb_iter = rgb_store.par_chunks_exact_mut(rgb_stride as usize);
+        yuy2_iter = packed_image
+            .yuy
+            .par_chunks_exact(packed_image.yuy_stride as usize);
     }
+    #[cfg(not(feature = "rayon"))]
+    {
+        rgb_iter = rgb_store.chunks_exact_mut(rgb_stride as usize);
+        yuy2_iter = packed_image
+            .yuy
+            .chunks_exact(packed_image.yuy_stride as usize);
+    }
+
+    rgb_iter.zip(yuy2_iter).for_each(|(rgb_store, yuy2_store)| {
+        for (rgb, yuy2) in rgb_store
+            .chunks_exact_mut(2 * channels)
+            .zip(yuy2_store.chunks_exact(4))
+        {
+            let first_y = yuy2[yuy2_source.get_first_y_position()];
+            let second_y = yuy2[yuy2_source.get_second_y_position()];
+            let u_value = yuy2[yuy2_source.get_u_position()];
+            let v_value = yuy2[yuy2_source.get_v_position()];
+
+            let cb = u_value as i32 - bias_uv;
+            let cr = v_value as i32 - bias_uv;
+            let f_y = (first_y as i32 - bias_y) * y_coef;
+            let s_y = (second_y as i32 - bias_y) * y_coef;
+
+            let r0 = qrshr_n::<PRECISION>(f_y + cr_coef * cr, max_colors);
+            let b0 = qrshr_n::<PRECISION>(f_y + cb_coef * cb, max_colors);
+            let g0 = qrshr_n::<PRECISION>(f_y - g_coef_1 * cr - g_coef_2 * cb, max_colors);
+
+            rgb[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgb[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgb[dst_chans.get_b_channel_offset()] = b0 as u16;
+
+            if dst_chans.has_alpha() {
+                rgb[dst_chans.get_a_channel_offset()] = 255;
+            }
+
+            let r1 = qrshr_n::<PRECISION>(s_y + cr_coef * cr, max_colors);
+            let b1 = qrshr_n::<PRECISION>(s_y + cb_coef * cb, max_colors);
+            let g1 = qrshr_n::<PRECISION>(s_y - g_coef_1 * cr - g_coef_2 * cb, max_colors);
+
+            let rgb = &mut rgb[channels..channels * 2];
+
+            rgb[dst_chans.get_r_channel_offset()] = r1 as u16;
+            rgb[dst_chans.get_g_channel_offset()] = g1 as u16;
+            rgb[dst_chans.get_b_channel_offset()] = b1 as u16;
+
+            if dst_chans.has_alpha() {
+                rgb[dst_chans.get_a_channel_offset()] = 255;
+            }
+        }
+
+        if packed_image.width & 1 == 1 {
+            let last_rgb = rgb_store.chunks_exact_mut(2 * channels).into_remainder();
+            let rgb = &mut last_rgb[0..channels];
+            let yuy2 = yuy2_store.chunks_exact(4).last().unwrap();
+
+            let first_y = yuy2[yuy2_source.get_first_y_position()];
+            let u_value = yuy2[yuy2_source.get_u_position()];
+            let v_value = yuy2[yuy2_source.get_v_position()];
+
+            let cb = u_value as i32 - bias_uv;
+            let cr = v_value as i32 - bias_uv;
+            let f_y = (first_y as i32 - bias_y) * y_coef;
+
+            let r0 = qrshr_n::<PRECISION>(f_y + cr_coef * cr, max_colors);
+            let b0 = qrshr_n::<PRECISION>(f_y + cb_coef * cb, max_colors);
+            let g0 = qrshr_n::<PRECISION>(f_y - g_coef_1 * cr - g_coef_2 * cb, max_colors);
+            rgb[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgb[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgb[dst_chans.get_b_channel_offset()] = b0 as u16;
+
+            if dst_chans.has_alpha() {
+                rgb[dst_chans.get_a_channel_offset()] = 255;
+            }
+        }
+    });
+    Ok(())
 }
 
 /// Convert YUYV (YUV Packed) 8+ bit depth format to RGB image.
@@ -194,13 +172,10 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `packed_image` - Source packed image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -210,27 +185,21 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuyv422_to_rgb_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgb: &mut [u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgb as u8 }, { Yuy2Description::YUYV as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgb,
         rgb_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert YUYV (YUV Packed) 8+ bit depth format to RGBA image.
@@ -240,13 +209,10 @@ pub fn yuyv422_to_rgb_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `packed_image` - Source packed image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -256,27 +222,21 @@ pub fn yuyv422_to_rgb_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuyv422_to_rgba_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgba as u8 }, { Yuy2Description::YUYV as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgba,
         rgba_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert YUYV (YUV Packed) 8+ bit depth format to BGR image.
@@ -286,13 +246,10 @@ pub fn yuyv422_to_rgba_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `packed_image` - Source packed image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -302,27 +259,21 @@ pub fn yuyv422_to_rgba_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuyv422_to_bgr_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgr: &mut [u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgr as u8 }, { Yuy2Description::YUYV as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgr,
         bgr_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert YUYV (YUV Packed) 8+ bit depth format to BGR image.
@@ -332,13 +283,10 @@ pub fn yuyv422_to_bgr_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YUYV data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YUYV plane.
+/// * `packed_image` - Source packed image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -348,27 +296,21 @@ pub fn yuyv422_to_bgr_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuyv422_to_bgra_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgra as u8 }, { Yuy2Description::YUYV as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgra,
         bgra_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert UYVY (YUV Packed) 8+ bit depth format to RGB image.
@@ -378,13 +320,10 @@ pub fn yuyv422_to_bgra_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `packed_image` - Source packed image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -394,27 +333,21 @@ pub fn yuyv422_to_bgra_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn uyvy422_to_rgb_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgb: &mut [u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgb as u8 }, { Yuy2Description::UYVY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgb,
         rgb_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert UYVY (YUV Packed) 8+ bit depth format to RGBA image.
@@ -424,13 +357,10 @@ pub fn uyvy422_to_rgb_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `packed_image` - Source packed image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -440,27 +370,21 @@ pub fn uyvy422_to_rgb_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn uyvy422_to_rgba_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgba as u8 }, { Yuy2Description::UYVY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgba,
         rgba_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert UYVY (YUV Packed) 8+ bit depth format to BGR image.
@@ -470,13 +394,10 @@ pub fn uyvy422_to_rgba_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `packed_image` - Source packed image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -486,27 +407,21 @@ pub fn uyvy422_to_rgba_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn uyvy422_to_bgr_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgr: &mut [u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgr as u8 }, { Yuy2Description::UYVY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgr,
         bgr_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert UYVY (YUV Packed) 8+ bit depth format to BGRA image.
@@ -516,13 +431,10 @@ pub fn uyvy422_to_bgr_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted UYVY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the UYVY plane.
+/// * `packed_image` - Source packed image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -532,27 +444,21 @@ pub fn uyvy422_to_bgr_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn uyvy422_to_bgra_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgra as u8 }, { Yuy2Description::UYVY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgra,
         bgra_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert YVYU ( YUV Packed ) 8+ bit depth format to RGB image.
@@ -562,13 +468,10 @@ pub fn uyvy422_to_bgra_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `packed_image` - Source packed image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -578,27 +481,21 @@ pub fn uyvy422_to_bgra_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yvyu422_to_rgb_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgb: &mut [u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgb as u8 }, { Yuy2Description::YVYU as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgb,
         rgb_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert YVYU (YUV Packed) 8+ bit depth format to RGBA image.
@@ -608,13 +505,10 @@ pub fn yvyu422_to_rgb_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `packed_image` - Source packed image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -624,27 +518,21 @@ pub fn yvyu422_to_rgb_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yvyu422_to_rgba_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgba as u8 }, { Yuy2Description::YVYU as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgba,
         rgba_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert YVYU (YUV Packed) 8+ bit depth format to BGR image.
@@ -654,13 +542,10 @@ pub fn yvyu422_to_rgba_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `packed_image` - Source packed image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -670,27 +555,21 @@ pub fn yvyu422_to_rgba_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yvyu422_to_bgr_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgr: &mut [u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgr as u8 }, { Yuy2Description::YVYU as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgr,
         bgr_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert YVYU (YUV Packed) 8+ bit depth format to BGRA image.
@@ -700,13 +579,10 @@ pub fn yvyu422_to_bgr_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted YVYU data.
-/// * `yuy2_stride` - The stride (bytes per row) for the YVYU plane.
+/// * `packed_image` - Source packed image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -716,27 +592,21 @@ pub fn yvyu422_to_bgr_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yvyu422_to_bgra_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgra as u8 }, { Yuy2Description::YVYU as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgra,
         bgra_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert VYUY (YUV Packed) 8+ bit depth format to RGB image.
@@ -746,13 +616,10 @@ pub fn yvyu422_to_bgra_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `packed_image` - Source packed image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
-/// * `rgb_stride` - The stride (bytes per row) for the RGB image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgb_stride` - The stride (components per row) for the RGB image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -762,27 +629,21 @@ pub fn yvyu422_to_bgra_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn vyuy422_to_rgb_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgb: &mut [u16],
     rgb_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgb as u8 }, { Yuy2Description::VYUY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgb,
         rgb_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert VYUY (YUV Packed) 8+ bit depth format to RGBA image.
@@ -792,13 +653,10 @@ pub fn vyuy422_to_rgb_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `packed_image` - Source packed image.
 /// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - The stride (bytes per row) for the RGBA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -808,27 +666,21 @@ pub fn vyuy422_to_rgb_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn vyuy422_to_rgba_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     rgba: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Rgba as u8 }, { Yuy2Description::VYUY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         rgba,
         rgba_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert VYUY (YUV Packed) 8+ bit depth format to BGR image.
@@ -838,13 +690,10 @@ pub fn vyuy422_to_rgba_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `packed_image` - Source packed image.
 /// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (bytes per row) for the BGR image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgr_stride` - The stride (components per row) for the BGR image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -854,27 +703,21 @@ pub fn vyuy422_to_rgba_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn vyuy422_to_bgr_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgr: &mut [u16],
     bgr_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgr as u8 }, { Yuy2Description::VYUY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgr,
         bgr_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
 
 /// Convert VYUY (YUV Packed) 8+ bit depth format to BGRA image.
@@ -884,13 +727,10 @@ pub fn vyuy422_to_bgr_p16(
 ///
 /// # Arguments
 ///
-/// * `yuy2_store` - A slice to store the converted VYUY data.
-/// * `yuy2_stride` - The stride (bytes per row) for the VYUY plane.
+/// * `packed_image` - Source packed image.
 /// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (bytes per row) for the BGRA image data.
-/// * `bit_depth` - YUV and RGB bit depth
-/// * `width` - The width of the image.
-/// * `height` - The height of the image.
+/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
+/// * `bit_depth` - YUV and RGB bit depth.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 ///
@@ -900,25 +740,19 @@ pub fn vyuy422_to_bgr_p16(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn vyuy422_to_bgra_p16(
-    yuy2_store: &[u16],
-    yuy2_stride: u32,
+    packed_image: &YuvPackedImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     bit_depth: u32,
-    width: u32,
-    height: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) {
+) -> Result<(), YuvError> {
     yuy2_to_rgb_impl_p16::<{ YuvSourceChannels::Bgra as u8 }, { Yuy2Description::VYUY as usize }>(
-        yuy2_store,
-        yuy2_stride,
+        packed_image,
         bgra,
         bgra_stride,
         bit_depth,
-        width,
-        height,
         range,
         matrix,
-    );
+    )
 }
