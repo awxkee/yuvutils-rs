@@ -38,10 +38,10 @@ pub unsafe fn neon_y_p16_to_rgba16_row<
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const PRECISION: i32,
 >(
     y_ld_ptr: *const u16,
     rgba: *mut u16,
-    dst_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -86,30 +86,30 @@ pub unsafe fn neon_y_p16_to_rgba16_row<
 
         let y_high = vmull_high_s16(y_values, v_luma_coeff);
 
-        let r_high = vrshrn_n_s32::<6>(y_high);
+        let r_high = vrshrn_n_s32::<PRECISION>(y_high);
 
         let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
 
-        let r_low = vrshrn_n_s32::<6>(y_low);
+        let r_low = vrshrn_n_s32::<PRECISION>(y_low);
 
         let r_values = vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(r_low, r_high), v_min_values));
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
                 let dst_pack = uint16x8x3_t(r_values, r_values, r_values);
-                vst3q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst3q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Bgr => {
                 let dst_pack = uint16x8x3_t(r_values, r_values, r_values);
-                vst3q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst3q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Rgba => {
                 let dst_pack = uint16x8x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst4q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Bgra => {
                 let dst_pack = uint16x8x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u16(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst4q_u16(dst_ptr.add(cx * channels), dst_pack);
             }
         }
 

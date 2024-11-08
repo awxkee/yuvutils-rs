@@ -72,7 +72,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
         kr_kb.kb,
     );
 
-    const PRECISION: i32 = 6;
+    const PRECISION: i32 = 12;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;

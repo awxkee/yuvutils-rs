@@ -33,14 +33,15 @@ use std::io::Read;
 use std::ops::Sub;
 use std::time::Instant;
 use yuvutils_rs::{
-    rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, rdp_yuv444_to_rgb, rgb_to_yuv420_p16, rgb_to_yuv444,
-    rgb_to_yuv444_p16, rgba_to_yuv444, rgba_to_yuv444_p16, yuv420_p16_to_rgba,
-    yuv420_p16_to_rgba16, yuv420_p16_with_alpha_to_rgba, yuv420_p16_with_alpha_to_rgba16,
-    yuv444_p16_to_rgba, yuv444_p16_with_alpha_to_rgba, yuv444_p16_with_alpha_to_rgba16,
-    yuv444_to_rgb, yuv444_to_yuyv422, yuv444_with_alpha_to_rgba, yuyv422_to_rgb, yuyv422_to_yuv444,
-    BufferStoreMut, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsample, YuvEndianness,
-    YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvPlanarImageWithAlpha, YuvRange,
-    YuvStandardMatrix,
+    rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, rdp_yuv444_to_rgb, rgb_to_sharp_yuv422,
+    rgb_to_yuv420_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgba_to_yuv444, rgba_to_yuv444_p16,
+    yuv420_p16_to_rgba, yuv420_p16_to_rgba16, yuv420_p16_with_alpha_to_rgba,
+    yuv420_p16_with_alpha_to_rgba16, yuv422_to_rgb, yuv444_p16_to_rgba,
+    yuv444_p16_with_alpha_to_rgba, yuv444_p16_with_alpha_to_rgba16, yuv444_to_rgb,
+    yuv444_to_yuyv422, yuv444_with_alpha_to_rgba, yuyv422_to_rgb, yuyv422_to_yuv444,
+    BufferStoreMut, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking,
+    YuvChromaSubsample, YuvEndianness, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut,
+    YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -96,20 +97,18 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsample::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsample::Yuv444);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsample::Yuv422);
 
-    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv444_p16(
+    rgb_to_sharp_yuv422(
         &mut planar_image,
-        &bytes_16,
+        src_bytes,
         rgba_stride as u32,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
+        SharpYuvGammaTransfer::Srgb,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -201,7 +200,7 @@ fn main() {
 
     let fixed_biplanar = bi_planar_image.to_fixed();
     let fixed_planar = planar_image.to_fixed();
-    bytes_16.fill(0);
+    // bytes_16.fill(0);
     let start_time = Instant::now();
     // let a_plane = vec![1023u16; width as usize * height as usize];
     // let planar_with_alpha = YuvPlanarImageWithAlpha {
@@ -217,19 +216,16 @@ fn main() {
     //     height,
     // };
 
-    components = 4;
-    bytes_16.resize(width as usize * height as usize * 4, 0u16);
-    rgba.resize(width as usize * height as usize * 4, 0u8);
+    // components = 4;
+    // bytes_16.resize(width as usize * height as usize * 4, 0u16);
+    // rgba.resize(width as usize * height as usize * 4, 0u8);
 
-    yuv444_p16_to_rgba(
+    yuv422_to_rgb(
         &fixed_planar,
         &mut rgba,
-        width * 4,
-        10,
+        rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 

@@ -63,7 +63,7 @@ fn yuv400_p16_to_rgbx<
         kr_kb.kb,
     );
 
-    const PRECISION: i32 = 6;
+    const PRECISION: i32 = 12;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
@@ -94,17 +94,20 @@ fn yuv400_p16_to_rgbx<
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             unsafe {
-                let offset =
-                    neon_y_p16_to_rgba16_row::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION>(
-                        y_plane.as_ptr(),
-                        rgba16.as_mut_ptr(),
-                        0,
-                        gray_image.width,
-                        &range,
-                        &inverse_transform,
-                        0,
-                        bit_depth as usize,
-                    );
+                let offset = neon_y_p16_to_rgba16_row::<
+                    DESTINATION_CHANNELS,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    PRECISION,
+                >(
+                    y_plane.as_ptr(),
+                    rgba16.as_mut_ptr(),
+                    gray_image.width,
+                    &range,
+                    &inverse_transform,
+                    0,
+                    bit_depth as usize,
+                );
                 _cx = offset.cx;
             }
         }
