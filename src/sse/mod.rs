@@ -26,10 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(feature = "rdp")]
-mod rdp_rgba_to_yuv;
-#[cfg(feature = "rdp")]
-mod rdp_yuv_to_rgba;
 mod rgb_to_nv;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -50,10 +46,6 @@ mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
-#[cfg(feature = "rdp")]
-pub use rdp_rgba_to_yuv::sse_rdp_rgba_to_yuv_row;
-#[cfg(feature = "rdp")]
-pub use rdp_yuv_to_rgba::rdp_sse_yuv_to_rgba_row;
 pub use rgb_to_nv::sse_rgba_to_nv_row;
 pub use rgb_to_y::sse_rgb_to_y;
 pub use rgb_to_ycgco::sse_rgb_to_ycgco_row;

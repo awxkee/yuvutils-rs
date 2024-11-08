@@ -29,8 +29,6 @@
 
 mod avx2_utils;
 mod avx2_ycgco;
-#[cfg(feature = "rdp")]
-mod rdp_rgba_to_yuv;
 mod rgb_to_nv;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -44,8 +42,6 @@ mod yuv_to_yuv2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
-#[cfg(feature = "rdp")]
-pub use rdp_rgba_to_yuv::rdp_avx2_rgba_to_yuv;
 pub use rgb_to_nv::avx2_rgba_to_nv;
 pub use rgb_to_y::avx2_rgb_to_y_row;
 pub use rgb_to_ycgco::avx2_rgb_to_ycgco_row;
