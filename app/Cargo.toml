@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-yuvutils-rs = { path = "..", features = ["rdp", "rayon"] }
+yuvutils-rs = { path = "..", features = ["rdp"] }
 image = "0.25.5"
 
 [dev-dependencies]

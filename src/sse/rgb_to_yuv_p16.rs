@@ -42,6 +42,8 @@ pub fn sse_rgba_to_yuv_p16<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -53,10 +55,16 @@ pub fn sse_rgba_to_yuv_p16<
     start_ux: usize,
     width: usize,
     compute_uv_row: bool,
-    bit_depth: u32,
 ) -> ProcessedOffset {
     unsafe {
-        sse_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
+        sse_rgba_to_yuv_impl::<
+            ORIGIN_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >(
             transform,
             range,
             y_plane,
@@ -67,7 +75,6 @@ pub fn sse_rgba_to_yuv_p16<
             start_ux,
             width,
             compute_uv_row,
-            bit_depth,
         )
     }
 }
@@ -78,6 +85,8 @@ unsafe fn sse_rgba_to_yuv_impl<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -89,7 +98,6 @@ unsafe fn sse_rgba_to_yuv_impl<
     start_ux: usize,
     width: usize,
     compute_uv_row: bool,
-    bit_depth: u32,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -97,9 +105,9 @@ unsafe fn sse_rgba_to_yuv_impl<
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
-    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
-    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
-    let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    let rounding_const_bias: i32 = 1 << (PRECISION - 1);
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
     let src_ptr = rgba;
 
@@ -125,7 +133,7 @@ unsafe fn sse_rgba_to_yuv_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = _mm_set1_epi64x(16 - bit_depth as i64);
+    let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
 
     let zeros = _mm_setzero_si128();
 
@@ -184,7 +192,10 @@ unsafe fn sse_rgba_to_yuv_impl<
         y_l = _mm_add_epi32(y_l, _mm_madd_epi16(g_lo, v_yg));
         y_l = _mm_add_epi32(y_l, _mm_madd_epi16(b_lo, v_yb));
 
-        let mut y_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(y_l), _mm_srai_epi32::<8>(y_h));
+        let mut y_vl = _mm_packus_epi32(
+            _mm_srai_epi32::<PRECISION>(y_l),
+            _mm_srai_epi32::<PRECISION>(y_h),
+        );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm_sll_epi32(y_vl, v_shift_count);
@@ -208,7 +219,10 @@ unsafe fn sse_rgba_to_yuv_impl<
             cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(g_lo, v_cb_g));
             cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(b_lo, v_cb_b));
 
-            let mut cb_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(cb_l), _mm_srai_epi32::<8>(cb_h));
+            let mut cb_vl = _mm_packus_epi32(
+                _mm_srai_epi32::<PRECISION>(cb_l),
+                _mm_srai_epi32::<PRECISION>(cb_h),
+            );
 
             let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cr_r));
             cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(g_hi, v_cr_g));
@@ -218,7 +232,10 @@ unsafe fn sse_rgba_to_yuv_impl<
             cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(g_lo, v_cr_g));
             cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(b_lo, v_cr_b));
 
-            let mut cr_vl = _mm_packus_epi32(_mm_srai_epi32::<8>(cr_l), _mm_srai_epi32::<8>(cr_h));
+            let mut cr_vl = _mm_packus_epi32(
+                _mm_srai_epi32::<PRECISION>(cr_l),
+                _mm_srai_epi32::<PRECISION>(cr_h),
+            );
 
             match chroma_subsampling {
                 YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {

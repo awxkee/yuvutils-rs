@@ -38,6 +38,7 @@ pub unsafe fn neon_rgba_to_yuv_p16<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const PRECISION: i32,
     const BIT_DEPTH: usize,
 >(
     transform: &CbCrForwardTransform<i32>,
@@ -57,9 +58,9 @@ pub unsafe fn neon_rgba_to_yuv_p16<
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
-    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
-    let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
-    let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
+    let rounding_const_bias: i32 = 1 << (PRECISION - 1);
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
     let y_ptr = y_plane.as_mut_ptr();
     let u_ptr = u_plane.as_mut_ptr();
@@ -136,7 +137,10 @@ pub unsafe fn neon_rgba_to_yuv_p16<
             vget_low_s16(v_yb),
         );
 
-        let mut y_vl = vcombine_u16(vqshrun_n_s32::<8>(y_l), vqshrun_n_s32::<8>(y_h));
+        let mut y_vl = vcombine_u16(
+            vqshrun_n_s32::<PRECISION>(y_l),
+            vqshrun_n_s32::<PRECISION>(y_h),
+        );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = vshlq_u16(y_vl, v_shift_count);
@@ -169,7 +173,10 @@ pub unsafe fn neon_rgba_to_yuv_p16<
                 vget_low_s16(v_cb_b),
             );
 
-            let mut cb_vl = vcombine_u16(vqshrun_n_s32::<8>(cb_l), vqshrun_n_s32::<8>(cb_h));
+            let mut cb_vl = vcombine_u16(
+                vqshrun_n_s32::<PRECISION>(cb_l),
+                vqshrun_n_s32::<PRECISION>(cb_h),
+            );
 
             let mut cr_h = vmlal_high_s16(uv_bias, vreinterpretq_s16_u16(r_values), v_cr_r);
             cr_h = vmlal_high_s16(cr_h, vreinterpretq_s16_u16(g_values), v_cr_g);
@@ -191,7 +198,10 @@ pub unsafe fn neon_rgba_to_yuv_p16<
                 vget_low_s16(v_cr_b),
             );
 
-            let mut cr_vl = vcombine_u16(vqshrun_n_s32::<8>(cr_l), vqshrun_n_s32::<8>(cr_h));
+            let mut cr_vl = vcombine_u16(
+                vqshrun_n_s32::<PRECISION>(cr_l),
+                vqshrun_n_s32::<PRECISION>(cr_h),
+            );
 
             match chroma_subsampling {
                 YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {

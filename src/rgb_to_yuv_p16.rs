@@ -96,8 +96,10 @@ fn rgbx_to_yuv_ant<
         kr_kb.kr,
         kr_kb.kb,
     );
-    let transform = transform_precise.to_integers(8);
-    const PRECISION: i32 = 8;
+
+    const PRECISION: i32 = 12;
+
+    let transform = transform_precise.to_integers(PRECISION as u32);
     const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
@@ -121,20 +123,25 @@ fn rgbx_to_yuv_ant<
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             if _use_sse {
-                _offset =
-                    sse_rgba_to_yuv_p16::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
-                        &transform,
-                        &range,
-                        _y_plane,
-                        _u_plane,
-                        _v_plane,
-                        rgba,
-                        _offset.ux,
-                        _offset.cx,
-                        planar_image.width as usize,
-                        _compute_uv_row,
-                        bit_depth,
-                    );
+                _offset = sse_rgba_to_yuv_p16::<
+                    ORIGIN_CHANNELS,
+                    SAMPLING,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    PRECISION,
+                    BIT_DEPTH,
+                >(
+                    &transform,
+                    &range,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    rgba,
+                    _offset.ux,
+                    _offset.cx,
+                    planar_image.width as usize,
+                    _compute_uv_row,
+                );
             }
         }
 
@@ -145,6 +152,7 @@ fn rgbx_to_yuv_ant<
                 SAMPLING,
                 ENDIANNESS,
                 BYTES_POSITION,
+                PRECISION,
                 BIT_DEPTH,
             >(
                 &transform,
