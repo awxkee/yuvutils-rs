@@ -63,7 +63,7 @@ fn yuv_nv12_to_rgbx<
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let chroma_subsampling: YuvChromaSubsample = YUV_CHROMA_SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
 
     bi_planar_image.check_constraints(chroma_subsampling)?;
 
@@ -273,7 +273,7 @@ fn yuv_nv12_to_rgbx<
     let y_plane = bi_planar_image.y_plane;
     let uv_plane = bi_planar_image.uv_plane;
 
-    if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+    if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -320,7 +320,7 @@ fn yuv_nv12_to_rgbx<
                 }
             }
         });
-    } else if chroma_subsampling == YuvChromaSubsample::Yuv422 {
+    } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -339,7 +339,7 @@ fn yuv_nv12_to_rgbx<
         iter.for_each(|((y_src, uv_src), rgba)| {
             process_halved_chroma_row(y_src, uv_src, rgba);
         });
-    } else if chroma_subsampling == YuvChromaSubsample::Yuv420 {
+    } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -406,7 +406,7 @@ pub fn yuv_nv12_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -438,7 +438,7 @@ pub fn yuv_nv16_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -470,7 +470,7 @@ pub fn yuv_nv61_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -502,7 +502,7 @@ pub fn yuv_nv21_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, bgra, bgra_stride, range, matrix)
 }
 
@@ -534,7 +534,7 @@ pub fn yuv_nv16_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -566,7 +566,7 @@ pub fn yuv_nv61_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -598,7 +598,7 @@ pub fn yuv_nv12_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -630,7 +630,7 @@ pub fn yuv_nv21_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -662,7 +662,7 @@ pub fn yuv_nv12_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -694,7 +694,7 @@ pub fn yuv_nv12_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -726,7 +726,7 @@ pub fn yuv_nv16_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -758,7 +758,7 @@ pub fn yuv_nv16_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -790,7 +790,7 @@ pub fn yuv_nv61_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -822,7 +822,7 @@ pub fn yuv_nv61_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsample::Yuv422 as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -854,7 +854,7 @@ pub fn yuv_nv21_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -886,7 +886,7 @@ pub fn yuv_nv21_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsample::Yuv420 as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -918,7 +918,7 @@ pub fn yuv_nv42_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, rgba, rgba_stride, range, matrix)
 }
 
@@ -950,7 +950,7 @@ pub fn yuv_nv24_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -982,7 +982,7 @@ pub fn yuv_nv24_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -1014,7 +1014,7 @@ pub fn yuv_nv24_to_rgba(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -1046,7 +1046,7 @@ pub fn yuv_nv24_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -1078,7 +1078,7 @@ pub fn yuv_nv42_to_rgb(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }
 
@@ -1110,7 +1110,7 @@ pub fn yuv_nv42_to_bgr(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, bgr, bgr_stride, range, matrix)
 }
 
@@ -1142,6 +1142,6 @@ pub fn yuv_nv42_to_bgra(
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsample::Yuv444 as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
     >(bi_planar_image, rgb, rgb_stride, range, matrix)
 }

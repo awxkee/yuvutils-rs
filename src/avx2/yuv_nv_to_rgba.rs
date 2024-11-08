@@ -30,7 +30,7 @@
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsample, YuvNVOrder, YuvSourceChannels,
+    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -75,7 +75,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let chroma_subsampling: YuvChromaSubsample = YUV_CHROMA_SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
     let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;
@@ -102,7 +102,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const __m256i);
 
                 let u_values = avx2_interleave_even(uv_values);
@@ -123,7 +123,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
                     }
                 }
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let offset = uv_x;
                 let src_ptr = uv_ptr.add(offset);
                 let row0 = _mm256_loadu_si256(src_ptr as *const __m256i);
@@ -262,10 +262,10 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
         cx += 32;
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 uv_x += 32;
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 uv_x += 64;
             }
         }

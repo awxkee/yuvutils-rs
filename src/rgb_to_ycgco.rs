@@ -51,7 +51,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
     let range = get_yuv_range(8, range);
@@ -64,9 +64,9 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     image.check_constraints(chroma_subsampling)?;
 
     let iterator_step = match chroma_subsampling {
-        YuvChromaSubsample::Yuv420 => 2usize,
-        YuvChromaSubsample::Yuv422 => 2usize,
-        YuvChromaSubsample::Yuv444 => 1usize,
+        YuvChromaSubsampling::Yuv420 => 2usize,
+        YuvChromaSubsampling::Yuv422 => 2usize,
+        YuvChromaSubsampling::Yuv444 => 1usize,
     };
 
     let range_reduction_y =
@@ -104,8 +104,8 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         #[allow(unused_mut)]
         let mut ux = 0usize;
 
-        let compute_uv_row = chroma_subsampling == YuvChromaSubsample::Yuv444
-            || chroma_subsampling == YuvChromaSubsample::Yuv422
+        let compute_uv_row = chroma_subsampling == YuvChromaSubsampling::Yuv444
+            || chroma_subsampling == YuvChromaSubsampling::Yuv422
             || y & 1 == 0;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -208,7 +208,7 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let y_0 = (hg + ((r0 * range_reduction_y + b0 * range_reduction_y) >> 2) + bias_y) >> 8;
             unsafe { *y_plane.get_unchecked_mut(y_offset + x) = y_0 as u8 };
             match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                     if x + 1 < image.width as usize {
                         let next_px = (x + 1) * channels;
                         let rgba_shift = rgba_offset + next_px;
@@ -231,17 +231,17 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if compute_uv_row {
-                let mut r = if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+                let mut r = if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                     r0
                 } else {
                     (r0 + r1 + 1) >> 1
                 };
-                let mut g = if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+                let mut g = if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                     g0
                 } else {
                     (g0 + g1 + 1) >> 1
                 };
-                let mut b = if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+                let mut b = if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                     b0
                 } else {
                     (b0 + b1 + 1) >> 1
@@ -252,13 +252,13 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let cg = (((g >> 1) - ((r + b) >> 2)) + bias_uv) >> 8;
                 let co = (((r - b) >> 1) + bias_uv) >> 8;
                 let u_pos = match chroma_subsampling {
-                    YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => cg_offset + ux,
-                    YuvChromaSubsample::Yuv444 => cg_offset + ux,
+                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => cg_offset + ux,
+                    YuvChromaSubsampling::Yuv444 => cg_offset + ux,
                 };
                 unsafe { *cg_plane.get_unchecked_mut(u_pos) = cg as u8 };
                 let v_pos = match chroma_subsampling {
-                    YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => co_offset + ux,
-                    YuvChromaSubsample::Yuv444 => co_offset + ux,
+                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => co_offset + ux,
+                    YuvChromaSubsampling::Yuv444 => co_offset + ux,
                 };
                 unsafe { *co_plane.get_unchecked_mut(v_pos) = co as u8 };
             }
@@ -269,13 +269,13 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         y_offset += y_stride as usize;
         rgba_offset += rgba_stride as usize;
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 => {
+            YuvChromaSubsampling::Yuv420 => {
                 if y & 1 == 1 {
                     cg_offset += cg_stride as usize;
                     co_offset += co_stride as usize;
                 }
             }
-            YuvChromaSubsample::Yuv444 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv444 | YuvChromaSubsampling::Yuv422 => {
                 cg_offset += cg_stride as usize;
                 co_offset += co_stride as usize;
             }
@@ -308,7 +308,7 @@ pub fn rgb_to_ycgco422(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         image, rgb, rgb_stride, range,
     )
 }
@@ -336,7 +336,7 @@ pub fn bgr_to_ycgco422(
     bgr_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         image, bgr, bgr_stride, range,
     )
 }
@@ -365,7 +365,7 @@ pub fn rgba_to_ycgco422(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         image,
         rgba,
         rgba_stride,
@@ -397,7 +397,7 @@ pub fn bgra_to_ycgco422(
     bgra_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv422 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         image,
         bgra,
         bgra_stride,
@@ -429,7 +429,7 @@ pub fn rgb_to_ycgco420(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         image, rgb, rgb_stride, range,
     )
 }
@@ -458,7 +458,7 @@ pub fn bgr_to_ycgco420(
     bgr_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         image, bgr, bgr_stride, range,
     )
 }
@@ -487,7 +487,7 @@ pub fn rgba_to_ycgco420(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         image,
         rgba,
         rgba_stride,
@@ -519,7 +519,7 @@ pub fn bgra_to_ycgco420(
     bgra_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv420 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         image,
         bgra,
         bgra_stride,
@@ -551,7 +551,7 @@ pub fn rgb_to_ycgco444(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         image, rgb, rgb_stride, range,
     )
 }
@@ -580,7 +580,7 @@ pub fn bgr_to_ycgco444(
     bgr_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         image, bgr, bgr_stride, range,
     )
 }
@@ -609,7 +609,7 @@ pub fn rgba_to_ycgco444(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         image,
         rgba,
         rgba_stride,
@@ -641,7 +641,7 @@ pub fn bgra_to_ycgco444(
     bgra_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsample::Yuv444 as u8 }>(
+    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         image,
         bgra,
         bgra_stride,

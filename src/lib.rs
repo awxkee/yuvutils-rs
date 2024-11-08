@@ -88,7 +88,7 @@ mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
 
 pub use yuv_support::{
-    YuvBytesPacking, YuvChromaSubsample, YuvEndianness, YuvRange, YuvStandardMatrix,
+    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvRange, YuvStandardMatrix,
 };
 
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;

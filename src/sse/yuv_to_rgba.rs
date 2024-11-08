@@ -31,7 +31,7 @@ use crate::internals::ProcessedOffset;
 use crate::sse::sse_support::{sse_store_rgb_u8, sse_store_rgba};
 use crate::sse::{sse_store_rgb_half_u8, sse_store_rgba_half_epi8};
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsample, YuvSourceChannels,
+    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -68,7 +68,7 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -98,7 +98,7 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
                 let u_values = _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(uv_x)), reshuffle);
                 let v_values = _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(uv_x)), reshuffle);
@@ -108,7 +108,7 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
                 u_low_u16 = _mm_unpacklo_epi8(u_values, zeros);
                 v_low_u16 = _mm_unpacklo_epi8(v_values, zeros);
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
 
@@ -225,10 +225,10 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 uv_x += 8;
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 uv_x += 16;
             }
         }
@@ -240,7 +240,7 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let (u_low_u16, v_low_u16);
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
                 let u_value = (u_ptr.add(uv_x) as *const i32).read_unaligned();
                 let v_value = (v_ptr.add(uv_x) as *const i32).read_unaligned();
@@ -256,7 +256,7 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
                 u_low_u16 = _mm_unpacklo_epi8(u_values, zeros);
                 v_low_u16 = _mm_unpacklo_epi8(v_values, zeros);
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let u_values = _mm_loadu_si64(u_ptr.add(uv_x));
                 let v_values = _mm_loadu_si64(v_ptr.add(uv_x));
 
@@ -336,10 +336,10 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
         cx += 8;
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 uv_x += 4;
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 uv_x += 8;
             }
         }

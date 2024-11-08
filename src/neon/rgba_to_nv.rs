@@ -31,7 +31,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsample, YuvNVOrder, YuvSourceChannels,
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 
 pub unsafe fn neon_rgbx_to_nv_row<
@@ -53,7 +53,7 @@ pub unsafe fn neon_rgbx_to_nv_row<
     compute_nv_row: bool,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
@@ -187,7 +187,7 @@ pub unsafe fn neon_rgbx_to_nv_row<
             let cr = vcombine_u8(vqmovn_u16(cr_low), vqmovn_u16(cr_high));
 
             match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                     let cb_s = vrshrn_n_u16::<1>(vpaddlq_u8(cb));
                     let cr_s = vrshrn_n_u16::<1>(vpaddlq_u8(cr));
                     match order {
@@ -202,7 +202,7 @@ pub unsafe fn neon_rgbx_to_nv_row<
                     }
                     ux += 16;
                 }
-                YuvChromaSubsample::Yuv444 => {
+                YuvChromaSubsampling::Yuv444 => {
                     match order {
                         YuvNVOrder::UV => {
                             let store: uint8x16x2_t = uint8x16x2_t(cb, cr);

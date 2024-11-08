@@ -32,7 +32,7 @@ use crate::sse::sse_support::{
     sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_widen_avg,
 };
 use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsample, YuvNVOrder, YuvSourceChannels,
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -82,7 +82,7 @@ unsafe fn sse_rgba_to_nv_row_impl<
     compute_uv_row: bool,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
@@ -269,7 +269,7 @@ unsafe fn sse_rgba_to_nv_row_impl<
             let cr = _mm_packus_epi16(cr_l, cr_h);
 
             match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                     let cb_h = sse_pairwise_widen_avg(cb);
                     let cr_h = sse_pairwise_widen_avg(cr);
                     let row0 = match order {
@@ -280,7 +280,7 @@ unsafe fn sse_rgba_to_nv_row_impl<
                     _mm_storeu_si128(dst_ptr as *mut __m128i, row0);
                     uv_x += 16;
                 }
-                YuvChromaSubsample::Yuv444 => {
+                YuvChromaSubsampling::Yuv444 => {
                     let row0 = match order {
                         YuvNVOrder::UV => _mm_unpacklo_epi8(cb, cr),
                         YuvNVOrder::VU => _mm_unpacklo_epi8(cr, cb),

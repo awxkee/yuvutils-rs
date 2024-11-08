@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_support::{YuvChromaSubsample, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::yuv_to_yuy2_impl;
 use crate::{YuvError, YuvPackedImageMut, YuvPlanarImage};
 
@@ -51,7 +51,7 @@ pub fn yuv444_to_yuyv422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         packed_image,
     )
@@ -78,7 +78,7 @@ pub fn yuv422_to_yuyv422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         packed_image,
     )
@@ -105,7 +105,7 @@ pub fn yuv420_to_yuyv422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         packed_image,
     )
@@ -132,7 +132,7 @@ pub fn yuv444_to_yvyu422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         packed_image,
     )
@@ -159,7 +159,7 @@ pub fn yuv422_to_yvyu422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         packed_image,
     )
@@ -186,7 +186,7 @@ pub fn yuv420_to_yvyu422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         packed_image,
     )
@@ -213,7 +213,7 @@ pub fn yuv444_to_vyuy422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         packed_image,
     )
@@ -240,7 +240,7 @@ pub fn yuv422_to_vyuy422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         packed_image,
     )
@@ -267,7 +267,7 @@ pub fn yuv420_to_vyuy422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         packed_image,
     )
@@ -294,7 +294,7 @@ pub fn yuv444_to_uyvy422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         packed_image,
     )
@@ -321,7 +321,7 @@ pub fn yuv422_to_uyvy422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         packed_image,
     )
@@ -348,7 +348,7 @@ pub fn yuv420_to_uyvy422_p16(
     packed_image: &mut YuvPackedImageMut<u16>,
     planar_image: &YuvPlanarImage<u16>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u16, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u16, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         packed_image,
     )

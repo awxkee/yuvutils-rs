@@ -30,7 +30,7 @@
 use crate::internals::ProcessedOffset;
 use crate::sse::sse_support::{sse_store_rgb_u8, sse_store_rgba};
 use crate::sse::sse_ycgco_r::sse_ycgco_r_to_rgb_epi16;
-use crate::yuv_support::{YuvChromaRange, YuvChromaSubsample, YuvSourceChannels};
+use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -48,7 +48,7 @@ pub unsafe fn sse_ycgcor_type_to_rgb_row<const DESTINATION_CHANNELS: u8, const S
     rgba_offset: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let bias_y = range.bias_y as i32;
@@ -84,7 +84,7 @@ pub unsafe fn sse_ycgcor_type_to_rgb_row<const DESTINATION_CHANNELS: u8, const S
         let v_low_i16;
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
 
@@ -93,7 +93,7 @@ pub unsafe fn sse_ycgcor_type_to_rgb_row<const DESTINATION_CHANNELS: u8, const S
                 u_low_i16 = _mm_unpacklo_epi16(u_values, u_values);
                 v_low_i16 = _mm_unpacklo_epi16(v_values, v_values);
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let u_values_lo = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
                 let v_values_lo = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
                 let u_values_hi = _mm_loadu_si128(u_ptr.add(uv_x).add(8) as *const __m128i);
@@ -161,10 +161,10 @@ pub unsafe fn sse_ycgcor_type_to_rgb_row<const DESTINATION_CHANNELS: u8, const S
         cx += 16;
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 uv_x += 8;
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 uv_x += 16;
             }
         }

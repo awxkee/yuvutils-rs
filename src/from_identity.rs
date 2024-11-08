@@ -30,7 +30,7 @@
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
-use crate::{YuvChromaSubsample, YuvError, YuvPlanarImage, YuvRange};
+use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImage, YuvRange};
 use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
@@ -78,7 +78,7 @@ where
     let v_stride = image.v_stride as usize;
     let height = image.height;
 
-    image.check_constraints(YuvChromaSubsample::Yuv444)?;
+    image.check_constraints(YuvChromaSubsampling::Yuv444)?;
     check_rgba_destination(rgba, rgba_stride, image.width, height, channels)?;
 
     let max_value = (1 << BIT_DEPTH) - 1;

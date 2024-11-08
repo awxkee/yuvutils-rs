@@ -29,7 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::neon::neon_ycgco_r::neon_rgb_to_ycgco_r;
-use crate::yuv_support::{YuvChromaRange, YuvChromaSubsample, YuvSourceChannels};
+use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 use std::arch::aarch64::*;
 
 pub unsafe fn neon_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
@@ -43,7 +43,7 @@ pub unsafe fn neon_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: 
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
@@ -135,7 +135,7 @@ pub unsafe fn neon_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: 
         vst1q_u16_x2(y_ptr.add(cx), y_store);
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let cg_l_s = vrshrn_n_u32::<1>(vpaddlq_u16(cg_low));
                 let cg_h_s = vrshrn_n_u32::<1>(vpaddlq_u16(cg_high));
                 let co_l_s = vrshrn_n_u32::<1>(vpaddlq_u16(co_low));
@@ -147,7 +147,7 @@ pub unsafe fn neon_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: 
 
                 uv_x += 8;
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 let cg = uint16x8x2_t(cg_low, cg_high);
                 vst1q_u16_x2(cg_ptr.add(uv_x), cg);
                 let co = uint16x8x2_t(co_low, co_high);

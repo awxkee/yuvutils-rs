@@ -288,19 +288,19 @@ impl From<u8> for YuvNVOrder {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum YuvChromaSubsample {
+pub enum YuvChromaSubsampling {
     Yuv420 = 0,
     Yuv422 = 1,
     Yuv444 = 2,
 }
 
-impl From<u8> for YuvChromaSubsample {
+impl From<u8> for YuvChromaSubsampling {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
-            0 => YuvChromaSubsample::Yuv420,
-            1 => YuvChromaSubsample::Yuv422,
-            2 => YuvChromaSubsample::Yuv444,
+            0 => YuvChromaSubsampling::Yuv420,
+            1 => YuvChromaSubsampling::Yuv422,
+            2 => YuvChromaSubsampling::Yuv444,
             _ => {
                 panic!("Unknown value")
             }

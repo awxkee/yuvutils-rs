@@ -32,7 +32,7 @@ use crate::sse::sse_support::{
     sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_avg_epi16,
 };
 use crate::sse::sse_ycgco_r::sse_rgb_to_ycgco_r_epi16;
-use crate::yuv_support::{YuvChromaRange, YuvChromaSubsample, YuvSourceChannels};
+use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -50,7 +50,7 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
@@ -154,14 +154,14 @@ pub unsafe fn sse_rgb_to_ycgcor_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u
         _mm_storeu_si128(y_ptr.add(cx + 8) as *mut __m128i, y_h);
 
         match chroma_subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let cg_h = sse_pairwise_avg_epi16(cg_l, cg_h);
                 let co_h = sse_pairwise_avg_epi16(co_l, co_h);
                 _mm_storeu_si128(cg_ptr.add(uv_x) as *mut __m128i, cg_h);
                 _mm_storeu_si128(co_ptr.add(uv_x) as *mut __m128i, co_h);
                 uv_x += 8;
             }
-            YuvChromaSubsample::Yuv444 => {
+            YuvChromaSubsampling::Yuv444 => {
                 _mm_storeu_si128(cg_ptr.add(uv_x) as *mut __m128i, cg_l);
                 _mm_storeu_si128(cg_ptr.add(uv_x).add(8) as *mut __m128i, cg_h);
                 _mm_storeu_si128(co_ptr.add(uv_x) as *mut __m128i, co_l);

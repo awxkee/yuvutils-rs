@@ -28,7 +28,7 @@
  */
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsample, YuvSourceChannels,
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
@@ -52,7 +52,7 @@ pub unsafe fn neon_rgba_to_yuv_p16<
     width: usize,
     compute_uv_row: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
@@ -204,7 +204,7 @@ pub unsafe fn neon_rgba_to_yuv_p16<
             );
 
             match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                     let mut cb_s = vrshrn_n_u32::<1>(vpaddlq_u16(cb_vl));
                     let mut cr_s = vrshrn_n_u32::<1>(vpaddlq_u16(cr_vl));
 
@@ -223,7 +223,7 @@ pub unsafe fn neon_rgba_to_yuv_p16<
 
                     ux += 4;
                 }
-                YuvChromaSubsample::Yuv444 => {
+                YuvChromaSubsampling::Yuv444 => {
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         cb_vl = vshlq_u16(cb_vl, v_shift_count);
                         cr_vl = vshlq_u16(cr_vl, v_shift_count);

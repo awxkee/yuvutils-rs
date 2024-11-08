@@ -29,7 +29,7 @@
 use crate::yuv_error::{
     check_chroma_channel, check_interleaved_chroma_channel, check_y8_channel, check_yuv_packed,
 };
-use crate::yuv_support::YuvChromaSubsample;
+use crate::yuv_support::YuvChromaSubsampling;
 use crate::YuvError;
 use std::fmt::Debug;
 
@@ -77,7 +77,7 @@ impl<T> YuvBiPlanarImage<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsampling) -> Result<(), YuvError> {
         check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_interleaved_chroma_channel(
             self.uv_plane,
@@ -110,7 +110,7 @@ impl<T> YuvBiPlanarImageMut<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsampling) -> Result<(), YuvError> {
         check_y8_channel(
             self.y_plane.borrow(),
             self.y_stride,
@@ -133,16 +133,16 @@ where
     T: Default + Clone + Copy + Debug,
 {
     /// Allocates mutable target Bi-Planar image with required chroma subsampling
-    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsample) -> Self {
+    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsampling) -> Self {
         let chroma_width = match subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 ((width as usize + 1) / 2) * 2
             }
-            YuvChromaSubsample::Yuv444 => width as usize * 2,
+            YuvChromaSubsampling::Yuv444 => width as usize * 2,
         };
         let chroma_height = match subsampling {
-            YuvChromaSubsample::Yuv420 => (height as usize + 1) / 2,
-            YuvChromaSubsample::Yuv422 | YuvChromaSubsample::Yuv444 => height as usize,
+            YuvChromaSubsampling::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];
         let chroma_target = vec![T::default(); chroma_width * chroma_height];
@@ -310,7 +310,7 @@ impl<T> YuvPlanarImage<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsampling) -> Result<(), YuvError> {
         check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_chroma_channel(
             self.u_plane,
@@ -353,7 +353,7 @@ impl<T> YuvPlanarImageMut<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsampling) -> Result<(), YuvError> {
         check_y8_channel(
             self.y_plane.borrow(),
             self.y_stride,
@@ -383,14 +383,14 @@ where
     T: Default + Clone + Copy + Debug,
 {
     /// Allocates mutable target planar image with required chroma subsampling
-    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsample) -> Self {
+    pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsampling) -> Self {
         let chroma_width = match subsampling {
-            YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => (width as usize + 1) / 2,
-            YuvChromaSubsample::Yuv444 => width as usize,
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => (width as usize + 1) / 2,
+            YuvChromaSubsampling::Yuv444 => width as usize,
         };
         let chroma_height = match subsampling {
-            YuvChromaSubsample::Yuv420 => (height as usize + 1) / 2,
-            YuvChromaSubsample::Yuv422 | YuvChromaSubsample::Yuv444 => height as usize,
+            YuvChromaSubsampling::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];
         let u_target = vec![T::default(); chroma_width * chroma_height];
@@ -447,7 +447,7 @@ impl<T> YuvPlanarImageWithAlpha<'_, T>
 where
     T: Copy + Debug,
 {
-    pub fn check_constraints(&self, subsampling: YuvChromaSubsample) -> Result<(), YuvError> {
+    pub fn check_constraints(&self, subsampling: YuvChromaSubsampling) -> Result<(), YuvError> {
         check_y8_channel(self.y_plane, self.y_stride, self.width, self.height)?;
         check_y8_channel(self.a_plane, self.a_stride, self.width, self.height)?;
         check_chroma_channel(

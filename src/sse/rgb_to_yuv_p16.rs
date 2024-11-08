@@ -29,7 +29,7 @@
 use crate::internals::ProcessedOffset;
 use crate::sse::{_mm_deinterleave_rgb_epi16, _mm_deinterleave_rgba_epi16, sse_avg_epi16};
 use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsample, YuvSourceChannels,
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use crate::{YuvBytesPacking, YuvEndianness};
 #[cfg(target_arch = "x86")]
@@ -99,7 +99,7 @@ unsafe fn sse_rgba_to_yuv_impl<
     width: usize,
     compute_uv_row: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
@@ -238,7 +238,7 @@ unsafe fn sse_rgba_to_yuv_impl<
             );
 
             match chroma_subsampling {
-                YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                     let mut cb_s = sse_avg_epi16(cb_vl);
                     let mut cr_s = sse_avg_epi16(cr_vl);
 
@@ -265,7 +265,7 @@ unsafe fn sse_rgba_to_yuv_impl<
 
                     ux += 4;
                 }
-                YuvChromaSubsample::Yuv444 => {
+                YuvChromaSubsampling::Yuv444 => {
                     if bytes_position == YuvBytesPacking::MostSignificantBytes {
                         cb_vl = _mm_sll_epi32(cb_vl, v_shift_count);
                         cr_vl = _mm_sll_epi32(cr_vl, v_shift_count);

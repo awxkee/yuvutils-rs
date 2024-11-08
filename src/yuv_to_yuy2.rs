@@ -32,7 +32,7 @@ use crate::avx2::yuv_to_yuy2_avx2_row;
 use crate::neon::yuv_to_yuy2_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuv_to_yuy2_sse;
-use crate::yuv_support::{YuvChromaSubsample, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::{YuvError, YuvPackedImageMut, YuvPlanarImage};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
@@ -173,7 +173,7 @@ pub(crate) fn yuv_to_yuy2_impl<
     packed_image: &mut YuvPackedImageMut<V>,
 ) -> Result<(), YuvError> {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     planar_image.check_constraints(chroma_subsampling)?;
     packed_image.check_constraints()?;
@@ -183,7 +183,7 @@ pub(crate) fn yuv_to_yuy2_impl<
 
     let width = planar_image.width;
 
-    if chroma_subsampling == YuvChromaSubsample::Yuv444 {
+    if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -264,7 +264,7 @@ pub(crate) fn yuv_to_yuy2_impl<
                 yuy2[yuy2_target.get_v_position()] = *last_v;
             }
         });
-    } else if chroma_subsampling == YuvChromaSubsample::Yuv422 {
+    } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -345,7 +345,7 @@ pub(crate) fn yuv_to_yuy2_impl<
                 yuy2[yuy2_target.get_v_position()] = *last_v;
             }
         });
-    } else if chroma_subsampling == YuvChromaSubsample::Yuv420 {
+    } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -513,7 +513,7 @@ pub fn yuv444_to_yuyv422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         packed_image,
     )
@@ -540,7 +540,7 @@ pub fn yuv422_to_yuyv422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         packed_image,
     )
@@ -567,7 +567,7 @@ pub fn yuv420_to_yuyv422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YUYV as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::YUYV as usize }>(
         planar_image,
         packed_image,
     )
@@ -594,7 +594,7 @@ pub fn yuv444_to_yvyu422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         packed_image,
     )
@@ -621,7 +621,7 @@ pub fn yuv422_to_yvyu422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         packed_image,
     )
@@ -648,7 +648,7 @@ pub fn yuv420_to_yvyu422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::YVYU as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::YVYU as usize }>(
         planar_image,
         packed_image,
     )
@@ -675,7 +675,7 @@ pub fn yuv444_to_vyuy422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         packed_image,
     )
@@ -702,7 +702,7 @@ pub fn yuv422_to_vyuy422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         packed_image,
     )
@@ -729,7 +729,7 @@ pub fn yuv420_to_vyuy422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::VYUY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::VYUY as usize }>(
         planar_image,
         packed_image,
     )
@@ -756,7 +756,7 @@ pub fn yuv444_to_uyvy422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv444 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv444 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         packed_image,
     )
@@ -783,7 +783,7 @@ pub fn yuv422_to_uyvy422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv422 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv422 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         packed_image,
     )
@@ -810,7 +810,7 @@ pub fn yuv420_to_uyvy422(
     packed_image: &mut YuvPackedImageMut<u8>,
     planar_image: &YuvPlanarImage<u8>,
 ) -> Result<(), YuvError> {
-    yuv_to_yuy2_impl::<u8, { YuvChromaSubsample::Yuv420 as u8 }, { Yuy2Description::UYVY as usize }>(
+    yuv_to_yuy2_impl::<u8, { YuvChromaSubsampling::Yuv420 as u8 }, { Yuy2Description::UYVY as usize }>(
         planar_image,
         packed_image,
     )

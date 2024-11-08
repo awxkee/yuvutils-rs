@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_support::YuvChromaSubsample;
+use crate::yuv_support::YuvChromaSubsampling;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -200,18 +200,18 @@ pub(crate) fn check_chroma_channel<V>(
     stride: u32,
     image_width: u32,
     image_height: u32,
-    sampling: YuvChromaSubsample,
+    sampling: YuvChromaSubsampling,
 ) -> Result<(), YuvError> {
     if image_width == 0 || image_height == 0 {
         return Err(YuvError::ZeroBaseSize);
     }
     let chroma_min_width = match sampling {
-        YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => (image_width + 1) / 2,
-        YuvChromaSubsample::Yuv444 => image_width,
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => (image_width + 1) / 2,
+        YuvChromaSubsampling::Yuv444 => image_width,
     };
     let chroma_height = match sampling {
-        YuvChromaSubsample::Yuv420 => (image_height + 1) / 2,
-        YuvChromaSubsample::Yuv422 | YuvChromaSubsample::Yuv444 => image_height,
+        YuvChromaSubsampling::Yuv420 => (image_height + 1) / 2,
+        YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => image_height,
     };
     check_overflow_v2(stride as usize, chroma_height as usize)?;
     check_overflow_v2(chroma_min_width as usize, chroma_height as usize)?;
@@ -238,18 +238,18 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
     stride: u32,
     image_width: u32,
     image_height: u32,
-    sampling: YuvChromaSubsample,
+    sampling: YuvChromaSubsampling,
 ) -> Result<(), YuvError> {
     if image_width == 0 || image_height == 0 {
         return Err(YuvError::ZeroBaseSize);
     }
     let chroma_min_width = match sampling {
-        YuvChromaSubsample::Yuv420 | YuvChromaSubsample::Yuv422 => ((image_width + 1) / 2) * 2,
-        YuvChromaSubsample::Yuv444 => image_width * 2,
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => ((image_width + 1) / 2) * 2,
+        YuvChromaSubsampling::Yuv444 => image_width * 2,
     };
     let chroma_height = match sampling {
-        YuvChromaSubsample::Yuv420 => (image_height + 1) / 2,
-        YuvChromaSubsample::Yuv422 | YuvChromaSubsample::Yuv444 => image_height,
+        YuvChromaSubsampling::Yuv420 => (image_height + 1) / 2,
+        YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => image_height,
     };
     check_overflow_v2(stride as usize, chroma_height as usize)?;
     check_overflow_v2(chroma_min_width as usize, chroma_height as usize)?;
