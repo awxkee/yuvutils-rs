@@ -99,6 +99,7 @@ pub unsafe fn neon_yuv_nv_p16_to_rgba_row<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = vshlq_u16(y_vl, v_big_shift_count);
         }
+        
         let y_values: int16x8_t = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
 
         match chroma_subsampling {
