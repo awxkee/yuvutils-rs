@@ -44,13 +44,12 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 #[inline(always)]
-fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
+fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_DEPTH: usize>(
     v: i32,
-    bit_depth: u32,
 ) -> u16 {
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
-    let packing: i32 = 16 - bit_depth as i32;
+    let packing: i32 = 16 - BIT_DEPTH as i32;
     let packed_bytes = match bytes_position {
         YuvBytesPacking::MostSignificantBytes => v << packing,
         YuvBytesPacking::LeastSignificantBytes => v,
@@ -61,18 +60,18 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
     }
 }
 
-fn rgbx_to_yuv_impl<
+fn rgbx_to_yuv_ant<
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
 >(
     planar_image: &mut YuvPlanarImageMut<u16>,
     rgba: &[u16],
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    bit_depth: u32,
 ) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSubsample = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -87,9 +86,9 @@ fn rgbx_to_yuv_impl<
         channels,
     )?;
 
-    let range = get_yuv_range(bit_depth, range);
+    let range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p8 = (1u32 << bit_depth) - 1u32;
+    let max_range_p8 = (1u32 << BIT_DEPTH) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,
         range.range_y,
@@ -138,10 +137,16 @@ fn rgbx_to_yuv_impl<
                     );
             }
         }
-        
+
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            _offset = neon_rgba_to_yuv_p16::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
+            _offset = neon_rgba_to_yuv_p16::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                BIT_DEPTH,
+            >(
                 &transform,
                 &range,
                 _y_plane,
@@ -152,7 +157,6 @@ fn rgbx_to_yuv_impl<
                 _offset.cx,
                 planar_image.width as usize,
                 _compute_uv_row,
-                bit_depth,
             );
         }
 
@@ -179,9 +183,8 @@ fn rgbx_to_yuv_impl<
             let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+            y_dst[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_0.clamp(i_bias_y, i_cap_y),
-                bit_depth,
             );
 
             let r1 = rgba[channels + src_chans.get_r_channel_offset()] as i32;
@@ -189,9 +192,8 @@ fn rgbx_to_yuv_impl<
             let b1 = rgba[channels + src_chans.get_b_channel_offset()] as i32;
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+            y_dst[1] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_1.clamp(i_bias_y, i_cap_y),
-                bit_depth,
             );
 
             if compute_chroma_row {
@@ -203,13 +205,11 @@ fn rgbx_to_yuv_impl<
                     >> PRECISION;
                 let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
                     >> PRECISION;
-                *u_dst = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                *u_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                     cb.clamp(i_bias_y, i_cap_uv),
-                    bit_depth,
                 );
-                *v_dst = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                *v_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                     cr.clamp(i_bias_y, i_cap_uv),
-                    bit_depth,
                 );
             }
         }
@@ -226,9 +226,8 @@ fn rgbx_to_yuv_impl<
 
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y_last = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+            *y_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_0.clamp(i_bias_y, i_cap_y),
-                bit_depth,
             );
 
             if compute_chroma_row {
@@ -238,13 +237,11 @@ fn rgbx_to_yuv_impl<
                 let cr =
                     (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                         >> PRECISION;
-                *u_last = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                *u_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                     cb.clamp(i_bias_y, i_cap_uv),
-                    bit_depth,
                 );
-                *v_last = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                *v_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                     cr.clamp(i_bias_y, i_cap_uv),
-                    bit_depth,
                 );
             }
         }
@@ -291,9 +288,8 @@ fn rgbx_to_yuv_impl<
                 let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
                 let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                     >> PRECISION;
-                *y_dst = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                *y_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                     y_0.clamp(i_bias_y, i_cap_y),
-                    bit_depth,
                 );
 
                 let cb =
@@ -302,13 +298,11 @@ fn rgbx_to_yuv_impl<
                 let cr =
                     (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                         >> PRECISION;
-                *u_dst = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                *u_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                     cb.clamp(i_bias_y, i_cap_uv),
-                    bit_depth,
                 );
-                *v_dst = transform_integer::<ENDIANNESS, BYTES_POSITION>(
+                *v_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                     cr.clamp(i_bias_y, i_cap_uv),
-                    bit_depth,
                 );
             }
         });
@@ -389,14 +383,25 @@ fn rgbx_to_yuv<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    rgbx_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION>(
-        planar_image,
-        rgba,
-        rgba_stride,
-        range,
-        matrix,
-        bit_depth,
-    )
+    if bit_depth == 10 {
+        rgbx_to_yuv_ant::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 10>(
+            planar_image,
+            rgba,
+            rgba_stride,
+            range,
+            matrix,
+        )
+    } else if bit_depth == 12 {
+        rgbx_to_yuv_ant::<ORIGIN_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 12>(
+            planar_image,
+            rgba,
+            rgba_stride,
+            range,
+            matrix,
+        )
+    } else {
+        unimplemented!("RGB16 to YUV16 implemented only for 10 and 12 bit-depth")
+    }
 }
 
 /// Convert RGB image data to YUV 422 planar format with 10 or 12 bit depth.

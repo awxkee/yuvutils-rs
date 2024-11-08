@@ -231,7 +231,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
         let g_values = avx512_pack_u16(g_low, g_high);
         let b_values = avx512_pack_u16(b_low, b_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {

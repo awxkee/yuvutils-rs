@@ -44,7 +44,11 @@ pub fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8>(
     start_cx: usize,
     width: usize,
 ) -> usize {
-    unsafe { avx512_row_rgb_to_y_impl(transform, range, y_plane, rgba, start_cx, width) }
+    unsafe {
+        avx512_row_rgb_to_y_impl::<ORIGIN_CHANNELS>(
+            transform, range, y_plane, rgba, start_cx, width,
+        )
+    }
 }
 
 #[target_feature(enable = "avx512bw")]
@@ -172,7 +176,10 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
 
         let y_yuv = avx512_pack_u16(y_l, y_h);
 
-        _mm512_storeu_si512(y_ptr.add(cx) as *mut i32, y_yuv);
+        _mm512_storeu_si512(
+            y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
+            y_yuv,
+        );
 
         cx += 64;
     }
