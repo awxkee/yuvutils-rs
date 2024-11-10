@@ -433,7 +433,10 @@ pub fn yuv420_with_alpha_to_rgba(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
+    yuv_with_alpha_to_rgbx::<
+        { YuvSourceChannels::Rgba as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
+    >(
         planar_with_alpha,
         rgba,
         rgba_stride,
@@ -470,7 +473,10 @@ pub fn yuv420_with_alpha_to_bgra(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
+    yuv_with_alpha_to_rgbx::<
+        { YuvSourceChannels::Bgra as u8 },
+        { YuvChromaSubsampling::Yuv420 as u8 },
+    >(
         planar_with_alpha,
         bgra,
         bgra_stride,
@@ -507,7 +513,10 @@ pub fn yuv422_with_alpha_to_rgba(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
+    yuv_with_alpha_to_rgbx::<
+        { YuvSourceChannels::Rgba as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
+    >(
         planar_with_alpha,
         rgba,
         rgba_stride,
@@ -544,7 +553,10 @@ pub fn yuv422_with_alpha_to_bgra(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
+    yuv_with_alpha_to_rgbx::<
+        { YuvSourceChannels::Bgra as u8 },
+        { YuvChromaSubsampling::Yuv422 as u8 },
+    >(
         planar_with_alpha,
         bgra,
         bgra_stride,
@@ -581,7 +593,10 @@ pub fn yuv444_with_alpha_to_rgba(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+    yuv_with_alpha_to_rgbx::<
+        { YuvSourceChannels::Rgba as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
+    >(
         planar_with_alpha,
         rgba,
         rgba_stride,
@@ -618,7 +633,10 @@ pub fn yuv444_with_alpha_to_bgra(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    yuv_with_alpha_to_rgbx::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+    yuv_with_alpha_to_rgbx::<
+        { YuvSourceChannels::Bgra as u8 },
+        { YuvChromaSubsampling::Yuv444 as u8 },
+    >(
         planar_with_alpha,
         bgra,
         bgra_stride,
