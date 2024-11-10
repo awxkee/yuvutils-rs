@@ -44,7 +44,7 @@ use crate::yuv_support::*;
 use crate::{YuvError, YuvPlanarImageWithAlpha, YuvRange};
 
 fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
-    planar_image_with_alpha: YuvPlanarImageWithAlpha<u8>,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -357,7 +357,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco420_with_alpha_to_rgba(
-    planar_image_with_alpha: YuvPlanarImageWithAlpha<u8>,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -391,7 +391,7 @@ pub fn ycgco420_with_alpha_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco420_with_alpha_to_bgra(
-    planar_image_with_alpha: YuvPlanarImageWithAlpha<u8>,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
     range: YuvRange,
@@ -425,7 +425,7 @@ pub fn ycgco420_with_alpha_to_bgra(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco422_with_alpha_to_rgba(
-    planar_image_with_alpha: YuvPlanarImageWithAlpha<u8>,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -459,7 +459,7 @@ pub fn ycgco422_with_alpha_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco422_with_alpha_to_bgra(
-    planar_image_with_alpha: YuvPlanarImageWithAlpha<u8>,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
     range: YuvRange,
@@ -493,7 +493,7 @@ pub fn ycgco422_with_alpha_to_bgra(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco444_with_alpha_to_rgba(
-    planar_image_with_alpha: YuvPlanarImageWithAlpha<u8>,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -527,7 +527,7 @@ pub fn ycgco444_with_alpha_to_rgba(
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn ycgco444_with_alpha_to_bgra(
-    planar_image_with_alpha: YuvPlanarImageWithAlpha<u8>,
+    planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
     range: YuvRange,

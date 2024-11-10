@@ -33,7 +33,8 @@ use crate::neon::neon_rgba_to_yuv_p16;
 use crate::sse::sse_rgba_to_yuv_p16;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSubsampling, YuvSourceChannels,
+    get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSubsampling,
+    YuvSourceChannels,
 };
 use crate::{
     YuvBytesPacking, YuvEndianness, YuvError, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
