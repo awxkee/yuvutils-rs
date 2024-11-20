@@ -280,7 +280,7 @@ impl From<u8> for YuvNVOrder {
             0 => YuvNVOrder::UV,
             1 => YuvNVOrder::VU,
             _ => {
-                panic!("Unknown value")
+                unimplemented!("Unknown value")
             }
         }
     }
@@ -302,7 +302,7 @@ impl From<u8> for YuvChromaSubsampling {
             1 => YuvChromaSubsampling::Yuv422,
             2 => YuvChromaSubsampling::Yuv444,
             _ => {
-                panic!("Unknown value")
+                unimplemented!("Unknown value")
             }
         }
     }
@@ -323,7 +323,7 @@ impl From<u8> for YuvEndianness {
             0 => YuvEndianness::BigEndian,
             1 => YuvEndianness::LittleEndian,
             _ => {
-                panic!("Unknown value")
+                unimplemented!("Unknown value")
             }
         }
     }
@@ -453,7 +453,7 @@ impl From<usize> for Yuy2Description {
             2 => Yuy2Description::YVYU,
             3 => Yuy2Description::VYUY,
             _ => {
-                panic!("Not supported value {}", value)
+                unimplemented!("YUY2 not supported value {}", value)
             }
         }
     }
