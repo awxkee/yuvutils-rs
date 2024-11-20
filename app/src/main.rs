@@ -31,11 +31,7 @@ use image::{ColorType, EncodableLayout, GenericImageView, ImageReader};
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{
-    rgb_to_sharp_yuv422, rgb_to_yuv_nv12_p16, yuv422_to_rgb, yuv_nv12_to_rgb_p16,
-    SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
-    YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{ab30_to_rgb8, ar30_to_rgb8, ra30_to_rgb8, rgb_to_sharp_yuv422, rgb_to_yuv420_p16, rgb_to_yuv422_p16, rgb_to_yuv_nv12_p16, yuv422_p16_to_ab30, yuv422_p16_to_ar30, yuv422_p16_to_ra30, yuv422_to_rgb, yuv444_p16_to_ar30, yuv_nv12_to_rgb_p16, Rgb30ByteOrder, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -93,13 +89,13 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv12_p16(
-        &mut bi_planar_image,
+    rgb_to_yuv422_p16(
+        &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
         10,
@@ -218,10 +214,13 @@ fn main() {
     // bytes_16.resize(width as usize * height as usize * 4, 0u16);
     // rgba.resize(width as usize * height as usize * 4, 0u8);
 
-    yuv_nv12_to_rgb_p16(
-        &fixed_biplanar,
-        &mut bytes_16,
-        rgba_stride as u32,
+    let mut ar30 = vec![0u32; width as usize * height as usize];
+
+    yuv422_p16_to_ab30(
+        &fixed_planar,
+        &mut ar30,
+        width,
+        Rgb30ByteOrder::Host,
         10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
@@ -229,13 +228,27 @@ fn main() {
         YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
+    rgba.fill(0);
+    ab30_to_rgb8(&ar30, width, Rgb30ByteOrder::Host, &mut rgba, rgba_stride as u32, width, height).unwrap();
+
+    // yuv_nv12_to_rgb_p16(
+    //     &fixed_biplanar,
+    //     &mut bytes_16,
+    //     rgba_stride as u32,
+    //     10,
+    //     YuvRange::Limited,
+    //     YuvStandardMatrix::Bt601,
+    //     YuvEndianness::LittleEndian,
+    //     YuvBytesPacking::LeastSignificantBytes,
+    // )
+    // .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 
-    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
-        "converted_sharp15.png",
+        "converted_sharp15.jpg",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

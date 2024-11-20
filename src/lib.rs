@@ -47,6 +47,7 @@ mod internals;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
 mod numerics;
+mod rgb_ar30;
 mod rgb_to_nv_p16;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -73,6 +74,7 @@ mod yuv_nv_p10_to_rgba;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_p10_rgba;
+mod yuv_p16_ar30;
 mod yuv_p16_rgba;
 mod yuv_p16_rgba16_alpha;
 mod yuv_p16_rgba_alpha;
@@ -88,7 +90,8 @@ mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
 
 pub use yuv_support::{
-    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvRange, YuvStandardMatrix,
+    Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvRange,
+    YuvStandardMatrix,
 };
 
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;
@@ -436,3 +439,10 @@ pub use yuv_p16_rgba::*;
 pub use yuv_p16_rgba16_alpha::*;
 pub use yuv_p16_rgba_alpha::*;
 pub use yuv_p16_rgba_p16::*;
+
+pub use rgb_ar30::{ab30_to_rgb8, ar30_to_rgb8, ba30_to_rgb8, ra30_to_rgb8};
+pub use yuv_p16_ar30::{
+    yuv420_p16_to_ab30, yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ab30,
+    yuv422_p16_to_ar30, yuv422_p16_to_ra30, yuv444_p16_to_ab30, yuv444_p16_to_ar30,
+    yuv444_p16_to_ra30,
+};
