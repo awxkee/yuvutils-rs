@@ -33,6 +33,7 @@
 #![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 extern crate core;
 
+mod ar30_rgb;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod avx2;
 #[cfg(all(
@@ -440,7 +441,10 @@ pub use yuv_p16_rgba16_alpha::*;
 pub use yuv_p16_rgba_alpha::*;
 pub use yuv_p16_rgba_p16::*;
 
-pub use rgb_ar30::{ab30_to_rgb8, ar30_to_rgb8, ba30_to_rgb8, ra30_to_rgb8};
+pub use ar30_rgb::{
+    ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
+};
+pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
 pub use yuv_p16_ar30::{
     yuv420_p16_to_ab30, yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ab30,
     yuv422_p16_to_ar30, yuv422_p16_to_ra30, yuv444_p16_to_ab30, yuv444_p16_to_ar30,

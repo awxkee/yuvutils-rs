@@ -30,14 +30,14 @@ use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{Rgb30, YuvSourceChannels};
 use crate::{Rgb30ByteOrder, YuvError};
 
-fn rgb_to_ar30_impl<
+fn ar30_to_rgb8_impl<
     const AR30_LAYOUT: usize,
     const AR30_BYTE_ORDER: usize,
     const RGBA_LAYOUT: u8,
 >(
-    ar30: &mut [u32],
+    ar30: &[u32],
     ar30_stride: u32,
-    rgba: &[u8],
+    rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
     height: u32,
@@ -53,58 +53,59 @@ fn rgb_to_ar30_impl<
         rgba_layout.get_channels_count(),
     )?;
 
-    for (src, dst) in rgba
-        .chunks_exact(rgba_stride as usize)
-        .zip(ar30.chunks_exact_mut(ar30_stride as usize))
+    for (dst, src) in rgba
+        .chunks_exact_mut(rgba_stride as usize)
+        .zip(ar30.chunks_exact(ar30_stride as usize))
     {
-        for (src, dst) in src
-            .chunks_exact(rgba_layout.get_channels_count())
-            .zip(dst.iter_mut())
+        for (dst, &src) in dst
+            .chunks_exact_mut(rgba_layout.get_channels_count())
+            .zip(src.iter())
         {
-            let packed = if rgba_layout.has_alpha() {
-                ar30_layout.pack_w_a::<AR30_BYTE_ORDER>(
-                    src[0] as i32,
-                    src[1] as i32,
-                    src[2] as i32,
-                    src[3] as i32 >> 6,
-                )
-            } else {
-                ar30_layout.pack::<AR30_BYTE_ORDER>(src[0] as i32, src[1] as i32, src[2] as i32)
-            };
-            *dst = packed;
+            let unpacked = ar30_layout.unpack::<AR30_BYTE_ORDER>(src);
+            let r = unpacked.0 >> 2;
+            let g = unpacked.1 >> 2;
+            let b = unpacked.2 >> 2;
+            dst[rgba_layout.get_r_channel_offset()] = r as u8;
+            dst[rgba_layout.get_g_channel_offset()] = g as u8;
+            dst[rgba_layout.get_b_channel_offset()] = b as u8;
+            if rgba_layout.has_alpha() {
+                let expanded_a =
+                    (unpacked.3 << 6) | (unpacked.3 << 4) | (unpacked.3 << 2) | unpacked.3;
+                dst[rgba_layout.get_a_channel_offset()] = expanded_a as u8;
+            }
         }
     }
     Ok(())
 }
 
-/// Converts RGB 8 bit depth to AR30 (RGBA2101010)
+/// Converts RGBA2101010 to RGB 8 bit depth
 ///
 /// # Arguments
 ///
-/// * `ar30`: Dest AR30 data
-/// * `ar30_stride`: Dest AR30 stride
+/// * `ar30`: Source AR30 data
+/// * `ar30_stride`: Source AR30 stride
 /// * `byte_order`: See [Rgb30ByteOrder] for more info
 /// * `rgb`: Destination RGB data
 /// * `rgb_stride`: Destination RGB stride
 /// * `width`: Image width
 /// * `height`: Image height
 ///
-pub fn rgb8_to_ar30(
-    ar30: &mut [u32],
+pub fn ar30_to_rgb8(
+    ar30: &[u32],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
-    rgb: &[u8],
+    rgb: &mut [u8],
     rgb_stride: u32,
     width: u32,
     height: u32,
 ) -> Result<(), YuvError> {
     match byte_order {
-        Rgb30ByteOrder::Host => rgb_to_ar30_impl::<
+        Rgb30ByteOrder::Host => ar30_to_rgb8_impl::<
             { Rgb30::Ar30 as usize },
             { Rgb30ByteOrder::Host as usize },
             { YuvSourceChannels::Rgb as u8 },
         >(ar30, ar30_stride, rgb, rgb_stride, width, height),
-        Rgb30ByteOrder::Network => rgb_to_ar30_impl::<
+        Rgb30ByteOrder::Network => ar30_to_rgb8_impl::<
             { Rgb30::Ar30 as usize },
             { Rgb30ByteOrder::Network as usize },
             { YuvSourceChannels::Rgb as u8 },
@@ -112,107 +113,177 @@ pub fn rgb8_to_ar30(
     }
 }
 
-/// Converts RGB 8 bit depth to RA30 (RGBA1010102)
+/// Converts BGBA2101010 to RGB 8 bit depth
 ///
 /// # Arguments
 ///
-/// * `ra30`: Dest RA30 data
-/// * `ra30_stride`: Dest RA30 stride
+/// * `ab30`: Source AR30 data
+/// * `ab30_stride`: Source AR30 stride
 /// * `byte_order`: See [Rgb30ByteOrder] for more info
 /// * `rgb`: Destination RGB data
 /// * `rgb_stride`: Destination RGB stride
 /// * `width`: Image width
 /// * `height`: Image height
 ///
-pub fn rgb8_to_ra30(
-    ar30: &mut [u32],
-    ar30_stride: u32,
+pub fn ab30_to_rgb8(
+    ab30: &[u32],
+    ab30_stride: u32,
     byte_order: Rgb30ByteOrder,
-    rgb: &[u8],
+    rgb: &mut [u8],
     rgb_stride: u32,
     width: u32,
     height: u32,
 ) -> Result<(), YuvError> {
     match byte_order {
-        Rgb30ByteOrder::Host => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+        Rgb30ByteOrder::Host => ar30_to_rgb8_impl::<
+            { Rgb30::Ab30 as usize },
             { Rgb30ByteOrder::Host as usize },
             { YuvSourceChannels::Rgb as u8 },
-        >(ar30, ar30_stride, rgb, rgb_stride, width, height),
-        Rgb30ByteOrder::Network => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+        >(ab30, ab30_stride, rgb, rgb_stride, width, height),
+        Rgb30ByteOrder::Network => ar30_to_rgb8_impl::<
+            { Rgb30::Ab30 as usize },
             { Rgb30ByteOrder::Network as usize },
             { YuvSourceChannels::Rgb as u8 },
-        >(ar30, ar30_stride, rgb, rgb_stride, width, height),
+        >(ab30, ab30_stride, rgb, rgb_stride, width, height),
     }
 }
 
-/// Converts RGB 8 bit depth to AR30 (RGBA2101010)
+/// Converts RGBA1010102 to RGB 8 bit depth
 ///
 /// # Arguments
 ///
-/// * `ar30`: Dest AR30 data
-/// * `ar30_stride`: Dest AR30 stride
+/// * `ar30`: Source RA30 data
+/// * `ar30_stride`: Source RA30 stride
 /// * `byte_order`: See [Rgb30ByteOrder] for more info
-/// * `rgb`: Destination RGBA data
-/// * `rgb_stride`: Destination RGBA stride
+/// * `rgb`: Destination RGB data
+/// * `rgb_stride`: Destination RGB stride
 /// * `width`: Image width
 /// * `height`: Image height
 ///
-pub fn rgba8_to_ar30(
-    ar30: &mut [u32],
+pub fn ra30_to_rgb8(
+    ar30: &[u32],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
-    rgba: &[u8],
-    rgba_stride: u32,
+    rgb: &mut [u8],
+    rgb_stride: u32,
     width: u32,
     height: u32,
 ) -> Result<(), YuvError> {
     match byte_order {
-        Rgb30ByteOrder::Host => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+        Rgb30ByteOrder::Host => ar30_to_rgb8_impl::<
+            { Rgb30::Ra30 as usize },
             { Rgb30ByteOrder::Host as usize },
-            { YuvSourceChannels::Rgba as u8 },
-        >(ar30, ar30_stride, rgba, rgba_stride, width, height),
-        Rgb30ByteOrder::Network => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+            { YuvSourceChannels::Rgb as u8 },
+        >(ar30, ar30_stride, rgb, rgb_stride, width, height),
+        Rgb30ByteOrder::Network => ar30_to_rgb8_impl::<
+            { Rgb30::Ra30 as usize },
             { Rgb30ByteOrder::Network as usize },
-            { YuvSourceChannels::Rgba as u8 },
-        >(ar30, ar30_stride, rgba, rgba_stride, width, height),
+            { YuvSourceChannels::Rgb as u8 },
+        >(ar30, ar30_stride, rgb, rgb_stride, width, height),
     }
 }
 
-/// Converts RGBA 8 bit depth to RA30 (RGBA1010102)
+/// Converts BGRA1010102 to RGB 8 bit depth
 ///
 /// # Arguments
 ///
-/// * `ra30`: Dest RA30 data
-/// * `ra30_stride`: Dest RA30 stride
+/// * `ar30`: Source RA30 data
+/// * `ar30_stride`: Source RA30 stride
+/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `rgb`: Destination RGB data
+/// * `rgb_stride`: Destination RGB stride
+/// * `width`: Image width
+/// * `height`: Image height
+///
+pub fn ba30_to_rgb8(
+    ar30: &[u32],
+    ar30_stride: u32,
+    byte_order: Rgb30ByteOrder,
+    rgb: &mut [u8],
+    rgb_stride: u32,
+    width: u32,
+    height: u32,
+) -> Result<(), YuvError> {
+    match byte_order {
+        Rgb30ByteOrder::Host => ar30_to_rgb8_impl::<
+            { Rgb30::Ba30 as usize },
+            { Rgb30ByteOrder::Host as usize },
+            { YuvSourceChannels::Rgb as u8 },
+        >(ar30, ar30_stride, rgb, rgb_stride, width, height),
+        Rgb30ByteOrder::Network => ar30_to_rgb8_impl::<
+            { Rgb30::Ba30 as usize },
+            { Rgb30ByteOrder::Network as usize },
+            { YuvSourceChannels::Rgb as u8 },
+        >(ar30, ar30_stride, rgb, rgb_stride, width, height),
+    }
+}
+
+/// Converts RGBA2101010 to RGB 8 bit depth
+///
+/// # Arguments
+///
+/// * `ar30`: Source AR30 data
+/// * `ar30_stride`: Source AR30 stride
 /// * `byte_order`: See [Rgb30ByteOrder] for more info
 /// * `rgba`: Destination RGBA data
 /// * `rgba_stride`: Destination RGBA stride
 /// * `width`: Image width
 /// * `height`: Image height
 ///
-pub fn rgba8_to_ra30(
-    ar30: &mut [u32],
+pub fn ar30_to_rgba8(
+    ar30: &[u32],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
-    rgba: &[u8],
+    rgba: &mut [u8],
     rgba_stride: u32,
     width: u32,
     height: u32,
 ) -> Result<(), YuvError> {
     match byte_order {
-        Rgb30ByteOrder::Host => rgb_to_ar30_impl::<
+        Rgb30ByteOrder::Host => ar30_to_rgb8_impl::<
             { Rgb30::Ar30 as usize },
             { Rgb30ByteOrder::Host as usize },
             { YuvSourceChannels::Rgba as u8 },
         >(ar30, ar30_stride, rgba, rgba_stride, width, height),
-        Rgb30ByteOrder::Network => rgb_to_ar30_impl::<
+        Rgb30ByteOrder::Network => ar30_to_rgb8_impl::<
             { Rgb30::Ar30 as usize },
             { Rgb30ByteOrder::Network as usize },
             { YuvSourceChannels::Rgba as u8 },
         >(ar30, ar30_stride, rgba, rgba_stride, width, height),
+    }
+}
+
+/// Converts RGBA1010102 to RGB 8 bit depth
+///
+/// # Arguments
+///
+/// * `ar30`: Source RA30 data
+/// * `ar30_stride`: Source RA30 stride
+/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `rgba`: Destination RGBA data
+/// * `rgba_stride`: Destination RGBA stride
+/// * `width`: Image width
+/// * `height`: Image height
+///
+pub fn ra30_to_rgba8(
+    ra30: &[u32],
+    ra30_stride: u32,
+    byte_order: Rgb30ByteOrder,
+    rgba: &mut [u8],
+    rgba_stride: u32,
+    width: u32,
+    height: u32,
+) -> Result<(), YuvError> {
+    match byte_order {
+        Rgb30ByteOrder::Host => ar30_to_rgb8_impl::<
+            { Rgb30::Ra30 as usize },
+            { Rgb30ByteOrder::Host as usize },
+            { YuvSourceChannels::Rgba as u8 },
+        >(ra30, ra30_stride, rgba, rgba_stride, width, height),
+        Rgb30ByteOrder::Network => ar30_to_rgb8_impl::<
+            { Rgb30::Ra30 as usize },
+            { Rgb30ByteOrder::Network as usize },
+            { YuvSourceChannels::Rgba as u8 },
+        >(ra30, ra30_stride, rgba, rgba_stride, width, height),
     }
 }
