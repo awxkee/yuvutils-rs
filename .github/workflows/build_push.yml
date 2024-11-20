@@ -13,8 +13,7 @@ on:
       - '*'
   pull_request:
     branches:
-      - '*'
-      - '!ci_test_*'
+      - 'master'
 
 jobs:
   build:
