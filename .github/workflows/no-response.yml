@@ -13,7 +13,7 @@ jobs:
         with:
           repo-token: ${{ github.token }}
           days-before-stale: -1
-          days-before-close: 30
+          days-before-close: 14
           only-labels: 'waiting for author'
           stale-issue-label: 'waiting for author'
           stale-pr-label: 'waiting for author'
