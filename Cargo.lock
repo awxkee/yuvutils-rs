@@ -1353,7 +1353,7 @@ dependencies = [
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "num-traits",
  "rayon",
