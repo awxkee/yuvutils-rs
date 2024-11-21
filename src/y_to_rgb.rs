@@ -78,6 +78,9 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
 
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+
     let bias_y = range.bias_y as i32;
 
     #[cfg(all(
@@ -127,17 +130,19 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
-                &range,
-                &inverse_transform,
-                y_plane,
-                rgba,
-                _cx,
-                0,
-                0,
-                gray_image.width as usize,
-            );
-            _cx = offset;
+            if is_rdm_available {
+                let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
+                    &range,
+                    &inverse_transform,
+                    y_plane,
+                    rgba,
+                    _cx,
+                    0,
+                    0,
+                    gray_image.width as usize,
+                );
+                _cx = offset;
+            }
         }
 
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]

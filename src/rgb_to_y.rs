@@ -93,6 +93,8 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         feature = "nightly_avx512"
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
 
     let iter;
     #[cfg(feature = "rayon")]
@@ -155,14 +157,16 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS>(
-                &transform,
-                &range,
-                y_plane.as_mut_ptr(),
-                rgba,
-                _cx,
-                gray_image.width as usize,
-            );
+            if is_rdm_available {
+                _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS>(
+                    &transform,
+                    &range,
+                    y_plane.as_mut_ptr(),
+                    rgba,
+                    _cx,
+                    gray_image.width as usize,
+                );
+            }
         }
 
         for (y_dst, rgba) in y_plane
