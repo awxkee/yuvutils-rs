@@ -89,7 +89,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-    
+
     let width = bi_planar_image.width;
 
     #[allow(unused_variables)]
