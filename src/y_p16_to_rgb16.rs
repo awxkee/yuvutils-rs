@@ -53,12 +53,12 @@ fn yuv400_p16_to_rgbx<
     let max_colors = (1 << bit_depth) - 1;
 
     let channels = destination_channels.get_channels_count();
-    let range = get_yuv_range(bit_depth, range);
+    let chroma_range = get_yuv_range(bit_depth, range);
     let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(
         max_colors,
-        range.range_y,
-        range.range_uv,
+        chroma_range.range_y,
+        chroma_range.range_uv,
         kr_kb.kr,
         kr_kb.kb,
     );
@@ -68,7 +68,7 @@ fn yuv400_p16_to_rgbx<
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
 
-    let bias_y = range.bias_y as i32;
+    let bias_y = chroma_range.bias_y as i32;
 
     let iter;
     #[cfg(feature = "rayon")]
@@ -88,45 +88,63 @@ fn yuv400_p16_to_rgbx<
         );
     }
 
-    iter.for_each(|(rgba16, y_plane)| {
-        let mut _cx = 0usize;
+    match range {
+        YuvRange::Limited => {
+            iter.for_each(|(rgba16, y_plane)| {
+                let mut _cx = 0usize;
 
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        {
-            unsafe {
-                let offset = neon_y_p16_to_rgba16_row::<
-                    DESTINATION_CHANNELS,
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    PRECISION,
-                >(
-                    y_plane.as_ptr(),
-                    rgba16.as_mut_ptr(),
-                    gray_image.width,
-                    &range,
-                    &inverse_transform,
-                    0,
-                    bit_depth as usize,
-                );
-                _cx = offset.cx;
-            }
+                #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+                {
+                    unsafe {
+                        let offset = neon_y_p16_to_rgba16_row::<
+                            DESTINATION_CHANNELS,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            PRECISION,
+                        >(
+                            y_plane.as_ptr(),
+                            rgba16.as_mut_ptr(),
+                            gray_image.width,
+                            &chroma_range,
+                            &inverse_transform,
+                            0,
+                            bit_depth as usize,
+                        );
+                        _cx = offset.cx;
+                    }
+                }
+
+                for (dst, &y_src) in rgba16.chunks_exact_mut(channels).zip(y_plane).skip(_cx) {
+                    let y_value = (y_src as i32 - bias_y) * y_coef;
+
+                    let r = ((y_value + ROUNDING_CONST) >> PRECISION)
+                        .min(max_colors as i32)
+                        .max(0);
+
+                    dst[destination_channels.get_r_channel_offset()] = r as u16;
+                    dst[destination_channels.get_g_channel_offset()] = r as u16;
+                    dst[destination_channels.get_b_channel_offset()] = r as u16;
+                    if destination_channels.has_alpha() {
+                        dst[destination_channels.get_a_channel_offset()] = max_colors as u16;
+                    }
+                }
+            });
         }
+        YuvRange::Full => {
+            iter.for_each(|(rgba16, y_plane)| {
+                for (dst, &y_src) in rgba16.chunks_exact_mut(channels).zip(y_plane) {
+                    let r = y_src;
 
-        for (dst, &y_src) in rgba16.chunks_exact_mut(channels).zip(y_plane).skip(_cx) {
-            let y_value = (y_src as i32 - bias_y) * y_coef;
-
-            let r = ((y_value + ROUNDING_CONST) >> PRECISION)
-                .min(max_colors as i32)
-                .max(0);
-
-            dst[destination_channels.get_r_channel_offset()] = r as u16;
-            dst[destination_channels.get_g_channel_offset()] = r as u16;
-            dst[destination_channels.get_b_channel_offset()] = r as u16;
-            if destination_channels.has_alpha() {
-                dst[destination_channels.get_a_channel_offset()] = max_colors as u16;
-            }
+                    dst[destination_channels.get_r_channel_offset()] = r;
+                    dst[destination_channels.get_g_channel_offset()] = r;
+                    dst[destination_channels.get_b_channel_offset()] = r;
+                    if destination_channels.has_alpha() {
+                        dst[destination_channels.get_a_channel_offset()] = max_colors as u16;
+                    }
+                }
+            });
         }
-    });
+    }
 
     Ok(())
 }

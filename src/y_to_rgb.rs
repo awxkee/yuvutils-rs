@@ -67,9 +67,15 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     )?;
     gray_image.check_constraints()?;
 
-    let range = get_yuv_range(8, range);
+    let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
+    let transform = get_inverse_transform(
+        255,
+        chroma_range.range_y,
+        chroma_range.range_uv,
+        kr_kb.kr,
+        kr_kb.kb,
+    );
 
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     const PRECISION: i32 = 6;
@@ -81,7 +87,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
 
-    let bias_y = range.bias_y as i32;
+    let bias_y = chroma_range.bias_y as i32;
 
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -105,34 +111,51 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         y_iter = y_plane.chunks_exact(y_stride as usize);
     }
 
-    iter.zip(y_iter).for_each(|(rgba, y_plane)| {
-        let mut _cx = 0usize;
+    if range == YuvRange::Limited {
+        iter.zip(y_iter).for_each(|(rgba, y_plane)| {
+            let mut _cx = 0usize;
 
-        #[cfg(all(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            feature = "nightly_avx512"
-        ))]
-        unsafe {
-            if _use_avx512 {
-                let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(
-                    &range,
-                    &inverse_transform,
-                    y_plane,
-                    rgba,
-                    _cx,
-                    0,
-                    0,
-                    gray_image.width as usize,
-                );
-                _cx = processed;
+            #[cfg(all(
+                any(target_arch = "x86", target_arch = "x86_64"),
+                feature = "nightly_avx512"
+            ))]
+            unsafe {
+                if _use_avx512 {
+                    let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(
+                        &chroma_range,
+                        &inverse_transform,
+                        y_plane,
+                        rgba,
+                        _cx,
+                        0,
+                        0,
+                        gray_image.width as usize,
+                    );
+                    _cx = processed;
+                }
             }
-        }
 
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
-            if is_rdm_available {
-                let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
-                    &range,
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            unsafe {
+                if is_rdm_available {
+                    let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
+                        &chroma_range,
+                        &inverse_transform,
+                        y_plane,
+                        rgba,
+                        _cx,
+                        0,
+                        0,
+                        gray_image.width as usize,
+                    );
+                    _cx = offset;
+                }
+            }
+
+            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+            unsafe {
+                let offset = wasm_y_to_rgb_row::<DESTINATION_CHANNELS>(
+                    &chroma_range,
                     &inverse_transform,
                     y_plane,
                     rgba,
@@ -143,38 +166,39 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 );
                 _cx = offset;
             }
-        }
 
-        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-        unsafe {
-            let offset = wasm_y_to_rgb_row::<DESTINATION_CHANNELS>(
-                &range,
-                &inverse_transform,
-                y_plane,
-                rgba,
-                _cx,
-                0,
-                0,
-                gray_image.width as usize,
-            );
-            _cx = offset;
-        }
+            let rgba_sliced = &mut rgba[(_cx * channels)..];
+            let y_sliced = &y_plane[_cx..];
 
-        let rgba_sliced = &mut rgba[(_cx * channels)..];
-        let y_sliced = &y_plane[_cx..];
+            for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
+                let y_value = (*y_src as i32 - bias_y) * y_coef;
 
-        for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
-            let y_value = (*y_src as i32 - bias_y) * y_coef;
-
-            let r = qrshr::<PRECISION, 8>(y_value);
-            rgba[destination_channels.get_r_channel_offset()] = r as u8;
-            rgba[destination_channels.get_g_channel_offset()] = r as u8;
-            rgba[destination_channels.get_b_channel_offset()] = r as u8;
-            if destination_channels.has_alpha() {
-                rgba[destination_channels.get_a_channel_offset()] = 255;
+                let r = qrshr::<PRECISION, 8>(y_value);
+                rgba[destination_channels.get_r_channel_offset()] = r as u8;
+                rgba[destination_channels.get_g_channel_offset()] = r as u8;
+                rgba[destination_channels.get_b_channel_offset()] = r as u8;
+                if destination_channels.has_alpha() {
+                    rgba[destination_channels.get_a_channel_offset()] = 255;
+                }
             }
-        }
-    });
+        });
+    } else {
+        iter.zip(y_iter).for_each(|(rgba, y_plane)| {
+            let mut _cx = 0usize;
+            let rgba_sliced = &mut rgba[(_cx * channels)..];
+            let y_sliced = &y_plane[_cx..];
+
+            for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
+                let r = *y_src;
+                rgba[destination_channels.get_r_channel_offset()] = r;
+                rgba[destination_channels.get_g_channel_offset()] = r;
+                rgba[destination_channels.get_b_channel_offset()] = r;
+                if destination_channels.has_alpha() {
+                    rgba[destination_channels.get_a_channel_offset()] = 255;
+                }
+            }
+        });
+    }
 
     Ok(())
 }

@@ -79,12 +79,12 @@ where
 
     let max_colors = (1 << BIT_DEPTH) - 1;
 
-    let range = get_yuv_range(BIT_DEPTH as u32, range);
+    let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(
         max_colors,
-        range.range_y,
-        range.range_uv,
+        chroma_range.range_y,
+        chroma_range.range_uv,
         kr_kb.kr,
         kr_kb.kb,
     );
@@ -93,7 +93,7 @@ where
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
 
-    let bias_y = range.bias_y as i32;
+    let bias_y = chroma_range.bias_y as i32;
 
     let iter;
     let y_iter;
@@ -119,23 +119,41 @@ where
             .chunks_exact(gray_alpha_image.a_stride as usize);
     }
 
-    iter.zip(y_iter)
-        .zip(a_iter)
-        .for_each(|((rgba, y_plane), a_plane)| {
-            for ((y_src, a_src), rgba) in y_plane
-                .iter()
-                .zip(a_plane)
-                .zip(rgba.chunks_exact_mut(channels))
-            {
-                let y_value = (y_src.as_() - bias_y) * y_coef;
+    if range == YuvRange::Limited {
+        iter.zip(y_iter)
+            .zip(a_iter)
+            .for_each(|((rgba, y_plane), a_plane)| {
+                for ((y_src, a_src), rgba) in y_plane
+                    .iter()
+                    .zip(a_plane)
+                    .zip(rgba.chunks_exact_mut(channels))
+                {
+                    let y_value = (y_src.as_() - bias_y) * y_coef;
 
-                let r = qrshr::<PRECISION, BIT_DEPTH>(y_value);
-                rgba[destination_channels.get_r_channel_offset()] = r.as_();
-                rgba[destination_channels.get_g_channel_offset()] = r.as_();
-                rgba[destination_channels.get_b_channel_offset()] = r.as_();
-                rgba[destination_channels.get_a_channel_offset()] = *a_src;
-            }
-        });
+                    let r = qrshr::<PRECISION, BIT_DEPTH>(y_value);
+                    rgba[destination_channels.get_r_channel_offset()] = r.as_();
+                    rgba[destination_channels.get_g_channel_offset()] = r.as_();
+                    rgba[destination_channels.get_b_channel_offset()] = r.as_();
+                    rgba[destination_channels.get_a_channel_offset()] = *a_src;
+                }
+            });
+    } else {
+        iter.zip(y_iter)
+            .zip(a_iter)
+            .for_each(|((rgba, y_plane), a_plane)| {
+                for ((y_src, a_src), rgba) in y_plane
+                    .iter()
+                    .zip(a_plane)
+                    .zip(rgba.chunks_exact_mut(channels))
+                {
+                    let y_value = *y_src;
+                    rgba[destination_channels.get_r_channel_offset()] = y_value;
+                    rgba[destination_channels.get_g_channel_offset()] = y_value;
+                    rgba[destination_channels.get_b_channel_offset()] = y_value;
+                    rgba[destination_channels.get_a_channel_offset()] = *a_src;
+                }
+            });
+    }
 
     Ok(())
 }
