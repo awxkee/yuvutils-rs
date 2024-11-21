@@ -94,6 +94,8 @@ fn yuv_nv12_to_rgbx<
         feature = "nightly_avx512"
     ))]
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
 
     let width = bi_planar_image.width;
 
@@ -151,21 +153,23 @@ fn yuv_nv12_to_rgbx<
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             unsafe {
-                let processed =
-                    neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &range,
-                        &inverse_transform,
-                        _y_plane,
-                        _uv_plane,
-                        _bgra,
-                        _offset.cx,
-                        _offset.ux,
-                        0,
-                        0,
-                        0,
-                        width as usize,
-                    );
-                _offset = processed;
+                if is_rdm_available {
+                    let processed =
+                        neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                            &range,
+                            &inverse_transform,
+                            _y_plane,
+                            _uv_plane,
+                            _bgra,
+                            _offset.cx,
+                            _offset.ux,
+                            0,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    _offset = processed;
+                }
             }
         }
 

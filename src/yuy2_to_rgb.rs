@@ -83,6 +83,8 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
 
     let rgb_iter;
     let yuy2_iter;
@@ -135,16 +137,18 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let processed = yuy2_to_rgb_neon::<DESTINATION_CHANNELS, YUY2_SOURCE>(
-                &range,
-                &inverse_transform,
-                yuy2_store,
-                rgb_store,
-                packed_image.width,
-                YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
-            );
-            _cx = processed.cx;
-            _yuy2_x = processed.x;
+            if is_rdm_available {
+                let processed = yuy2_to_rgb_neon::<DESTINATION_CHANNELS, YUY2_SOURCE>(
+                    &range,
+                    &inverse_transform,
+                    yuy2_store,
+                    rgb_store,
+                    packed_image.width,
+                    YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
+                );
+                _cx = processed.cx;
+                _yuy2_x = processed.x;
+            }
         }
 
         for (rgb, yuy2) in rgb_store

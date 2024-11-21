@@ -43,11 +43,11 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     const PRECISION: i32,
     const BIT_DEPTH: usize,
 >(
-    y_ld_ptr: *const u16,
-    u_ld_ptr: *const u16,
-    v_ld_ptr: *const u16,
-    a_ld_ptr: *const u16,
-    rgba: *mut u16,
+    y_ld_ptr: &[u16],
+    u_ld_ptr: &[u16],
+    v_ld_ptr: &[u16],
+    a_ld_ptr: &[u16],
+    rgba: &mut [u16],
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -77,10 +77,13 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     let mut ux = start_ux;
 
     while cx + 8 < width as usize {
-        let a_values_l = vld1q_u16(a_ld_ptr.add(cx));
+        let a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
 
         let y_values: int16x8_t = vsubq_s16(
-            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(y_ld_ptr.add(cx), v_msb_shift),
+            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                y_ld_ptr.get_unchecked(cx..).as_ptr(),
+                v_msb_shift,
+            ),
             y_corr,
         );
 
@@ -90,10 +93,14 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
         let v_low: int16x4_t;
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut u_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(u_ld_ptr.add(ux), v_msb_shift);
-            let mut v_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(v_ld_ptr.add(ux), v_msb_shift);
+            let mut u_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                u_ld_ptr.get_unchecked(ux..).as_ptr(),
+                v_msb_shift,
+            );
+            let mut v_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                v_ld_ptr.get_unchecked(ux..).as_ptr(),
+                v_msb_shift,
+            );
 
             u_values_l = vsubq_s16(u_values_l, uv_corr);
             v_values_l = vsubq_s16(v_values_l, uv_corr);
@@ -104,11 +111,11 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
             v_low = vget_low_s16(v_values_l);
         } else {
             let mut u_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
-                u_ld_ptr.add(ux),
+                u_ld_ptr.get_unchecked(ux..).as_ptr(),
                 vget_low_s16(v_msb_shift),
             );
             let mut v_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
-                v_ld_ptr.add(ux),
+                v_ld_ptr.get_unchecked(ux..).as_ptr(),
                 vget_low_s16(v_msb_shift),
             );
             u_values_l = vsub_s16(u_values_l, vget_low_s16(uv_corr));
@@ -152,11 +159,17 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
             YuvSourceChannels::Bgr => {}
             YuvSourceChannels::Rgba => {
                 let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u16(rgba.add(cx * channels), dst_pack);
+                vst4q_u16(
+                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+                    dst_pack,
+                );
             }
             YuvSourceChannels::Bgra => {
                 let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u16(rgba.add(cx * channels), dst_pack);
+                vst4q_u16(
+                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+                    dst_pack,
+                );
             }
         }
 

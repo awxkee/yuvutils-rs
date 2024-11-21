@@ -87,7 +87,9 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    
     let width = bi_planar_image.width;
 
     #[allow(unused_variables)]
@@ -127,21 +129,23 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
-                let offset = neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
-                    y_plane,
-                    0,
-                    uv_plane,
-                    0,
-                    rgba,
-                    0,
-                    width,
-                    &range,
-                    &transform,
-                    _offset.cx,
-                    _offset.ux,
-                    compute_uv_row,
-                );
-                _offset = offset
+                if is_rdm_available {
+                    let offset = neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                        y_plane,
+                        0,
+                        uv_plane,
+                        0,
+                        rgba,
+                        0,
+                        width,
+                        &range,
+                        &transform,
+                        _offset.cx,
+                        _offset.ux,
+                        compute_uv_row,
+                    );
+                    _offset = offset
+                }
             }
             _offset
         };
