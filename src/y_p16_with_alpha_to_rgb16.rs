@@ -62,12 +62,12 @@ fn yuv400_p16_with_alpha_to_rgbx<
         "YUV400 with alpha cannot be called on target image without alpha"
     );
 
-    let range = get_yuv_range(bit_depth, range);
+    let chroma_range = get_yuv_range(bit_depth, range);
     let kr_kb = matrix.get_kr_kb();
     let transform = get_inverse_transform(
         max_colors,
-        range.range_y,
-        range.range_uv,
+        chroma_range.range_y,
+        chroma_range.range_uv,
         kr_kb.kr,
         kr_kb.kb,
     );
@@ -77,7 +77,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
     let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
 
-    let bias_y = range.bias_y as i32;
+    let bias_y = chroma_range.bias_y as i32;
 
     let iter;
     let y_iter;
@@ -103,23 +103,44 @@ fn yuv400_p16_with_alpha_to_rgbx<
             .chunks_exact(gray_alpha_image.a_stride as usize);
     }
 
-    iter.zip(y_iter)
-        .zip(a_iter)
-        .for_each(|((rgba16, y_plane16), a_plane16)| {
-            for ((&y_src, &a_src), rgba) in y_plane16
-                .iter()
-                .zip(a_plane16)
-                .zip(rgba16.chunks_exact_mut(channels))
-            {
-                let r = (((y_src as i32 - bias_y) * y_coef + ROUNDING_CONST) >> PRECISION)
-                    .min(max_colors as i32)
-                    .max(0);
-                rgba[destination_channels.get_r_channel_offset()] = r as u16;
-                rgba[destination_channels.get_g_channel_offset()] = r as u16;
-                rgba[destination_channels.get_b_channel_offset()] = r as u16;
-                rgba[destination_channels.get_a_channel_offset()] = a_src;
-            }
-        });
+    match range {
+        YuvRange::Limited => {
+            iter.zip(y_iter)
+                .zip(a_iter)
+                .for_each(|((rgba16, y_plane16), a_plane16)| {
+                    for ((&y_src, &a_src), rgba) in y_plane16
+                        .iter()
+                        .zip(a_plane16)
+                        .zip(rgba16.chunks_exact_mut(channels))
+                    {
+                        let r = (((y_src as i32 - bias_y) * y_coef + ROUNDING_CONST) >> PRECISION)
+                            .min(max_colors as i32)
+                            .max(0);
+                        rgba[destination_channels.get_r_channel_offset()] = r as u16;
+                        rgba[destination_channels.get_g_channel_offset()] = r as u16;
+                        rgba[destination_channels.get_b_channel_offset()] = r as u16;
+                        rgba[destination_channels.get_a_channel_offset()] = a_src;
+                    }
+                });
+        }
+        YuvRange::Full => {
+            iter.zip(y_iter)
+                .zip(a_iter)
+                .for_each(|((rgba16, y_plane16), a_plane16)| {
+                    for ((&y_src, &a_src), rgba) in y_plane16
+                        .iter()
+                        .zip(a_plane16)
+                        .zip(rgba16.chunks_exact_mut(channels))
+                    {
+                        let r = y_src;
+                        rgba[destination_channels.get_r_channel_offset()] = r;
+                        rgba[destination_channels.get_g_channel_offset()] = r;
+                        rgba[destination_channels.get_b_channel_offset()] = r;
+                        rgba[destination_channels.get_a_channel_offset()] = a_src;
+                    }
+                });
+        }
+    }
     Ok(())
 }
 

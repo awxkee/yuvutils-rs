@@ -138,12 +138,12 @@ pub fn rgb8_to_ra30(
 ) -> Result<(), YuvError> {
     match byte_order {
         Rgb30ByteOrder::Host => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+            { Rgb30::Ra30 as usize },
             { Rgb30ByteOrder::Host as usize },
             { YuvSourceChannels::Rgb as u8 },
         >(ar30, ar30_stride, rgb, rgb_stride, width, height),
         Rgb30ByteOrder::Network => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+            { Rgb30::Ra30 as usize },
             { Rgb30ByteOrder::Network as usize },
             { YuvSourceChannels::Rgb as u8 },
         >(ar30, ar30_stride, rgb, rgb_stride, width, height),
@@ -208,12 +208,12 @@ pub fn rgba8_to_ra30(
 ) -> Result<(), YuvError> {
     match byte_order {
         Rgb30ByteOrder::Host => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+            { Rgb30::Ra30 as usize },
             { Rgb30ByteOrder::Host as usize },
             { YuvSourceChannels::Rgba as u8 },
         >(ar30, ar30_stride, rgba, rgba_stride, width, height),
         Rgb30ByteOrder::Network => rgb_to_ar30_impl::<
-            { Rgb30::Ar30 as usize },
+            { Rgb30::Ra30 as usize },
             { Rgb30ByteOrder::Network as usize },
             { YuvSourceChannels::Rgba as u8 },
         >(ar30, ar30_stride, rgba, rgba_stride, width, height),

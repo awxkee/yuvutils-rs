@@ -58,7 +58,7 @@ impl<T: Copy + Debug> BufferStoreMut<'_, T> {
 }
 
 #[derive(Debug, Clone)]
-/// Non representation of Bi-Planar YUV image
+/// Non-mutable representation of Bi-Planar YUV image
 pub struct YuvBiPlanarImage<'a, T>
 where
     T: Copy + Debug,

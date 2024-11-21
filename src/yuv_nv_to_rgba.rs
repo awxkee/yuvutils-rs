@@ -154,20 +154,23 @@ fn yuv_nv12_to_rgbx<
         {
             unsafe {
                 if is_rdm_available {
-                    let processed =
-                        neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                            &range,
-                            &inverse_transform,
-                            _y_plane,
-                            _uv_plane,
-                            _bgra,
-                            _offset.cx,
-                            _offset.ux,
-                            0,
-                            0,
-                            0,
-                            width as usize,
-                        );
+                    let processed = neon_yuv_nv_to_rgba_row::<
+                        UV_ORDER,
+                        DESTINATION_CHANNELS,
+                        YUV_CHROMA_SAMPLING,
+                    >(
+                        &range,
+                        &inverse_transform,
+                        _y_plane,
+                        _uv_plane,
+                        _bgra,
+                        _offset.cx,
+                        _offset.ux,
+                        0,
+                        0,
+                        0,
+                        width as usize,
+                    );
                     _offset = processed;
                 }
             }

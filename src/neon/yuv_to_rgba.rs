@@ -72,7 +72,7 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let u_values = vld1_u8(u_ptr.add(uv_x));
-                let v_values = vld1_u8(v_ptr.add( uv_x));
+                let v_values = vld1_u8(v_ptr.add(uv_x));
 
                 u_high_u8 = vzip2_u8(u_values, u_values);
                 v_high_u8 = vzip2_u8(v_values, v_values);
@@ -81,7 +81,7 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const 
             }
             YuvChromaSubsampling::Yuv444 => {
                 let u_values = vld1q_u8(u_ptr.add(uv_x));
-                let v_values = vld1q_u8(v_ptr.add( uv_x));
+                let v_values = vld1q_u8(v_ptr.add(uv_x));
 
                 u_high_u8 = vget_high_u8(u_values);
                 v_high_u8 = vget_high_u8(v_values);
@@ -197,17 +197,15 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const 
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values =
-                    vreinterpret_u8_u32(vld1_dup_u32(u_ptr.add(uv_x) as *const u32));
-                let v_values =
-                    vreinterpret_u8_u32(vld1_dup_u32(v_ptr.add( uv_x) as *const u32));
+                let u_values = vreinterpret_u8_u32(vld1_dup_u32(u_ptr.add(uv_x) as *const u32));
+                let v_values = vreinterpret_u8_u32(vld1_dup_u32(v_ptr.add(uv_x) as *const u32));
 
                 u_low_u8 = vzip1_u8(u_values, u_values);
                 v_low_u8 = vzip1_u8(v_values, v_values);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let u_values = vld1_u8(u_ptr.add(uv_x));
-                let v_values = vld1_u8(v_ptr.add( uv_x));
+                let v_values = vld1_u8(v_ptr.add(uv_x));
 
                 u_low_u8 = u_values;
                 v_low_u8 = v_values;
