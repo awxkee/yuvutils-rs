@@ -34,7 +34,7 @@ use crate::avx2::avx2_yuv_to_rgba_row;
 ))]
 use crate::avx512bw::avx512_yuv_to_rgba;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_yuv_to_rgba_row, neon_yuv_to_rgba_row_ll};
+use crate::neon::neon_yuv_to_rgba_row;
 use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_to_rgba_row;
@@ -171,20 +171,6 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         unsafe {
             if is_rdm_available {
                 let processed = neon_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    _y_plane,
-                    _u_plane,
-                    _v_plane,
-                    _rgba,
-                    _cx,
-                    _uv_x,
-                    image.width as usize,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
-            } else {
-                let processed = neon_yuv_to_rgba_row_ll::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
                     &inverse_transform,
                     _y_plane,

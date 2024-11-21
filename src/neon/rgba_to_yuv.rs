@@ -40,11 +40,10 @@ pub unsafe fn neon_rgba_to_yuv<
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
-    y_plane: *mut u8,
-    u_plane: *mut u8,
-    v_plane: *mut u8,
+    y_plane: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
     rgba: &[u8],
-    rgba_offset: usize,
     start_cx: usize,
     start_ux: usize,
     width: usize,
@@ -91,7 +90,7 @@ pub unsafe fn neon_rgba_to_yuv<
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld3q_u8(rgba_ptr.add(cx * channels));
                 if source_channels == YuvSourceChannels::Rgb {
                     r_values_u8 = rgb_values.0;
                     g_values_u8 = rgb_values.1;
@@ -103,13 +102,13 @@ pub unsafe fn neon_rgba_to_yuv<
                 }
             }
             YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.0;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.2;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.0;
@@ -143,7 +142,7 @@ pub unsafe fn neon_rgba_to_yuv<
         );
 
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
-        vst1q_u8(y_ptr.add(cx), y);
+        vst1q_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y);
 
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 || compute_uv_row {
             let mut cb_high = vqrdmlahq_s16(uv_bias, r_high, v_cb_r);
@@ -188,14 +187,14 @@ pub unsafe fn neon_rgba_to_yuv<
                 YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                     let cb_s = vrshrn_n_u16::<1>(vpaddlq_u8(cb));
                     let cr_s = vrshrn_n_u16::<1>(vpaddlq_u8(cr));
-                    vst1_u8(u_ptr.add(ux), cb_s);
-                    vst1_u8(v_ptr.add(ux), cr_s);
+                    vst1_u8(u_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cb_s);
+                    vst1_u8(v_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cr_s);
 
                     ux += 8;
                 }
                 YuvChromaSubsampling::Yuv444 => {
-                    vst1q_u8(u_ptr.add(ux), cb);
-                    vst1q_u8(v_ptr.add(ux), cr);
+                    vst1q_u8(u_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cb);
+                    vst1q_u8(v_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cr);
 
                     ux += 16;
                 }
