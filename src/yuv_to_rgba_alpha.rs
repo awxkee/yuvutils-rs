@@ -168,11 +168,6 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         _rgba,
                         _cx,
                         _uv_x,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
                         image.width as usize,
                         premultiply_alpha,
                     );

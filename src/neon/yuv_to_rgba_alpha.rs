@@ -44,11 +44,6 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
-    u_offset: usize,
-    v_offset: usize,
-    a_offset: usize,
-    rgba_offset: usize,
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
@@ -69,8 +64,8 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
     let v_min_values = vdupq_n_s16(0i16);
 
     while cx + 16 < width {
-        let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
-        let a_values = vld1q_u8(a_ptr.add(a_offset + cx));
+        let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
+        let a_values = vld1q_u8(a_ptr.add(cx));
 
         let u_high_u8: uint8x8_t;
         let v_high_u8: uint8x8_t;
@@ -79,8 +74,8 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values = vld1_u8(u_ptr.add(u_offset + uv_x));
-                let v_values = vld1_u8(v_ptr.add(v_offset + uv_x));
+                let u_values = vld1_u8(u_ptr.add(uv_x));
+                let v_values = vld1_u8(v_ptr.add(uv_x));
 
                 u_high_u8 = vzip2_u8(u_values, u_values);
                 v_high_u8 = vzip2_u8(v_values, v_values);
@@ -88,8 +83,8 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
                 v_low_u8 = vzip1_u8(v_values, v_values);
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_values = vld1q_u8(u_ptr.add(u_offset + uv_x));
-                let v_values = vld1q_u8(v_ptr.add(v_offset + uv_x));
+                let u_values = vld1q_u8(u_ptr.add(uv_x));
+                let v_values = vld1q_u8(v_ptr.add(uv_x));
 
                 u_high_u8 = vget_high_u8(u_values);
                 v_high_u8 = vget_high_u8(v_values);
@@ -166,7 +161,7 @@ pub unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPL
         let mut g_values = vcombine_u8(g_low, g_high);
         let mut b_values = vcombine_u8(b_low, b_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         if use_premultiply {
             r_values = neon_premultiply_alpha(r_values, a_values);
