@@ -58,11 +58,11 @@ impl CbCrInverseTransform<f32> {
     /// Integral transformation adds an error not less than 1%
     pub fn to_integers(self, precision: u32) -> CbCrInverseTransform<i32> {
         let precision_scale: i32 = 1i32 << (precision as i32);
-        let cr_coef = (self.cr_coef * precision_scale as f32).round() as i32;
-        let cb_coef = (self.cb_coef * precision_scale as f32).round() as i32;
-        let y_coef = (self.y_coef * precision_scale as f32).round() as i32;
-        let g_coef_1 = (self.g_coeff_1 * precision_scale as f32).round() as i32;
-        let g_coef_2 = (self.g_coeff_2 * precision_scale as f32).round() as i32;
+        let cr_coef = (self.cr_coef * precision_scale as f32) as i32;
+        let cb_coef = (self.cb_coef * precision_scale as f32) as i32;
+        let y_coef = (self.y_coef * precision_scale as f32) as i32;
+        let g_coef_1 = (self.g_coeff_1 * precision_scale as f32) as i32;
+        let g_coef_2 = (self.g_coeff_2 * precision_scale as f32) as i32;
         CbCrInverseTransform::<i32> {
             y_coef,
             cr_coef,
@@ -114,15 +114,15 @@ impl ToIntegerTransform for CbCrForwardTransform<f32> {
     fn to_integers(&self, precision: u32) -> CbCrForwardTransform<i32> {
         let scale = (1 << precision) as f32;
         CbCrForwardTransform::<i32> {
-            yr: (self.yr * scale).round() as i32,
-            yg: (self.yg * scale).round() as i32,
-            yb: (self.yb * scale).round() as i32,
-            cb_r: (self.cb_r * scale).round() as i32,
-            cb_g: (self.cb_g * scale).round() as i32,
-            cb_b: (self.cb_b * scale).round() as i32,
-            cr_r: (self.cr_r * scale).round() as i32,
-            cr_g: (self.cr_g * scale).round() as i32,
-            cr_b: (self.cr_b * scale).round() as i32,
+            yr: (self.yr * scale) as i32,
+            yg: (self.yg * scale) as i32,
+            yb: (self.yb * scale) as i32,
+            cb_r: (self.cb_r * scale) as i32,
+            cb_g: (self.cb_g * scale) as i32,
+            cb_b: (self.cb_b * scale) as i32,
+            cr_r: (self.cr_r * scale) as i32,
+            cr_g: (self.cr_g * scale) as i32,
+            cr_b: (self.cr_b * scale) as i32,
         }
     }
 }
