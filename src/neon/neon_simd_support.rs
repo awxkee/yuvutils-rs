@@ -31,6 +31,40 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
 
 #[inline(always)]
+pub unsafe fn vdotl_s16<const PRECISION: i32>(
+    acc: (int32x4_t, int32x4_t),
+    v0: int16x8_t,
+    c0: int16x8_t,
+) -> int16x8_t {
+    let hi = vmlal_high_s16(acc.1, v0, c0);
+    let lo = vmlal_s16(acc.0, vget_low_s16(v0), vget_low_s16(c0));
+    vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
+}
+
+#[inline(always)]
+pub unsafe fn vdotl_s16_x2<const PRECISION: i32>(
+    acc: (int32x4_t, int32x4_t),
+    v0: int16x8_t,
+    c0: int16x8_t,
+    v1: int16x8_t,
+    c1: int16x8_t,
+) -> int16x8_t {
+    let mut hi = vmlal_high_s16(acc.1, v0, c0);
+    let mut lo = vmlal_s16(acc.0, vget_low_s16(v0), vget_low_s16(c0));
+    hi = vmlal_high_s16(hi, v1, c1);
+    lo = vmlal_s16(lo, vget_low_s16(v1), vget_low_s16(c1));
+    vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
+}
+
+#[inline(always)]
+pub unsafe fn vmullq_s16(v: int16x8_t, q: int16x8_t) -> (int32x4_t, int32x4_t) {
+    (
+        vmull_s16(vget_low_s16(v), vget_low_s16(q)),
+        vmull_high_s16(v, q),
+    )
+}
+
+#[inline(always)]
 pub unsafe fn neon_div_by_255(v: uint16x8_t) -> uint8x8_t {
     let addition = vdupq_n_u16(127);
     vqshrn_n_u16::<8>(vrsraq_n_u16::<8>(vaddq_u16(v, addition), v))
