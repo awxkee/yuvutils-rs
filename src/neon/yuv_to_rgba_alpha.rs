@@ -34,6 +34,7 @@ use crate::yuv_support::{
 };
 use std::arch::aarch64::*;
 
+#[target_feature(enable = "rdm")]
 pub(crate) unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,

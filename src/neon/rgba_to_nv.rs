@@ -34,6 +34,7 @@ use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 
+#[target_feature(enable = "rdm")]
 pub unsafe fn neon_rgbx_to_nv_row<
     const ORIGIN_CHANNELS: u8,
     const UV_ORDER: u8,

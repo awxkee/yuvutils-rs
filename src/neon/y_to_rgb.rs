@@ -30,6 +30,7 @@
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
+#[target_feature(enable = "rdm")]
 pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
