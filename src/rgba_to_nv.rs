@@ -31,7 +31,7 @@ use crate::avx2::avx2_rgba_to_nv;
 use crate::images::YuvBiPlanarImageMut;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgbx_to_nv_row;
+use crate::neon::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row_rdm};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgba_to_nv_row;
 use crate::yuv_error::check_rgba_destination;
@@ -89,6 +89,12 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available {
+        neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>
+    } else {
+        neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>
+    };
 
     let width = bi_planar_image.width;
 
@@ -130,7 +136,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
                 if is_rdm_available {
-                    let offset = neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                    let offset = neon_wide_row_handler(
                         y_plane,
                         0,
                         uv_plane,
