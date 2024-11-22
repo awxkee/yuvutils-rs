@@ -91,6 +91,12 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available {
+        neon_yuv_to_rgba_row_rdm::<DESTINATION_CHANNELS, SAMPLING>
+    } else {
+        neon_yuv_to_rgba_row::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+    };
 
     let process_wide_row = |_y_plane: &[u8], _u_plane: &[u8], _v_plane: &[u8], _rgba: &mut [u8]| {
         let mut _cx = 0usize;
@@ -169,35 +175,19 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            if is_rdm_available {
-                let processed = neon_yuv_to_rgba_row_rdm::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    _y_plane,
-                    _u_plane,
-                    _v_plane,
-                    _rgba,
-                    _cx,
-                    _uv_x,
-                    image.width as usize,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
-            } else {
-                let processed = neon_yuv_to_rgba_row::<PRECISION, DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    _y_plane,
-                    _u_plane,
-                    _v_plane,
-                    _rgba,
-                    _cx,
-                    _uv_x,
-                    image.width as usize,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
-            }
+            let processed = neon_wide_row_handler(
+                &range,
+                &inverse_transform,
+                _y_plane,
+                _u_plane,
+                _v_plane,
+                _rgba,
+                _cx,
+                _uv_x,
+                image.width as usize,
+            );
+            _cx = processed.cx;
+            _uv_x = processed.ux;
         }
         _cx
     };

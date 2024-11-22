@@ -37,7 +37,7 @@ use crate::avx512bw::avx512_yuv_nv_to_rgba;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_nv_to_rgba_row;
+use crate::neon::{neon_yuv_nv_to_rgba_row, neon_yuv_nv_to_rgba_row_rdm};
 use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_nv_to_rgba;
@@ -96,6 +96,12 @@ fn yuv_nv12_to_rgbx<
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row = if is_rdm_available {
+        neon_yuv_nv_to_rgba_row_rdm::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>
+    } else {
+        neon_yuv_nv_to_rgba_row::<PRECISION, UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>
+    };
 
     let width = bi_planar_image.width;
 
@@ -153,26 +159,17 @@ fn yuv_nv12_to_rgbx<
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             unsafe {
-                if is_rdm_available {
-                    let processed = neon_yuv_nv_to_rgba_row::<
-                        UV_ORDER,
-                        DESTINATION_CHANNELS,
-                        YUV_CHROMA_SAMPLING,
-                    >(
-                        &range,
-                        &inverse_transform,
-                        _y_plane,
-                        _uv_plane,
-                        _bgra,
-                        _offset.cx,
-                        _offset.ux,
-                        0,
-                        0,
-                        0,
-                        width as usize,
-                    );
-                    _offset = processed;
-                }
+                let processed = neon_wide_row(
+                    &range,
+                    &inverse_transform,
+                    _y_plane,
+                    _uv_plane,
+                    _bgra,
+                    _offset.cx,
+                    _offset.ux,
+                    width as usize,
+                );
+                _offset = processed;
             }
         }
 
