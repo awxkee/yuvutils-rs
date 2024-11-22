@@ -143,29 +143,20 @@ unsafe fn sse_yuv_to_rgba_alpha_row_impl<const DESTINATION_CHANNELS: u8, const S
         );
 
         let r_high = _mm_srai_epi16::<3>(_mm_add_epi16(
-            _mm_max_epi16(
-                _mm_add_epi16(y_high, _mm_mulhi_epi16(v_high, v_cr_coeff)),
-                zeros,
-            ),
+            _mm_add_epi16(y_high, _mm_mulhi_epi16(v_high, v_cr_coeff)),
             rounding_const,
         ));
         let b_high = _mm_srai_epi16::<3>(_mm_adds_epi16(
-            _mm_max_epi16(
-                _mm_add_epi16(y_high, _mm_mulhi_epi16(u_high, v_cb_coeff)),
-                zeros,
-            ),
+            _mm_add_epi16(y_high, _mm_mulhi_epi16(u_high, v_cb_coeff)),
             rounding_const,
         ));
         let g_high = _mm_srai_epi16::<3>(_mm_add_epi16(
-            _mm_max_epi16(
-                _mm_sub_epi16(
-                    y_high,
-                    _mm_add_epi16(
-                        _mm_mulhi_epi16(v_high, v_g_coeff_1),
-                        _mm_mulhi_epi16(u_high, v_g_coeff_2),
-                    ),
+            _mm_sub_epi16(
+                y_high,
+                _mm_add_epi16(
+                    _mm_mulhi_epi16(v_high, v_g_coeff_1),
+                    _mm_mulhi_epi16(u_high, v_g_coeff_2),
                 ),
-                zeros,
             ),
             rounding_const,
         ));
@@ -178,29 +169,20 @@ unsafe fn sse_yuv_to_rgba_alpha_row_impl<const DESTINATION_CHANNELS: u8, const S
         );
 
         let r_low = _mm_srai_epi16::<3>(_mm_add_epi16(
-            _mm_max_epi16(
-                _mm_add_epi16(y_low, _mm_mulhi_epi16(v_low, v_cr_coeff)),
-                zeros,
-            ),
+            _mm_add_epi16(y_low, _mm_mulhi_epi16(v_low, v_cr_coeff)),
             rounding_const,
         ));
         let b_low = _mm_srai_epi16::<3>(_mm_add_epi16(
-            _mm_max_epi16(
-                _mm_add_epi16(y_low, _mm_mulhi_epi16(u_low, v_cb_coeff)),
-                zeros,
-            ),
+            _mm_add_epi16(y_low, _mm_mulhi_epi16(u_low, v_cb_coeff)),
             rounding_const,
         ));
         let g_low = _mm_srai_epi16::<3>(_mm_add_epi16(
-            _mm_max_epi16(
-                _mm_sub_epi16(
-                    y_low,
-                    _mm_add_epi16(
-                        _mm_mulhi_epi16(v_low, v_g_coeff_1),
-                        _mm_mulhi_epi16(u_low, v_g_coeff_2),
-                    ),
+            _mm_sub_epi16(
+                y_low,
+                _mm_add_epi16(
+                    _mm_mulhi_epi16(v_low, v_g_coeff_1),
+                    _mm_mulhi_epi16(u_low, v_g_coeff_2),
                 ),
-                zeros,
             ),
             rounding_const,
         ));

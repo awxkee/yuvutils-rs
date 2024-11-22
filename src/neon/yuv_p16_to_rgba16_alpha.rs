@@ -68,7 +68,6 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
     let v_cr_coeff = vdup_n_s16(transform.cr_coef as i16);
     let v_cb_coeff = vdup_n_s16(transform.cb_coef as i16);
-    let v_min_values = vdupq_n_s16(0i16);
     let v_g_coeff_1 = vdup_n_s16(-(transform.g_coeff_1 as i16));
     let v_g_coeff_2 = vdup_n_s16(-(transform.g_coeff_2 as i16));
     let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
@@ -130,9 +129,9 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
 
         let y_high = vmull_high_s16(y_values, v_luma_coeff);
 
-        let r_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_high, v_high, v_cr_coeff));
-        let b_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_high, u_high, v_cb_coeff));
-        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_s16(
+        let r_high = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_high, v_high, v_cr_coeff));
+        let b_high = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_high, u_high, v_cb_coeff));
+        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_s16(
             vmlal_s16(y_high, v_high, v_g_coeff_1),
             u_high,
             v_g_coeff_2,
@@ -140,17 +139,17 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
 
         let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
 
-        let r_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_low, v_low, v_cr_coeff));
-        let b_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(y_low, u_low, v_cb_coeff));
-        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_s16(
+        let r_low = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_low, v_low, v_cr_coeff));
+        let b_low = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_low, u_low, v_cb_coeff));
+        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_s16(
             vmlal_s16(y_low, v_low, v_g_coeff_1),
             u_low,
             v_g_coeff_2,
         ));
 
-        let r_values = vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(r_low, r_high), v_min_values));
-        let g_values = vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(g_low, g_high), v_min_values));
-        let b_values = vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(b_low, b_high), v_min_values));
+        let r_values = vcombine_u16(r_low, r_high);
+        let g_values = vcombine_u16(g_low, g_high);
+        let b_values = vcombine_u16(b_low, b_high);
 
         let v_alpha = a_values_l;
 

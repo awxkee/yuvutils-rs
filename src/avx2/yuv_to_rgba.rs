@@ -83,7 +83,6 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
     let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm256_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
-    let v_min_values = _mm256_setzero_si256();
     let v_g_coeff_1 = _mm256_set1_epi16(transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
@@ -126,29 +125,20 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
         );
 
         let r_high = _mm256_srai_epi16::<3>(_mm256_add_epi16(
-            _mm256_max_epi16(
-                _mm256_add_epi16(y_high, _mm256_mulhi_epi16(v_high, v_cr_coeff)),
-                v_min_values,
-            ),
+            _mm256_add_epi16(y_high, _mm256_mulhi_epi16(v_high, v_cr_coeff)),
             rounding_const,
         ));
         let b_high = _mm256_srai_epi16::<3>(_mm256_add_epi16(
-            _mm256_max_epi16(
-                _mm256_add_epi16(y_high, _mm256_mulhi_epi16(u_high, v_cb_coeff)),
-                v_min_values,
-            ),
+            _mm256_add_epi16(y_high, _mm256_mulhi_epi16(u_high, v_cb_coeff)),
             rounding_const,
         ));
         let g_high = _mm256_srai_epi16::<3>(_mm256_add_epi16(
-            _mm256_max_epi16(
-                _mm256_sub_epi16(
-                    y_high,
-                    _mm256_add_epi16(
-                        _mm256_mulhi_epi16(v_high, v_g_coeff_1),
-                        _mm256_mulhi_epi16(u_high, v_g_coeff_2),
-                    ),
+            _mm256_sub_epi16(
+                y_high,
+                _mm256_add_epi16(
+                    _mm256_mulhi_epi16(v_high, v_g_coeff_1),
+                    _mm256_mulhi_epi16(u_high, v_g_coeff_2),
                 ),
-                v_min_values,
             ),
             rounding_const,
         ));
@@ -161,29 +151,20 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
         );
 
         let r_low = _mm256_srai_epi16::<3>(_mm256_add_epi16(
-            _mm256_max_epi16(
-                _mm256_add_epi16(y_low, _mm256_mulhi_epi16(v_low, v_cr_coeff)),
-                v_min_values,
-            ),
+            _mm256_add_epi16(y_low, _mm256_mulhi_epi16(v_low, v_cr_coeff)),
             rounding_const,
         ));
         let b_low = _mm256_srai_epi16::<3>(_mm256_add_epi16(
-            _mm256_max_epi16(
-                _mm256_add_epi16(y_low, _mm256_mulhi_epi16(u_low, v_cb_coeff)),
-                v_min_values,
-            ),
+            _mm256_add_epi16(y_low, _mm256_mulhi_epi16(u_low, v_cb_coeff)),
             rounding_const,
         ));
         let g_low = _mm256_srai_epi16::<3>(_mm256_add_epi16(
-            _mm256_max_epi16(
-                _mm256_sub_epi16(
-                    y_low,
-                    _mm256_add_epi16(
-                        _mm256_mulhi_epi16(v_low, v_g_coeff_1),
-                        _mm256_mulhi_epi16(u_low, v_g_coeff_2),
-                    ),
+            _mm256_sub_epi16(
+                y_low,
+                _mm256_add_epi16(
+                    _mm256_mulhi_epi16(v_low, v_g_coeff_1),
+                    _mm256_mulhi_epi16(u_low, v_g_coeff_2),
                 ),
-                v_min_values,
             ),
             rounding_const,
         ));

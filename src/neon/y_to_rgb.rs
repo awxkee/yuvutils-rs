@@ -47,7 +47,6 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = vdupq_n_u8(range.bias_y as u8);
-    let v_min_values = vdupq_n_s16(0i16);
     let v_alpha = vdupq_n_u8(255u8);
 
     let mut cx = start_cx;
@@ -60,14 +59,14 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
             transform.y_coef as i16,
         );
 
-        let r_high = vqrshrun_n_s16::<4>(vmaxq_s16(y_high, v_min_values));
+        let r_high = vqrshrun_n_s16::<4>(y_high);
 
         let y_low = vqrdmulhq_n_s16(
             vreinterpretq_s16_u16(vshll_n_u8::<7>(vget_low_u8(y_values))),
             transform.y_coef as i16,
         );
 
-        let r_low = vqrshrun_n_s16::<4>(vmaxq_s16(y_low, v_min_values));
+        let r_low = vqrshrun_n_s16::<4>(y_low);
 
         let r_values = vcombine_u8(r_low, r_high);
 
