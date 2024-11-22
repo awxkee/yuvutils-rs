@@ -186,9 +186,6 @@ fn rgbx_to_yuv_bi_planar_10_impl<
         }
     };
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-
     let y_plane = bi_planar_image.y_plane.borrow_mut();
     let uv_plane = bi_planar_image.uv_plane.borrow_mut();
     let y_stride = bi_planar_image.y_stride;
