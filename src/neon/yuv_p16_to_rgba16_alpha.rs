@@ -35,7 +35,7 @@ use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 
-pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
+pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -58,7 +58,7 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     if destination_channels == YuvSourceChannels::Rgb
         || destination_channels == YuvSourceChannels::Bgr
     {
-        panic!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
+        unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
@@ -150,6 +150,158 @@ pub unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
         let r_values = vcombine_u16(r_low, r_high);
         let g_values = vcombine_u16(g_low, g_high);
         let b_values = vcombine_u16(b_low, b_high);
+
+        let v_alpha = a_values_l;
+
+        match destination_channels {
+            YuvSourceChannels::Rgb => {}
+            YuvSourceChannels::Bgr => {}
+            YuvSourceChannels::Rgba => {
+                let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
+                vst4q_u16(
+                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+                    dst_pack,
+                );
+            }
+            YuvSourceChannels::Bgra => {
+                let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
+                vst4q_u16(
+                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+                    dst_pack,
+                );
+            }
+        }
+
+        cx += 8;
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                ux += 4;
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                ux += 8;
+            }
+        }
+    }
+
+    ProcessedOffset { cx, ux }
+}
+
+#[target_feature(enable = "rdm")]
+pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+>(
+    y_ld_ptr: &[u16],
+    u_ld_ptr: &[u16],
+    v_ld_ptr: &[u16],
+    a_ld_ptr: &[u16],
+    rgba: &mut [u16],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    start_cx: usize,
+    start_ux: usize,
+) -> ProcessedOffset {
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    if destination_channels == YuvSourceChannels::Rgb
+        || destination_channels == YuvSourceChannels::Bgr
+    {
+        unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
+    }
+    let channels = destination_channels.get_channels_count();
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+
+    let y_corr = vdupq_n_s16(range.bias_y as i16);
+    let uv_corr = vdupq_n_s16(range.bias_uv as i16);
+    let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
+    let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
+    let v_g_coeff_1 = vdupq_n_s16(-(transform.g_coeff_1 as i16));
+    let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
+    let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
+    let zeros = vdupq_n_s16(0);
+    let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
+
+    let mut cx = start_cx;
+    let mut ux = start_ux;
+
+    while cx + 8 < width as usize {
+        let a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
+
+        let y_values: int16x8_t = vsubq_s16(
+            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                y_ld_ptr.get_unchecked(cx..).as_ptr(),
+                v_msb_shift,
+            ),
+            y_corr,
+        );
+
+        let u_values: int16x8_t;
+        let v_values: int16x8_t;
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let mut u_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                u_ld_ptr.get_unchecked(ux..).as_ptr(),
+                v_msb_shift,
+            );
+            let mut v_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                v_ld_ptr.get_unchecked(ux..).as_ptr(),
+                v_msb_shift,
+            );
+
+            u_values_l = vsubq_s16(u_values_l, uv_corr);
+            v_values_l = vsubq_s16(v_values_l, uv_corr);
+
+            u_values = vshlq_n_s16::<3>(u_values_l);
+            v_values = vshlq_n_s16::<3>(v_values_l);
+        } else {
+            let mut u_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                u_ld_ptr.get_unchecked(ux..).as_ptr(),
+                vget_low_s16(v_msb_shift),
+            );
+            let mut v_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                v_ld_ptr.get_unchecked(ux..).as_ptr(),
+                vget_low_s16(v_msb_shift),
+            );
+            u_values_l = vsub_s16(u_values_l, vget_low_s16(uv_corr));
+            v_values_l = vsub_s16(v_values_l, vget_low_s16(uv_corr));
+
+            let u_high = vzip2_s16(u_values_l, u_values_l);
+            let v_high = vzip2_s16(v_values_l, v_values_l);
+
+            let u_low = vzip1_s16(u_values_l, u_values_l);
+            let v_low = vzip1_s16(v_values_l, v_values_l);
+
+            u_values = vshlq_n_s16::<3>(vcombine_s16(u_low, u_high));
+            v_values = vshlq_n_s16::<3>(vcombine_s16(v_low, v_high));
+        }
+
+        let y_high = vqrdmulhq_n_s16(vshlq_n_s16::<3>(y_values), transform.y_coef as i16);
+
+        let r_vals = vqrdmlahq_s16(y_high, v_values, v_cr_coeff);
+        let b_vals = vqrdmlahq_s16(y_high, u_values, v_cb_coeff);
+        let g_vals = vqrdmlahq_s16(
+            vqrdmlahq_s16(y_high, v_values, v_g_coeff_1),
+            u_values,
+            v_g_coeff_2,
+        );
+
+        let r_values = vminq_u16(
+            vreinterpretq_u16_s16(vmaxq_s16(r_vals, zeros)),
+            v_max_values,
+        );
+        let g_values = vminq_u16(
+            vreinterpretq_u16_s16(vmaxq_s16(g_vals, zeros)),
+            v_max_values,
+        );
+        let b_values = vminq_u16(
+            vreinterpretq_u16_s16(vmaxq_s16(b_vals, zeros)),
+            v_max_values,
+        );
 
         let v_alpha = a_values_l;
 

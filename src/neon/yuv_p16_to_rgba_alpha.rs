@@ -36,7 +36,7 @@ use crate::yuv_support::{
 };
 
 #[inline(always)]
-pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
+pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -60,7 +60,7 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     if destination_channels == YuvSourceChannels::Rgb
         || destination_channels == YuvSourceChannels::Bgr
     {
-        panic!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
+        unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();

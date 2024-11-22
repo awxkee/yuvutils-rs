@@ -113,9 +113,9 @@ fn yuv_p16_to_image_ant<
                         BIT_DEPTH,
                         PRECISION,
                     >(
-                        _y_plane.as_ptr(),
-                        _u_plane.as_ptr(),
-                        _v_plane.as_ptr(),
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
                         _rgba,
                         0,
                         image.width,

@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_p16_to_rgba16_row;
+use crate::neon::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
 use crate::numerics::{qrshr, to_ne};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
@@ -79,6 +79,29 @@ fn yuv_p16_to_image_p16_ant<
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
+        neon_yuv_p16_to_rgba16_row_rdm::<
+            DESTINATION_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    } else {
+        neon_yuv_p16_to_rgba16_row::<
+            DESTINATION_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    };
+
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
@@ -89,23 +112,16 @@ fn yuv_p16_to_image_p16_ant<
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 unsafe {
-                    let offset = neon_yuv_p16_to_rgba16_row::<
-                        DESTINATION_CHANNELS,
-                        SAMPLING,
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        PRECISION,
-                        BIT_DEPTH,
-                    >(
-                        _y_plane.as_ptr(),
-                        _u_plane.as_ptr(),
-                        _v_plane.as_ptr(),
-                        _rgba.as_mut_ptr(),
+                    let offset = neon_wide_row_handler(
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _rgba,
                         image.width,
                         &range,
                         &i_transform,
                         0,
-                        _cx,
+                        0,
                     );
                     _cx = offset.cx;
                 }
