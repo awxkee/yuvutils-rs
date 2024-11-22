@@ -36,7 +36,7 @@ use crate::avx512bw::avx512_rgba_to_yuv;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgba_to_yuv;
+use crate::neon::{neon_rgba_to_yuv_rdm, neon_rgba_to_yuv};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgba_to_yuv_row;
 use crate::yuv_error::check_rgba_destination;
@@ -100,6 +100,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    let neon_wide_row_handler = if is_rdm_available {
+        neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+    } else {
+        neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+    };
 
     #[allow(unused_variables)]
     let process_wide_row = |y_plane: &mut [u8],
@@ -167,7 +172,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             if is_rdm_available {
-                let offset = neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
+                let offset = neon_wide_row_handler(
                     &transform,
                     &range,
                     y_plane,

@@ -59,7 +59,7 @@ pub use rgb_to_ycgco::neon_rgb_to_ycgco_row;
 pub use rgb_to_ycgco_r::neon_rgb_to_ycgcor_row;
 pub use rgb_to_yuv_p16::neon_rgba_to_yuv_p16;
 pub use rgba_to_nv::neon_rgbx_to_nv_row;
-pub use rgba_to_yuv::neon_rgba_to_yuv;
+pub(crate) use rgba_to_yuv::{neon_rgba_to_yuv_rdm, neon_rgba_to_yuv};
 pub use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;
 pub(crate) use y_to_rgb::{neon_y_to_rgb_row, neon_y_to_rgb_row_rdm};
 pub use ycgco_to_rgb::neon_ycgco_to_rgb_row;
