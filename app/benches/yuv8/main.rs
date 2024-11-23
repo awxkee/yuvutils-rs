@@ -63,145 +63,145 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let fixed_planar = planar_image.to_fixed();
 
-    let rgba_image = img.to_rgba8();
-
-    c.bench_function("yuvutils RGB -> YUV 4:2:0", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv420,
-        );
-        b.iter(|| {
-            rgb_to_yuv420(
-                &mut test_planar,
-                &src_bytes,
-                stride as u32,
-                YuvRange::Limited,
-                YuvStandardMatrix::Bt601,
-            )
-            .unwrap();
-        })
-    });
-
-    c.bench_function("libyuv RGB -> YUV 4:2:0", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv420,
-        );
-        b.iter(|| unsafe {
-            rs_RGB24ToI420(
-                src_bytes.as_ptr(),
-                stride as i32,
-                test_planar.y_plane.borrow_mut().as_mut_ptr(),
-                test_planar.y_stride as i32,
-                test_planar.u_plane.borrow_mut().as_mut_ptr(),
-                test_planar.u_stride as i32,
-                test_planar.v_plane.borrow_mut().as_mut_ptr(),
-                test_planar.v_stride as i32,
-                test_planar.width as i32,
-                test_planar.height as i32,
-            );
-        })
-    });
-
-    c.bench_function("yuvutils RGBA -> YUV 4:2:0", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv420,
-        );
-        b.iter(|| {
-            rgba_to_yuv420(
-                &mut test_planar,
-                &rgba_image,
-                dimensions.0 * 4,
-                YuvRange::Limited,
-                YuvStandardMatrix::Bt601,
-            )
-            .unwrap();
-        })
-    });
-
-    c.bench_function("libyuv RGBA -> YUV 4:2:0", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv420,
-        );
-        b.iter(|| unsafe {
-            rs_ABGRToI420(
-                rgba_image.as_ptr(),
-                dimensions.0 as i32 * 4i32,
-                test_planar.y_plane.borrow_mut().as_mut_ptr(),
-                test_planar.y_stride as i32,
-                test_planar.u_plane.borrow_mut().as_mut_ptr(),
-                test_planar.u_stride as i32,
-                test_planar.v_plane.borrow_mut().as_mut_ptr(),
-                test_planar.v_stride as i32,
-                test_planar.width as i32,
-                test_planar.height as i32,
-            );
-        })
-    });
-
-    c.bench_function("yuvutils RGBA -> YUV 4:2:2", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv422,
-        );
-        b.iter(|| {
-            rgba_to_yuv422(
-                &mut test_planar,
-                &rgba_image,
-                dimensions.0 * 4,
-                YuvRange::Limited,
-                YuvStandardMatrix::Bt601,
-            )
-            .unwrap();
-        })
-    });
-
-    c.bench_function("libyuv RGBA -> YUV 4:2:2", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv422,
-        );
-        b.iter(|| unsafe {
-            rs_ABGRToJ422(
-                rgba_image.as_ptr(),
-                dimensions.0 as i32 * 4i32,
-                test_planar.y_plane.borrow_mut().as_mut_ptr(),
-                test_planar.y_stride as i32,
-                test_planar.u_plane.borrow_mut().as_mut_ptr(),
-                test_planar.u_stride as i32,
-                test_planar.v_plane.borrow_mut().as_mut_ptr(),
-                test_planar.v_stride as i32,
-                test_planar.width as i32,
-                test_planar.height as i32,
-            );
-        })
-    });
-
-    c.bench_function("yuvutils RGBA -> YUV 4:4:4", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv444,
-        );
-        b.iter(|| {
-            rgba_to_yuv444(
-                &mut test_planar,
-                &rgba_image,
-                dimensions.0 * 4,
-                YuvRange::Limited,
-                YuvStandardMatrix::Bt601,
-            )
-            .unwrap();
-        })
-    });
+    // let rgba_image = img.to_rgba8();
+    //
+    // c.bench_function("yuvutils RGB -> YUV 4:2:0", |b| {
+    //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+    //         dimensions.0,
+    //         dimensions.1,
+    //         YuvChromaSubsampling::Yuv420,
+    //     );
+    //     b.iter(|| {
+    //         rgb_to_yuv420(
+    //             &mut test_planar,
+    //             &src_bytes,
+    //             stride as u32,
+    //             YuvRange::Limited,
+    //             YuvStandardMatrix::Bt601,
+    //         )
+    //         .unwrap();
+    //     })
+    // });
+    //
+    // c.bench_function("libyuv RGB -> YUV 4:2:0", |b| {
+    //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+    //         dimensions.0,
+    //         dimensions.1,
+    //         YuvChromaSubsampling::Yuv420,
+    //     );
+    //     b.iter(|| unsafe {
+    //         rs_RGB24ToI420(
+    //             src_bytes.as_ptr(),
+    //             stride as i32,
+    //             test_planar.y_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.y_stride as i32,
+    //             test_planar.u_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.u_stride as i32,
+    //             test_planar.v_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.v_stride as i32,
+    //             test_planar.width as i32,
+    //             test_planar.height as i32,
+    //         );
+    //     })
+    // });
+    //
+    // c.bench_function("yuvutils RGBA -> YUV 4:2:0", |b| {
+    //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+    //         dimensions.0,
+    //         dimensions.1,
+    //         YuvChromaSubsampling::Yuv420,
+    //     );
+    //     b.iter(|| {
+    //         rgba_to_yuv420(
+    //             &mut test_planar,
+    //             &rgba_image,
+    //             dimensions.0 * 4,
+    //             YuvRange::Limited,
+    //             YuvStandardMatrix::Bt601,
+    //         )
+    //         .unwrap();
+    //     })
+    // });
+    //
+    // c.bench_function("libyuv RGBA -> YUV 4:2:0", |b| {
+    //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+    //         dimensions.0,
+    //         dimensions.1,
+    //         YuvChromaSubsampling::Yuv420,
+    //     );
+    //     b.iter(|| unsafe {
+    //         rs_ABGRToI420(
+    //             rgba_image.as_ptr(),
+    //             dimensions.0 as i32 * 4i32,
+    //             test_planar.y_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.y_stride as i32,
+    //             test_planar.u_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.u_stride as i32,
+    //             test_planar.v_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.v_stride as i32,
+    //             test_planar.width as i32,
+    //             test_planar.height as i32,
+    //         );
+    //     })
+    // });
+    //
+    // c.bench_function("yuvutils RGBA -> YUV 4:2:2", |b| {
+    //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+    //         dimensions.0,
+    //         dimensions.1,
+    //         YuvChromaSubsampling::Yuv422,
+    //     );
+    //     b.iter(|| {
+    //         rgba_to_yuv422(
+    //             &mut test_planar,
+    //             &rgba_image,
+    //             dimensions.0 * 4,
+    //             YuvRange::Limited,
+    //             YuvStandardMatrix::Bt601,
+    //         )
+    //         .unwrap();
+    //     })
+    // });
+    //
+    // c.bench_function("libyuv RGBA -> YUV 4:2:2", |b| {
+    //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+    //         dimensions.0,
+    //         dimensions.1,
+    //         YuvChromaSubsampling::Yuv422,
+    //     );
+    //     b.iter(|| unsafe {
+    //         rs_ABGRToJ422(
+    //             rgba_image.as_ptr(),
+    //             dimensions.0 as i32 * 4i32,
+    //             test_planar.y_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.y_stride as i32,
+    //             test_planar.u_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.u_stride as i32,
+    //             test_planar.v_plane.borrow_mut().as_mut_ptr(),
+    //             test_planar.v_stride as i32,
+    //             test_planar.width as i32,
+    //             test_planar.height as i32,
+    //         );
+    //     })
+    // });
+    //
+    // c.bench_function("yuvutils RGBA -> YUV 4:4:4", |b| {
+    //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+    //         dimensions.0,
+    //         dimensions.1,
+    //         YuvChromaSubsampling::Yuv444,
+    //     );
+    //     b.iter(|| {
+    //         rgba_to_yuv444(
+    //             &mut test_planar,
+    //             &rgba_image,
+    //             dimensions.0 * 4,
+    //             YuvRange::Limited,
+    //             YuvStandardMatrix::Bt601,
+    //         )
+    //         .unwrap();
+    //     })
+    // });
 
     c.bench_function("yuvutils YUV 4:2:0 -> RGB", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 3 * dimensions.1 as usize];
