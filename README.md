@@ -37,57 +37,29 @@ cargo add yuvutils-rs
 ### RGB to YCbCr
 
 ```rust
-rgb_to_yuv422(&mut y_plane, y_stride,
-              &mut u_plane, u_width,
-              &mut v_plane, v_width,
-              &rgb, rgb_stride,
-              width, height, 
-              YuvRange::Full, YuvStandardMatrix::Bt709);
-```
-
-### RGB to sharp YUV
-
-```rust
-rgb_to_sharp_yuv420(&mut y_plane, y_stride,
-                    &mut u_plane, u_width,
-                    &mut v_plane, v_width,
-                    &rgb, rgb_stride,
-                    width, height, 
-                    YuvRange::Full, YuvStandardMatrix::Bt709,
-                    SharpYuvGammaTransfer::Srgb);
+let mut planar_image =
+    YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+rgb_to_yuv422(
+    &mut planar_image,
+    &src_bytes,
+    rgba_stride as u32,
+    YuvRange::Limited,
+    YuvStandardMatrix::Bt601,
+)
+.unwrap();
 ```
 
 ### YCbCr to RGB
 
 ```rust
-yuv422_to_rgb(&y_plane, y_stride, 
-              &u_plane, u_stride,
-              &v_plane, v_stride,
-              &mut rgb, rgb_stride,
-              width, height, 
-              YuvRange::Full, YuvStandardMatrix::Bt709);
-```
-
-### RGB To YCgCo
-
-```rust
-rgb_to_ycgco420(&mut y_plane, y_stride,
-                &mut cg_plane, cg_width,
-                &mut cg_plane, cg_width,
-                &rgb, rgb_stride,
-                width, height, 
-                YuvRange::TV);
-```
-
-### YCgCo to RGB
-
-```rust
-ycgco420_to_rgb(&y_plane, y_stride, 
-                &cg_plane, cg_stride,
-                &co_plane, co_stride,
-                &mut rgb, rgb_stride,
-                width, height, 
-                YuvRange::TV);
+yuv420_to_rgb(
+    &yuv_planar_image,
+    &mut rgba,
+    rgba_stride as u32,
+    YuvRange::Limited,
+    YuvStandardMatrix::Bt601,
+)
+.unwrap();
 ```
 
 ## Benchmarks

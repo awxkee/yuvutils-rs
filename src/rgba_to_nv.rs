@@ -135,23 +135,21 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
-                if is_rdm_available {
-                    let offset = neon_wide_row_handler(
-                        y_plane,
-                        0,
-                        uv_plane,
-                        0,
-                        rgba,
-                        0,
-                        width,
-                        &range,
-                        &transform,
-                        _offset.cx,
-                        _offset.ux,
-                        compute_uv_row,
-                    );
-                    _offset = offset
-                }
+                let offset = neon_wide_row_handler(
+                    y_plane,
+                    0,
+                    uv_plane,
+                    0,
+                    rgba,
+                    0,
+                    width,
+                    &range,
+                    &transform,
+                    _offset.cx,
+                    _offset.ux,
+                    compute_uv_row,
+                );
+                _offset = offset
             }
             _offset
         };

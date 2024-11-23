@@ -90,7 +90,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     let transform_precise =
         get_forward_transform(max_range, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
     let transform = transform_precise.to_integers(8);
-    const PRECISION: i32 = 8;
+    const PRECISION: i32 = 12;
     const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
