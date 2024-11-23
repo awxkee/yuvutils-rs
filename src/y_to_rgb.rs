@@ -99,7 +99,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
     ))]
-    let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
     let y_plane = gray_image.y_plane;
     let y_stride = gray_image.y_stride;
@@ -126,7 +126,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 feature = "nightly_avx512"
             ))]
             unsafe {
-                if _use_avx512 {
+                if use_avx512 {
                     let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(
                         &chroma_range,
                         &inverse_transform,

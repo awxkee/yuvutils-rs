@@ -118,7 +118,7 @@ fn yuv_p16_to_image_alpha_ant<
         >
     };
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
 
@@ -173,7 +173,7 @@ fn yuv_p16_to_image_alpha_ant<
                     v_offset = offset;
                     _cx = offset.cx;
                 }
-                if _use_sse && BIT_DEPTH <= 12 {
+                if use_sse && BIT_DEPTH <= 12 {
                     let offset = sse_yuv_p16_to_rgba_alpha_row::<
                         DESTINATION_CHANNELS,
                         SAMPLING,

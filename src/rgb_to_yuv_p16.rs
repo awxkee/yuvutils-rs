@@ -110,7 +110,7 @@ fn rgbx_to_yuv_ant<
     let i_cap_uv = i_bias_y + range.range_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -165,7 +165,7 @@ fn rgbx_to_yuv_ant<
         let mut _offset = ProcessedOffset { ux: _cx, cx: _ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if _use_sse {
+            if use_sse {
                 _offset = sse_dispatch(
                     &transform,
                     &range,

@@ -58,9 +58,9 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+    let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
 
     let width = planar_image.width;
 

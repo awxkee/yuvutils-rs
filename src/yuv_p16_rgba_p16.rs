@@ -108,9 +108,9 @@ fn yuv_p16_to_image_p16_ant<
         >
     };
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let _use_avx = std::arch::is_x86_feature_detected!("avx2");
+    let use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
@@ -140,7 +140,7 @@ fn yuv_p16_to_image_p16_ant<
             {
                 let mut v_offset = ProcessedOffset { cx: 0, ux: 0 };
                 unsafe {
-                    if _use_avx && BIT_DEPTH <= 12 {
+                    if use_avx && BIT_DEPTH <= 12 {
                         let offset = avx_yuv_p16_to_rgba_row::<
                             DESTINATION_CHANNELS,
                             SAMPLING,
@@ -162,7 +162,7 @@ fn yuv_p16_to_image_p16_ant<
                         v_offset = offset;
                         _cx = v_offset.cx;
                     }
-                    if _use_sse && BIT_DEPTH <= 12 {
+                    if use_sse && BIT_DEPTH <= 12 {
                         let offset = sse_yuv_p16_to_rgba_row::<
                             DESTINATION_CHANNELS,
                             SAMPLING,
