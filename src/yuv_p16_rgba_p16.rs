@@ -28,6 +28,7 @@
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx_yuv_p16_to_rgba_row;
+#[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
