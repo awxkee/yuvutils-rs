@@ -33,7 +33,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline]
-pub unsafe fn sse_rgb_to_ycgco(
+pub(crate) unsafe fn sse_rgb_to_ycgco(
     r: __m128i,
     g: __m128i,
     b: __m128i,

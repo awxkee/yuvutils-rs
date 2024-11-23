@@ -38,7 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn sse_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) fn sse_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],

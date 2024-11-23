@@ -37,7 +37,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn yuv_to_yuy2_sse<const SAMPLING: u8, const YUY2_TARGET: usize>(
+pub(crate) fn yuv_to_yuy2_sse<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &[u8],
     y_offset: usize,
     u_plane: &[u8],

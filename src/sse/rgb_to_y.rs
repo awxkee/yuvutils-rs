@@ -34,7 +34,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
+pub(crate) fn sse_rgb_to_y<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],

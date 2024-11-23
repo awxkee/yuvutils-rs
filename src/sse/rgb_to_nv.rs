@@ -39,7 +39,11 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn sse_rgba_to_nv_row<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
+pub(crate) fn sse_rgba_to_nv_row<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+>(
     y_plane: &mut [u8],
     uv_plane: &mut [u8],
     rgba: &[u8],
