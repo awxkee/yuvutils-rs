@@ -92,7 +92,7 @@ ycgco420_to_rgb(&y_plane, y_stride,
 
 ## Benchmarks
 
-YUV 8bit
+YUV 8 bit-depth conversion
 
 ```bash
 cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
@@ -100,16 +100,30 @@ cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
 
 Tests performed on the image 5763x3842
 
+### Encoding
+
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
-| utils YUV 4:2:0->RGB   |   4.95ms   |     -     |
-| libyuv YUV 4:2:0->RGB  |   5.70ms   |     -     |
-| utils YUV 4:2:0->RGBA  |   5.56ms   |     -     |
-| libyuv YUV 4:2:0->RGBA |   6.13ms   |     -     |
-| utils YUV 4:2:2->RGBA  |   5.39ms   |     -     |
-| libyuv YUV 4:2:2->RGBA |   5.91ms   |     -     |
-| utils YUV 4:4:4->RGBA  |   5.04ms   |     -     |
-| libyuv YUV 4:4:4->RGBA |   4.82ms   |     -     |
+| utils RGB->YUV 4:2:0   |     -      |  9.86ms   |
+| libyuv RGB->YUV 4:2:0  |     -      |  33.87ms  |
+| utils RGBA->YUV 4:2:0  |     -      |  10.63ms  |
+| libyuv RGBA->YUV 4:2:0 |     -      |  23.48ms  |
+| utils RGBA->YUV 4:2:2  |     -      |  8.24ms   |
+| libyuv RGBA->YUV 4:2:2 |     -      |  35.23ms  |
+| utils RGBA->YUV 4:4:4  |     -      |  7.97ms   |
+
+### Decoding
+
+|                        | time(NEON) | Time(AVX) |
+|------------------------|:----------:|:---------:|
+| utils YUV 4:2:0->RGB   |   4.95ms   |  5.47ms   |
+| libyuv YUV 4:2:0->RGB  |   5.70ms   |  44.95ms  |
+| utils YUV 4:2:0->RGBA  |   5.56ms   |  6.45ms   |
+| libyuv YUV 4:2:0->RGBA |   6.13ms   |  6.88ms   |
+| utils YUV 4:2:2->RGBA  |   5.39ms   |  6.91ms   |
+| libyuv YUV 4:2:2->RGBA |   5.91ms   |  6.91ms   |
+| utils YUV 4:4:4->RGBA  |   5.04ms   |  7.20ms   |
+| libyuv YUV 4:4:4->RGBA |   4.82ms   |  7.30ms   |
 
 This project is licensed under either of
 
