@@ -50,7 +50,7 @@ pub use rgb_to_nv::sse_rgba_to_nv_row;
 pub use rgb_to_y::sse_rgb_to_y;
 pub use rgb_to_ycgco::sse_rgb_to_ycgco_row;
 pub use rgb_to_ycgco_r::sse_rgb_to_ycgcor_row;
-pub use rgb_to_yuv_p16::sse_rgba_to_yuv_p16;
+pub(crate) use rgb_to_yuv_p16::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_lp};
 pub use rgba_to_yuv::sse_rgba_to_yuv_row;
 pub(crate) use sse_support::*;
 pub use ycgco_to_rgb::sse_ycgco_to_rgb_row;

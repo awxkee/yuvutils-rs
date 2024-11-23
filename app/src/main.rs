@@ -103,7 +103,7 @@ fn main() {
         rgba_stride as u32,
         12,
         YuvRange::Limited,
-        YuvStandardMatrix::Bt601,
+        YuvStandardMatrix::Bt709,
         YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
@@ -259,7 +259,7 @@ fn main() {
         rgba_stride as u32,
         12,
         YuvRange::Limited,
-        YuvStandardMatrix::Bt601,
+        YuvStandardMatrix::Bt709,
         YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
