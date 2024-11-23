@@ -93,7 +93,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let neon_wide_row_handler = if is_rdm_available {
         neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>
     } else {
-        neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>
+        neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
     };
 
     let width = bi_planar_image.width;

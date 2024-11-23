@@ -29,8 +29,15 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
-use yuv_sys::{rs_ABGRToI420, rs_ABGRToJ422, rs_I420ToABGR, rs_I420ToRGB24, rs_I422ToABGR, rs_I444ToABGR, rs_RGB24ToI420};
-use yuvutils_rs::{rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuv_sys::{
+    rs_ABGRToI420, rs_ABGRToJ422, rs_I420ToABGR, rs_I420ToRGB24, rs_I422ToABGR, rs_I444ToABGR,
+    rs_RGB24ToI420,
+};
+use yuvutils_rs::{
+    rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
+    yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, YuvChromaSubsampling,
+    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let img = ImageReader::open("../assets/test_image_2.jpg")
@@ -152,7 +159,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
             )
-                .unwrap();
+            .unwrap();
         })
     });
 
@@ -192,7 +199,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
             )
-                .unwrap();
+            .unwrap();
         })
     });
 

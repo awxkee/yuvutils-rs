@@ -265,26 +265,27 @@ fn main() {
     let start_time = Instant::now();
 
     unsafe {
-        rs_I420ToRGB24(fixed_planar.y_plane.as_ptr(),
-        fixed_planar.y_stride as i32,
-        fixed_planar.u_plane.as_ptr(),
-        fixed_planar.u_stride as i32,
-        fixed_planar.v_plane.as_ptr(),
-        fixed_planar.v_stride as i32,
-        rgba.as_mut_ptr(),
-        rgba_stride as i32,
-        fixed_planar.width as i32,
-        fixed_planar.height as i32);
+        rs_I420ToRGB24(
+            fixed_planar.y_plane.as_ptr(),
+            fixed_planar.y_stride as i32,
+            fixed_planar.u_plane.as_ptr(),
+            fixed_planar.u_stride as i32,
+            fixed_planar.v_plane.as_ptr(),
+            fixed_planar.v_stride as i32,
+            rgba.as_mut_ptr(),
+            rgba_stride as i32,
+            fixed_planar.width as i32,
+            fixed_planar.height as i32,
+        );
     }
 
     println!("Backward LIBYUV time: {:?}", start_time.elapsed());
 
-    rgba.chunks_exact_mut(3)
-        .for_each(|chunk| {
-           let b = chunk[0];
-            chunk[0] = chunk[2];
-            chunk[2] = b;
-        });
+    rgba.chunks_exact_mut(3).for_each(|chunk| {
+        let b = chunk[0];
+        chunk[0] = chunk[2];
+        chunk[2] = b;
+    });
 
     // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
