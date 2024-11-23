@@ -48,6 +48,7 @@ mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
+mod yuv_to_rgba420;
 
 pub(crate) use rgb_to_nv::sse_rgba_to_nv_row;
 pub(crate) use rgb_to_y::sse_rgb_to_y;
@@ -68,3 +69,4 @@ pub(crate) use yuv_to_rgba_alpha::sse_yuv_to_rgba_alpha_row;
 pub(crate) use yuv_to_yuy2::yuv_to_yuy2_sse;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_sse;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_sse;
+pub(crate) use yuv_to_rgba420::sse_yuv_to_rgba_row420;

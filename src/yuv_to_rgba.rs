@@ -40,7 +40,7 @@ use crate::neon::{
 };
 use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_yuv_to_rgba_row;
+use crate::sse::{sse_yuv_to_rgba_row, sse_yuv_to_rgba_row420};
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_yuv_to_rgba_row;
 use crate::yuv_error::check_rgba_destination;
@@ -228,6 +228,26 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 _cx = processed.cx;
                 _uv_x = processed.ux;
             }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if use_sse {
+                let processed = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
+                    &range,
+                    &inverse_transform,
+                    _y_plane0,
+                    _y_plane1,
+                    _u_plane,
+                    _v_plane,
+                    _rgba0,
+                    _rgba1,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
+            }
+
             _cx
         };
 
