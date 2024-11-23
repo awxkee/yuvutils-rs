@@ -29,7 +29,6 @@
 
 use crate::avx2::avx2_utils::{
     _mm256_deinterleave_rgba_epi8, _mm256_interleave_x2_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
-    avx2_pairwise_widen_avg,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -212,7 +211,7 @@ unsafe fn avx2_rgba_to_nv_impl<
         let y_yuv = avx2_pack_u16(y_l, y_h);
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
-        if compute_uv_row {
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
@@ -279,31 +278,64 @@ unsafe fn avx2_rgba_to_nv_impl<
             );
 
             let cb = avx2_pack_u16(cb_l, cb_h);
-
             let cr = avx2_pack_u16(cr_l, cr_h);
 
-            match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                    let cb_h = avx2_pairwise_widen_avg(cb);
-                    let cr_h = avx2_pairwise_widen_avg(cr);
-                    let (row0, _) = match order {
-                        YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb_h, cr_h),
-                        YuvNVOrder::VU => _mm256_interleave_x2_epi8(cr_h, cb_h),
-                    };
-                    _mm256_storeu_si256(uv_ptr.add(uv_x) as *mut __m256i, row0);
-                    uv_x += 32;
-                }
-                YuvChromaSubsampling::Yuv444 => {
-                    let (row0, row1) = match order {
-                        YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb, cr),
-                        YuvNVOrder::VU => _mm256_interleave_x2_epi8(cr, cb),
-                    };
-                    let dst_ptr = uv_ptr.add(uv_x);
-                    _mm256_storeu_si256(dst_ptr as *mut __m256i, row0);
-                    _mm256_storeu_si256(dst_ptr.add(32) as *mut __m256i, row1);
-                    uv_x += 64;
-                }
-            }
+            let (row0, row1) = match order {
+                YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb, cr),
+                YuvNVOrder::VU => _mm256_interleave_x2_epi8(cr, cb),
+            };
+            let dst_ptr = uv_ptr.add(uv_x);
+            _mm256_storeu_si256(dst_ptr as *mut __m256i, row0);
+            _mm256_storeu_si256(dst_ptr.add(32) as *mut __m256i, row1);
+            uv_x += 64;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
+        {
+            let r1 = _mm256_avg_epu16(r_low, r_high);
+            let g1 = _mm256_avg_epu16(g_low, g_high);
+            let b1 = _mm256_avg_epu16(b_low, b_high);
+            let cb = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhi_epi16(r1, v_cb_r),
+                                _mm256_mulhi_epi16(g1, v_cb_g),
+                            ),
+                            _mm256_mulhi_epi16(b1, v_cb_b),
+                        ),
+                    )),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+            let cr = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhi_epi16(r1, v_cr_r),
+                                _mm256_mulhi_epi16(g1, v_cr_g),
+                            ),
+                            _mm256_mulhi_epi16(b1, v_cr_b),
+                        ),
+                    )),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+
+            let cb = avx2_pack_u16(cb, cb);
+            let cr = avx2_pack_u16(cr, cr);
+
+            let (row0, _) = match order {
+                YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb, cr),
+                YuvNVOrder::VU => _mm256_interleave_x2_epi8(cr, cb),
+            };
+            _mm256_storeu_si256(uv_ptr.add(uv_x) as *mut __m256i, row0);
+            uv_x += 32;
         }
 
         cx += 32;

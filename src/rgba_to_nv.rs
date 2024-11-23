@@ -84,9 +84,9 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let i_cap_uv = i_bias_y + range.range_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+    let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -103,7 +103,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         |y_plane: &mut [u8], uv_plane: &mut [u8], rgba: &[u8], compute_uv_row| {
             let mut _offset: ProcessedOffset = ProcessedOffset { cx: 0, ux: 0 };
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if _use_avx2 {
+            if use_avx2 {
                 let offset = avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
                     y_plane,
                     uv_plane,
@@ -118,7 +118,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 _offset = offset;
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if _use_sse {
+            if use_sse {
                 let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
                     y_plane,
                     uv_plane,

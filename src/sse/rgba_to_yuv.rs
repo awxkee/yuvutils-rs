@@ -28,9 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::sse_support::{
-    sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_widen_avg,
-};
+use crate::sse::sse_support::{sse_deinterleave_rgb, sse_deinterleave_rgba};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -197,7 +195,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
         let y_yuv = _mm_packus_epi16(y_l, y_h);
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, y_yuv);
 
-        if chroma_subsampling != YuvChromaSubsampling::Yuv420 || compute_uv_row {
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm_max_epi16(
                 _mm_min_epi16(
                     _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
@@ -267,28 +265,50 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
 
             let cr = _mm_packus_epi16(cr_l, cr_h);
 
-            match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                    let cb_h = sse_pairwise_widen_avg(cb);
-                    let cr_h = sse_pairwise_widen_avg(cr);
-                    std::ptr::copy_nonoverlapping(
-                        &cb_h as *const _ as *const u8,
-                        u_ptr.add(uv_x),
-                        8,
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        &cr_h as *const _ as *const u8,
-                        v_ptr.add(uv_x),
-                        8,
-                    );
-                    uv_x += 8;
-                }
-                YuvChromaSubsampling::Yuv444 => {
-                    _mm_storeu_si128(u_ptr.add(uv_x) as *mut __m128i, cb);
-                    _mm_storeu_si128(v_ptr.add(uv_x) as *mut __m128i, cr);
-                    uv_x += 16;
-                }
-            }
+            _mm_storeu_si128(u_ptr.add(uv_x) as *mut __m128i, cb);
+            _mm_storeu_si128(v_ptr.add(uv_x) as *mut __m128i, cr);
+            uv_x += 16;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
+        {
+            let r1 = _mm_avg_epu16(r_low, r_high);
+            let g1 = _mm_avg_epu16(g_low, g_high);
+            let b1 = _mm_avg_epu16(b_low, b_high);
+
+            let cbk = _mm_max_epi16(
+                _mm_min_epi16(
+                    _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                        uv_bias,
+                        _mm_add_epi16(
+                            _mm_add_epi16(_mm_mulhi_epi16(r1, v_cb_r), _mm_mulhi_epi16(g1, v_cb_g)),
+                            _mm_mulhi_epi16(b1, v_cb_b),
+                        ),
+                    )),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+
+            let crk = _mm_max_epi16(
+                _mm_min_epi16(
+                    _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                        uv_bias,
+                        _mm_add_epi16(
+                            _mm_add_epi16(_mm_mulhi_epi16(r1, v_cr_r), _mm_mulhi_epi16(g1, v_cr_g)),
+                            _mm_mulhi_epi16(b1, v_cr_b),
+                        ),
+                    )),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+
+            let cb = _mm_packus_epi16(cbk, cbk);
+            let cr = _mm_packus_epi16(crk, crk);
+
+            std::ptr::copy_nonoverlapping(&cb as *const _ as *const u8, u_ptr.add(uv_x), 8);
+            std::ptr::copy_nonoverlapping(&cr as *const _ as *const u8, v_ptr.add(uv_x), 8);
+            uv_x += 8;
         }
 
         cx += 16;

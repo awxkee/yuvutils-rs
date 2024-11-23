@@ -104,11 +104,11 @@ Tests performed on the image 5763x3842
 
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
-| utils RGB->YUV 4:2:0   |   4.37ms   |  9.86ms   |
+| utils RGB->YUV 4:2:0   |   4.37ms   |  6.14ms   |
 | libyuv RGB->YUV 4:2:0  |   3.66ms   |  33.87ms  |
-| utils RGBA->YUV 4:2:0  |   4.88ms   |  10.63ms  |
+| utils RGBA->YUV 4:2:0  |   4.88ms   |  7.34ms   |
 | libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |
-| utils RGBA->YUV 4:2:2  |   4.99ms   |  8.24ms   |
+| utils RGBA->YUV 4:2:2  |   4.99ms   |  7.08ms   |
 | libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |
 | utils RGBA->YUV 4:4:4  |   5.37ms   |  7.97ms   |
 
@@ -116,7 +116,7 @@ Tests performed on the image 5763x3842
 
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
-| utils YUV 4:2:0->RGB   |   4.95ms   |  5.47ms   |
+| utils YUV 4:2:0->RGB   |   4.95ms   |  5.44ms   |
 | libyuv YUV 4:2:0->RGB  |   5.70ms   |  44.95ms  |
 | utils YUV 4:2:0->RGBA  |   5.56ms   |  6.45ms   |
 | libyuv YUV 4:2:0->RGBA |   6.13ms   |  6.88ms   |
