@@ -112,8 +112,7 @@ fn main() {
     //
     // println!("rgb_to_yuv_nv12 time: {:?}", start_time.elapsed());
     //
-    // let end_time = Instant::now().sub(start_time);
-    // println!("Forward time: {:?}", end_time);
+    println!("Forward time: {:?}", start_time.elapsed());
     // // //
     // let full_size = if width % 2 == 0 {
     //     2 * width as usize * height as usize
