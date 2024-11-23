@@ -34,7 +34,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>(
+pub(crate) fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &[u8],
     y_offset: usize,
     u_plane: &[u8],
@@ -63,7 +63,7 @@ pub fn yuv_to_yuy2_avx2_row<const SAMPLING: u8, const YUY2_TARGET: usize>(
 }
 
 #[target_feature(enable = "avx2")]
-pub unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
+pub(crate) unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &[u8],
     y_offset: usize,
     u_plane: &[u8],

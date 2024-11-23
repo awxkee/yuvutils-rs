@@ -39,7 +39,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],

@@ -36,7 +36,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
+pub(crate) fn yuy2_to_yuv_avx<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
     u_plane: &mut [u8],
     v_plane: &mut [u8],
