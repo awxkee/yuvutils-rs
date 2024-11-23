@@ -33,23 +33,23 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_deinterleave_x2_epi16, _mm_interleave_rgb_epi16, _mm_interleave_rgba_epi16};
+use crate::sse::{_mm_interleave_rgb_epi16, _mm_interleave_rgba_epi16};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
-    YuvNVOrder, YuvSourceChannels,
+    YuvSourceChannels,
 };
 
-pub(crate) unsafe fn sse_yuv_nv_p16_to_rgba_row<
+pub(crate) unsafe fn sse_yuv_p16_to_rgba_row<
     const DESTINATION_CHANNELS: u8,
-    const NV_ORDER: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: u8,
+    const BIT_DEPTH: usize,
     const PRECISION: i32,
 >(
-    y_ld_ptr: &[u16],
-    uv_ld_ptr: &[u16],
+    y_plane: &[u16],
+    u_plane: &[u16],
+    v_plane: &[u16],
     bgra: &mut [u16],
     width: u32,
     range: &YuvChromaRange,
@@ -58,32 +58,31 @@ pub(crate) unsafe fn sse_yuv_nv_p16_to_rgba_row<
     start_ux: usize,
 ) -> ProcessedOffset {
     unsafe {
-        sse_yuv_nv_p16_to_rgba_row_impl::<
+        sse_yuv_p16_to_rgba_row_impl::<
             DESTINATION_CHANNELS,
-            NV_ORDER,
             SAMPLING,
             ENDIANNESS,
             BYTES_POSITION,
             BIT_DEPTH,
             PRECISION,
         >(
-            y_ld_ptr, uv_ld_ptr, bgra, width, range, transform, start_cx, start_ux,
+            y_plane, u_plane, v_plane, bgra, width, range, transform, start_cx, start_ux,
         )
     }
 }
 
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
+unsafe fn sse_yuv_p16_to_rgba_row_impl<
     const DESTINATION_CHANNELS: u8,
-    const NV_ORDER: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: u8,
+    const BIT_DEPTH: usize,
     const PRECISION: i32,
 >(
-    y_ld_ptr: &[u16],
-    uv_ld_ptr: &[u16],
+    y_plane: &[u16],
+    u_plane: &[u16],
+    v_plane: &[u16],
     bgra: &mut [u16],
     width: u32,
     range: &YuvChromaRange,
@@ -93,7 +92,6 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
-    let uv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
@@ -112,14 +110,13 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
 
     let y_corr = _mm_set1_epi16(bias_y as i16);
     let uv_corr = _mm_set1_epi16(bias_uv as i16);
-    let uv_corr_q = _mm_set1_epi16(bias_uv as i16);
-    let v_luma_coeff = _mm_set1_epi16(y_coef as i16);
-    let v_cr_coeff = _mm_set1_epi16(cr_coef as i16);
-    let v_cb_coeff = _mm_set1_epi16(cb_coef as i16);
+    let uv_corr_q = _mm_set1_epi16((bias_uv as i16) << 1);
+    let v_luma_coeff = _mm_set1_epi16((y_coef as i16) << 1);
+    let v_cr_coeff = _mm_set1_epi16((cr_coef as i16) << 1);
+    let v_cb_coeff = _mm_set1_epi16((cb_coef as i16) << 1);
     let zeros = _mm_setzero_si128();
-    let v_g_coeff_1 = _mm_set1_epi16(-(g_coef_1 as i16));
-    let v_g_coeff_2 = _mm_set1_epi16(-(g_coef_2 as i16));
-    let rounding_const = _mm_set1_epi32(1 << (PRECISION - 1));
+    let v_g_coeff_1 = _mm_set1_epi16(-((g_coef_1 as i16) << 1));
+    let v_g_coeff_2 = _mm_set1_epi16(-((g_coef_2 as i16) << 1));
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -130,135 +127,75 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
     while cx + 8 < width as usize {
-        let u_high;
-        let v_high;
-        let u_low;
-        let v_low;
-
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
-        let mut y_vl = _mm_loadu_si128(y_ld_ptr.get_unchecked(cx..).as_ptr() as *const __m128i);
+        let mut y_vl = _mm_loadu_si128(y_plane.get_unchecked(cx..).as_ptr() as *const __m128i);
         if endianness == YuvEndianness::BigEndian {
             y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm_srl_epi16(y_vl, v_big_shift_count);
         }
-        let y_values = _mm_sub_epi16(y_vl, y_corr);
+        let mut y_values = _mm_sub_epi16(y_vl, y_corr);
+
+        let mut u_values;
+        let mut v_values;
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let uv_ld = uv_ld_ptr.get_unchecked(ux..).as_ptr();
+                let mut u_vals = _mm_loadu_si64(u_plane.get_unchecked(ux..).as_ptr() as *const u8);
+                let mut v_vals = _mm_loadu_si64(v_plane.get_unchecked(ux..).as_ptr() as *const u8);
 
-                let row0 = _mm_loadu_si128(uv_ld as *const __m128i);
-
-                let mut uv_values_u = _mm_deinterleave_x2_epi16(row0, zeros);
-
-                if uv_order == YuvNVOrder::VU {
-                    uv_values_u = (uv_values_u.1, uv_values_u.0);
-                }
-
-                let mut u_vl = uv_values_u.0;
                 if endianness == YuvEndianness::BigEndian {
-                    u_vl = _mm_shuffle_epi8(u_vl, big_endian_shuffle_flag);
-                }
-                let mut v_vl = uv_values_u.1;
-                if endianness == YuvEndianness::BigEndian {
-                    v_vl = _mm_shuffle_epi8(v_vl, big_endian_shuffle_flag);
+                    u_vals = _mm_shuffle_epi8(u_vals, big_endian_shuffle_flag);
+                    v_vals = _mm_shuffle_epi8(v_vals, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vl = _mm_srl_epi16(u_vl, v_big_shift_count);
-                    v_vl = _mm_srl_epi16(v_vl, v_big_shift_count);
+                    u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
+                    u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
                 }
-                let u_values_c = _mm_sub_epi16(u_vl, uv_corr);
-                let v_values_c = _mm_sub_epi16(v_vl, uv_corr);
 
-                let u_values_32 = _mm_cvtepi16_epi32(u_values_c);
-                let v_values_32 = _mm_cvtepi16_epi32(v_values_c);
+                let u_vl = _mm_unpacklo_epi16(u_vals, u_vals);
+                let v_vl = _mm_unpacklo_epi16(v_vals, v_vals);
 
-                u_high = _mm_unpackhi_epi32(u_values_32, u_values_32);
-                v_high = _mm_unpackhi_epi32(v_values_32, v_values_32);
-                u_low = _mm_unpacklo_epi32(u_values_32, u_values_32);
-                v_low = _mm_unpacklo_epi32(v_values_32, v_values_32);
+                u_values = _mm_sub_epi16(u_vl, uv_corr);
+                v_values = _mm_sub_epi16(v_vl, uv_corr);
             }
             YuvChromaSubsampling::Yuv444 => {
-                let uv_ld = uv_ld_ptr.get_unchecked(ux..).as_ptr();
-                let row0 = _mm_loadu_si128(uv_ld as *const __m128i);
-                let row1 = _mm_loadu_si128(uv_ld.add(8) as *const __m128i);
-                let mut uv_values_u = _mm_deinterleave_x2_epi16(row0, row1);
+                let mut u_vals =
+                    _mm_loadu_si128(u_plane.get_unchecked(ux..).as_ptr() as *const __m128i);
+                let mut v_vals =
+                    _mm_loadu_si128(v_plane.get_unchecked(ux..).as_ptr() as *const __m128i);
 
-                if uv_order == YuvNVOrder::VU {
-                    uv_values_u = (uv_values_u.1, uv_values_u.0);
-                }
-                let mut u_vl = uv_values_u.0;
                 if endianness == YuvEndianness::BigEndian {
-                    u_vl = _mm_shuffle_epi8(u_vl, big_endian_shuffle_flag);
-                }
-                let mut v_vl = uv_values_u.1;
-                if endianness == YuvEndianness::BigEndian {
-                    v_vl = _mm_shuffle_epi8(v_vl, big_endian_shuffle_flag);
+                    u_vals = _mm_shuffle_epi8(u_vals, big_endian_shuffle_flag);
+                    v_vals = _mm_shuffle_epi8(v_vals, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vl = _mm_srl_epi16(u_vl, v_big_shift_count);
-                    v_vl = _mm_srl_epi16(v_vl, v_big_shift_count);
+                    u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
+                    v_vals = _mm_srl_epi16(v_vals, v_big_shift_count);
                 }
-                let u_values_c = _mm_sub_epi16(u_vl, uv_corr_q);
-                let v_values_c = _mm_sub_epi16(v_vl, uv_corr_q);
-                u_high = _mm_unpackhi_epi16(u_values_c, zeros);
-                v_high = _mm_unpackhi_epi16(v_values_c, zeros);
-                u_low = _mm_cvtepi16_epi32(u_values_c);
-                v_low = _mm_cvtepi16_epi32(v_values_c);
+                u_values = _mm_sub_epi16(u_vals, uv_corr_q);
+                v_values = _mm_sub_epi16(v_vals, uv_corr_q);
             }
         }
 
-        let y_high = _mm_madd_epi16(_mm_unpackhi_epi16(y_values, zeros), v_luma_coeff);
+        u_values = _mm_slli_epi16::<3>(u_values);
+        v_values = _mm_slli_epi16::<3>(v_values);
+        y_values = _mm_slli_epi16::<3>(y_values);
 
-        let r_high = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
-            _mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_cr_coeff)),
-            rounding_const,
-        ));
-        let b_high = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
-            _mm_add_epi32(y_high, _mm_madd_epi16(u_high, v_cb_coeff)),
-            rounding_const,
-        ));
-        let g_high = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
-            _mm_add_epi32(
-                _mm_add_epi32(y_high, _mm_madd_epi16(v_high, v_g_coeff_1)),
-                _mm_madd_epi16(u_high, v_g_coeff_2),
-            ),
-            rounding_const,
-        ));
+        let y_vals = _mm_mulhi_epi16(y_values, v_luma_coeff);
 
-        let y_low = _mm_madd_epi16(_mm_unpacklo_epi16(y_values, zeros), v_luma_coeff);
-
-        let r_low = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
-            _mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_cr_coeff)),
-            rounding_const,
-        ));
-        let b_low = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
-            _mm_add_epi32(y_low, _mm_madd_epi16(u_low, v_cb_coeff)),
-            rounding_const,
-        ));
-        let g_low = _mm_srai_epi32::<PRECISION>(_mm_add_epi32(
-            _mm_add_epi32(
-                _mm_add_epi32(y_low, _mm_madd_epi16(v_low, v_g_coeff_1)),
-                _mm_madd_epi16(u_low, v_g_coeff_2),
-            ),
-            rounding_const,
-        ));
-
-        let r_values = _mm_min_epi16(
-            _mm_max_epi16(_mm_packs_epi32(r_low, r_high), zeros),
-            v_max_colors,
+        let r_vals = _mm_add_epi16(y_vals, _mm_mulhi_epi16(v_values, v_cr_coeff));
+        let b_vals = _mm_add_epi16(y_vals, _mm_mulhi_epi16(u_values, v_cb_coeff));
+        let g_vals = _mm_add_epi16(
+            _mm_add_epi16(y_vals, _mm_mulhi_epi16(v_values, v_g_coeff_1)),
+            _mm_mulhi_epi16(u_values, v_g_coeff_2),
         );
-        let g_values = _mm_min_epi16(
-            _mm_max_epi16(_mm_packs_epi32(g_low, g_high), zeros),
-            v_max_colors,
-        );
-        let b_values = _mm_min_epi16(
-            _mm_max_epi16(_mm_packs_epi32(b_low, b_high), zeros),
-            v_max_colors,
-        );
+
+        let r_values = _mm_min_epu16(_mm_max_epi16(r_vals, zeros), v_max_colors);
+        let g_values = _mm_min_epu16(_mm_max_epi16(g_vals, zeros), v_max_colors);
+        let b_values = _mm_min_epu16(_mm_max_epi16(b_vals, zeros), v_max_colors);
 
         match destination_channels {
             YuvSourceChannels::Rgb => {
@@ -324,10 +261,10 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
         cx += 8;
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                ux += 8;
+                ux += 4;
             }
             YuvChromaSubsampling::Yuv444 => {
-                ux += 16;
+                ux += 8;
             }
         }
     }
