@@ -30,6 +30,7 @@ use image::{ColorType, EncodableLayout, GenericImageView, ImageReader};
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
+use yuv_sys::rs_I420ToRGB24;
 use yuvutils_rs::{
     rgb_to_yuv420, rgb_to_yuv420_p16, yuv420_p16_to_rgb16, yuv420_to_rgb, YuvBiPlanarImageMut,
     YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange,
@@ -92,20 +93,17 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
-    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 4).collect();
+    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 4).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420_p16(
+    rgb_to_yuv420(
         &mut planar_image,
-        &bytes_16,
+        &src_bytes,
         rgba_stride as u32,
-        12,
         YuvRange::Limited,
-        YuvStandardMatrix::Bt709,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
+        YuvStandardMatrix::Bt601,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -253,21 +251,42 @@ fn main() {
     // )
     // .unwrap();
     let start_time = Instant::now();
-    yuv420_p16_to_rgb16(
+    yuv420_to_rgb(
         &fixed_planar,
-        &mut bytes_16,
+        &mut rgba,
         rgba_stride as u32,
-        12,
         YuvRange::Limited,
-        YuvStandardMatrix::Bt709,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
+        YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 
-    rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
+    let start_time = Instant::now();
+
+    unsafe {
+        rs_I420ToRGB24(fixed_planar.y_plane.as_ptr(),
+        fixed_planar.y_stride as i32,
+        fixed_planar.u_plane.as_ptr(),
+        fixed_planar.u_stride as i32,
+        fixed_planar.v_plane.as_ptr(),
+        fixed_planar.v_stride as i32,
+        rgba.as_mut_ptr(),
+        rgba_stride as i32,
+        fixed_planar.width as i32,
+        fixed_planar.height as i32);
+    }
+
+    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
+
+    rgba.chunks_exact_mut(3)
+        .for_each(|chunk| {
+           let b = chunk[0];
+            chunk[0] = chunk[2];
+            chunk[2] = b;
+        });
+
+    // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
     image::save_buffer(
         "converted_sharp15.jpg",

@@ -281,7 +281,6 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm<
     ProcessedOffset { cx, ux: uv_x }
 }
 
-#[inline(always)]
 pub(crate) unsafe fn neon_yuv_to_rgba_row<
     const PRECISION: i32,
     const DESTINATION_CHANNELS: u8,

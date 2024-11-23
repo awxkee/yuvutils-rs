@@ -90,6 +90,27 @@ ycgco420_to_rgb(&y_plane, y_stride,
                 YuvRange::TV);
 ```
 
+## Benchmarks
+
+YUV 8bit
+
+```bash
+cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
+```
+
+Tests performed on the image 5763x3842
+
+|                        | time(NEON) | Time(AVX) |
+|------------------------|:----------:|:---------:|
+| utils YUV 4:2:0->RGB   |   4.95ms   |     -     |
+| libyuv YUV 4:2:0->RGB  |   5.70ms   |     -     |
+| utils YUV 4:2:0->RGBA  |   5.56ms   |     -     |
+| libyuv YUV 4:2:0->RGBA |   6.13ms   |     -     |
+| utils YUV 4:2:2->RGBA  |   5.39ms   |     -     |
+| libyuv YUV 4:2:2->RGBA |   5.91ms   |     -     |
+| utils YUV 4:4:4->RGBA  |   5.04ms   |     -     |
+| libyuv YUV 4:4:4->RGBA |   4.82ms   |     -     |
+
 This project is licensed under either of
 
 - BSD-3-Clause License (see [LICENSE](LICENSE.md))

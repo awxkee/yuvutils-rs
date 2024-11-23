@@ -13,7 +13,7 @@ documentation = "https://github.com/awxkee/yuvutils-rs"
 categories = ["multimedia::images", "multimedia::video"]
 homepage = "https://github.com/awxkee/yuvutils-rs"
 repository = "https://github.com/awxkee/yuvutils-rs"
-exclude = ["*.jpg", "assets/*"]
+exclude = ["*.jpg", "assets/*", "*.png"]
 
 [dependencies]
 num-traits = "0.2.19"
