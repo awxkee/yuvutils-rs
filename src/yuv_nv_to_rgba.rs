@@ -207,13 +207,10 @@ fn yuv_nv12_to_rgbx<
             .skip(processed.cx / 2)
         {
             let y_vl0 = y_src[0] as i32;
-            let mut cb_value = uv_src[order.get_u_position()] as i32;
-            let mut cr_value = uv_src[order.get_v_position()] as i32;
+            let cb_value = (uv_src[order.get_u_position()] as i32) - bias_uv;
+            let cr_value = (uv_src[order.get_v_position()] as i32) - bias_uv;
 
             let y_value0: i32 = (y_vl0 - bias_y) * y_coef;
-
-            cb_value -= bias_uv;
-            cr_value -= bias_uv;
 
             let r0 = qrshr::<PRECISION, 8>(y_value0 + cr_coef * cr_value);
             let b0 = qrshr::<PRECISION, 8>(y_value0 + cb_coef * cb_value);
@@ -252,11 +249,8 @@ fn yuv_nv12_to_rgbx<
 
             let y_vl0 = y_src[0] as i32;
             let y_value0: i32 = (y_vl0 - bias_y) * y_coef;
-            let mut cb_value = uv_src[order.get_u_position()] as i32;
-            let mut cr_value = uv_src[order.get_v_position()] as i32;
-
-            cb_value -= bias_uv;
-            cr_value -= bias_uv;
+            let cb_value = (uv_src[order.get_u_position()] as i32) - bias_uv;
+            let cr_value = (uv_src[order.get_v_position()] as i32) - bias_uv;
 
             let r0 = qrshr::<PRECISION, 8>(y_value0 + cr_coef * cr_value);
             let b0 = qrshr::<PRECISION, 8>(y_value0 + cb_coef * cb_value);

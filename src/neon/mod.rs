@@ -49,11 +49,11 @@ mod yuv_p16_to_rgba16;
 mod yuv_p16_to_rgba16_alpha;
 mod yuv_p16_to_rgba_alpha;
 mod yuv_to_rgba;
+mod yuv_to_rgba420;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
-mod yuv_to_rgba420;
 
 pub use rgb_to_y::neon_rgb_to_y_row;
 pub use rgb_to_ycgco::neon_rgb_to_ycgco_row;
@@ -76,8 +76,8 @@ pub(crate) use yuv_p16_to_rgba16_alpha::{
 };
 pub(crate) use yuv_p16_to_rgba_alpha::neon_yuv_p16_to_rgba_alpha_row;
 pub(crate) use yuv_to_rgba::{neon_yuv_to_rgba_row, neon_yuv_to_rgba_row_rdm};
+pub(crate) use yuv_to_rgba420::{neon_yuv_to_rgba_row420, neon_yuv_to_rgba_row_rdm420};
 pub(crate) use yuv_to_rgba_alpha::{neon_yuv_to_rgba_alpha, neon_yuv_to_rgba_alpha_rdm};
 pub use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
 pub use yuy2_to_rgb::yuy2_to_rgb_neon;
 pub use yuy2_to_yuv::yuy2_to_yuv_neon_impl;
-pub(crate) use yuv_to_rgba420::{neon_yuv_to_rgba_row_rdm420, neon_yuv_to_rgba_row420};

@@ -29,7 +29,7 @@
 #![forbid(unsafe_code)]
 #[inline]
 /// Linear transfer function for sRGB
-pub fn srgb_to_linear(gamma: f32) -> f32 {
+pub(crate) fn srgb_to_linear(gamma: f32) -> f32 {
     if gamma < 0f32 {
         0f32
     } else if gamma < 12.92f32 * 0.003_041_282_5_f32 {
@@ -43,7 +43,7 @@ pub fn srgb_to_linear(gamma: f32) -> f32 {
 
 #[inline]
 /// Gamma transfer function for sRGB
-pub fn srgb_from_linear(linear: f32) -> f32 {
+pub(crate) fn srgb_from_linear(linear: f32) -> f32 {
     if linear < 0.0f32 {
         0.0f32
     } else if linear < 0.003_041_282_5_f32 {
@@ -57,7 +57,7 @@ pub fn srgb_from_linear(linear: f32) -> f32 {
 
 #[inline]
 /// Linear transfer function for Rec.709
-pub fn rec709_to_linear(gamma: f32) -> f32 {
+pub(crate) fn rec709_to_linear(gamma: f32) -> f32 {
     if gamma < 0.0f32 {
         0.0f32
     } else if gamma < 4.5f32 * 0.018_053_97_f32 {
@@ -71,7 +71,7 @@ pub fn rec709_to_linear(gamma: f32) -> f32 {
 
 #[inline]
 /// Gamma transfer function for Rec.709
-pub fn rec709_from_linear(linear: f32) -> f32 {
+pub(crate) fn rec709_from_linear(linear: f32) -> f32 {
     if linear < 0.0f32 {
         0.0f32
     } else if linear < 0.018_053_97_f32 {
@@ -85,7 +85,7 @@ pub fn rec709_from_linear(linear: f32) -> f32 {
 
 #[inline(always)]
 /// Pure gamma transfer function for gamma 2.2
-pub fn pure_gamma_function(x: f32, gamma: f32) -> f32 {
+pub(crate) fn pure_gamma_function(x: f32, gamma: f32) -> f32 {
     if x <= 0f32 {
         0f32
     } else if x >= 1f32 {
@@ -97,25 +97,25 @@ pub fn pure_gamma_function(x: f32, gamma: f32) -> f32 {
 
 #[inline]
 /// Pure gamma transfer function for gamma 2.2
-pub fn gamma2p2_from_linear(linear: f32) -> f32 {
+pub(crate) fn gamma2p2_from_linear(linear: f32) -> f32 {
     pure_gamma_function(linear, 1f32 / 2.2f32)
 }
 
 #[inline]
 /// Linear transfer function for gamma 2.2
-pub fn gamma2p2_to_linear(gamma: f32) -> f32 {
+pub(crate) fn gamma2p2_to_linear(gamma: f32) -> f32 {
     pure_gamma_function(gamma, 2.2f32)
 }
 
 #[inline]
 /// Pure gamma transfer function for gamma 2.8
-pub fn gamma2p8_from_linear(linear: f32) -> f32 {
+pub(crate) fn gamma2p8_from_linear(linear: f32) -> f32 {
     pure_gamma_function(linear, 1f32 / 2.8f32)
 }
 
 #[inline]
 /// Linear transfer function for gamma 2.8
-pub fn gamma2p8_to_linear(gamma: f32) -> f32 {
+pub(crate) fn gamma2p8_to_linear(gamma: f32) -> f32 {
     pure_gamma_function(gamma, 2.8f32)
 }
 

@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_yuv_to_rgba_row;
+use crate::avx2::{avx2_yuv_to_rgba_row, avx2_yuv_to_rgba_row420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -230,22 +230,41 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if use_sse {
-                let processed = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    &inverse_transform,
-                    _y_plane0,
-                    _y_plane1,
-                    _u_plane,
-                    _v_plane,
-                    _rgba0,
-                    _rgba1,
-                    _cx,
-                    _uv_x,
-                    image.width as usize,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
+            {
+                if use_avx2 {
+                    let processed = avx2_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        _y_plane0,
+                        _y_plane1,
+                        _u_plane,
+                        _v_plane,
+                        _rgba0,
+                        _rgba1,
+                        _cx,
+                        _uv_x,
+                        image.width as usize,
+                    );
+                    _cx = processed.cx;
+                    _uv_x = processed.ux;
+                }
+                if use_sse {
+                    let processed = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        &inverse_transform,
+                        _y_plane0,
+                        _y_plane1,
+                        _u_plane,
+                        _v_plane,
+                        _rgba0,
+                        _rgba1,
+                        _cx,
+                        _uv_x,
+                        image.width as usize,
+                    );
+                    _cx = processed.cx;
+                    _uv_x = processed.ux;
+                }
             }
 
             _cx

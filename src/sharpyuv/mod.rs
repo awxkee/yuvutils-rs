@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![forbid(unsafe_code)]
+#![deny(unreachable_code, unreachable_pub)]
 mod sharp_gamma;
 mod sharp_rgba_to_yuv;
 

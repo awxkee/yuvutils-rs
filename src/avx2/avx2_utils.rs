@@ -38,14 +38,14 @@ pub(crate) const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
     ((z << 6) | (y << 4) | (x << 2) | w) as i32
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_pack_u16(s_1: __m256i, s_2: __m256i) -> __m256i {
     let packed = _mm256_packus_epi16(s_1, s_2);
     const MASK: i32 = shuffle(3, 1, 2, 0);
     _mm256_permute4x64_epi64::<MASK>(packed)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn _mm256_interleave_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let xy_l = _mm256_unpacklo_epi8(a, b);
     let xy_h = _mm256_unpackhi_epi8(a, b);
@@ -55,7 +55,7 @@ pub(crate) unsafe fn _mm256_interleave_epi8(a: __m256i, b: __m256i) -> (__m256i,
     (xy0, xy1)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn _mm256_deinterleave_rgba_epi8(
     rgba0: __m256i,
     rgba1: __m256i,
@@ -95,7 +95,7 @@ pub(crate) unsafe fn _mm256_deinterleave_rgba_epi8(
     (b0, g0, r0, a0)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_store_u8_rgb(ptr: *mut u8, r: __m256i, g: __m256i, b: __m256i) {
     let (rgb1, rgb2, rgb3) = avx2_interleave_rgb(r, g, b);
 
@@ -104,7 +104,7 @@ pub(crate) unsafe fn avx2_store_u8_rgb(ptr: *mut u8, r: __m256i, g: __m256i, b: 
     _mm256_storeu_si256(ptr.add(64) as *mut __m256i, rgb3);
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn _mm256_store_interleaved_epi8(
     ptr: *mut u8,
     r: __m256i,
@@ -133,7 +133,7 @@ pub(crate) unsafe fn _mm256_store_interleaved_epi8(
     _mm256_storeu_si256(ptr.add(96) as *mut __m256i, rgba3);
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_interleave_odd(x: __m256i) -> __m256i {
     #[rustfmt::skip]
     let shuffle = _mm256_setr_epi8(1, 1, 3, 3,
@@ -147,7 +147,7 @@ pub(crate) unsafe fn avx2_interleave_odd(x: __m256i) -> __m256i {
     _mm256_shuffle_epi8(x, shuffle)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
     #[rustfmt::skip]
     let shuffle = _mm256_setr_epi8(0, 0, 2, 2,
@@ -161,7 +161,7 @@ pub(crate) unsafe fn avx2_interleave_even(x: __m256i) -> __m256i {
     _mm256_shuffle_epi8(x, shuffle)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_interleave_rgb(
     r: __m256i,
     g: __m256i,
@@ -204,7 +204,7 @@ pub(crate) unsafe fn avx2_interleave_rgb(
     (bgr0, bgr1, bgr2)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_deinterleave_rgb(
     rgb0: __m256i,
     rgb1: __m256i,
@@ -277,14 +277,14 @@ pub(crate) unsafe fn avx2_deinterleave_rgb(
     (b0, g0, r0)
 }
 
-// #[inline]
+// #[inline(always)]
 // #[target_feature(enable = "avx2")]
 // pub(crate) unsafe fn avx2_reshuffle_odd(v: __m256i) -> __m256i {
 //     const MASK: i32 = shuffle(3, 1, 2, 0);
 //     _mm256_permute4x64_epi64::<MASK>(v)
 // }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
     let sums = _mm256_maddubs_epi16(v, _mm256_set1_epi8(1));
     let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
@@ -293,7 +293,7 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
     _mm256_permute4x64_epi64::<MASK>(packed_lo)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
     let addition = _mm256_set1_epi16(127);
     _mm256_srli_epi16::<8>(_mm256_add_epi16(
@@ -302,7 +302,7 @@ pub(crate) unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
     ))
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn _mm256_deinterleave_x2_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let sh = _mm256_setr_epi8(
         0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15, 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5,
@@ -317,7 +317,7 @@ pub(crate) unsafe fn _mm256_deinterleave_x2_epi8(a: __m256i, b: __m256i) -> (__m
     (a0, b0)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn _mm256_interleave_x2_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let xy_l = _mm256_unpacklo_epi8(a, b);
     let xy_h = _mm256_unpackhi_epi8(a, b);
