@@ -326,3 +326,68 @@ pub(crate) unsafe fn _mm256_interleave_x2_epi8(a: __m256i, b: __m256i) -> (__m25
     let xy1 = _mm256_permute2x128_si256::<49>(xy_l, xy_h);
     (xy0, xy1)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_interleave_rgba_epi16(
+    a: __m256i,
+    b: __m256i,
+    c: __m256i,
+    d: __m256i,
+) -> (__m256i, __m256i, __m256i, __m256i) {
+    let bg0 = _mm256_unpacklo_epi16(a, b);
+    let bg1 = _mm256_unpackhi_epi16(a, b);
+    let ra0 = _mm256_unpacklo_epi16(c, d);
+    let ra1 = _mm256_unpackhi_epi16(c, d);
+
+    let bgra0_ = _mm256_unpacklo_epi32(bg0, ra0);
+    let bgra1_ = _mm256_unpackhi_epi32(bg0, ra0);
+    let bgra2_ = _mm256_unpacklo_epi32(bg1, ra1);
+    let bgra3_ = _mm256_unpackhi_epi32(bg1, ra1);
+
+    let bgra0 = _mm256_permute2x128_si256::<32>(bgra0_, bgra1_);
+    let bgra2 = _mm256_permute2x128_si256::<49>(bgra0_, bgra1_);
+    let bgra1 = _mm256_permute2x128_si256::<32>(bgra2_, bgra3_);
+    let bgra3 = _mm256_permute2x128_si256::<49>(bgra2_, bgra3_);
+    (bgra0, bgra1, bgra2, bgra3)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_interleave_rgb_epi16(
+    a: __m256i,
+    b: __m256i,
+    c: __m256i,
+) -> (__m256i, __m256i, __m256i) {
+    let sh_b = _mm256_setr_epi8(
+        0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14,
+        15, 4, 5, 10, 11,
+    );
+    let sh_g = _mm256_setr_epi8(
+        10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8,
+        9, 14, 15, 4, 5,
+    );
+    let sh_r = _mm256_setr_epi8(
+        4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2,
+        3, 8, 9, 14, 15,
+    );
+
+    let b0 = _mm256_shuffle_epi8(a, sh_b);
+    let g0 = _mm256_shuffle_epi8(b, sh_g);
+    let r0 = _mm256_shuffle_epi8(c, sh_r);
+
+    let m0 = _mm256_setr_epi8(
+        0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1,
+        -1, 0, 0, 0, 0,
+    );
+    let m1 = _mm256_setr_epi8(
+        0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0,
+        -1, -1, 0, 0,
+    );
+
+    let p0 = _mm256_blendv_epi8(_mm256_blendv_epi8(b0, g0, m0), r0, m1);
+    let p1 = _mm256_blendv_epi8(_mm256_blendv_epi8(g0, r0, m0), b0, m1);
+    let p2 = _mm256_blendv_epi8(_mm256_blendv_epi8(r0, b0, m0), g0, m1);
+
+    let bgr0 = _mm256_permute2x128_si256::<32>(p0, p2);
+    let bgr2 = _mm256_permute2x128_si256::<49>(p0, p2);
+    (bgr0, p1, bgr2)
+}

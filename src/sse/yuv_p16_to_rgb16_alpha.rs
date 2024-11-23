@@ -158,7 +158,7 @@ unsafe fn sse_yuv_p16_to_rgba_alpha_row_impl<
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
-                    u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
+                    v_vals = _mm_srl_epi16(v_vals, v_big_shift_count);
                 }
 
                 let u_vl = _mm_unpacklo_epi16(u_vals, u_vals);

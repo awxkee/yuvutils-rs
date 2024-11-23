@@ -35,7 +35,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[target_feature(enable = "avx512bw")]
-pub unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
+pub(crate) unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],

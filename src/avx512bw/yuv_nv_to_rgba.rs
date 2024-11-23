@@ -40,7 +40,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn avx512_yuv_nv_to_rgba<
+pub(crate) fn avx512_yuv_nv_to_rgba<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
