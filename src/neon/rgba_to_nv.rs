@@ -91,7 +91,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u8(rgba_ptr.add( cx * channels));
+                let rgb_values = vld3q_u8(rgba_ptr.add(cx * channels));
                 if source_channels == YuvSourceChannels::Rgb {
                     r_values_u8 = rgb_values.0;
                     g_values_u8 = rgb_values.1;
@@ -103,13 +103,13 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
                 }
             }
             YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.0;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.2;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.0;
@@ -301,7 +301,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u8(rgba_ptr.add( cx * channels));
+                let rgb_values = vld3q_u8(rgba_ptr.add(cx * channels));
                 if source_channels == YuvSourceChannels::Rgb {
                     r_values_u8 = rgb_values.0;
                     g_values_u8 = rgb_values.1;
@@ -313,13 +313,13 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
                 }
             }
             YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.0;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add(cx * channels));
                 r_values_u8 = rgb_values.2;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.0;

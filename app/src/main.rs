@@ -31,7 +31,11 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 use yuv_sys::rs_I420ToRGB24;
-use yuvutils_rs::{rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgba, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{
+    rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb,
+    yuv_nv12_to_rgb, yuv_nv12_to_rgba, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
+    YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -82,11 +86,8 @@ fn main() {
     let mut y_nv_plane = vec![0u8; width as usize * height as usize];
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
-    let mut bi_planar_image = YuvBiPlanarImageMut::<u8>::alloc(
-        width as u32,
-        height as u32,
-        YuvChromaSubsampling::Yuv420,
-    );
+    let mut bi_planar_image =
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
         YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);

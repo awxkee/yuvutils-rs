@@ -232,7 +232,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if use_avx2 {
-                    let processed = avx2_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
+                    let processed = avx2_yuv_to_rgba_row420::<DESTINATION_CHANNELS>(
                         &range,
                         &inverse_transform,
                         _y_plane0,
@@ -249,7 +249,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     _uv_x = processed.ux;
                 }
                 if use_sse {
-                    let processed = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
+                    let processed = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS>(
                         &range,
                         &inverse_transform,
                         _y_plane0,

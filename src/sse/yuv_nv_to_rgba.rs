@@ -249,7 +249,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
     }
 
     while cx + 8 < width {
-        let y_values = _mm_subs_epi8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
+        let y_values = _mm_subs_epi8(_mm_loadu_si64(y_ptr.add(cx)), y_corr);
 
         let (u_low_u16, v_low_u16);
 

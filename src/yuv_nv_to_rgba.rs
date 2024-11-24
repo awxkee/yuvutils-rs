@@ -28,7 +28,7 @@
  */
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_yuv_nv_to_rgba_row;
+use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -43,7 +43,7 @@ use crate::neon::{
 };
 use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_yuv_nv_to_rgba;
+use crate::sse::{sse_yuv_nv_to_rgba, sse_yuv_nv_to_rgba420};
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_yuv_nv_to_rgba_row;
 use crate::yuv_support::*;
@@ -216,6 +216,39 @@ fn yuv_nv12_to_rgbx<
         {
             unsafe {
                 let processed = neon_double_row(
+                    &range,
+                    &inverse_transform,
+                    _y_plane0,
+                    _y_plane1,
+                    _uv_plane,
+                    _bgra0,
+                    _bgra1,
+                    _offset.cx,
+                    _offset.ux,
+                    width as usize,
+                );
+                _offset = processed;
+            }
+        }
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if _use_avx2 {
+                let processed = avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>(
+                    &range,
+                    &inverse_transform,
+                    _y_plane0,
+                    _y_plane1,
+                    _uv_plane,
+                    _bgra0,
+                    _bgra1,
+                    _offset.cx,
+                    _offset.ux,
+                    width as usize,
+                );
+                _offset = processed;
+            }
+            if _use_sse {
+                let processed = sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>(
                     &range,
                     &inverse_transform,
                     _y_plane0,
