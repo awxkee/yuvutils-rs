@@ -30,7 +30,7 @@ use image::{ColorType, EncodableLayout, GenericImageView, ImageReader};
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuv_sys::rs_I420ToRGB24;
+use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24};
 use yuvutils_rs::{
     rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb,
     yuv_nv12_to_rgb, yuv_nv12_to_rgba, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
@@ -259,16 +259,26 @@ fn main() {
 
     println!("Backward time: {:?}", start_time.elapsed());
 
-    // let start_time = Instant::now();
-    //
+    let start_time = Instant::now();
+
     // unsafe {
-    //     rs_I420ToRGB24(
-    //         fixed_planar.y_plane.as_ptr(),
-    //         fixed_planar.y_stride as i32,
-    //         fixed_planar.u_plane.as_ptr(),
-    //         fixed_planar.u_stride as i32,
-    //         fixed_planar.v_plane.as_ptr(),
-    //         fixed_planar.v_stride as i32,
+    //     // rs_I420ToRGB24(
+    //     //     fixed_planar.y_plane.as_ptr(),
+    //     //     fixed_planar.y_stride as i32,
+    //     //     fixed_planar.u_plane.as_ptr(),
+    //     //     fixed_planar.u_stride as i32,
+    //     //     fixed_planar.v_plane.as_ptr(),
+    //     //     fixed_planar.v_stride as i32,
+    //     //     rgba.as_mut_ptr(),
+    //     //     rgba_stride as i32,
+    //     //     fixed_planar.width as i32,
+    //     //     fixed_planar.height as i32,
+    //     // );
+    //     rs_NV12ToRGB24(
+    //         fixed_biplanar.y_plane.as_ptr(),
+    //         fixed_biplanar.y_stride as i32,
+    //         fixed_biplanar.uv_plane.as_ptr(),
+    //         fixed_biplanar.uv_stride as i32,
     //         rgba.as_mut_ptr(),
     //         rgba_stride as i32,
     //         fixed_planar.width as i32,
