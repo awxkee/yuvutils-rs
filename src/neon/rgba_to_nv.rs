@@ -41,11 +41,8 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     const SAMPLING: u8,
 >(
     y_plane: &mut [u8],
-    y_offset: usize,
     uv_plane: &mut [u8],
-    uv_offset: usize,
     rgba: &[u8],
-    rgba_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrForwardTransform<i32>,
@@ -94,7 +91,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld3q_u8(rgba_ptr.add( cx * channels));
                 if source_channels == YuvSourceChannels::Rgb {
                     r_values_u8 = rgb_values.0;
                     g_values_u8 = rgb_values.1;
@@ -106,13 +103,13 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
                 }
             }
             YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
                 r_values_u8 = rgb_values.0;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
                 r_values_u8 = rgb_values.2;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.0;
@@ -146,7 +143,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
         );
 
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
-        vst1q_u8(y_ptr.add(y_offset + cx), y);
+        vst1q_u8(y_ptr.add(cx), y);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_high = vqrdmlahq_s16(uv_bias, r_high, v_cb_r);
@@ -190,11 +187,11 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             match order {
                 YuvNVOrder::UV => {
                     let store: uint8x16x2_t = uint8x16x2_t(cb, cr);
-                    vst2q_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2q_u8(uv_ptr.add(ux), store);
                 }
                 YuvNVOrder::VU => {
                     let store: uint8x16x2_t = uint8x16x2_t(cr, cb);
-                    vst2q_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2q_u8(uv_ptr.add(ux), store);
                 }
             }
 
@@ -233,11 +230,11 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             match order {
                 YuvNVOrder::UV => {
                     let store: uint8x8x2_t = uint8x8x2_t(cb, cr);
-                    vst2_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2_u8(uv_ptr.add(ux), store);
                 }
                 YuvNVOrder::VU => {
                     let store: uint8x8x2_t = uint8x8x2_t(cr, cb);
-                    vst2_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2_u8(uv_ptr.add(ux), store);
                 }
             }
             ux += 16;
@@ -256,11 +253,8 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
     const PRECISION: i32,
 >(
     y_plane: &mut [u8],
-    y_offset: usize,
     uv_plane: &mut [u8],
-    uv_offset: usize,
     rgba: &[u8],
-    rgba_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrForwardTransform<i32>,
@@ -307,7 +301,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
 
         match source_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld3q_u8(rgba_ptr.add( cx * channels));
                 if source_channels == YuvSourceChannels::Rgb {
                     r_values_u8 = rgb_values.0;
                     g_values_u8 = rgb_values.1;
@@ -319,13 +313,13 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
                 }
             }
             YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
                 r_values_u8 = rgb_values.0;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.2;
             }
             YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u8(rgba_ptr.add(rgba_offset + cx * channels));
+                let rgb_values = vld4q_u8(rgba_ptr.add( cx * channels));
                 r_values_u8 = rgb_values.2;
                 g_values_u8 = rgb_values.1;
                 b_values_u8 = rgb_values.0;
@@ -391,7 +385,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
         );
 
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
-        vst1q_u8(y_ptr.add(y_offset + cx), y);
+        vst1q_u8(y_ptr.add(cx), y);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_h_high = vmlal_high_s16(uv_bias, r_high, v_cb_r);
@@ -476,11 +470,11 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
             match order {
                 YuvNVOrder::UV => {
                     let store: uint8x16x2_t = uint8x16x2_t(cb, cr);
-                    vst2q_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2q_u8(uv_ptr.add(ux), store);
                 }
                 YuvNVOrder::VU => {
                     let store: uint8x16x2_t = uint8x16x2_t(cr, cb);
-                    vst2q_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2q_u8(uv_ptr.add(ux), store);
                 }
             }
 
@@ -533,11 +527,11 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
             match order {
                 YuvNVOrder::UV => {
                     let store: uint8x8x2_t = uint8x8x2_t(cb, cr);
-                    vst2_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2_u8(uv_ptr.add(ux), store);
                 }
                 YuvNVOrder::VU => {
                     let store: uint8x8x2_t = uint8x8x2_t(cr, cb);
-                    vst2_u8(uv_ptr.add(uv_offset + ux), store);
+                    vst2_u8(uv_ptr.add(ux), store);
                 }
             }
             ux += 16;

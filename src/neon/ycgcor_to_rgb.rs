@@ -32,7 +32,7 @@ use crate::neon::neon_ycgco_r::neon_ycgco_r_to_rgb;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 use std::arch::aarch64::*;
 
-pub unsafe fn neon_ycgcor_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) unsafe fn neon_ycgcor_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     y_plane: *const u16,
     cg_plane: *const u16,

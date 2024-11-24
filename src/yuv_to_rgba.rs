@@ -102,9 +102,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_double_row_handler = if is_rdm_available {
-        neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS, SAMPLING>
+        neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS>
     } else {
-        neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+        neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>
     };
 
     let process_wide_row = |_y_plane: &[u8], _u_plane: &[u8], _v_plane: &[u8], _rgba: &mut [u8]| {
@@ -362,10 +362,11 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             let cb_value = u_src as i32 - bias_uv;
             let cr_value = v_src as i32 - bias_uv;
 
+            let g_built_coeff = -g_coef_1 * cr_value - g_coef_2 * cb_value;
+
             let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
             let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
-            let g0 =
-                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+            let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + g_built_coeff);
 
             let rgba00 = &mut rgba0[0..channels];
 
@@ -380,8 +381,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let r1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value);
             let b1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value);
-            let g1 =
-                qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+            let g1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + g_built_coeff);
 
             let rgba01 = &mut rgba0[channels..channels * 2];
 
@@ -396,9 +396,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let r10 = qrshr::<PRECISION, BIT_DEPTH>(y_value10 + cr_coef * cr_value);
             let b10 = qrshr::<PRECISION, BIT_DEPTH>(y_value10 + cb_coef * cb_value);
-            let g10 = qrshr::<PRECISION, BIT_DEPTH>(
-                y_value10 - g_coef_1 * cr_value - g_coef_2 * cb_value,
-            );
+            let g10 = qrshr::<PRECISION, BIT_DEPTH>(y_value10 + g_built_coeff);
 
             let rgba10 = &mut rgba1[0..channels];
 
@@ -413,9 +411,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let r11 = qrshr::<PRECISION, BIT_DEPTH>(y_value11 + cr_coef * cr_value);
             let b11 = qrshr::<PRECISION, BIT_DEPTH>(y_value11 + cb_coef * cb_value);
-            let g11 = qrshr::<PRECISION, BIT_DEPTH>(
-                y_value11 - g_coef_1 * cr_value - g_coef_2 * cb_value,
-            );
+            let g11 = qrshr::<PRECISION, BIT_DEPTH>(y_value11 + g_built_coeff);
 
             let rgba11 = &mut rgba1[channels..channels * 2];
 
@@ -435,10 +431,11 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             let rgba = rgba0.chunks_exact_mut(channels).last().unwrap();
             let rgba0 = &mut rgba[0..channels];
 
+            let g_built_coeff = -g_coef_1 * cr_value - g_coef_2 * cb_value;
+
             let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
             let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
-            let g0 =
-                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+            let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + g_built_coeff);
             rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
             rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
             rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
@@ -448,8 +445,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             let r1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value);
             let b1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value);
-            let g1 =
-                qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+            let g1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + g_built_coeff);
 
             let rgba = rgba1.chunks_exact_mut(channels).last().unwrap();
             let rgba1 = &mut rgba[0..channels];

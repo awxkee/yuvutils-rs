@@ -137,11 +137,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             unsafe {
                 let offset = neon_wide_row_handler(
                     y_plane,
-                    0,
                     uv_plane,
-                    0,
                     rgba,
-                    0,
                     width,
                     &range,
                     &transform,
