@@ -569,12 +569,6 @@ fn yuv_nv12_to_rgbx<
             let (y_src0, y_src1) = y_src.split_at(y_stride as usize);
             let (rgba0, rgba1) = rgba.split_at_mut(bgra_stride as usize);
             process_double_chroma_row(y_src0, y_src1, uv_src, rgba0, rgba1);
-            // for (y_src, rgba) in y_src
-            //     .chunks_exact(y_stride as usize)
-            //     .zip(rgba.chunks_exact_mut(bgra_stride as usize))
-            // {
-            //     process_halved_chroma_row(y_src, uv_src, rgba);
-            // }
         });
         if bi_planar_image.height & 1 != 0 {
             let y_src = y_plane.chunks_exact(y_stride as usize * 2).remainder();
