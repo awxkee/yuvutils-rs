@@ -31,9 +31,7 @@ use crate::avx2::avx2_utils::{
     _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
 };
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -83,11 +81,9 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    const V_SHR: i32 = 3;
-    const V_SCALE: i32 = 6;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
-    let bias_uv = range.bias_uv as i16 * (1 << V_SHR) + rounding_const_bias;
+    const V_SCALE: i32 = 3;
+    let bias_y = range.bias_y as i16;
+    let bias_uv = range.bias_uv as i16;
 
     let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm256_set1_epi16(range.range_y as i16 + range.bias_y as i16);
@@ -169,7 +165,8 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                 let row_31 = _mm256_loadu_si256(source_ptr1.add(64) as *const __m256i);
                 let row_41 = _mm256_loadu_si256(source_ptr1.add(96) as *const __m256i);
 
-                let (it1, it2, it3, _) = _mm256_deinterleave_rgba_epi8(row_11, row_21, row_31, row_41);
+                let (it1, it2, it3, _) =
+                    _mm256_deinterleave_rgba_epi8(row_11, row_21, row_31, row_41);
                 if source_channels == YuvSourceChannels::Rgba {
                     r_values1 = it1;
                     g_values1 = it2;
@@ -200,7 +197,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y0_l = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -209,7 +206,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhrs_epi16(b0_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -217,7 +214,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y0_h = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -226,7 +223,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhrs_epi16(b0_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -250,7 +247,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y1_l = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -259,7 +256,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhrs_epi16(b1_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -267,7 +264,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y1_h = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -276,7 +273,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhrs_epi16(b1_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -299,7 +296,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
         let b_uv = _mm256_avg_epu16(b0_low, b0_high);
         let cb = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     uv_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -308,14 +305,14 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhrs_epi16(b_uv, v_cb_b),
                     ),
-                )),
+                ),
                 i_cap_uv,
             ),
             i_bias_y,
         );
         let cr = _mm256_max_epi16(
             _mm256_min_epi16(
-                _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                _mm256_add_epi16(
                     uv_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
@@ -324,7 +321,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm256_mulhrs_epi16(b_uv, v_cr_b),
                     ),
-                )),
+                ),
                 i_cap_uv,
             ),
             i_bias_y,

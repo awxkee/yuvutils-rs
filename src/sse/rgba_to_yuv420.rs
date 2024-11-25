@@ -79,11 +79,9 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    const V_SHR: i32 = 3;
-    const V_SCALE: i32 = 6;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
-    let bias_uv = range.bias_uv as i16 * (1 << V_SHR) + rounding_const_bias;
+    const V_SCALE: i32 = 3;
+    let bias_y = range.bias_y as i16;
+    let bias_uv = range.bias_uv as i16;
 
     let i_bias_y = _mm_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm_set1_epi16(range.range_y as i16 + range.bias_y as i16);
@@ -189,7 +187,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y0_l = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                (_mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(
@@ -206,7 +204,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y0_h = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                (_mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(
@@ -230,7 +228,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y1_l = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                (_mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(
@@ -247,7 +245,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
 
         let y1_h = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                (_mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(
@@ -280,7 +278,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
 
         let cbk = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                (_mm_add_epi16(
                     uv_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
@@ -294,7 +292,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
 
         let crk = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                (_mm_add_epi16(
                     uv_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
