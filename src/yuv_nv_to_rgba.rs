@@ -46,6 +46,7 @@ use crate::numerics::qrshr;
 use crate::sse::{sse_yuv_nv_to_rgba, sse_yuv_nv_to_rgba420};
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_yuv_nv_to_rgba_row;
+use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvBiPlanarImage, YuvError};
 #[cfg(feature = "rayon")]
@@ -69,6 +70,13 @@ fn yuv_nv12_to_rgbx<
     let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
 
     bi_planar_image.check_constraints(chroma_subsampling)?;
+    check_rgba_destination(
+        bgra,
+        bgra_stride,
+        bi_planar_image.width,
+        bi_planar_image.height,
+        dst_chans.get_channels_count(),
+    )?;
 
     let range = get_yuv_range(8, range);
     let channels = dst_chans.get_channels_count();

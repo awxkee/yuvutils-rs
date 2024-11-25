@@ -99,7 +99,7 @@ fn main() {
         &mut bi_planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::Limited,
+        YuvRange::Full,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
@@ -248,11 +248,16 @@ fn main() {
     // )
     // .unwrap();
     let start_time = Instant::now();
+
+    // let components = 4;
+    // let rgba_stride = width as usize * 4;
+    // let mut rgba = vec![0u8; height as usize * rgba_stride];
+
     yuv_nv12_to_rgb(
         &fixed_biplanar,
         &mut rgba,
         rgba_stride as u32,
-        YuvRange::Limited,
+        YuvRange::Full,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
@@ -297,7 +302,7 @@ fn main() {
     // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
     image::save_buffer(
-        "converted_sharp15.jpg",
+        "converted_sharp15.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,
