@@ -76,7 +76,7 @@ Tests performed on the image 5763x3842
 
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
-| utils RGB->YUV 4:2:0   |   4.37ms   |  6.14ms   |
+| utils RGB->YUV 4:2:0   |   4.09ms   |  6.14ms   |
 | libyuv RGB->YUV 4:2:0  |   3.66ms   |  33.87ms  |
 | utils RGBA->YUV 4:2:0  |   4.88ms   |  7.34ms   |
 | libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |
@@ -88,15 +88,15 @@ Tests performed on the image 5763x3842
 
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
-| utils YUV NV12->RGB    |   4.08ms   |  6.48ms   |
+| utils YUV NV12->RGB    |   3.92ms   |  6.48ms   |
 | libyuv YUV NV12->RGB   |   5.20ms   |  45.28ms  |
-| utils YUV 4:2:0->RGB   |   3.49ms   |  5.44ms   |
+| utils YUV 4:2:0->RGB   |   3.28ms   |  5.44ms   |
 | libyuv YUV 4:2:0->RGB  |   5.70ms   |  44.95ms  |
-| utils YUV 4:2:0->RGBA  |   4.02ms   |  5.98ms   |
+| utils YUV 4:2:0->RGBA  |   3.85ms   |  5.98ms   |
 | libyuv YUV 4:2:0->RGBA |   6.13ms   |  6.88ms   |
-| utils YUV 4:2:2->RGBA  |   5.39ms   |  6.91ms   |
+| utils YUV 4:2:2->RGBA  |   4.94ms   |  6.91ms   |
 | libyuv YUV 4:2:2->RGBA |   5.91ms   |  6.91ms   |
-| utils YUV 4:4:4->RGBA  |   5.04ms   |  7.20ms   |
+| utils YUV 4:4:4->RGBA  |   4.83ms   |  7.20ms   |
 | libyuv YUV 4:4:4->RGBA |   4.82ms   |  7.30ms   |
 
 This project is licensed under either of

@@ -62,6 +62,19 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
     const SCALE: i32 = 7;
     const V_SHR: i32 = 4;
 
+    let weights_arr: [i16; 8] = [
+        transform.y_coef as i16,
+        transform.cr_coef as i16,
+        transform.cb_coef as i16,
+        transform.g_coeff_1 as i16,
+        transform.g_coeff_2 as i16,
+        0,
+        0,
+        0,
+    ];
+
+    let v_weights = vld1q_s16(weights_arr.as_ptr());
+
     while cx + 16 < width {
         let y_values0 = vqsubq_u8(vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
         let y_values1 = vqsubq_u8(vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
@@ -82,39 +95,24 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
             vreinterpretq_s16_u16(vmovl_u8(v_high_u8)),
             uv_corr,
         ));
-        let y_high0 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(y_values0)),
-            transform.y_coef as i16,
-        );
-        let y_high1 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(y_values1)),
-            transform.y_coef as i16,
-        );
+        let y_v_shl0 = vshll_high_n_u8::<SCALE>(y_values0);
+        let y_v_shl1 = vshll_high_n_u8::<SCALE>(y_values1);
+        let y_high0 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl0), v_weights);
+        let y_high1 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl1), v_weights);
 
-        let g_coeff_hi0 = vaddq_s16(
-            vqrdmulhq_n_s16(v_high, transform.g_coeff_1 as i16),
-            vqrdmulhq_n_s16(u_high, transform.g_coeff_2 as i16),
+        let g_coeff_hi = vqrdmlahq_laneq_s16::<4>(
+            vqrdmulhq_laneq_s16::<3>(v_high, v_weights),
+            u_high,
+            v_weights,
         );
 
-        let r_high0 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_high0,
-            vqrdmulhq_n_s16(v_high, transform.cr_coef as i16),
-        ));
-        let b_high0 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_high0,
-            vqrdmulhq_n_s16(u_high, transform.cb_coef as i16),
-        ));
-        let g_high0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_high0, g_coeff_hi0));
+        let r_high0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_high0, v_high, v_weights));
+        let b_high0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_high0, u_high, v_weights));
+        let g_high0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_high0, g_coeff_hi));
 
-        let r_high1 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_high1,
-            vqrdmulhq_n_s16(v_high, transform.cr_coef as i16),
-        ));
-        let b_high1 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_high1,
-            vqrdmulhq_n_s16(u_high, transform.cb_coef as i16),
-        ));
-        let g_high1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_high1, g_coeff_hi0));
+        let r_high1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_high1, v_high, v_weights));
+        let b_high1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_high1, u_high, v_weights));
+        let g_high1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_high1, g_coeff_hi));
 
         let u_low = vshlq_n_s16::<SCALE>(vsubq_s16(
             vreinterpretq_s16_u16(vmovl_u8(u_low_u8)),
@@ -126,32 +124,18 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
         ));
         let y_v_shl0 = vshll_n_u8::<SCALE>(vget_low_u8(y_values0));
         let y_v_shl1 = vshll_n_u8::<SCALE>(vget_low_u8(y_values1));
-        let y_low0 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(y_v_shl0), transform.y_coef as i16);
-        let y_low1 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(y_v_shl1), transform.y_coef as i16);
+        let y_low0 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl0), v_weights);
+        let y_low1 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl1), v_weights);
 
-        let g_coeff_lo = vaddq_s16(
-            vqrdmulhq_n_s16(v_low, transform.g_coeff_1 as i16),
-            vqrdmulhq_n_s16(u_low, transform.g_coeff_2 as i16),
-        );
+        let g_coeff_lo =
+            vqrdmlahq_laneq_s16::<4>(vqrdmulhq_laneq_s16::<3>(v_low, v_weights), u_low, v_weights);
 
-        let r_low0 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_low0,
-            vqrdmulhq_n_s16(v_low, transform.cr_coef as i16),
-        ));
-        let b_low0 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_low0,
-            vqrdmulhq_n_s16(u_low, transform.cb_coef as i16),
-        ));
+        let r_low0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low0, v_low, v_weights));
+        let b_low0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low0, u_low, v_weights));
         let g_low0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low0, g_coeff_lo));
 
-        let r_low1 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_low1,
-            vqrdmulhq_n_s16(v_low, transform.cr_coef as i16),
-        ));
-        let b_low1 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y_low1,
-            vqrdmulhq_n_s16(u_low, transform.cb_coef as i16),
-        ));
+        let r_low1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low1, v_low, v_weights));
+        let b_low1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low1, u_low, v_weights));
         let g_low1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low1, g_coeff_lo));
 
         let r_values0 = vcombine_u8(r_low0, r_high0);
@@ -223,38 +207,21 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
             vreinterpretq_s16_u16(vmovl_u8(v_low_u8)),
             uv_corr,
         ));
-        let y0 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(y_values0)),
-            transform.y_coef as i16,
-        );
-        let y1 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(y_values1)),
-            transform.y_coef as i16,
-        );
+        let y_v_shl0 = vshll_n_u8::<SCALE>(y_values0);
+        let y_v_shl1 = vshll_n_u8::<SCALE>(y_values1);
+        let y_low0 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl0), v_weights);
+        let y_low1 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl1), v_weights);
 
-        let g_coeff = vaddq_s16(
-            vqrdmulhq_n_s16(v_low, transform.g_coeff_1 as i16),
-            vqrdmulhq_n_s16(u_low, transform.g_coeff_2 as i16),
-        );
+        let g_coeff_lo =
+            vqrdmlahq_laneq_s16::<4>(vqrdmulhq_laneq_s16::<3>(v_low, v_weights), u_low, v_weights);
 
-        let r0 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y0,
-            vqrdmulhq_n_s16(v_low, transform.cr_coef as i16),
-        ));
-        let b0 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y0,
-            vqrdmulhq_n_s16(u_low, transform.cb_coef as i16),
-        ));
-        let g0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y0, g_coeff));
-        let r1 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y1,
-            vqrdmulhq_n_s16(v_low, transform.cr_coef as i16),
-        ));
-        let b1 = vqrshrun_n_s16::<V_SHR>(vaddq_s16(
-            y1,
-            vqrdmulhq_n_s16(u_low, transform.cb_coef as i16),
-        ));
-        let g1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y1, g_coeff));
+        let r0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low0, v_low, v_weights));
+        let b0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low0, u_low, v_weights));
+        let g0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low0, g_coeff_lo));
+
+        let r1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low1, v_low, v_weights));
+        let b1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low1, u_low, v_weights));
+        let g1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low1, g_coeff_lo));
 
         let dst_shift = cx * channels;
 

@@ -79,7 +79,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let fixed_planar = planar_image.to_fixed();
 
     // let rgba_image = img.to_rgba8();
-    //
+
     // c.bench_function("yuvutils RGB -> YUV 4:2:0", |b| {
     //     let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
     //         dimensions.0,
@@ -217,36 +217,36 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     //         .unwrap();
     //     })
     // });
-
-    c.bench_function("yuvutils YUV NV12 -> RGB", |b| {
-        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
-        b.iter(|| {
-            yuv_nv12_to_rgba(
-                &fixed_bi_planar,
-                &mut rgb_bytes,
-                dimensions.0 * 4u32,
-                YuvRange::Limited,
-                YuvStandardMatrix::Bt601,
-            )
-            .unwrap();
-        })
-    });
-
-    c.bench_function("livyuv YUV NV12 -> RGB", |b| {
-        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
-        b.iter(|| unsafe {
-            rs_NV21ToABGR(
-                fixed_bi_planar.y_plane.as_ptr(),
-                fixed_bi_planar.y_stride as i32,
-                fixed_bi_planar.uv_plane.as_ptr(),
-                fixed_bi_planar.uv_stride as i32,
-                rgb_bytes.as_mut_ptr(),
-                dimensions.0 as i32 * 4,
-                fixed_bi_planar.width as i32,
-                fixed_bi_planar.height as i32,
-            );
-        })
-    });
+    //
+    // c.bench_function("yuvutils YUV NV12 -> RGB", |b| {
+    //     let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+    //     b.iter(|| {
+    //         yuv_nv12_to_rgba(
+    //             &fixed_bi_planar,
+    //             &mut rgb_bytes,
+    //             dimensions.0 * 4u32,
+    //             YuvRange::Limited,
+    //             YuvStandardMatrix::Bt601,
+    //         )
+    //         .unwrap();
+    //     })
+    // });
+    //
+    // c.bench_function("livyuv YUV NV12 -> RGB", |b| {
+    //     let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+    //     b.iter(|| unsafe {
+    //         rs_NV21ToABGR(
+    //             fixed_bi_planar.y_plane.as_ptr(),
+    //             fixed_bi_planar.y_stride as i32,
+    //             fixed_bi_planar.uv_plane.as_ptr(),
+    //             fixed_bi_planar.uv_stride as i32,
+    //             rgb_bytes.as_mut_ptr(),
+    //             dimensions.0 as i32 * 4,
+    //             fixed_bi_planar.width as i32,
+    //             fixed_bi_planar.height as i32,
+    //         );
+    //     })
+    // });
 
     c.bench_function("yuvutils YUV 4:2:0 -> RGB", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 3 * dimensions.1 as usize];
