@@ -28,7 +28,9 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{vaddn_dot, vdotl_s16, vmullq_s16, vweight_x2};
+use crate::neon::neon_simd_support::{
+    vaddn_dot, vdotl_laneq_s16, vmullq_laneq_s16, vweight_laneq_x2,
+};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -286,11 +288,18 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
 
     let y_corr = vdupq_n_u8(range.bias_y as u8);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
-    let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
-    let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
-    let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
-    let v_g_coeff_1 = vdupq_n_s16(-(transform.g_coeff_1 as i16));
-    let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
+    let weights_arr: [i16; 8] = [
+        transform.y_coef as i16,
+        transform.cr_coef as i16,
+        transform.cb_coef as i16,
+        -transform.g_coeff_1 as i16,
+        -transform.g_coeff_2 as i16,
+        0,
+        0,
+        0,
+    ];
+
+    let v_weights = vld1q_s16(weights_arr.as_ptr());
     let v_alpha = vdupq_n_u8(255u8);
 
     while cx + 16 < width {
@@ -307,44 +316,41 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
 
         let u_high = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_high_u8)), uv_corr);
         let v_high = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_high_u8)), uv_corr);
-        let y_high0 = vmullq_s16(
-            vreinterpretq_s16_u16(vmovl_high_u8(y_values0)),
-            v_luma_coeff,
-        );
-        let y_high1 = vmullq_s16(
-            vreinterpretq_s16_u16(vmovl_high_u8(y_values1)),
-            v_luma_coeff,
-        );
+        let y_high0 =
+            vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_high_u8(y_values0)), v_weights);
+        let y_high1 =
+            vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_high_u8(y_values1)), v_weights);
 
-        let g_coeff_hi = vweight_x2(v_high, v_g_coeff_1, u_high, v_g_coeff_2);
+        let g_coeff_hi = vweight_laneq_x2::<3, 4>(v_high, u_high, v_weights);
 
-        let r_high0 = vdotl_s16::<PRECISION>(y_high0, v_high, v_cr_coeff);
-        let b_high0 = vdotl_s16::<PRECISION>(y_high0, u_high, v_cb_coeff);
+        let r_high0 = vdotl_laneq_s16::<PRECISION, 1>(y_high0, v_high, v_weights);
+        let b_high0 = vdotl_laneq_s16::<PRECISION, 2>(y_high0, u_high, v_weights);
         let g_high0 = vaddn_dot::<PRECISION>(y_high0, g_coeff_hi);
 
-        let r_high1 = vdotl_s16::<PRECISION>(y_high1, v_high, v_cr_coeff);
-        let b_high1 = vdotl_s16::<PRECISION>(y_high1, u_high, v_cb_coeff);
+        let r_high1 = vdotl_laneq_s16::<PRECISION, 1>(y_high1, v_high, v_weights);
+        let b_high1 = vdotl_laneq_s16::<PRECISION, 2>(y_high1, u_high, v_weights);
         let g_high1 = vaddn_dot::<PRECISION>(y_high1, g_coeff_hi);
 
         let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
         let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_low_u8)), uv_corr);
-        let y_low0 = vmullq_s16(
+
+        let y_low0 = vmullq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_values0))),
-            v_luma_coeff,
+            v_weights,
         );
-        let y_low1 = vmullq_s16(
+        let y_low1 = vmullq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_values1))),
-            v_luma_coeff,
+            v_weights,
         );
 
-        let g_coeff_lo = vweight_x2(v_low, v_g_coeff_1, u_low, v_g_coeff_2);
+        let g_coeff_lo = vweight_laneq_x2::<3, 4>(v_low, u_low, v_weights);
 
-        let r_low0 = vdotl_s16::<PRECISION>(y_low0, v_low, v_cr_coeff);
-        let b_low0 = vdotl_s16::<PRECISION>(y_low0, u_low, v_cb_coeff);
+        let r_low0 = vdotl_laneq_s16::<PRECISION, 1>(y_low0, v_low, v_weights);
+        let b_low0 = vdotl_laneq_s16::<PRECISION, 2>(y_low0, u_low, v_weights);
         let g_low0 = vaddn_dot::<PRECISION>(y_low0, g_coeff_lo);
 
-        let r_low1 = vdotl_s16::<PRECISION>(y_low1, v_low, v_cr_coeff);
-        let b_low1 = vdotl_s16::<PRECISION>(y_low1, u_low, v_cb_coeff);
+        let r_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, v_low, v_weights);
+        let b_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, u_low, v_weights);
         let g_low1 = vaddn_dot::<PRECISION>(y_low1, g_coeff_lo);
 
         let r_values0 = vcombine_u8(vqmovun_s16(r_low0), vqmovun_s16(r_high0));

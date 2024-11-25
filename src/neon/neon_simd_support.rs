@@ -31,28 +31,31 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
 
 #[inline(always)]
-pub(crate) unsafe fn vdotl_s16<const PRECISION: i32>(
+pub(crate) unsafe fn vdotl_laneq_s16<const PRECISION: i32, const LANE: i32>(
     acc: (int32x4_t, int32x4_t),
     v0: int16x8_t,
     c0: int16x8_t,
 ) -> int16x8_t {
-    let hi = vmlal_high_s16(acc.1, v0, c0);
-    let lo = vmlal_s16(acc.0, vget_low_s16(v0), vget_low_s16(c0));
+    let hi = vmlal_high_laneq_s16::<LANE>(acc.1, v0, c0);
+    let lo = vmlal_laneq_s16::<LANE>(acc.0, vget_low_s16(v0), c0);
     vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
 }
 
 #[inline(always)]
-pub(crate) unsafe fn vdotl_s16_x2<const PRECISION: i32>(
+pub(crate) unsafe fn vdotl_laneq_s16_x2<
+    const PRECISION: i32,
+    const LANE0: i32,
+    const LANE1: i32,
+>(
     acc: (int32x4_t, int32x4_t),
     v0: int16x8_t,
-    c0: int16x8_t,
     v1: int16x8_t,
-    c1: int16x8_t,
+    c0: int16x8_t,
 ) -> int16x8_t {
-    let mut hi = vmlal_high_s16(acc.1, v0, c0);
-    let mut lo = vmlal_s16(acc.0, vget_low_s16(v0), vget_low_s16(c0));
-    hi = vmlal_high_s16(hi, v1, c1);
-    lo = vmlal_s16(lo, vget_low_s16(v1), vget_low_s16(c1));
+    let mut hi = vmlal_high_laneq_s16::<LANE0>(acc.1, v0, c0);
+    let mut lo = vmlal_laneq_s16::<LANE0>(acc.0, vget_low_s16(v0), c0);
+    hi = vmlal_high_laneq_s16::<LANE1>(hi, v1, c0);
+    lo = vmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c0);
     vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
 }
 
@@ -68,16 +71,15 @@ pub(crate) unsafe fn vaddn_dot<const PRECISION: i32>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn vweight_x2(
+pub(crate) unsafe fn vweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
     v0: int16x8_t,
-    c0: int16x8_t,
     v1: int16x8_t,
     c1: int16x8_t,
 ) -> (int32x4_t, int32x4_t) {
-    let mut lo = vmull_s16(vget_low_s16(v0), vget_low_s16(c0));
-    let mut hi = vmull_high_s16(v0, c0);
-    lo = vmlal_s16(lo, vget_low_s16(v1), vget_low_s16(c1));
-    hi = vmlal_high_s16(hi, v1, c1);
+    let mut lo = vmull_laneq_s16::<LANE0>(vget_low_s16(v0), c1);
+    let mut hi = vmull_high_laneq_s16::<LANE0>(v0, c1);
+    lo = vmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c1);
+    hi = vmlal_high_laneq_s16::<LANE1>(hi, v1, c1);
     (lo, hi)
 }
 
@@ -86,6 +88,17 @@ pub(crate) unsafe fn vmullq_s16(v: int16x8_t, q: int16x8_t) -> (int32x4_t, int32
     (
         vmull_s16(vget_low_s16(v), vget_low_s16(q)),
         vmull_high_s16(v, q),
+    )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
+    v: int16x8_t,
+    q: int16x8_t,
+) -> (int32x4_t, int32x4_t) {
+    (
+        vmull_laneq_s16::<LANE>(vget_low_s16(v), q),
+        vmull_high_laneq_s16::<LANE>(v, q),
     )
 }
 
