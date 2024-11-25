@@ -210,14 +210,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0.clamp(i_bias_y, i_cap_y) as u8;
+            y_dst[0] = y_0.max(i_bias_y).min(i_cap_y) as u8;
 
             let r1 = rgba[channels + src_chans.get_r_channel_offset()] as i32;
             let g1 = rgba[channels + src_chans.get_g_channel_offset()] as i32;
             let b1 = rgba[channels + src_chans.get_b_channel_offset()] as i32;
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = y_1.clamp(i_bias_y, i_cap_y) as u8;
+            y_dst[1] = y_1.max(i_bias_y).min(i_cap_y) as u8;
 
             if compute_chroma_row {
                 let r = (r0 + r1 + 1) >> 1;
@@ -228,8 +228,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     >> PRECISION;
                 let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
                     >> PRECISION;
-                *u_dst = cb.clamp(i_bias_y, i_cap_uv) as u8;
-                *v_dst = cr.clamp(i_bias_y, i_cap_uv) as u8;
+                *u_dst = cb.max(i_bias_y).min(i_cap_uv) as u8;
+                *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
             }
         }
 
@@ -245,7 +245,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y_last = y_0.clamp(i_bias_y, i_cap_y) as u8;
+            *y_last = y_0.max(i_bias_y).min(i_cap_y) as u8;
 
             if compute_chroma_row {
                 let cb =
@@ -254,8 +254,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let cr =
                     (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                         >> PRECISION;
-                *u_last = cb.clamp(i_bias_y, i_cap_uv) as u8;
-                *v_last = cr.clamp(i_bias_y, i_cap_uv) as u8;
+                *u_last = cb.max(i_bias_y).min(i_cap_uv) as u8;
+                *v_last = cr.max(i_bias_y).min(i_cap_uv) as u8;
             }
         }
     };
@@ -301,7 +301,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
                 let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                     >> PRECISION;
-                *y_dst = y_0.clamp(i_bias_y, i_cap_y) as u8;
+                *y_dst = y_0.max(i_bias_y).min(i_cap_y) as u8;
 
                 let cb =
                     (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
@@ -309,8 +309,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let cr =
                     (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                         >> PRECISION;
-                *u_dst = cb.clamp(i_bias_y, i_cap_uv) as u8;
-                *v_dst = cr.clamp(i_bias_y, i_cap_uv) as u8;
+                *u_dst = cb.max(i_bias_y).min(i_cap_uv) as u8;
+                *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {

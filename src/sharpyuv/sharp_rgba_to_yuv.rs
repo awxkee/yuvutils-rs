@@ -76,7 +76,7 @@ fn sharpen_row420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
         let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
 
         let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-        y_dst[0] = y_0.clamp(i_bias_y, i_cap_y) as u8;
+        y_dst[0] = y_0.max(i_bias_y).min(i_cap_y) as u8;
 
         let rgba_2 = &rgba[channels..channels * 2];
 
@@ -85,7 +85,7 @@ fn sharpen_row420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
         let b1 = rgba_2[src_chans.get_b_channel_offset()] as i32;
 
         let y_1 = (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-        y_dst[1] = y_1.clamp(i_bias_y, i_cap_y) as u8;
+        y_dst[1] = y_1.max(i_bias_y).min(i_cap_y) as u8;
 
         if y_even_row {
             let sharp_r_c = rgb_linearized[src_chans.get_r_channel_offset()];
@@ -143,8 +143,8 @@ fn sharpen_row420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
                 + corrected_b * transform.cr_b
                 + bias_uv)
                 >> PRECISION;
-            *u_dst = cb.clamp(i_bias_y, i_cap_uv) as u8;
-            *v_dst = cr.clamp(i_bias_y, i_cap_uv) as u8;
+            *u_dst = cb.max(i_bias_y).min(i_cap_uv) as u8;
+            *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
         }
     }
 
@@ -158,7 +158,7 @@ fn sharpen_row420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
         let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
 
         let y_1 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-        *y_last = y_1.clamp(i_bias_y, i_cap_y) as u8;
+        *y_last = y_1.max(i_bias_y).min(i_cap_y) as u8;
 
         if y_even_row {
             let rgba_lin = rgb_layout.chunks_exact(3).last().unwrap();
@@ -198,8 +198,8 @@ fn sharpen_row420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
                 >> PRECISION;
             let u_last = u_plane.last_mut().unwrap();
             let v_last = v_plane.last_mut().unwrap();
-            *u_last = cb.clamp(i_bias_y, i_cap_uv) as u8;
-            *v_last = cr.clamp(i_bias_y, i_cap_uv) as u8;
+            *u_last = cb.max(i_bias_y).min(i_cap_uv) as u8;
+            *v_last = cr.max(i_bias_y).min(i_cap_uv) as u8;
         }
     }
 }
@@ -242,7 +242,7 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
         let sharp_b_c = rgb_linearized[src_chans.get_b_channel_offset()];
 
         let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-        y_dst[0] = y_0.clamp(i_bias_y, i_cap_y) as u8;
+        y_dst[0] = y_0.max(i_bias_y).min(i_cap_y) as u8;
 
         let rgba_2 = &rgba[channels..channels * 2];
 
@@ -251,7 +251,7 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
         let b1 = rgba_2[src_chans.get_b_channel_offset()] as i32;
 
         let y_1 = (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-        y_dst[1] = y_1.clamp(i_bias_y, i_cap_y) as u8;
+        y_dst[1] = y_1.max(i_bias_y).min(i_cap_y) as u8;
 
         let rgb_linearized_2 = &rgb_linearized[3..(3 + 3)];
 
@@ -282,8 +282,8 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
             + corrected_b * transform.cr_b
             + bias_uv)
             >> PRECISION;
-        *u_dst = cb.clamp(i_bias_y, i_cap_uv) as u8;
-        *v_dst = cr.clamp(i_bias_y, i_cap_uv) as u8;
+        *u_dst = cb.max(i_bias_y).min(i_cap_uv) as u8;
+        *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
     }
 
     let rem_rgba = rgba.chunks_exact(channels * 2).remainder();
@@ -296,7 +296,7 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
         let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
 
         let y_1 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-        *y_last = y_1.clamp(i_bias_y, i_cap_y) as u8;
+        *y_last = y_1.max(i_bias_y).min(i_cap_y) as u8;
 
         let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
             >> PRECISION;
@@ -305,8 +305,8 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
 
         let u_last = u_plane.last_mut().unwrap();
         let v_last = v_plane.last_mut().unwrap();
-        *u_last = cb.clamp(i_bias_y, i_cap_uv) as u8;
-        *v_last = cr.clamp(i_bias_y, i_cap_uv) as u8;
+        *u_last = cb.max(i_bias_y).min(i_cap_uv) as u8;
+        *v_last = cr.max(i_bias_y).min(i_cap_uv) as u8;
     }
 }
 

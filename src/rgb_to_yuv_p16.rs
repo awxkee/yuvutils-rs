@@ -221,7 +221,7 @@ fn rgbx_to_yuv_ant<
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
             y_dst[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_0.clamp(i_bias_y, i_cap_y),
+                y_0.max(i_bias_y).min(i_cap_y),
             );
 
             let r1 = rgba[channels + src_chans.get_r_channel_offset()] as i32;
@@ -230,7 +230,7 @@ fn rgbx_to_yuv_ant<
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
             y_dst[1] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_1.clamp(i_bias_y, i_cap_y),
+                y_1.max(i_bias_y).min(i_cap_y),
             );
 
             if compute_chroma_row {
@@ -243,10 +243,10 @@ fn rgbx_to_yuv_ant<
                 let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
                     >> PRECISION;
                 *u_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    cb.clamp(i_bias_y, i_cap_uv),
+                    cb.max(i_bias_y).min(i_cap_uv),
                 );
                 *v_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    cr.clamp(i_bias_y, i_cap_uv),
+                    cr.max(i_bias_y).min(i_cap_uv),
                 );
             }
         }
@@ -264,7 +264,7 @@ fn rgbx_to_yuv_ant<
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
             *y_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_0.clamp(i_bias_y, i_cap_y),
+                y_0.max(i_bias_y).min(i_cap_y),
             );
 
             if compute_chroma_row {
@@ -275,10 +275,10 @@ fn rgbx_to_yuv_ant<
                     (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                         >> PRECISION;
                 *u_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    cb.clamp(i_bias_y, i_cap_uv),
+                    cb.max(i_bias_y).min(i_cap_uv),
                 );
                 *v_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    cr.clamp(i_bias_y, i_cap_uv),
+                    cr.max(i_bias_y).min(i_cap_uv),
                 );
             }
         }
@@ -326,7 +326,7 @@ fn rgbx_to_yuv_ant<
                 let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                     >> PRECISION;
                 *y_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    y_0.clamp(i_bias_y, i_cap_y),
+                    y_0.max(i_bias_y).min(i_cap_y),
                 );
 
                 let cb =
@@ -336,10 +336,10 @@ fn rgbx_to_yuv_ant<
                     (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                         >> PRECISION;
                 *u_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    cb.clamp(i_bias_y, i_cap_uv),
+                    cb.max(i_bias_y).min(i_cap_uv),
                 );
                 *v_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    cr.clamp(i_bias_y, i_cap_uv),
+                    cr.max(i_bias_y).min(i_cap_uv),
                 );
             }
         });
