@@ -26,17 +26,15 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 use image::{ColorType, EncodableLayout, GenericImageView, ImageReader};
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
+use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24};
 use yuvutils_rs::{
-    ab30_to_rgb8, ar30_to_rgb8, ra30_to_rgb8, rgb8_to_ar30, rgb8_to_ra30, rgb_to_sharp_yuv422,
-    rgb_to_yuv420_p16, rgb_to_yuv422_p16, rgb_to_yuv_nv12_p16, yuv422_p16_to_ab30,
-    yuv422_p16_to_ar30, yuv422_p16_to_ra30, yuv422_to_rgb, yuv444_p16_to_ar30, yuv_nv12_to_rgb_p16,
-    Rgb30ByteOrder, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking,
-    YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb,
+    yuv_nv12_to_rgb, yuv_nv12_to_rgba, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
+    YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -88,35 +86,28 @@ fn main() {
     let mut y_nv_plane = vec![0u8; width as usize * height as usize];
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
-    let mut bi_planar_image = YuvBiPlanarImageMut::<u16>::alloc(
-        width as u32,
-        height as u32,
-        YuvChromaSubsampling::Yuv420,
-    );
+    let mut bi_planar_image =
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
-    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 4).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv422_p16(
-        &mut planar_image,
-        &bytes_16,
+    rgb_to_yuv_nv12(
+        &mut bi_planar_image,
+        &src_bytes,
         rgba_stride as u32,
-        10,
-        YuvRange::Limited,
+        YuvRange::Full,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
     //
     // println!("rgb_to_yuv_nv12 time: {:?}", start_time.elapsed());
     //
-    // let end_time = Instant::now().sub(start_time);
-    // println!("Forward time: {:?}", end_time);
+    println!("Forward time: {:?}", start_time.elapsed());
     // // //
     // let full_size = if width % 2 == 0 {
     //     2 * width as usize * height as usize
@@ -200,8 +191,8 @@ fn main() {
 
     let fixed_biplanar = bi_planar_image.to_fixed();
     let fixed_planar = planar_image.to_fixed();
-    bytes_16.fill(0);
-    let start_time = Instant::now();
+    // bytes_16.fill(0);
+
     // let a_plane = vec![1023u16; width as usize * height as usize];
     // let planar_with_alpha = YuvPlanarImageWithAlpha {
     //     y_plane: planar_image.y_plane.borrow(),
@@ -222,16 +213,16 @@ fn main() {
 
     let mut ar30 = vec![0u32; width as usize * height as usize];
 
-    rgb8_to_ra30(
-        &mut ar30,
-        width,
-        Rgb30ByteOrder::Host,
-        &src_bytes,
-        rgba_stride as u32,
-        width,
-        height,
-    )
-    .unwrap();
+    // rgb8_to_ra30(
+    //     &mut ar30,
+    //     width,
+    //     Rgb30ByteOrder::Host,
+    //     &src_bytes,
+    //     rgba_stride as u32,
+    //     width,
+    //     height,
+    // )
+    // .unwrap();
 
     // yuv422_p16_to_ab30(
     //     &fixed_planar,
@@ -246,35 +237,72 @@ fn main() {
     // )
     // .unwrap();
     rgba.fill(0);
-    ra30_to_rgb8(
-        &ar30,
-        width,
-        Rgb30ByteOrder::Host,
+    // ra30_to_rgb8(
+    //     &ar30,
+    //     width,
+    //     Rgb30ByteOrder::Host,
+    //     &mut rgba,
+    //     rgba_stride as u32,
+    //     width,
+    //     height,
+    // )
+    // .unwrap();
+    let start_time = Instant::now();
+
+    // let components = 4;
+    // let rgba_stride = width as usize * 4;
+    // let mut rgba = vec![0u8; height as usize * rgba_stride];
+
+    yuv_nv12_to_rgb(
+        &fixed_biplanar,
         &mut rgba,
         rgba_stride as u32,
-        width,
-        height,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
-    // yuv_nv12_to_rgb_p16(
-    //     &fixed_biplanar,
-    //     &mut bytes_16,
-    //     rgba_stride as u32,
-    //     10,
-    //     YuvRange::Limited,
-    //     YuvStandardMatrix::Bt601,
-    //     YuvEndianness::LittleEndian,
-    //     YuvBytesPacking::LeastSignificantBytes,
-    // )
-    // .unwrap();
-
     println!("Backward time: {:?}", start_time.elapsed());
 
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    let start_time = Instant::now();
+
+    // unsafe {
+    //     // rs_I420ToRGB24(
+    //     //     fixed_planar.y_plane.as_ptr(),
+    //     //     fixed_planar.y_stride as i32,
+    //     //     fixed_planar.u_plane.as_ptr(),
+    //     //     fixed_planar.u_stride as i32,
+    //     //     fixed_planar.v_plane.as_ptr(),
+    //     //     fixed_planar.v_stride as i32,
+    //     //     rgba.as_mut_ptr(),
+    //     //     rgba_stride as i32,
+    //     //     fixed_planar.width as i32,
+    //     //     fixed_planar.height as i32,
+    //     // );
+    //     rs_NV12ToRGB24(
+    //         fixed_biplanar.y_plane.as_ptr(),
+    //         fixed_biplanar.y_stride as i32,
+    //         fixed_biplanar.uv_plane.as_ptr(),
+    //         fixed_biplanar.uv_stride as i32,
+    //         rgba.as_mut_ptr(),
+    //         rgba_stride as i32,
+    //         fixed_planar.width as i32,
+    //         fixed_planar.height as i32,
+    //     );
+    // }
+
+    // /    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
+
+    // rgba.chunks_exact_mut(3).for_each(|chunk| {
+    //     let b = chunk[0];
+    //     chunk[0] = chunk[2];
+    //     chunk[2] = b;
+    // });
+
+    // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
     image::save_buffer(
-        "converted_sharp15.jpg",
+        "converted_sharp15.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

@@ -37,7 +37,10 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_ycgcor_type_to_rgb_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) unsafe fn sse_ycgcor_type_to_rgb_row<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+>(
     range: &YuvChromaRange,
     y_plane: *const u16,
     cg_plane: *const u16,

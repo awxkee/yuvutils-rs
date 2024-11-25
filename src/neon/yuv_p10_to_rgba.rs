@@ -27,15 +27,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::arch::aarch64::*;
-
 use crate::internals::ProcessedOffset;
 use crate::neon::neon_simd_support::{vld_s16_endian, vldq_s16_endian};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
+use std::arch::aarch64::*;
 
-pub unsafe fn neon_yuv_p16_to_rgba_row<
+pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -43,9 +42,9 @@ pub unsafe fn neon_yuv_p16_to_rgba_row<
     const BIT_DEPTH: usize,
     const PRECISION: i32,
 >(
-    y_ld_ptr: *const u16,
-    u_ld_ptr: *const u16,
-    v_ld_ptr: *const u16,
+    y_ld_ptr: &[u16],
+    u_ld_ptr: &[u16],
+    v_ld_ptr: &[u16],
     rgba: &mut [u8],
     dst_offset: usize,
     width: u32,
@@ -76,7 +75,10 @@ pub unsafe fn neon_yuv_p16_to_rgba_row<
 
     while cx + 8 < width as usize {
         let y_values: int16x8_t = vsubq_s16(
-            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(y_ld_ptr.add(cx), v_msb_shift),
+            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                y_ld_ptr.get_unchecked(cx..).as_ptr(),
+                v_msb_shift,
+            ),
             y_corr,
         );
 
@@ -86,10 +88,14 @@ pub unsafe fn neon_yuv_p16_to_rgba_row<
         let v_low: int16x4_t;
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut u_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(u_ld_ptr.add(ux), v_msb_shift);
-            let mut v_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(v_ld_ptr.add(ux), v_msb_shift);
+            let mut u_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                u_ld_ptr.get_unchecked(ux..).as_ptr(),
+                v_msb_shift,
+            );
+            let mut v_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+                v_ld_ptr.get_unchecked(ux..).as_ptr(),
+                v_msb_shift,
+            );
 
             u_values_l = vsubq_s16(u_values_l, uv_corr);
             v_values_l = vsubq_s16(v_values_l, uv_corr);
@@ -100,11 +106,11 @@ pub unsafe fn neon_yuv_p16_to_rgba_row<
             v_low = vget_low_s16(v_values_l);
         } else {
             let mut u_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
-                u_ld_ptr.add(ux),
+                u_ld_ptr.get_unchecked(ux..).as_ptr(),
                 vget_low_s16(v_msb_shift),
             );
             let mut v_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
-                v_ld_ptr.add(ux),
+                v_ld_ptr.get_unchecked(ux..).as_ptr(),
                 vget_low_s16(v_msb_shift),
             );
             u_values_l = vsub_s16(u_values_l, vget_low_s16(uv_corr));

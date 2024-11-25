@@ -36,7 +36,7 @@ use crate::yuv_support::{
 };
 
 #[inline(always)]
-pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
+pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -44,12 +44,11 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     const BIT_DEPTH: usize,
     const PRECISION: i32,
 >(
-    y_ld_ptr: *const u16,
-    u_ld_ptr: *const u16,
-    v_ld_ptr: *const u16,
-    a_ld_ptr: *const u16,
+    y_ld_ptr: &[u16],
+    u_ld_ptr: &[u16],
+    v_ld_ptr: &[u16],
+    a_ld_ptr: &[u16],
     rgba: &mut [u8],
-    dst_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -60,7 +59,7 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     if destination_channels == YuvSourceChannels::Rgb
         || destination_channels == YuvSourceChannels::Bgr
     {
-        panic!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
+        unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
@@ -88,9 +87,9 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         let u_values_c: int16x4_t;
         let v_values_c: int16x4_t;
 
-        let u_values_l = vld1_u16(u_ld_ptr.add(ux));
-        let v_values_l = vld1_u16(v_ld_ptr.add(ux));
-        let mut a_values_l = vld1q_u16(a_ld_ptr.add(cx));
+        let u_values_l = vld1_u16(u_ld_ptr.get_unchecked(ux..).as_ptr());
+        let v_values_l = vld1_u16(v_ld_ptr.get_unchecked(ux..).as_ptr());
+        let mut a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
 
         if endianness == YuvEndianness::BigEndian {
             a_values_l = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(a_values_l)));
@@ -103,7 +102,7 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         match endianness {
             YuvEndianness::BigEndian => {
                 let mut y_u_values = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(
-                    vld1q_u16(y_ld_ptr.add(cx)),
+                    vld1q_u16(y_ld_ptr.get_unchecked(cx..).as_ptr()),
                 )));
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     y_u_values = vshlq_u16(y_u_values, v_msb_shift);
@@ -120,7 +119,7 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
                 v_values_c = vsub_s16(vreinterpret_s16_u16(v_v), uv_corr);
             }
             YuvEndianness::LittleEndian => {
-                let mut y_vl = vld1q_u16(y_ld_ptr.add(cx));
+                let mut y_vl = vld1q_u16(y_ld_ptr.get_unchecked(cx..).as_ptr());
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
                     y_vl = vshlq_u16(y_vl, v_msb_shift);
                 }
@@ -182,11 +181,11 @@ pub unsafe fn neon_yuv_p16_to_rgba_alpha_row<
             YuvSourceChannels::Bgr => {}
             YuvSourceChannels::Rgba => {
                 let dst_pack: uint8x8x4_t = uint8x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst4_u8(dst_ptr.add(cx * channels), dst_pack);
             }
             YuvSourceChannels::Bgra => {
                 let dst_pack: uint8x8x4_t = uint8x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
+                vst4_u8(dst_ptr.add(cx * channels), dst_pack);
             }
         }
 

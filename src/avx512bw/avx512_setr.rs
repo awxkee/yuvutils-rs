@@ -35,7 +35,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline]
-pub unsafe fn _v512_set_epu32(
+pub(crate) unsafe fn _v512_set_epu32(
     a15: i64,
     a14: i64,
     a13: i64,
@@ -68,7 +68,7 @@ pub unsafe fn _v512_set_epu32(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 #[allow(dead_code)]
-pub unsafe fn _v512_set_epu16(
+pub(crate) unsafe fn _v512_set_epu16(
     a31: i64,
     a30: i64,
     a29: i64,
@@ -123,7 +123,7 @@ pub unsafe fn _v512_set_epu16(
 }
 
 #[inline]
-pub unsafe fn _v512_set_epu8(
+pub(crate) unsafe fn _v512_set_epu8(
     a63: i64,
     a62: i64,
     a61: i64,

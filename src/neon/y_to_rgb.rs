@@ -27,17 +27,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::neon::neon_simd_support::vmullq_s16;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
-pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
+#[target_feature(enable = "rdm")]
+pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
     rgba: &mut [u8],
     start_cx: usize,
-    y_offset: usize,
-    rgba_offset: usize,
     width: usize,
 ) -> usize {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -47,31 +47,95 @@ pub unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = vdupq_n_u8(range.bias_y as u8);
-    let v_min_values = vdupq_n_s16(0i16);
     let v_alpha = vdupq_n_u8(255u8);
 
     let mut cx = start_cx;
 
     while cx + 16 < width {
-        let y_values = vsubq_u8(vld1q_u8(y_ptr.add(y_offset + cx)), y_corr);
+        let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let y_high = vqrdmulhq_n_s16(
             vreinterpretq_s16_u16(vshll_high_n_u8::<7>(y_values)),
             transform.y_coef as i16,
         );
 
-        let r_high = vqrshrun_n_s16::<4>(vmaxq_s16(y_high, v_min_values));
+        let r_high = vqrshrun_n_s16::<4>(y_high);
 
         let y_low = vqrdmulhq_n_s16(
             vreinterpretq_s16_u16(vshll_n_u8::<7>(vget_low_u8(y_values))),
             transform.y_coef as i16,
         );
 
-        let r_low = vqrshrun_n_s16::<4>(vmaxq_s16(y_low, v_min_values));
+        let r_low = vqrshrun_n_s16::<4>(y_low);
 
         let r_values = vcombine_u8(r_low, r_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
+
+        match destination_channels {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+                let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, r_values, r_values);
+                vst3q_u8(rgba_ptr.add(dst_shift), dst_pack);
+            }
+            YuvSourceChannels::Rgba => {
+                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, r_values, r_values, v_alpha);
+                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
+            }
+            YuvSourceChannels::Bgra => {
+                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, r_values, r_values, v_alpha);
+                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
+            }
+        }
+
+        cx += 16;
+    }
+
+    cx
+}
+
+pub(crate) unsafe fn neon_y_to_rgb_row<const PRECISION: i32, const DESTINATION_CHANNELS: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = destination_channels.get_channels_count();
+
+    let y_ptr = y_plane.as_ptr();
+    let rgba_ptr = rgba.as_mut_ptr();
+
+    let y_corr = vdupq_n_u8(range.bias_y as u8);
+    let v_alpha = vdupq_n_u8(255u8);
+    let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
+
+    let mut cx = start_cx;
+
+    while cx + 16 < width {
+        let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
+
+        let y_high = vmullq_s16(vreinterpretq_s16_u16(vmovl_high_u8(y_values)), v_luma_coeff);
+
+        let r_high = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_high.0),
+            vrshrn_n_s32::<PRECISION>(y_high.1),
+        ));
+
+        let y_low = vmullq_s16(
+            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_values))),
+            v_luma_coeff,
+        );
+
+        let r_low = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_low.0),
+            vrshrn_n_s32::<PRECISION>(y_low.1),
+        ));
+
+        let r_values = vcombine_u8(r_low, r_high);
+
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {

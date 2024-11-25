@@ -39,7 +39,10 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_ycgco_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) unsafe fn avx2_ycgco_to_rgba_alpha<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+>(
     range: &YuvChromaRange,
     y_plane: &[u8],
     cg_plane: &[u8],

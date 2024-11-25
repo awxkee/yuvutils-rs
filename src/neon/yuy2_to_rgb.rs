@@ -32,7 +32,7 @@ use crate::yuv_support::{
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
 
-pub fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
+pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     yuy2_store: &[u8],

@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#![deny(unreachable_code, unreachable_pub)]
 mod rgb_to_nv;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -40,26 +41,34 @@ mod ycgco_to_rgb_alpha;
 mod ycgcor_to_rgb;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
+mod yuv_nv_to_rgba420;
+mod yuv_p16_to_rgb16;
+mod yuv_p16_to_rgb16_alpha;
 mod yuv_to_rgba;
+mod yuv_to_rgba420;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
-pub use rgb_to_nv::sse_rgba_to_nv_row;
-pub use rgb_to_y::sse_rgb_to_y;
-pub use rgb_to_ycgco::sse_rgb_to_ycgco_row;
-pub use rgb_to_ycgco_r::sse_rgb_to_ycgcor_row;
-pub use rgb_to_yuv_p16::sse_rgba_to_yuv_p16;
-pub use rgba_to_yuv::sse_rgba_to_yuv_row;
+pub(crate) use rgb_to_nv::sse_rgba_to_nv_row;
+pub(crate) use rgb_to_y::sse_rgb_to_y;
+pub(crate) use rgb_to_ycgco::sse_rgb_to_ycgco_row;
+pub(crate) use rgb_to_ycgco_r::sse_rgb_to_ycgcor_row;
+pub(crate) use rgb_to_yuv_p16::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_lp};
+pub(crate) use rgba_to_yuv::sse_rgba_to_yuv_row;
 pub(crate) use sse_support::*;
-pub use ycgco_to_rgb::sse_ycgco_to_rgb_row;
-pub use ycgco_to_rgb_alpha::sse_ycgco_to_rgb_alpha_row;
-pub use ycgcor_to_rgb::sse_ycgcor_type_to_rgb_row;
-pub use yuv_nv_p16_to_rgb::sse_yuv_nv_p16_to_rgba_row;
-pub use yuv_nv_to_rgba::sse_yuv_nv_to_rgba;
-pub use yuv_to_rgba::sse_yuv_to_rgba_row;
-pub use yuv_to_rgba_alpha::sse_yuv_to_rgba_alpha_row;
-pub use yuv_to_yuy2::yuv_to_yuy2_sse;
-pub use yuy2_to_rgb::yuy2_to_rgb_sse;
-pub use yuy2_to_yuv::yuy2_to_yuv_sse;
+pub(crate) use ycgco_to_rgb::sse_ycgco_to_rgb_row;
+pub(crate) use ycgco_to_rgb_alpha::sse_ycgco_to_rgb_alpha_row;
+pub(crate) use ycgcor_to_rgb::sse_ycgcor_type_to_rgb_row;
+pub(crate) use yuv_nv_p16_to_rgb::sse_yuv_nv_p16_to_rgba_row;
+pub(crate) use yuv_nv_to_rgba::sse_yuv_nv_to_rgba;
+pub(crate) use yuv_nv_to_rgba420::sse_yuv_nv_to_rgba420;
+pub(crate) use yuv_p16_to_rgb16::sse_yuv_p16_to_rgba_row;
+pub(crate) use yuv_p16_to_rgb16_alpha::sse_yuv_p16_to_rgba_alpha_row;
+pub(crate) use yuv_to_rgba::sse_yuv_to_rgba_row;
+pub(crate) use yuv_to_rgba420::sse_yuv_to_rgba_row420;
+pub(crate) use yuv_to_rgba_alpha::sse_yuv_to_rgba_alpha_row;
+pub(crate) use yuv_to_yuy2::yuv_to_yuy2_sse;
+pub(crate) use yuy2_to_rgb::yuy2_to_rgb_sse;
+pub(crate) use yuy2_to_yuv::yuy2_to_yuv_sse;

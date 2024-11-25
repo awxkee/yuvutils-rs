@@ -39,7 +39,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[target_feature(enable = "avx512bw")]
-pub unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     y_plane: *mut u8,
     cg_plane: *mut u8,

@@ -37,58 +37,67 @@ cargo add yuvutils-rs
 ### RGB to YCbCr
 
 ```rust
-rgb_to_yuv422(&mut y_plane, y_stride,
-              &mut u_plane, u_width,
-              &mut v_plane, v_width,
-              &rgb, rgb_stride,
-              width, height, 
-              YuvRange::Full, YuvStandardMatrix::Bt709);
-```
-
-### RGB to sharp YUV
-
-```rust
-rgb_to_sharp_yuv420(&mut y_plane, y_stride,
-                    &mut u_plane, u_width,
-                    &mut v_plane, v_width,
-                    &rgb, rgb_stride,
-                    width, height, 
-                    YuvRange::Full, YuvStandardMatrix::Bt709,
-                    SharpYuvGammaTransfer::Srgb);
+let mut planar_image =
+    YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+rgb_to_yuv422(
+    &mut planar_image,
+    &src_bytes,
+    rgba_stride as u32,
+    YuvRange::Limited,
+    YuvStandardMatrix::Bt601,
+)
+.unwrap();
 ```
 
 ### YCbCr to RGB
 
 ```rust
-yuv422_to_rgb(&y_plane, y_stride, 
-              &u_plane, u_stride,
-              &v_plane, v_stride,
-              &mut rgb, rgb_stride,
-              width, height, 
-              YuvRange::Full, YuvStandardMatrix::Bt709);
+yuv420_to_rgb(
+    &yuv_planar_image,
+    &mut rgba,
+    rgba_stride as u32,
+    YuvRange::Limited,
+    YuvStandardMatrix::Bt601,
+)
+.unwrap();
 ```
 
-### RGB To YCgCo
+## Benchmarks
 
-```rust
-rgb_to_ycgco420(&mut y_plane, y_stride,
-                &mut cg_plane, cg_width,
-                &mut cg_plane, cg_width,
-                &rgb, rgb_stride,
-                width, height, 
-                YuvRange::TV);
+YUV 8 bit-depth conversion
+
+```bash
+cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
 ```
 
-### YCgCo to RGB
+Tests performed on the image 5763x3842
 
-```rust
-ycgco420_to_rgb(&y_plane, y_stride, 
-                &cg_plane, cg_stride,
-                &co_plane, co_stride,
-                &mut rgb, rgb_stride,
-                width, height, 
-                YuvRange::TV);
-```
+### Encoding
+
+|                        | time(NEON) | Time(AVX) |
+|------------------------|:----------:|:---------:|
+| utils RGB->YUV 4:2:0   |   4.37ms   |  6.14ms   |
+| libyuv RGB->YUV 4:2:0  |   3.66ms   |  33.87ms  |
+| utils RGBA->YUV 4:2:0  |   4.88ms   |  7.34ms   |
+| libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |
+| utils RGBA->YUV 4:2:2  |   4.99ms   |  7.08ms   |
+| libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |
+| utils RGBA->YUV 4:4:4  |   5.37ms   |  7.97ms   |
+
+### Decoding
+
+|                        | time(NEON) | Time(AVX) |
+|------------------------|:----------:|:---------:|
+| utils YUV NV12->RGB    |   4.08ms   |  6.48ms   |
+| libyuv YUV NV12->RGB   |   5.20ms   |  45.28ms  |
+| utils YUV 4:2:0->RGB   |   3.49ms   |  5.44ms   |
+| libyuv YUV 4:2:0->RGB  |   5.70ms   |  44.95ms  |
+| utils YUV 4:2:0->RGBA  |   4.02ms   |  5.98ms   |
+| libyuv YUV 4:2:0->RGBA |   6.13ms   |  6.88ms   |
+| utils YUV 4:2:2->RGBA  |   5.39ms   |  6.91ms   |
+| libyuv YUV 4:2:2->RGBA |   5.91ms   |  6.91ms   |
+| utils YUV 4:4:4->RGBA  |   5.04ms   |  7.20ms   |
+| libyuv YUV 4:4:4->RGBA |   4.82ms   |  7.30ms   |
 
 This project is licensed under either of
 

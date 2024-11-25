@@ -34,7 +34,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline]
-pub unsafe fn avx2_rgb_to_ycgco(
+pub(crate) unsafe fn avx2_rgb_to_ycgco(
     r: __m256i,
     g: __m256i,
     b: __m256i,

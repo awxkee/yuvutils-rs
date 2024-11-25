@@ -30,7 +30,7 @@ use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
 
-pub fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
+pub(crate) fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &mut [u8],
     u_plane: &mut [u8],
     v_plane: &mut [u8],

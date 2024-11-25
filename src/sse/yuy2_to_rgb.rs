@@ -36,7 +36,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn yuy2_to_rgb_sse<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
+pub(crate) fn yuy2_to_rgb_sse<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     yuy2_store: &[u8],

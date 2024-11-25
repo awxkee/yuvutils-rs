@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#![deny(unreachable_code, unreachable_pub)]
 mod neon_simd_support;
 mod neon_ycgco;
 mod neon_ycgco_r;
@@ -44,36 +44,42 @@ mod ycgcor_to_rgb;
 mod yuv_nv_p10_to_rgba;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
+mod yuv_nv_to_rgba420;
 mod yuv_p10_to_rgba;
 mod yuv_p16_to_rgba16;
 mod yuv_p16_to_rgba16_alpha;
 mod yuv_p16_to_rgba_alpha;
 mod yuv_to_rgba;
+mod yuv_to_rgba420;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
-pub use rgb_to_y::neon_rgb_to_y_row;
-pub use rgb_to_ycgco::neon_rgb_to_ycgco_row;
-pub use rgb_to_ycgco_r::neon_rgb_to_ycgcor_row;
-pub use rgb_to_yuv_p16::neon_rgba_to_yuv_p16;
-pub use rgba_to_nv::neon_rgbx_to_nv_row;
-pub use rgba_to_yuv::neon_rgba_to_yuv;
-pub use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;
-pub use y_to_rgb::neon_y_to_rgb_row;
-pub use ycgco_to_rgb::neon_ycgco_to_rgb_row;
-pub use ycgco_to_rgb_alpha::neon_ycgco_to_rgb_alpha_row;
-pub use ycgcor_to_rgb::neon_ycgcor_to_rgb_row;
-pub use yuv_nv_p10_to_rgba::neon_yuv_nv12_p10_to_rgba_row;
-pub use yuv_nv_p16_to_rgb::neon_yuv_nv_p16_to_rgba_row;
-pub use yuv_nv_to_rgba::neon_yuv_nv_to_rgba_row;
-pub use yuv_p10_to_rgba::neon_yuv_p16_to_rgba_row;
-pub use yuv_p16_to_rgba16::neon_yuv_p16_to_rgba16_row;
-pub use yuv_p16_to_rgba16_alpha::neon_yuv_p16_to_rgba16_alpha_row;
-pub use yuv_p16_to_rgba_alpha::neon_yuv_p16_to_rgba_alpha_row;
-pub(crate) use yuv_to_rgba::neon_yuv_to_rgba_row;
-pub(crate) use yuv_to_rgba_alpha::neon_yuv_to_rgba_alpha;
-pub use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
-pub use yuy2_to_rgb::yuy2_to_rgb_neon;
-pub use yuy2_to_yuv::yuy2_to_yuv_neon_impl;
+pub(crate) use rgb_to_y::neon_rgb_to_y_row;
+pub(crate) use rgb_to_ycgco::neon_rgb_to_ycgco_row;
+pub(crate) use rgb_to_ycgco_r::neon_rgb_to_ycgcor_row;
+pub(crate) use rgb_to_yuv_p16::{neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_rdm};
+pub(crate) use rgba_to_nv::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row_rdm};
+pub(crate) use rgba_to_yuv::{neon_rgba_to_yuv, neon_rgba_to_yuv_rdm};
+pub(crate) use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;
+pub(crate) use y_to_rgb::{neon_y_to_rgb_row, neon_y_to_rgb_row_rdm};
+pub(crate) use ycgco_to_rgb::neon_ycgco_to_rgb_row;
+pub(crate) use ycgco_to_rgb_alpha::neon_ycgco_to_rgb_alpha_row;
+pub(crate) use ycgcor_to_rgb::neon_ycgcor_to_rgb_row;
+pub(crate) use yuv_nv_p10_to_rgba::neon_yuv_nv12_p10_to_rgba_row;
+pub(crate) use yuv_nv_p16_to_rgb::{neon_yuv_nv_p16_to_rgba_row, neon_yuv_nv_p16_to_rgba_row_rdm};
+pub(crate) use yuv_nv_to_rgba::{neon_yuv_nv_to_rgba_row, neon_yuv_nv_to_rgba_row_rdm};
+pub(crate) use yuv_nv_to_rgba420::{neon_yuv_nv_to_rgba_row420, neon_yuv_nv_to_rgba_row_rdm420};
+pub(crate) use yuv_p10_to_rgba::neon_yuv_p16_to_rgba_row;
+pub(crate) use yuv_p16_to_rgba16::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
+pub(crate) use yuv_p16_to_rgba16_alpha::{
+    neon_yuv_p16_to_rgba16_alpha_row, neon_yuv_p16_to_rgba16_alpha_row_rdm,
+};
+pub(crate) use yuv_p16_to_rgba_alpha::neon_yuv_p16_to_rgba_alpha_row;
+pub(crate) use yuv_to_rgba::{neon_yuv_to_rgba_row, neon_yuv_to_rgba_row_rdm};
+pub(crate) use yuv_to_rgba420::{neon_yuv_to_rgba_row420, neon_yuv_to_rgba_row_rdm420};
+pub(crate) use yuv_to_rgba_alpha::{neon_yuv_to_rgba_alpha, neon_yuv_to_rgba_alpha_rdm};
+pub(crate) use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
+pub(crate) use yuy2_to_rgb::yuy2_to_rgb_neon;
+pub(crate) use yuy2_to_yuv::yuy2_to_yuv_neon_impl;

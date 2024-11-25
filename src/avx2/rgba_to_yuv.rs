@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16, avx2_pairwise_widen_avg,
+    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -39,7 +39,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) fn avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -210,7 +210,7 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let y_yuv = avx2_pack_u16(y_l, y_h);
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
-        if chroma_subsampling != YuvChromaSubsampling::Yuv420 || compute_uv_row {
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
@@ -277,23 +277,62 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             );
 
             let cb = avx2_pack_u16(cb_l, cb_h);
-
             let cr = avx2_pack_u16(cr_l, cr_h);
 
-            match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                    let cb_h = _mm256_castsi256_si128(avx2_pairwise_widen_avg(cb));
-                    let cr_h = _mm256_castsi256_si128(avx2_pairwise_widen_avg(cr));
-                    _mm_storeu_si128(u_ptr.add(uv_x) as *mut _ as *mut __m128i, cb_h);
-                    _mm_storeu_si128(v_ptr.add(uv_x) as *mut _ as *mut __m128i, cr_h);
-                    uv_x += 16;
-                }
-                YuvChromaSubsampling::Yuv444 => {
-                    _mm256_storeu_si256(u_ptr.add(uv_x) as *mut __m256i, cb);
-                    _mm256_storeu_si256(v_ptr.add(uv_x) as *mut __m256i, cr);
-                    uv_x += 32;
-                }
-            }
+            _mm256_storeu_si256(u_ptr.add(uv_x) as *mut __m256i, cb);
+            _mm256_storeu_si256(v_ptr.add(uv_x) as *mut __m256i, cr);
+            uv_x += 32;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
+        {
+            let r1 = _mm256_avg_epu16(r_low, r_high);
+            let g1 = _mm256_avg_epu16(g_low, g_high);
+            let b1 = _mm256_avg_epu16(b_low, b_high);
+            let cb = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhi_epi16(r1, v_cb_r),
+                                _mm256_mulhi_epi16(g1, v_cb_g),
+                            ),
+                            _mm256_mulhi_epi16(b1, v_cb_b),
+                        ),
+                    )),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+            let cr = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_srai_epi16::<V_SHR>(_mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhi_epi16(r1, v_cr_r),
+                                _mm256_mulhi_epi16(g1, v_cr_g),
+                            ),
+                            _mm256_mulhi_epi16(b1, v_cr_b),
+                        ),
+                    )),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+
+            let cb = avx2_pack_u16(cb, cb);
+            let cr = avx2_pack_u16(cr, cr);
+
+            _mm_storeu_si128(
+                u_ptr.add(uv_x) as *mut _ as *mut __m128i,
+                _mm256_castsi256_si128(cb),
+            );
+            _mm_storeu_si128(
+                v_ptr.add(uv_x) as *mut _ as *mut __m128i,
+                _mm256_castsi256_si128(cr),
+            );
+            uv_x += 16;
         }
 
         cx += 32;

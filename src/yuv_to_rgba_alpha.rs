@@ -34,7 +34,7 @@ use crate::avx2::avx2_yuv_to_rgba_alpha;
 ))]
 use crate::avx512bw::avx512_yuv_to_rgba_alpha;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_to_rgba_alpha;
+use crate::neon::{neon_yuv_to_rgba_alpha, neon_yuv_to_rgba_alpha_rdm};
 use crate::numerics::{div_by_255, qrshr};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_to_rgba_alpha_row;
@@ -82,16 +82,22 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let bias_uv = range.bias_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+    let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
     ))]
-    let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available {
+        neon_yuv_to_rgba_alpha_rdm::<DESTINATION_CHANNELS, SAMPLING>
+    } else {
+        neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+    };
 
     let process_wide_row =
         |_y_plane: &[u8], _u_plane: &[u8], _v_plane: &[u8], _a_plane: &[u8], _rgba: &mut [u8]| {
@@ -101,7 +107,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             {
                 #[cfg(feature = "nightly_avx512")]
                 {
-                    if _use_avx512 {
+                    if use_avx512 {
                         let processed = avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
                             &range,
                             &inverse_transform,
@@ -119,7 +125,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         _uv_x = processed.ux;
                     }
                 }
-                if _use_avx2 {
+                if use_avx2 {
                     let processed = avx2_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
                         &range,
                         &inverse_transform,
@@ -136,7 +142,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     _cx = processed.cx;
                     _uv_x = processed.ux;
                 }
-                if _use_sse {
+                if use_sse {
                     let processed = sse_yuv_to_rgba_alpha_row::<DESTINATION_CHANNELS, SAMPLING>(
                         &range,
                         &inverse_transform,
@@ -157,23 +163,21 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
-                if is_rdm_available {
-                    let processed = neon_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
-                        &range,
-                        &inverse_transform,
-                        _y_plane,
-                        _u_plane,
-                        _v_plane,
-                        _a_plane,
-                        _rgba,
-                        _cx,
-                        _uv_x,
-                        image.width as usize,
-                        premultiply_alpha,
-                    );
-                    _cx = processed.cx;
-                    _uv_x = processed.ux;
-                }
+                let processed = neon_wide_row_handler(
+                    &range,
+                    &inverse_transform,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _a_plane,
+                    _rgba,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                    premultiply_alpha,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
             }
             _cx
         };

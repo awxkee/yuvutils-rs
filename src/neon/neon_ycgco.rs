@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 #[inline(always)]
-pub unsafe fn neon_rgb_to_ycgco(
+pub(crate) unsafe fn neon_rgb_to_ycgco(
     r: int16x8_t,
     g: int16x8_t,
     b: int16x8_t,

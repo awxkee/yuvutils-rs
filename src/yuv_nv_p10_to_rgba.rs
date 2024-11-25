@@ -77,9 +77,6 @@ fn yuv_nv_p10_to_image_impl<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-
     let process_wide_row = |_rgba: &mut [u8], _y_src: &[u16], _uv_src: &[u16]| {
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

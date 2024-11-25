@@ -36,7 +36,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
+pub(crate) fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -50,7 +50,7 @@ pub fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
 }
 
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
+pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],

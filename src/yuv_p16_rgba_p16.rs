@@ -26,9 +26,15 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::avx2::avx_yuv_p16_to_rgba_row;
+#[allow(unused_imports)]
+use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_p16_to_rgba16_row;
+use crate::neon::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
 use crate::numerics::{qrshr, to_ne};
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::sse::sse_yuv_p16_to_rgba_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
@@ -79,6 +85,33 @@ fn yuv_p16_to_image_p16_ant<
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
+        neon_yuv_p16_to_rgba16_row_rdm::<
+            DESTINATION_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    } else {
+        neon_yuv_p16_to_rgba16_row::<
+            DESTINATION_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    };
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
@@ -89,25 +122,68 @@ fn yuv_p16_to_image_p16_ant<
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 unsafe {
-                    let offset = neon_yuv_p16_to_rgba16_row::<
-                        DESTINATION_CHANNELS,
-                        SAMPLING,
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        PRECISION,
-                        BIT_DEPTH,
-                    >(
-                        _y_plane.as_ptr(),
-                        _u_plane.as_ptr(),
-                        _v_plane.as_ptr(),
-                        _rgba.as_mut_ptr(),
+                    let offset = neon_wide_row_handler(
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _rgba,
                         image.width,
                         &range,
                         &i_transform,
                         0,
-                        _cx,
+                        0,
                     );
                     _cx = offset.cx;
+                }
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                let mut v_offset = ProcessedOffset { cx: 0, ux: 0 };
+                unsafe {
+                    if use_avx && BIT_DEPTH <= 12 {
+                        let offset = avx_yuv_p16_to_rgba_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            BIT_DEPTH,
+                            PRECISION,
+                        >(
+                            _y_plane,
+                            _u_plane,
+                            _v_plane,
+                            _rgba,
+                            image.width,
+                            &range,
+                            &i_transform,
+                            v_offset.cx,
+                            v_offset.cx,
+                        );
+                        v_offset = offset;
+                        _cx = v_offset.cx;
+                    }
+                    if use_sse && BIT_DEPTH <= 12 {
+                        let offset = sse_yuv_p16_to_rgba_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            BIT_DEPTH,
+                            PRECISION,
+                        >(
+                            _y_plane,
+                            _u_plane,
+                            _v_plane,
+                            _rgba,
+                            image.width,
+                            &range,
+                            &i_transform,
+                            v_offset.cx,
+                            v_offset.ux,
+                        );
+                        v_offset = offset;
+                        _cx = v_offset.cx;
+                    }
                 }
             }
             _cx

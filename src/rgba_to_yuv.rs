@@ -36,7 +36,7 @@ use crate::avx512bw::avx512_rgba_to_yuv;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgba_to_yuv;
+use crate::neon::{neon_rgba_to_yuv, neon_rgba_to_yuv_rdm};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgba_to_yuv_row;
 use crate::yuv_error::check_rgba_destination;
@@ -90,16 +90,22 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let i_cap_uv = i_bias_y + range.range_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
+    let use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
     ))]
-    let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available {
+        neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+    } else {
+        neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+    };
 
     #[allow(unused_variables)]
     let process_wide_row = |y_plane: &mut [u8],
@@ -114,7 +120,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         {
             #[cfg(feature = "nightly_avx512")]
             {
-                if _use_avx512 {
+                if use_avx512 {
                     let processed_offset = avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                         &transform,
                         &range,
@@ -131,7 +137,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 }
             }
 
-            if _use_avx {
+            if use_avx {
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &range,
@@ -147,7 +153,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 _offset = processed_offset;
             }
 
-            if _use_sse {
+            if use_sse {
                 let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &range,
@@ -166,21 +172,19 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            if is_rdm_available {
-                let offset = neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
-                    &transform,
-                    &range,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
-                    _offset.cx,
-                    _offset.ux,
-                    planar_image.width as usize,
-                    compute_uv_row,
-                );
-                _offset = offset;
-            }
+            let offset = neon_wide_row_handler(
+                &transform,
+                &range,
+                y_plane,
+                u_plane,
+                v_plane,
+                rgba,
+                _offset.cx,
+                _offset.ux,
+                planar_image.width as usize,
+                compute_uv_row,
+            );
+            _offset = offset;
         }
 
         _offset

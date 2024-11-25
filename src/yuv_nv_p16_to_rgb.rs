@@ -28,7 +28,7 @@
  */
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_nv_p16_to_rgba_row;
+use crate::neon::{neon_yuv_nv_p16_to_rgba_row, neon_yuv_nv_p16_to_rgba_row_rdm};
 use crate::numerics::{qrshr_n, to_ne};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_yuv_nv_p16_to_rgba_row;
@@ -91,6 +91,30 @@ fn yuv_nv_p16_to_image_impl<
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
+        neon_yuv_nv_p16_to_rgba_row_rdm::<
+            DESTINATION_CHANNELS,
+            NV_ORDER,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            BIT_DEPTH,
+            PRECISION,
+        >
+    } else {
+        neon_yuv_nv_p16_to_rgba_row::<
+            DESTINATION_CHANNELS,
+            NV_ORDER,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            BIT_DEPTH,
+            PRECISION,
+        >
+    };
 
     let process_wide_row = |_rgba: &mut [u16], _y_src: &[u16], _uv_src: &[u16]| {
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
@@ -124,18 +148,10 @@ fn yuv_nv_p16_to_image_impl<
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             unsafe {
-                let processed = neon_yuv_nv_p16_to_rgba_row::<
-                    DESTINATION_CHANNELS,
-                    NV_ORDER,
-                    SAMPLING,
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    BIT_DEPTH,
-                    PRECISION,
-                >(
-                    _y_src.as_ptr(),
-                    _uv_src.as_ptr(),
-                    _rgba.as_mut_ptr(),
+                let processed = neon_wide_row_handler(
+                    _y_src,
+                    _uv_src,
+                    _rgba,
                     bi_planar_image.width,
                     &range,
                     &i_transform,

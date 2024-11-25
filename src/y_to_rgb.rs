@@ -35,7 +35,7 @@ use crate::avx512bw::avx512_y_to_rgb_row;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_y_to_rgb_row;
+use crate::neon::{neon_y_to_rgb_row, neon_y_to_rgb_row_rdm};
 use crate::numerics::qrshr;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_y_to_rgb_row;
@@ -86,6 +86,12 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available {
+        neon_y_to_rgb_row_rdm::<DESTINATION_CHANNELS>
+    } else {
+        neon_y_to_rgb_row::<PRECISION, DESTINATION_CHANNELS>
+    };
 
     let bias_y = chroma_range.bias_y as i32;
 
@@ -93,7 +99,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
     ))]
-    let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
     let y_plane = gray_image.y_plane;
     let y_stride = gray_image.y_stride;
@@ -120,7 +126,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 feature = "nightly_avx512"
             ))]
             unsafe {
-                if _use_avx512 {
+                if use_avx512 {
                     let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(
                         &chroma_range,
                         &inverse_transform,
@@ -137,19 +143,15 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
-                if is_rdm_available {
-                    let offset = neon_y_to_rgb_row::<DESTINATION_CHANNELS>(
-                        &chroma_range,
-                        &inverse_transform,
-                        y_plane,
-                        rgba,
-                        _cx,
-                        0,
-                        0,
-                        gray_image.width as usize,
-                    );
-                    _cx = offset;
-                }
+                let offset = neon_wide_row_handler(
+                    &chroma_range,
+                    &inverse_transform,
+                    y_plane,
+                    rgba,
+                    _cx,
+                    gray_image.width as usize,
+                );
+                _cx = offset;
             }
 
             #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]

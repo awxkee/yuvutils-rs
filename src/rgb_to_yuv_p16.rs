@@ -28,9 +28,9 @@
  */
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgba_to_yuv_p16;
+use crate::neon::{neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_rdm};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_rgba_to_yuv_p16;
+use crate::sse::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_lp};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSubsampling,
@@ -110,7 +110,49 @@ fn rgbx_to_yuv_ant<
     let i_cap_uv = i_bias_y + range.range_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
+        neon_rgba_to_yuv_p16_rdm::<
+            ORIGIN_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    } else {
+        neon_rgba_to_yuv_p16::<
+            ORIGIN_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    };
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let sse_dispatch = if BIT_DEPTH <= 12 {
+        sse_rgba_to_yuv_p16_lp::<
+            ORIGIN_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    } else {
+        sse_rgba_to_yuv_p16::<
+            ORIGIN_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
+    };
 
     #[allow(unused_variables)]
     let process_wide_row = |_y_plane: &mut [u16],
@@ -123,15 +165,8 @@ fn rgbx_to_yuv_ant<
         let mut _offset = ProcessedOffset { ux: _cx, cx: _ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if _use_sse {
-                _offset = sse_rgba_to_yuv_p16::<
-                    ORIGIN_CHANNELS,
-                    SAMPLING,
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    PRECISION,
-                    BIT_DEPTH,
-                >(
+            if use_sse {
+                _offset = sse_dispatch(
                     &transform,
                     &range,
                     _y_plane,
@@ -148,14 +183,7 @@ fn rgbx_to_yuv_ant<
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            _offset = neon_rgba_to_yuv_p16::<
-                ORIGIN_CHANNELS,
-                SAMPLING,
-                ENDIANNESS,
-                BYTES_POSITION,
-                PRECISION,
-                BIT_DEPTH,
-            >(
+            _offset = neon_wide_row_handler(
                 &transform,
                 &range,
                 _y_plane,

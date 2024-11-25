@@ -33,8 +33,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline]
-#[target_feature(enable = "avx512bw")]
-pub unsafe fn avx512_rgb_to_ycgco(
+pub(crate) unsafe fn avx512_rgb_to_ycgco(
     r: __m512i,
     g: __m512i,
     b: __m512i,

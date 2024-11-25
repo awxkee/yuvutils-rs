@@ -104,13 +104,9 @@ impl ProcessWideRow<u8> for u8 {
             if _use_avx2 {
                 nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
                     _y_src,
-                    0,
                     _u_src,
-                    0,
                     _v_src,
-                    0,
                     _yuy2,
-                    0,
                     _width as u32,
                     nav,
                 );
@@ -118,13 +114,9 @@ impl ProcessWideRow<u8> for u8 {
             if _use_sse {
                 nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
                     _y_src,
-                    0,
                     _u_src,
-                    0,
                     _v_src,
-                    0,
                     _yuy2,
-                    0,
                     _width as u32,
                     nav,
                 );
