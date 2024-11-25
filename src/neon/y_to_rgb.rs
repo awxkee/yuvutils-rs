@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::vmullq_s16;
+use crate::neon::neon_simd_support::vmullq_laneq_s16;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -116,14 +116,15 @@ pub(crate) unsafe fn neon_y_to_rgb_row<const PRECISION: i32, const DESTINATION_C
     while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
-        let y_high = vmullq_s16(vreinterpretq_s16_u16(vmovl_high_u8(y_values)), v_luma_coeff);
+        let y_high =
+            vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_high_u8(y_values)), v_luma_coeff);
 
         let r_high = vqmovun_s16(vcombine_s16(
             vrshrn_n_s32::<PRECISION>(y_high.0),
             vrshrn_n_s32::<PRECISION>(y_high.1),
         ));
 
-        let y_low = vmullq_s16(
+        let y_low = vmullq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_values))),
             v_luma_coeff,
         );

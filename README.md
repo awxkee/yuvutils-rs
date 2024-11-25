@@ -76,9 +76,9 @@ Tests performed on the image 5763x3842
 
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
-| utils RGB->YUV 4:2:0   |   4.09ms   |  6.14ms   |
+| utils RGB->YUV 4:2:0   |   3.48ms   |  6.14ms   |
 | libyuv RGB->YUV 4:2:0  |   3.58ms   |  33.87ms  |
-| utils RGBA->YUV 4:2:0  |   4.88ms   |  7.34ms   |
+| utils RGBA->YUV 4:2:0  |   4.32ms   |  7.34ms   |
 | libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |
 | utils RGBA->YUV 4:2:2  |   4.83ms   |  7.08ms   |
 | libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |

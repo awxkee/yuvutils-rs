@@ -48,7 +48,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -192,7 +191,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
             vst1q_u8(v_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cr);
 
             ux += 16;
-        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
             let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
@@ -250,7 +249,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -460,7 +458,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
 
             ux += 16;
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
-            || (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
             let r1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(r_values_u8)));
             let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(g_values_u8)));

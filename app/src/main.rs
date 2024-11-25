@@ -95,11 +95,11 @@ fn main() {
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 4).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv12(
-        &mut bi_planar_image,
+    rgb_to_yuv420(
+        &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::Full,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
@@ -253,11 +253,11 @@ fn main() {
     // let rgba_stride = width as usize * 4;
     // let mut rgba = vec![0u8; height as usize * rgba_stride];
 
-    yuv_nv12_to_rgb(
-        &fixed_biplanar,
+    yuv420_to_rgb(
+        &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
-        YuvRange::Full,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();

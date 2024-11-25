@@ -84,14 +84,6 @@ pub(crate) unsafe fn vweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn vmullq_s16(v: int16x8_t, q: int16x8_t) -> (int32x4_t, int32x4_t) {
-    (
-        vmull_s16(vget_low_s16(v), vget_low_s16(q)),
-        vmull_high_s16(v, q),
-    )
-}
-
-#[inline(always)]
 pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
     v: int16x8_t,
     q: int16x8_t,
