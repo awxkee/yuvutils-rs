@@ -42,8 +42,8 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    y_ld_ptr: *const u16,
-    uv_ld_ptr: *const u16,
+    y_ld_ptr: &[u16],
+    uv_ld_ptr: &[u16],
     bgra: &mut [u8],
     dst_offset: usize,
     width: u32,
@@ -90,7 +90,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let u_low: int16x4_t;
         let v_low: int16x4_t;
 
-        let mut y_vl = vld1q_u16(y_ld_ptr.add(cx));
+        let mut y_vl = vld1q_u16(y_ld_ptr.get_unchecked(cx..).as_ptr());
         if endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
@@ -101,7 +101,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let mut uv_values_u = vld2_u16(uv_ld_ptr.add(ux));
+                let mut uv_values_u = vld2_u16(uv_ld_ptr.get_unchecked(ux..).as_ptr());
 
                 if uv_order == YuvNVOrder::VU {
                     uv_values_u = uint16x4x2_t(uv_values_u.1, uv_values_u.0);
@@ -128,7 +128,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                 v_low = vzip1_s16(v_values_c, v_values_c);
             }
             YuvChromaSubsampling::Yuv444 => {
-                let mut uv_values_u = vld2q_u16(uv_ld_ptr.add(ux));
+                let mut uv_values_u = vld2q_u16(uv_ld_ptr.get_unchecked(ux..).as_ptr());
 
                 if uv_order == YuvNVOrder::VU {
                     uv_values_u = uint16x8x2_t(uv_values_u.1, uv_values_u.0);
