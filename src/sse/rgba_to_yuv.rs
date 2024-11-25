@@ -153,13 +153,13 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
 
         let y_l = _mm_max_epi16(
             _mm_min_epi16(
-                (_mm_add_epi16(
+                _mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
                         _mm_mulhrs_epi16(b_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -167,7 +167,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
 
         let y_h = _mm_max_epi16(
             _mm_min_epi16(
-                (_mm_add_epi16(
+                _mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(
@@ -176,7 +176,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                         ),
                         _mm_mulhrs_epi16(b_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -188,7 +188,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm_max_epi16(
                 _mm_min_epi16(
-                    (_mm_add_epi16(
+                    _mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
@@ -197,14 +197,14 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                             ),
                             _mm_mulhrs_epi16(b_low, v_cb_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
             );
             let cr_l = _mm_max_epi16(
                 _mm_min_epi16(
-                    (_mm_add_epi16(
+                    _mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
@@ -213,14 +213,14 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                             ),
                             _mm_mulhrs_epi16(b_low, v_cr_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
             );
             let cb_h = _mm_max_epi16(
                 _mm_min_epi16(
-                    (_mm_add_epi16(
+                    _mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
@@ -229,14 +229,14 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                             ),
                             _mm_mulhrs_epi16(b_high, v_cb_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
             );
             let cr_h = _mm_max_epi16(
                 _mm_min_epi16(
-                    (_mm_add_epi16(
+                    _mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
@@ -245,7 +245,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                             ),
                             _mm_mulhrs_epi16(b_high, v_cr_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
@@ -267,7 +267,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
 
             let cbk = _mm_max_epi16(
                 _mm_min_epi16(
-                    (_mm_add_epi16(
+                    _mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
@@ -276,7 +276,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                             ),
                             _mm_mulhrs_epi16(b1, v_cb_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
@@ -284,7 +284,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
 
             let crk = _mm_max_epi16(
                 _mm_min_epi16(
-                    (_mm_add_epi16(
+                    _mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
@@ -293,7 +293,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                             ),
                             _mm_mulhrs_epi16(b1, v_cr_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,

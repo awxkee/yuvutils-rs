@@ -128,13 +128,13 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
 
         let y_l = _mm_max_epi16(
             _mm_min_epi16(
-                (_mm_add_epi16(
+                _mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
                         _mm_mulhrs_epi16(b_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -142,7 +142,7 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
 
         let y_h = _mm_max_epi16(
             _mm_min_epi16(
-                (_mm_add_epi16(
+                _mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
                         _mm_add_epi16(
@@ -151,7 +151,7 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
                         ),
                         _mm_mulhrs_epi16(b_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
