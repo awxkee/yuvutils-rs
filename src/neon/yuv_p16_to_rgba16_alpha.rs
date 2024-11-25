@@ -65,11 +65,20 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
 
     let y_corr = vdupq_n_s16(range.bias_y as i16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
-    let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
-    let v_cr_coeff = vdup_n_s16(transform.cr_coef as i16);
-    let v_cb_coeff = vdup_n_s16(transform.cb_coef as i16);
-    let v_g_coeff_1 = vdup_n_s16(-(transform.g_coeff_1 as i16));
-    let v_g_coeff_2 = vdup_n_s16(-(transform.g_coeff_2 as i16));
+
+    let weights_arr: [i16; 8] = [
+        transform.y_coef as i16,
+        transform.cr_coef as i16,
+        transform.cb_coef as i16,
+        -transform.g_coeff_1 as i16,
+        -transform.g_coeff_2 as i16,
+        0,
+        0,
+        0,
+    ];
+
+    let v_weights = vld1q_s16(weights_arr.as_ptr());
+
     let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
 
     let mut cx = start_cx;
@@ -127,24 +136,24 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
             v_low = vzip1_s16(v_values_l, v_values_l);
         }
 
-        let y_high = vmull_high_s16(y_values, v_luma_coeff);
+        let y_high = vmull_high_laneq_s16::<0>(y_values, v_weights);
 
-        let r_high = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_high, v_high, v_cr_coeff));
-        let b_high = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_high, u_high, v_cb_coeff));
-        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_s16(
-            vmlal_s16(y_high, v_high, v_g_coeff_1),
+        let r_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
+        let b_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
+        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
+            vmlal_laneq_s16::<3>(y_high, v_high, v_weights),
             u_high,
-            v_g_coeff_2,
+            v_weights,
         ));
 
-        let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
+        let y_low = vmull_laneq_s16::<0>(vget_low_s16(y_values), v_weights);
 
-        let r_low = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_low, v_low, v_cr_coeff));
-        let b_low = vqrshrun_n_s32::<PRECISION>(vmlal_s16(y_low, u_low, v_cb_coeff));
-        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_s16(
-            vmlal_s16(y_low, v_low, v_g_coeff_1),
+        let r_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
+        let b_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
+        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
+            vmlal_laneq_s16::<3>(y_low, v_low, v_weights),
             u_low,
-            v_g_coeff_2,
+            v_weights,
         ));
 
         let r_values = vcombine_u16(r_low, r_high);
@@ -218,10 +227,20 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
 
     let y_corr = vdupq_n_s16(range.bias_y as i16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
-    let v_cr_coeff = vdupq_n_s16(transform.cr_coef as i16);
-    let v_cb_coeff = vdupq_n_s16(transform.cb_coef as i16);
-    let v_g_coeff_1 = vdupq_n_s16(-(transform.g_coeff_1 as i16));
-    let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
+
+    let weights_arr: [i16; 8] = [
+        transform.y_coef as i16,
+        transform.cr_coef as i16,
+        transform.cb_coef as i16,
+        -transform.g_coeff_1 as i16,
+        -transform.g_coeff_2 as i16,
+        0,
+        0,
+        0,
+    ];
+
+    let v_weights = vld1q_s16(weights_arr.as_ptr());
+
     let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
     let zeros = vdupq_n_s16(0);
     let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
@@ -280,14 +299,14 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
             v_values = vshlq_n_s16::<3>(vcombine_s16(v_low, v_high));
         }
 
-        let y_high = vqrdmulhq_n_s16(vshlq_n_s16::<3>(y_values), transform.y_coef as i16);
+        let y_high = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<3>(y_values), v_weights);
 
-        let r_vals = vqrdmlahq_s16(y_high, v_values, v_cr_coeff);
-        let b_vals = vqrdmlahq_s16(y_high, u_values, v_cb_coeff);
-        let g_vals = vqrdmlahq_s16(
-            vqrdmlahq_s16(y_high, v_values, v_g_coeff_1),
+        let r_vals = vqrdmlahq_laneq_s16::<1>(y_high, v_values, v_weights);
+        let b_vals = vqrdmlahq_laneq_s16::<2>(y_high, u_values, v_weights);
+        let g_vals = vqrdmlahq_laneq_s16::<4>(
+            vqrdmlahq_laneq_s16::<3>(y_high, v_values, v_weights),
             u_values,
-            v_g_coeff_2,
+            v_weights,
         );
 
         let r_values = vminq_u16(

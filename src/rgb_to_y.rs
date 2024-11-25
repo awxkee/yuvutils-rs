@@ -178,7 +178,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             let g = rgba[source_channels.get_g_channel_offset()] as i32;
             let b = rgba[source_channels.get_b_channel_offset()] as i32;
             let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
-            *y_dst = y.clamp(i_bias_y, i_cap_y) as u8;
+            *y_dst = y.max(i_bias_y).min(i_cap_y) as u8;
         }
     });
 

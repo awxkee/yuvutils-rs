@@ -88,8 +88,8 @@ fn yuv_nv_p10_to_image_impl<
                 ENDIANNESS,
                 BYTES_POSITION,
             >(
-                _y_src.as_ptr(),
-                _uv_src.as_ptr(),
+                _y_src,
+                _uv_src,
                 _rgba,
                 0,
                 bi_planar_image.width,

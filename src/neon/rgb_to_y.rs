@@ -41,10 +41,8 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
 ) -> usize {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
-    const V_SHR: i32 = 4;
-    const V_SCALE: i32 = 7;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
+    const V_SCALE: i32 = 3;
+    let bias_y = range.bias_y as i16;
 
     let y_ptr = y_plane;
     let rgba_ptr = rgba.as_ptr();
@@ -100,10 +98,7 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
         y_high = vqrdmlahq_s16(y_high, b_high, v_yb);
         y_high = vmaxq_s16(y_high, v_zeros);
 
-        let y_high = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(y_high), i_bias_y)),
-            i_cap_y,
-        );
+        let y_high = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(y_high, i_bias_y)), i_cap_y);
 
         let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values_u8)));
@@ -114,10 +109,7 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
         y_low = vqrdmlahq_s16(y_low, b_low, v_yb);
         y_low = vmaxq_s16(y_low, v_zeros);
 
-        let y_low = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(y_low), i_bias_y)),
-            i_cap_y,
-        );
+        let y_low = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(y_low, i_bias_y)), i_cap_y);
 
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
         vst1q_u8(y_ptr.add(cx), y);

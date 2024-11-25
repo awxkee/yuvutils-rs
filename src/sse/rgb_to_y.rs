@@ -64,10 +64,8 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    const V_SHR: i32 = 3;
-    const V_SCALE: i32 = 7;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
+    const V_SCALE: i32 = 3;
+    let bias_y = range.bias_y as i16;
 
     let zeros = _mm_setzero_si128();
 
@@ -130,13 +128,13 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
 
         let y_l = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                _mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(_mm_mulhi_epi16(r_low, v_yr), _mm_mulhi_epi16(g_low, v_yg)),
-                        _mm_mulhi_epi16(b_low, v_yb),
+                        _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
+                        _mm_mulhrs_epi16(b_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -144,13 +142,16 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
 
         let y_h = _mm_max_epi16(
             _mm_min_epi16(
-                _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
+                _mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(_mm_mulhi_epi16(r_high, v_yr), _mm_mulhi_epi16(g_high, v_yg)),
-                        _mm_mulhi_epi16(b_high, v_yb),
+                        _mm_add_epi16(
+                            _mm_mulhrs_epi16(r_high, v_yr),
+                            _mm_mulhrs_epi16(g_high, v_yg),
+                        ),
+                        _mm_mulhrs_epi16(b_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,

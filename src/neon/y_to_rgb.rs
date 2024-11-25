@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::vmullq_s16;
+use crate::neon::neon_simd_support::vmullq_laneq_s16;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -51,22 +51,24 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
+    const V_SCALE: i32 = 3;
+
     while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let y_high = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<7>(y_values)),
+            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values)),
             transform.y_coef as i16,
         );
 
-        let r_high = vqrshrun_n_s16::<4>(y_high);
+        let r_high = vqmovun_s16(y_high);
 
         let y_low = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<7>(vget_low_u8(y_values))),
+            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(y_values))),
             transform.y_coef as i16,
         );
 
-        let r_low = vqrshrun_n_s16::<4>(y_low);
+        let r_low = vqmovun_s16(y_low);
 
         let r_values = vcombine_u8(r_low, r_high);
 
@@ -116,14 +118,15 @@ pub(crate) unsafe fn neon_y_to_rgb_row<const PRECISION: i32, const DESTINATION_C
     while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
-        let y_high = vmullq_s16(vreinterpretq_s16_u16(vmovl_high_u8(y_values)), v_luma_coeff);
+        let y_high =
+            vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_high_u8(y_values)), v_luma_coeff);
 
         let r_high = vqmovun_s16(vcombine_s16(
             vrshrn_n_s32::<PRECISION>(y_high.0),
             vrshrn_n_s32::<PRECISION>(y_high.1),
         ));
 
-        let y_low = vmullq_s16(
+        let y_low = vmullq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_values))),
             v_luma_coeff,
         );
