@@ -48,11 +48,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    const V_SHR: i32 = 4;
-    const V_SCALE: i32 = 7;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
-    let bias_uv = range.bias_uv as i16 * (1 << V_SHR) + rounding_const_bias;
+    const V_SCALE: i32 = 3;
+    let bias_y = range.bias_y as i16;
+    let bias_uv = range.bias_uv as i16;
 
     let u_ptr = u_plane;
     let v_ptr = v_plane;
@@ -150,7 +148,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         y0_high = vqrdmlahq_laneq_s16::<2>(y0_high, b0hi, v_weights);
 
         let y0_high = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(y0_high), i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16((y0_high), i_bias_y)),
             i_cap_y,
         );
 
@@ -159,7 +157,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         y1_high = vqrdmlahq_laneq_s16::<2>(y1_high, b1hi, v_weights);
 
         let y1_high = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(y1_high), i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16((y1_high), i_bias_y)),
             i_cap_y,
         );
 
@@ -176,7 +174,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         y0_low = vqrdmlahq_laneq_s16::<2>(y0_low, b0_low, v_weights);
 
         let y0_low = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(y0_low), i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16((y0_low), i_bias_y)),
             i_cap_y,
         );
 
@@ -185,7 +183,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         y1_low = vqrdmlahq_laneq_s16::<2>(y1_low, b1_low, v_weights);
 
         let y1_low = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(y1_low), i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16((y1_low), i_bias_y)),
             i_cap_y,
         );
 
@@ -207,7 +205,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         cbl = vqrdmlahq_laneq_s16::<5>(cbl, b1, v_weights);
 
         let cb = vqmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(cbl), i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16((cbl), i_bias_y)),
             i_cap_uv,
         ));
 
@@ -216,7 +214,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         crl = vqrdmlahq_laneq_s16::<0>(crl, b1, v_cr_b);
 
         let cr = vqmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vshrq_n_s16::<V_SHR>(crl), i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16((crl), i_bias_y)),
             i_cap_uv,
         ));
 

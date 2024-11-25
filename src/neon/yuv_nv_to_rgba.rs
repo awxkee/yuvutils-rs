@@ -78,8 +78,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-    const SCALE: i32 = 7;
-    const V_SHR: i32 = 4;
+    const SCALE: i32 = 3;
 
     while cx + 16 < width {
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
@@ -126,9 +125,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
             v_weights,
         );
 
-        let r_high = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_high, v_high, v_weights));
-        let b_high = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_high, u_high, v_weights));
-        let g_high = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<4>(
+        let r_high = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_high, v_high, v_weights));
+        let b_high = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_high, u_high, v_weights));
+        let g_high = vqmovun_s16(vqrdmlahq_laneq_s16::<4>(
             vqrdmlahq_laneq_s16::<3>(y_high, v_high, v_weights),
             u_high,
             v_weights,
@@ -144,9 +143,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
         let y_v_shl = vshll_n_u8::<SCALE>(vget_low_u8(y_values));
         let y_low = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl), v_weights);
 
-        let r_low = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<4>(
+        let r_low = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights));
+        let b_low = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights));
+        let g_low = vqmovun_s16(vqrdmlahq_laneq_s16::<4>(
             vqrdmlahq_laneq_s16::<3>(y_low, v_low, v_weights),
             u_low,
             v_weights,
@@ -235,9 +234,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
             v_weights,
         );
 
-        let r_low = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<4>(
+        let r_low = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights));
+        let b_low = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights));
+        let g_low = vqmovun_s16(vqrdmlahq_laneq_s16::<4>(
             vqrdmlahq_laneq_s16::<3>(y_low, v_low, v_weights),
             u_low,
             v_weights,

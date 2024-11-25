@@ -51,22 +51,24 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
+    const V_SCALE: i32 = 3;
+
     while cx + 16 < width {
         let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let y_high = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<7>(y_values)),
+            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values)),
             transform.y_coef as i16,
         );
 
-        let r_high = vqrshrun_n_s16::<4>(y_high);
+        let r_high = vqmovun_s16(y_high);
 
         let y_low = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<7>(vget_low_u8(y_values))),
+            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(y_values))),
             transform.y_coef as i16,
         );
 
-        let r_low = vqrshrun_n_s16::<4>(y_low);
+        let r_low = vqmovun_s16(y_low);
 
         let r_values = vcombine_u8(r_low, r_high);
 

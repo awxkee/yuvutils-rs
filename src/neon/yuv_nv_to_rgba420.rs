@@ -63,8 +63,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    const SCALE: i32 = 7;
-    const V_SHR: i32 = 4;
+    const SCALE: i32 = 3;
 
     let weights_arr: [i16; 8] = [
         transform.y_coef as i16,
@@ -112,13 +111,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
             v_weights,
         );
 
-        let r_high0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_high0, v_high, v_weights));
-        let b_high0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_high0, u_high, v_weights));
-        let g_high0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_high0, g_coeff_hi));
+        let r_high0 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_high0, v_high, v_weights));
+        let b_high0 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_high0, u_high, v_weights));
+        let g_high0 = vqmovun_s16(vsubq_s16(y_high0, g_coeff_hi));
 
-        let r_high1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_high1, v_high, v_weights));
-        let b_high1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_high1, u_high, v_weights));
-        let g_high1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_high1, g_coeff_hi));
+        let r_high1 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_high1, v_high, v_weights));
+        let b_high1 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_high1, u_high, v_weights));
+        let g_high1 = vqmovun_s16(vsubq_s16(y_high1, g_coeff_hi));
 
         let u_low = vshlq_n_s16::<SCALE>(vsubq_s16(
             vreinterpretq_s16_u16(vmovl_u8(u_low_u8)),
@@ -136,13 +135,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
         let g_coeff_lo =
             vqrdmlahq_laneq_s16::<4>(vqrdmulhq_laneq_s16::<3>(v_low, v_weights), u_low, v_weights);
 
-        let r_low0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low0, v_low, v_weights));
-        let b_low0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low0, u_low, v_weights));
-        let g_low0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low0, g_coeff_lo));
+        let r_low0 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low0, v_low, v_weights));
+        let b_low0 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low0, u_low, v_weights));
+        let g_low0 = vqmovun_s16(vsubq_s16(y_low0, g_coeff_lo));
 
-        let r_low1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low1, v_low, v_weights));
-        let b_low1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low1, u_low, v_weights));
-        let g_low1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low1, g_coeff_lo));
+        let r_low1 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low1, v_low, v_weights));
+        let b_low1 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low1, u_low, v_weights));
+        let g_low1 = vqmovun_s16(vsubq_s16(y_low1, g_coeff_lo));
 
         let r_values0 = vcombine_u8(r_low0, r_high0);
         let g_values0 = vcombine_u8(g_low0, g_high0);
@@ -233,13 +232,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
         let g_coeff_lo =
             vqrdmlahq_laneq_s16::<4>(vqrdmulhq_laneq_s16::<3>(v_low, v_weights), u_low, v_weights);
 
-        let r_low0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low0, v_low, v_weights));
-        let b_low0 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low0, u_low, v_weights));
-        let g_low0 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low0, g_coeff_lo));
+        let r_low0 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low0, v_low, v_weights));
+        let b_low0 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low0, u_low, v_weights));
+        let g_low0 = vqmovun_s16(vsubq_s16(y_low0, g_coeff_lo));
 
-        let r_low1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<1>(y_low1, v_low, v_weights));
-        let b_low1 = vqrshrun_n_s16::<V_SHR>(vqrdmlahq_laneq_s16::<2>(y_low1, u_low, v_weights));
-        let g_low1 = vqrshrun_n_s16::<V_SHR>(vsubq_s16(y_low1, g_coeff_lo));
+        let r_low1 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low1, v_low, v_weights));
+        let b_low1 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low1, u_low, v_weights));
+        let g_low1 = vqmovun_s16(vsubq_s16(y_low1, g_coeff_lo));
 
         let r_values0 = r_low0;
         let g_values0 = g_low0;
