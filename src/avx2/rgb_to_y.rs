@@ -67,7 +67,7 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
     let mut cx = start_cx;
 
     const V_SHR: i32 = 3;
-    const V_SCALE: i32 = 7;
+    const V_SCALE: i32 = 6;
     let rounding_const_bias: i16 = 1 << (V_SHR - 1);
     let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
 
@@ -144,10 +144,10 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
-                            _mm256_mulhi_epi16(r_low, v_yr),
-                            _mm256_mulhi_epi16(g_low, v_yg),
+                            _mm256_mulhrs_epi16(r_low, v_yr),
+                            _mm256_mulhrs_epi16(g_low, v_yg),
                         ),
-                        _mm256_mulhi_epi16(b_low, v_yb),
+                        _mm256_mulhrs_epi16(b_low, v_yb),
                     ),
                 )),
                 i_cap_y,
@@ -161,10 +161,10 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
                     y_bias,
                     _mm256_add_epi16(
                         _mm256_add_epi16(
-                            _mm256_mulhi_epi16(r_high, v_yr),
-                            _mm256_mulhi_epi16(g_high, v_yg),
+                            _mm256_mulhrs_epi16(r_high, v_yr),
+                            _mm256_mulhrs_epi16(g_high, v_yg),
                         ),
-                        _mm256_mulhi_epi16(b_high, v_yb),
+                        _mm256_mulhrs_epi16(b_high, v_yb),
                     ),
                 )),
                 i_cap_y,

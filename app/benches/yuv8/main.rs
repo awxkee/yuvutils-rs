@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+use std::alloc::Layout;
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use yuv_sys::{
@@ -99,25 +99,36 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("libyuv RGB -> YUV 4:2:0", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv420,
-        );
-        b.iter(|| unsafe {
-            rs_RGB24ToI420(
-                src_bytes.as_ptr(),
-                stride as i32,
-                test_planar.y_plane.borrow_mut().as_mut_ptr(),
-                test_planar.y_stride as i32,
-                test_planar.u_plane.borrow_mut().as_mut_ptr(),
-                test_planar.u_stride as i32,
-                test_planar.v_plane.borrow_mut().as_mut_ptr(),
-                test_planar.v_stride as i32,
-                test_planar.width as i32,
-                test_planar.height as i32,
-            );
-        })
+        unsafe {
+            let layout_rgb = Layout::from_size_align(dimensions.0 as usize * dimensions.1 as usize * 3, 16).unwrap();
+            let layout_y = Layout::from_size_align(dimensions.0 as usize * dimensions.1 as usize, 16).unwrap();
+            let layout_uv = Layout::from_size_align((dimensions.0 as usize + 1) / 2 * (dimensions.1 as usize + 1) / 2, 16).unwrap();
+            let target_y = std::alloc::alloc(layout_y);
+            let target_u = std::alloc::alloc(layout_uv);
+            let target_v = std::alloc::alloc(layout_uv);
+            let source_rgb = std::alloc::alloc(layout_rgb);
+            for (x, src) in src_bytes.iter().enumerate() {
+                *source_rgb.add(x) = *src;
+            }
+            b.iter(|| {
+                rs_RGB24ToI420(
+                    source_rgb,
+                    stride as i32,
+                    target_y,
+                    dimensions.0 as i32,
+                    target_u,
+                    (dimensions.0 as i32 + 1) / 2,
+                    target_v,
+                    (dimensions.0 as i32 + 1) / 2,
+                    dimensions.0 as i32,
+                    dimensions.1 as i32,
+                );
+            });
+            std::alloc::dealloc(target_y, layout_y);
+            std::alloc::dealloc(target_u, layout_uv);
+            std::alloc::dealloc(target_v, layout_uv);
+            std::alloc::dealloc(source_rgb, layout_rgb);
+        }
     });
 
     c.bench_function("yuvutils RGBA -> YUV 4:2:0", |b| {
@@ -139,25 +150,36 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("libyuv RGBA -> YUV 4:2:0", |b| {
-        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-            dimensions.0,
-            dimensions.1,
-            YuvChromaSubsampling::Yuv420,
-        );
-        b.iter(|| unsafe {
-            rs_ABGRToI420(
-                rgba_image.as_ptr(),
-                dimensions.0 as i32 * 4i32,
-                test_planar.y_plane.borrow_mut().as_mut_ptr(),
-                test_planar.y_stride as i32,
-                test_planar.u_plane.borrow_mut().as_mut_ptr(),
-                test_planar.u_stride as i32,
-                test_planar.v_plane.borrow_mut().as_mut_ptr(),
-                test_planar.v_stride as i32,
-                test_planar.width as i32,
-                test_planar.height as i32,
-            );
-        })
+       unsafe {
+           let layout_rgba = Layout::from_size_align(dimensions.0 as usize * dimensions.1 as usize * 4, 16).unwrap();
+           let layout_y = Layout::from_size_align(dimensions.0 as usize * dimensions.1 as usize, 16).unwrap();
+           let layout_uv = Layout::from_size_align((dimensions.0 as usize + 1) / 2 * (dimensions.1 as usize + 1) / 2, 16).unwrap();
+           let target_y = std::alloc::alloc(layout_y);
+           let target_u = std::alloc::alloc(layout_uv);
+           let target_v = std::alloc::alloc(layout_uv);
+           let source_rgb = std::alloc::alloc(layout_rgba);
+           for (x, src) in src_bytes.iter().enumerate() {
+               *source_rgb.add(x) = *src;
+           }
+           b.iter(|| {
+               rs_ABGRToI420(
+                   source_rgb,
+                   dimensions.0 as i32 * 4i32,
+                   target_y,
+                   dimensions.0 as i32,
+                   target_u,
+                   (dimensions.0 as i32 + 1) / 2,
+                   target_v,
+                   (dimensions.0 as i32 + 1) / 2,
+                   dimensions.0 as i32,
+                   dimensions.1 as i32,
+               );
+           });
+           std::alloc::dealloc(target_y, layout_y);
+           std::alloc::dealloc(target_u, layout_uv);
+           std::alloc::dealloc(target_v, layout_uv);
+           std::alloc::dealloc(source_rgb, layout_rgba);
+       }
     });
 
     c.bench_function("yuvutils RGBA -> YUV 4:2:2", |b| {

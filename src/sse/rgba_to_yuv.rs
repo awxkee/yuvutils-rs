@@ -47,20 +47,10 @@ pub(crate) fn sse_rgba_to_yuv_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     unsafe {
         sse_rgba_to_yuv_row_impl::<ORIGIN_CHANNELS, SAMPLING>(
-            transform,
-            range,
-            y_plane,
-            u_plane,
-            v_plane,
-            rgba,
-            start_cx,
-            start_ux,
-            width,
-            compute_uv_row,
+            transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
         )
     }
 }
@@ -76,7 +66,6 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -91,7 +80,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
     let mut uv_x = start_ux;
 
     const V_SHR: i32 = 3;
-    const V_SCALE: i32 = 7;
+    const V_SCALE: i32 = 6;
     let rounding_const_bias: i16 = 1 << (V_SHR - 1);
     let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
     let bias_uv = range.bias_uv as i16 * (1 << V_SHR) + rounding_const_bias;
@@ -169,8 +158,8 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                 _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(_mm_mulhi_epi16(r_low, v_yr), _mm_mulhi_epi16(g_low, v_yg)),
-                        _mm_mulhi_epi16(b_low, v_yb),
+                        _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
+                        _mm_mulhrs_epi16(b_low, v_yb),
                     ),
                 )),
                 i_cap_y,
@@ -183,8 +172,11 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                 _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
                     y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(_mm_mulhi_epi16(r_high, v_yr), _mm_mulhi_epi16(g_high, v_yg)),
-                        _mm_mulhi_epi16(b_high, v_yb),
+                        _mm_add_epi16(
+                            _mm_mulhrs_epi16(r_high, v_yr),
+                            _mm_mulhrs_epi16(g_high, v_yg),
+                        ),
+                        _mm_mulhrs_epi16(b_high, v_yb),
                     ),
                 )),
                 i_cap_y,
@@ -202,10 +194,10 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
-                                _mm_mulhi_epi16(r_low, v_cb_r),
-                                _mm_mulhi_epi16(g_low, v_cb_g),
+                                _mm_mulhrs_epi16(r_low, v_cb_r),
+                                _mm_mulhrs_epi16(g_low, v_cb_g),
                             ),
-                            _mm_mulhi_epi16(b_low, v_cb_b),
+                            _mm_mulhrs_epi16(b_low, v_cb_b),
                         ),
                     )),
                     i_cap_uv,
@@ -218,10 +210,10 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
-                                _mm_mulhi_epi16(r_low, v_cr_r),
-                                _mm_mulhi_epi16(g_low, v_cr_g),
+                                _mm_mulhrs_epi16(r_low, v_cr_r),
+                                _mm_mulhrs_epi16(g_low, v_cr_g),
                             ),
-                            _mm_mulhi_epi16(b_low, v_cr_b),
+                            _mm_mulhrs_epi16(b_low, v_cr_b),
                         ),
                     )),
                     i_cap_uv,
@@ -234,10 +226,10 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
-                                _mm_mulhi_epi16(r_high, v_cb_r),
-                                _mm_mulhi_epi16(g_high, v_cb_g),
+                                _mm_mulhrs_epi16(r_high, v_cb_r),
+                                _mm_mulhrs_epi16(g_high, v_cb_g),
                             ),
-                            _mm_mulhi_epi16(b_high, v_cb_b),
+                            _mm_mulhrs_epi16(b_high, v_cb_b),
                         ),
                     )),
                     i_cap_uv,
@@ -250,10 +242,10 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                         uv_bias,
                         _mm_add_epi16(
                             _mm_add_epi16(
-                                _mm_mulhi_epi16(r_high, v_cr_r),
-                                _mm_mulhi_epi16(g_high, v_cr_g),
+                                _mm_mulhrs_epi16(r_high, v_cr_r),
+                                _mm_mulhrs_epi16(g_high, v_cr_g),
                             ),
-                            _mm_mulhi_epi16(b_high, v_cr_b),
+                            _mm_mulhrs_epi16(b_high, v_cr_b),
                         ),
                     )),
                     i_cap_uv,
@@ -269,7 +261,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
             _mm_storeu_si128(v_ptr.add(uv_x) as *mut __m128i, cr);
             uv_x += 16;
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
-            || (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
             let r1 = _mm_avg_epu16(r_low, r_high);
             let g1 = _mm_avg_epu16(g_low, g_high);
@@ -280,8 +272,11 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                     _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
-                            _mm_add_epi16(_mm_mulhi_epi16(r1, v_cb_r), _mm_mulhi_epi16(g1, v_cb_g)),
-                            _mm_mulhi_epi16(b1, v_cb_b),
+                            _mm_add_epi16(
+                                _mm_mulhrs_epi16(r1, v_cb_r),
+                                _mm_mulhrs_epi16(g1, v_cb_g),
+                            ),
+                            _mm_mulhrs_epi16(b1, v_cb_b),
                         ),
                     )),
                     i_cap_uv,
@@ -294,8 +289,11 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
                     _mm_srai_epi16::<V_SHR>(_mm_add_epi16(
                         uv_bias,
                         _mm_add_epi16(
-                            _mm_add_epi16(_mm_mulhi_epi16(r1, v_cr_r), _mm_mulhi_epi16(g1, v_cr_g)),
-                            _mm_mulhi_epi16(b1, v_cr_b),
+                            _mm_add_epi16(
+                                _mm_mulhrs_epi16(r1, v_cr_r),
+                                _mm_mulhrs_epi16(g1, v_cr_g),
+                            ),
+                            _mm_mulhrs_epi16(b1, v_cr_b),
                         ),
                     )),
                     i_cap_uv,
