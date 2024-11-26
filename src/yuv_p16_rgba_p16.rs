@@ -285,6 +285,7 @@ fn yuv_p16_to_image_p16_ant<
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
+            let y_plane = &y_plane[0..image.width as usize];
             let cx = process_wide_row(y_plane, u_plane, v_plane, rgba);
 
             for (((rgba, &y_src), &u_src), &v_src) in rgba
@@ -335,7 +336,12 @@ fn yuv_p16_to_image_p16_ant<
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+            process_halved_chroma_row(
+                &y_plane[0..image.width as usize],
+                &u_plane[0..(image.width as usize).div_ceil(2)],
+                &v_plane[0..(image.width as usize).div_ceil(2)],
+                &mut rgba[0..image.width as usize * channels],
+            );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
@@ -360,7 +366,12 @@ fn yuv_p16_to_image_p16_ant<
                 .chunks_exact_mut(rgba_stride as usize)
                 .zip(y_plane.chunks_exact(image.y_stride as usize))
             {
-                process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+                process_halved_chroma_row(
+                    &y_plane[0..image.width as usize],
+                    &u_plane[0..(image.width as usize).div_ceil(2)],
+                    &v_plane[0..(image.width as usize).div_ceil(2)],
+                    &mut rgba[0..image.width as usize * channels],
+                );
             }
         });
 
@@ -384,7 +395,12 @@ fn yuv_p16_to_image_p16_ant<
                 .chunks_exact(image.y_stride as usize)
                 .last()
                 .unwrap();
-            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+            process_halved_chroma_row(
+                &y_plane[0..image.width as usize],
+                &u_plane[0..(image.width as usize).div_ceil(2)],
+                &v_plane[0..(image.width as usize).div_ceil(2)],
+                &mut rgba[0..image.width as usize * channels],
+            );
         }
     } else {
         unreachable!();

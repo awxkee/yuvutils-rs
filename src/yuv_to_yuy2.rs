@@ -162,16 +162,22 @@ pub(crate) fn yuv_to_yuy2_impl<
     const YUY2_TARGET: usize,
 >(
     planar_image: &YuvPlanarImage<V>,
-    packed_image: &mut YuvPackedImageMut<V>,
+    image: &mut YuvPackedImageMut<V>,
 ) -> Result<(), YuvError> {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     planar_image.check_constraints(chroma_subsampling)?;
-    packed_image.check_constraints()?;
-    if planar_image.width != packed_image.width || planar_image.height != packed_image.height {
+    image.check_constraints()?;
+    if planar_image.width != image.width || planar_image.height != image.height {
         return Err(YuvError::ImagesSizesNotMatch);
     }
+
+    let yuy2_width = if planar_image.width % 2 == 0 {
+        2 * planar_image.width as usize
+    } else {
+        2 * (planar_image.width as usize + 1)
+    };
 
     let width = planar_image.width;
 
@@ -179,10 +185,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         let iter;
         #[cfg(feature = "rayon")]
         {
-            iter = packed_image
+            iter = image
                 .yuy
                 .borrow_mut()
-                .par_chunks_exact_mut(packed_image.yuy_stride as usize)
+                .par_chunks_exact_mut(image.yuy_stride as usize)
                 .zip(
                     planar_image
                         .y_plane
@@ -201,10 +207,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         }
         #[cfg(not(feature = "rayon"))]
         {
-            iter = packed_image
+            iter = image
                 .yuy
                 .borrow_mut()
-                .chunks_exact_mut(packed_image.yuy_stride as usize)
+                .chunks_exact_mut(image.yuy_stride as usize)
                 .zip(
                     planar_image
                         .y_plane
@@ -223,6 +229,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         }
 
         iter.for_each(|(((yuy2, y_src), u_src), v_src)| {
+            let yuy2 = &mut yuy2[0..yuy2_width];
+            let y_src = &y_src[0..image.width as usize];
+            let u_src = &u_src[0..image.width as usize];
+            let v_src = &v_src[0..image.width as usize];
             let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
                 yuy2,
                 y_src,
@@ -260,10 +270,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         let iter;
         #[cfg(feature = "rayon")]
         {
-            iter = packed_image
+            iter = image
                 .yuy
                 .borrow_mut()
-                .par_chunks_exact_mut(packed_image.yuy_stride as usize)
+                .par_chunks_exact_mut(image.yuy_stride as usize)
                 .zip(
                     planar_image
                         .y_plane
@@ -282,10 +292,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         }
         #[cfg(not(feature = "rayon"))]
         {
-            iter = packed_image
+            iter = image
                 .yuy
                 .borrow_mut()
-                .chunks_exact_mut(packed_image.yuy_stride as usize)
+                .chunks_exact_mut(image.yuy_stride as usize)
                 .zip(
                     planar_image
                         .y_plane
@@ -304,6 +314,11 @@ pub(crate) fn yuv_to_yuy2_impl<
         }
 
         iter.for_each(|(((yuy2, y_src), u_src), v_src)| {
+            let yuy2 = &mut yuy2[0..yuy2_width];
+            let y_src = &y_src[0..image.width as usize];
+            let u_src = &u_src[0..(image.width as usize).div_ceil(2)];
+            let v_src = &v_src[0..(image.width as usize).div_ceil(2)];
+
             let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
                 yuy2,
                 y_src,
@@ -341,10 +356,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         let iter;
         #[cfg(feature = "rayon")]
         {
-            iter = packed_image
+            iter = image
                 .yuy
                 .borrow_mut()
-                .par_chunks_exact_mut(packed_image.yuy_stride as usize * 2)
+                .par_chunks_exact_mut(image.yuy_stride as usize * 2)
                 .zip(
                     planar_image
                         .y_plane
@@ -363,10 +378,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         }
         #[cfg(not(feature = "rayon"))]
         {
-            iter = packed_image
+            iter = image
                 .yuy
                 .borrow_mut()
-                .chunks_exact_mut(packed_image.yuy_stride as usize * 2)
+                .chunks_exact_mut(image.yuy_stride as usize * 2)
                 .zip(
                     planar_image
                         .y_plane
@@ -386,9 +401,14 @@ pub(crate) fn yuv_to_yuy2_impl<
 
         iter.for_each(|(((yuy2, y_src), u_src), v_src)| {
             for (yuy2, y_src) in yuy2
-                .chunks_exact_mut(packed_image.yuy_stride as usize)
+                .chunks_exact_mut(image.yuy_stride as usize)
                 .zip(y_src.chunks_exact(planar_image.y_stride as usize))
             {
+                let yuy2 = &mut yuy2[0..yuy2_width];
+                let y_src = &y_src[0..image.width as usize];
+                let u_src = &u_src[0..(image.width as usize).div_ceil(2)];
+                let v_src = &v_src[0..(image.width as usize).div_ceil(2)];
+
                 let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
                     yuy2,
                     y_src,
@@ -425,10 +445,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         });
 
         if planar_image.height & 1 != 0 {
-            let rem_yuy = packed_image
+            let rem_yuy = image
                 .yuy
                 .borrow_mut()
-                .chunks_exact_mut(packed_image.yuy_stride as usize * 2)
+                .chunks_exact_mut(image.yuy_stride as usize * 2)
                 .into_remainder();
             let rem_y = planar_image
                 .y_plane
@@ -452,6 +472,11 @@ pub(crate) fn yuv_to_yuy2_impl<
                 last_v,
                 width as usize,
             );
+
+            let rem_yuy = &mut rem_yuy[0..yuy2_width];
+            let rem_y = &rem_y[0..image.width as usize];
+            let last_u = &last_u[0..(image.width as usize).div_ceil(2)];
+            let last_v = &last_v[0..(image.width as usize).div_ceil(2)];
 
             for (((yuy2, y_src), u_src), v_src) in rem_yuy
                 .chunks_exact_mut(4)

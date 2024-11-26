@@ -26,17 +26,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use image::{ColorType, EncodableLayout, GenericImageView, ImageReader};
+use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageReader};
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24};
-use yuvutils_rs::{
-    rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12,
-    yuv420_p16_to_rgb16, yuv420_to_rgb, yuv422_to_rgb, yuv444_to_rgb, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgba, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_to_rgb, yuv444_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuyv422_to_yuv420, BufferStoreMut, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -53,10 +48,12 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/test_image_2.jpg")
+    let mut img = ImageReader::open("./assets/test_1.avif")
         .unwrap()
         .decode()
         .unwrap();
+
+    let img = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let dimensions = img.dimensions();
 
@@ -72,12 +69,12 @@ fn main() {
         }
     };
 
-    let y_stride = width as usize * std::mem::size_of::<u8>();
-    let u_stride = (width + 1) / 2;
-    let v_stride = (width + 1) / 2;
-    let mut y_plane = vec![0u8; width as usize * height as usize];
-    let mut u_plane = vec![0u8; (height as usize + 1) / 2usize * u_stride as usize];
-    let mut v_plane = vec![0u8; (height as usize + 1) / 2usize * v_stride as usize];
+    let y_stride = width as usize + 100;
+    let u_stride = (width + 1) / 2 + 100;
+    let v_stride = (width + 1) / 2 + 100;
+    let mut y_plane = vec![0u8; y_stride as usize * height as usize];
+    let mut u_plane = vec![0u8; height as usize * u_stride as usize];
+    let mut v_plane = vec![0u8; height as usize * v_stride as usize];
 
     let rgba_stride = width as usize * components;
     let mut rgba = vec![0u8; height as usize * rgba_stride];
@@ -91,12 +88,12 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 4).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv444(
+    rgb_to_yuv420(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
@@ -110,34 +107,34 @@ fn main() {
     //
     println!("Forward time: {:?}", start_time.elapsed());
     // // //
-    // let full_size = if width % 2 == 0 {
-    //     2 * width as usize * height as usize
-    // } else {
-    //     2 * (width as usize + 1) * height as usize
-    // };
+    let full_size = if width % 2 == 0 {
+        2 * width as usize * height as usize
+    } else {
+        2 * (width as usize + 1) * height as usize
+    };
     // //
     // // // println!("Full YUY2 {}", full_size);
     // //
-    // let yuy2_stride = if width % 2 == 0 {
-    //     2 * width as usize
-    // } else {
-    //     2 * (width as usize + 1)
-    // };
+    let yuy2_stride = if width % 2 == 0 {
+        2 * width as usize
+    } else {
+        2 * (width as usize + 1)
+    };
 
-    // let mut yuy2_plane = vec![0u8; full_size];
+    let mut yuy2_plane = vec![0u8; full_size];
     // // // //
     // let start_time = Instant::now();
     // // // //
-    // let plane = planar_image.to_fixed();
+    let plane = planar_image.to_fixed();
     //
-    // let mut packed_image_mut = YuvPackedImageMut {
-    //     yuy: BufferStoreMut::Owned(yuy2_plane),
-    //     yuy_stride: yuy2_stride as u32,
-    //     width,
-    //     height,
-    // };
+    let mut packed_image_mut = YuvPackedImageMut {
+        yuy: BufferStoreMut::Owned(yuy2_plane),
+        yuy_stride: yuy2_stride as u32,
+        width,
+        height,
+    };
     //
-    // yuv444_to_yuyv422(&mut packed_image_mut, &plane).unwrap();
+    yuv420_to_yuyv422(&mut packed_image_mut, &plane).unwrap();
     // let end_time = Instant::now().sub(start_time);
     // println!("yuv420_to_yuyv422 time: {:?}", end_time);
     // // rgba.fill(0);
@@ -159,14 +156,14 @@ fn main() {
     // let start_time = Instant::now();
     // //
     //
-    // let packed_image = YuvPackedImage {
-    //     yuy: packed_image_mut.yuy.borrow(),
-    //     yuy_stride: yuy2_stride as u32,
-    //     width,
-    //     height,
-    // };
+    let packed_image = YuvPackedImage {
+        yuy: packed_image_mut.yuy.borrow(),
+        yuy_stride: yuy2_stride as u32,
+        width,
+        height,
+    };
     //
-    // yuyv422_to_yuv444(&mut planar_image, &packed_image).unwrap();
+    yuyv422_to_yuv420(&mut planar_image, &packed_image).unwrap();
     // //
     // let end_time = Instant::now().sub(start_time);
     // println!("yuyv422_to_yuv444 time: {:?}", end_time);
@@ -254,7 +251,7 @@ fn main() {
     // let rgba_stride = width as usize * 4;
     // let mut rgba = vec![0u8; height as usize * rgba_stride];
 
-    yuv444_to_rgb(
+    yuv420_to_rgb(
         &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
@@ -303,7 +300,7 @@ fn main() {
     // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
     image::save_buffer(
-        "converted_sharp15.png",
+        "converted_sharp15.jpg",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

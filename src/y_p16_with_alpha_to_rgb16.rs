@@ -39,7 +39,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    gray_alpha_image: &YuvGrayAlphaImage<u16>,
+    image: &YuvGrayAlphaImage<u16>,
     rgba16: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
@@ -51,7 +51,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
 
     let channels = destination_channels.get_channels_count();
 
-    gray_alpha_image.check_constraints()?;
+    image.check_constraints()?;
 
     assert!(
         destination_channels.has_alpha(),
@@ -85,22 +85,14 @@ fn yuv400_p16_with_alpha_to_rgbx<
     #[cfg(feature = "rayon")]
     {
         iter = rgba16.par_chunks_exact_mut(rgba_stride as usize);
-        y_iter = gray_alpha_image
-            .y_plane
-            .par_chunks_exact(gray_alpha_image.y_stride as usize);
-        a_iter = gray_alpha_image
-            .a_plane
-            .par_chunks_exact(gray_alpha_image.a_stride as usize);
+        y_iter = image.y_plane.par_chunks_exact(image.y_stride as usize);
+        a_iter = image.a_plane.par_chunks_exact(image.a_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
         iter = rgba16.chunks_exact_mut(rgba_stride as usize);
-        y_iter = gray_alpha_image
-            .y_plane
-            .chunks_exact(gray_alpha_image.y_stride as usize);
-        a_iter = gray_alpha_image
-            .a_plane
-            .chunks_exact(gray_alpha_image.a_stride as usize);
+        y_iter = image.y_plane.chunks_exact(image.y_stride as usize);
+        a_iter = image.a_plane.chunks_exact(image.a_stride as usize);
     }
 
     match range {
@@ -108,6 +100,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
             iter.zip(y_iter)
                 .zip(a_iter)
                 .for_each(|((rgba16, y_plane16), a_plane16)| {
+                    let y_plane16 = &y_plane16[0..image.width as usize];
                     for ((&y_src, &a_src), rgba) in y_plane16
                         .iter()
                         .zip(a_plane16)
@@ -127,6 +120,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
             iter.zip(y_iter)
                 .zip(a_iter)
                 .for_each(|((rgba16, y_plane16), a_plane16)| {
+                    let y_plane16 = &y_plane16[0..image.width as usize];
                     for ((&y_src, &a_src), rgba) in y_plane16
                         .iter()
                         .zip(a_plane16)

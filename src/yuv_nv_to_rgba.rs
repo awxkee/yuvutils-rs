@@ -59,7 +59,7 @@ fn yuv_nv12_to_rgbx<
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
 >(
-    bi_planar_image: &YuvBiPlanarImage<u8>,
+    image: &YuvBiPlanarImage<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
     range: YuvRange,
@@ -69,12 +69,12 @@ fn yuv_nv12_to_rgbx<
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
 
-    bi_planar_image.check_constraints(chroma_subsampling)?;
+    image.check_constraints(chroma_subsampling)?;
     check_rgba_destination(
         bgra,
         bgra_stride,
-        bi_planar_image.width,
-        bi_planar_image.height,
+        image.width,
+        image.height,
         dst_chans.get_channels_count(),
     )?;
 
@@ -120,7 +120,7 @@ fn yuv_nv12_to_rgbx<
         neon_yuv_nv_to_rgba_row420::<PRECISION, UV_ORDER, DESTINATION_CHANNELS>
     };
 
-    let width = bi_planar_image.width;
+    let width = image.width;
 
     let process_wide_row = |_bgra: &mut [u8], _y_plane: &[u8], _uv_plane: &[u8]| {
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
@@ -478,10 +478,10 @@ fn yuv_nv12_to_rgbx<
         }
     };
 
-    let y_stride = bi_planar_image.y_stride;
-    let uv_stride = bi_planar_image.uv_stride;
-    let y_plane = bi_planar_image.y_plane;
-    let uv_plane = bi_planar_image.uv_plane;
+    let y_stride = image.y_stride;
+    let uv_stride = image.uv_stride;
+    let y_plane = image.y_plane;
+    let uv_plane = image.uv_plane;
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
@@ -500,6 +500,7 @@ fn yuv_nv12_to_rgbx<
                 .zip(bgra.chunks_exact_mut(bgra_stride as usize));
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
+            let y_src = &y_src[0..image.width as usize];
             let processed = process_wide_row(rgba, y_src, uv_src);
 
             for ((rgba, &y_src), uv_src) in rgba
@@ -547,7 +548,11 @@ fn yuv_nv12_to_rgbx<
                 .zip(bgra.chunks_exact_mut(bgra_stride as usize));
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
-            process_halved_chroma_row(y_src, uv_src, rgba);
+            process_halved_chroma_row(
+                &y_src[0..image.width as usize],
+                &uv_src[0..image.width as usize],
+                &mut rgba[0..image.width as usize * channels],
+            );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
@@ -568,15 +573,25 @@ fn yuv_nv12_to_rgbx<
         iter.for_each(|((y_src, uv_src), rgba)| {
             let (y_src0, y_src1) = y_src.split_at(y_stride as usize);
             let (rgba0, rgba1) = rgba.split_at_mut(bgra_stride as usize);
-            process_double_chroma_row(y_src0, y_src1, uv_src, rgba0, rgba1);
+            process_double_chroma_row(
+                &y_src0[0..image.width as usize],
+                &y_src1[0..image.width as usize],
+                &uv_src[0..image.width as usize],
+                &mut rgba0[0..image.width as usize * channels],
+                &mut rgba1[0..image.width as usize * channels],
+            );
         });
-        if bi_planar_image.height & 1 != 0 {
+        if image.height & 1 != 0 {
             let y_src = y_plane.chunks_exact(y_stride as usize * 2).remainder();
             let uv_src = uv_plane.chunks_exact(uv_stride as usize).last().unwrap();
             let rgba = bgra
                 .chunks_exact_mut(bgra_stride as usize * 2)
                 .into_remainder();
-            process_halved_chroma_row(y_src, uv_src, rgba);
+            process_halved_chroma_row(
+                &y_src[0..image.width as usize],
+                &uv_src[0..image.width as usize],
+                &mut rgba[0..image.width as usize * channels],
+            );
         }
     } else {
         unreachable!();

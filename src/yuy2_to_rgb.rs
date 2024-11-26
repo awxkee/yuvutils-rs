@@ -103,7 +103,16 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
             .chunks_exact(packed_image.yuy_stride as usize);
     }
 
+    let yuy2_width = if packed_image.width % 2 == 0 {
+        2 * packed_image.width as usize
+    } else {
+        2 * (packed_image.width as usize + 1)
+    };
+
     rgb_iter.zip(yuy2_iter).for_each(|(rgb_store, yuy2_store)| {
+        let yuy2_store = &yuy2_store[0..yuy2_width];
+        let rgb_store = &mut rgb_store[0..(packed_image.width as usize * channels)];
+
         let mut _cx = 0usize;
         let mut _yuy2_x = 0usize;
 

@@ -41,7 +41,7 @@ fn yuv400_p16_to_rgbx<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    gray_image: &YuvGrayImage<u16>,
+    image: &YuvGrayImage<u16>,
     rgba16: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
@@ -73,24 +73,21 @@ fn yuv400_p16_to_rgbx<
     let iter;
     #[cfg(feature = "rayon")]
     {
-        iter = rgba16.par_chunks_exact_mut(rgba_stride as usize).zip(
-            gray_image
-                .y_plane
-                .par_chunks_exact(gray_image.y_stride as usize),
-        );
+        iter = rgba16
+            .par_chunks_exact_mut(rgba_stride as usize)
+            .zip(image.y_plane.par_chunks_exact(image.y_stride as usize));
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = rgba16.chunks_exact_mut(rgba_stride as usize).zip(
-            gray_image
-                .y_plane
-                .chunks_exact(gray_image.y_stride as usize),
-        );
+        iter = rgba16
+            .chunks_exact_mut(rgba_stride as usize)
+            .zip(image.y_plane.chunks_exact(image.y_stride as usize));
     }
 
     match range {
         YuvRange::Limited => {
             iter.for_each(|(rgba16, y_plane)| {
+                let y_plane = &y_plane[0..image.width as usize];
                 let mut _cx = 0usize;
 
                 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -104,7 +101,7 @@ fn yuv400_p16_to_rgbx<
                         >(
                             y_plane.as_ptr(),
                             rgba16.as_mut_ptr(),
-                            gray_image.width,
+                            image.width,
                             &chroma_range,
                             &inverse_transform,
                             0,
@@ -132,6 +129,7 @@ fn yuv400_p16_to_rgbx<
         }
         YuvRange::Full => {
             iter.for_each(|(rgba16, y_plane)| {
+                let y_plane = &y_plane[0..image.width as usize];
                 for (dst, &y_src) in rgba16.chunks_exact_mut(channels).zip(y_plane) {
                     let r = y_src;
 

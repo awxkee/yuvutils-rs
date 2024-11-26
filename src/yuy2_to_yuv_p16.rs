@@ -54,6 +54,12 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let v_plane = planar_image.v_plane.borrow_mut();
     let v_stride = planar_image.v_stride;
 
+    let yuy2_width = if packed_image.width % 2 == 0 {
+        2 * packed_image.width as usize
+    } else {
+        2 * (packed_image.width as usize + 1)
+    };
+
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
         #[cfg(feature = "rayon")]
@@ -81,6 +87,11 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
+            let yuy2_src = &yuy2_src[0..yuy2_width];
+            let y_dst = &mut y_dst[0..planar_image.width as usize];
+            let u_dst = &mut u_dst[0..planar_image.width as usize];
+            let u_dst = &mut u_dst[0..planar_image.width as usize];
+
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
                 .chunks_exact_mut(2)
                 .zip(u_dst.chunks_exact_mut(2))
@@ -137,6 +148,11 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
+            let yuy2_src = &yuy2_src[0..yuy2_width];
+            let y_dst = &mut y_dst[0..planar_image.width as usize];
+            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
                 .chunks_exact_mut(2)
                 .zip(u_dst.iter_mut())
@@ -196,6 +212,11 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(yuy2_src.chunks_exact(packed_image.yuy_stride as usize))
                 .enumerate()
             {
+                let yuy2 = &yuy2[0..yuy2_width];
+                let y_dst = &mut y_dst[0..planar_image.width as usize];
+                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+
                 let process_chroma = y & 1 == 0;
 
                 for (((y_dst, u_dst), v_dst), yuy2) in y_dst

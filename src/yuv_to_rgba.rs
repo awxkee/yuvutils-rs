@@ -477,6 +477,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
+            let y_plane = &y_plane[0..image.width as usize];
             let cx = process_wide_row(y_plane, u_plane, v_plane, rgba);
 
             for (((rgba, &y_src), &u_src), &v_src) in rgba
@@ -523,7 +524,12 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+            process_halved_chroma_row(
+                &y_plane[0..image.width as usize],
+                &u_plane[0..(image.width as usize).div_ceil(2)],
+                &v_plane[0..(image.width as usize).div_ceil(2)],
+                &mut rgba[0..image.width as usize * channels],
+            );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
@@ -546,7 +552,14 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
             let (rgba0, rgba1) = rgba.split_at_mut(rgba_stride as usize);
             let (y_plane0, y_plane1) = y_plane.split_at(image.y_stride as usize);
-            process_doubled_chroma_row(y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1);
+            process_doubled_chroma_row(
+                &y_plane0[0..image.width as usize],
+                &y_plane1[0..image.width as usize],
+                &u_plane[0..(image.width as usize).div_ceil(2)],
+                &v_plane[0..(image.width as usize).div_ceil(2)],
+                &mut rgba0[0..image.width as usize * channels],
+                &mut rgba1[0..image.width as usize * channels],
+            );
         });
 
         if image.height & 1 != 0 {
@@ -566,7 +579,12 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 .chunks_exact(image.y_stride as usize)
                 .last()
                 .unwrap();
-            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+            process_halved_chroma_row(
+                &y_plane[0..image.width as usize],
+                &u_plane[0..(image.width as usize).div_ceil(2)],
+                &v_plane[0..(image.width as usize).div_ceil(2)],
+                &mut rgba[0..image.width as usize * channels],
+            );
         }
     } else {
         unreachable!();
