@@ -41,7 +41,7 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
 ) -> usize {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
-    const V_SCALE: i32 = 3;
+    const V_SCALE: i32 = 2;
     let bias_y = range.bias_y as i16;
 
     let y_ptr = y_plane;

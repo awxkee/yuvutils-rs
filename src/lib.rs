@@ -89,6 +89,7 @@ mod yuy2_to_rgb;
 mod yuy2_to_rgb_p16;
 mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
+mod built_coefficients;
 
 pub use yuv_support::{
     Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvRange,

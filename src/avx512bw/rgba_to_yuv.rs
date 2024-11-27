@@ -92,11 +92,9 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    const V_SHR: u32 = 3;
-    const V_SCALE: u32 = 7;
-    let rounding_const_bias: i16 = 1 << (V_SHR - 1);
-    let bias_y = range.bias_y as i16 * (1 << V_SHR) + rounding_const_bias;
-    let bias_uv = range.bias_uv as i16 * (1 << V_SHR) + rounding_const_bias;
+    const V_SCALE: u32 = 2;
+    let bias_y = range.bias_y as i16;
+    let bias_uv = range.bias_uv as i16;
 
     let i_bias_y = _mm512_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm512_set1_epi16(range.range_y as i16 + range.bias_y as i16);
@@ -175,16 +173,16 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
 
         let y_l = _mm512_max_epi16(
             _mm512_min_epi16(
-                _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                _mm512_add_epi16(
                     y_bias,
                     _mm512_add_epi16(
                         _mm512_add_epi16(
-                            _mm512_mulhi_epi16(r_low, v_yr),
-                            _mm512_mulhi_epi16(g_low, v_yg),
+                            _mm512_mulhrs_epi16(r_low, v_yr),
+                            _mm512_mulhrs_epi16(g_low, v_yg),
                         ),
-                        _mm512_mulhi_epi16(b_low, v_yb),
+                        _mm512_mulhrs_epi16(b_low, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -192,16 +190,16 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
 
         let y_h = _mm512_max_epi16(
             _mm512_min_epi16(
-                _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                _mm512_add_epi16(
                     y_bias,
                     _mm512_add_epi16(
                         _mm512_add_epi16(
-                            _mm512_mulhi_epi16(r_high, v_yr),
-                            _mm512_mulhi_epi16(g_high, v_yg),
+                            _mm512_mulhrs_epi16(r_high, v_yr),
+                            _mm512_mulhrs_epi16(g_high, v_yg),
                         ),
-                        _mm512_mulhi_epi16(b_high, v_yb),
+                        _mm512_mulhrs_epi16(b_high, v_yb),
                     ),
-                )),
+                ),
                 i_cap_y,
             ),
             i_bias_y,
@@ -213,64 +211,64 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm512_max_epi16(
                 _mm512_min_epi16(
-                    _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    _mm512_add_epi16(
                         uv_bias,
                         _mm512_add_epi16(
                             _mm512_add_epi16(
-                                _mm512_mulhi_epi16(r_low, v_cb_r),
-                                _mm512_mulhi_epi16(g_low, v_cb_g),
+                                _mm512_mulhrs_epi16(r_low, v_cb_r),
+                                _mm512_mulhrs_epi16(g_low, v_cb_g),
                             ),
-                            _mm512_mulhi_epi16(b_low, v_cb_b),
+                            _mm512_mulhrs_epi16(b_low, v_cb_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
             );
             let cr_l = _mm512_max_epi16(
                 _mm512_min_epi16(
-                    _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    _mm512_add_epi16(
                         uv_bias,
                         _mm512_add_epi16(
                             _mm512_add_epi16(
-                                _mm512_mulhi_epi16(r_low, v_cr_r),
-                                _mm512_mulhi_epi16(g_low, v_cr_g),
+                                _mm512_mulhrs_epi16(r_low, v_cr_r),
+                                _mm512_mulhrs_epi16(g_low, v_cr_g),
                             ),
-                            _mm512_mulhi_epi16(b_low, v_cr_b),
+                            _mm512_mulhrs_epi16(b_low, v_cr_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
             );
             let cb_h = _mm512_max_epi16(
                 _mm512_min_epi16(
-                    _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    _mm512_add_epi16(
                         uv_bias,
                         _mm512_add_epi16(
                             _mm512_add_epi16(
-                                _mm512_mulhi_epi16(r_high, v_cb_r),
-                                _mm512_mulhi_epi16(g_high, v_cb_g),
+                                _mm512_mulhrs_epi16(r_high, v_cb_r),
+                                _mm512_mulhrs_epi16(g_high, v_cb_g),
                             ),
-                            _mm512_mulhi_epi16(b_high, v_cb_b),
+                            _mm512_mulhrs_epi16(b_high, v_cb_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
             );
             let cr_h = _mm512_max_epi16(
                 _mm512_min_epi16(
-                    _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    _mm512_add_epi16(
                         uv_bias,
                         _mm512_add_epi16(
                             _mm512_add_epi16(
-                                _mm512_mulhi_epi16(r_high, v_cr_r),
-                                _mm512_mulhi_epi16(g_high, v_cr_g),
+                                _mm512_mulhrs_epi16(r_high, v_cr_r),
+                                _mm512_mulhrs_epi16(g_high, v_cr_g),
                             ),
-                            _mm512_mulhi_epi16(b_high, v_cr_b),
+                            _mm512_mulhrs_epi16(b_high, v_cr_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
@@ -291,16 +289,16 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
 
             let cbk = _mm512_max_epi16(
                 _mm512_min_epi16(
-                    _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    _mm512_add_epi16(
                         uv_bias,
                         _mm512_add_epi16(
                             _mm512_add_epi16(
-                                _mm512_mulhi_epi16(r1, v_cb_r),
-                                _mm512_mulhi_epi16(g1, v_cb_g),
+                                _mm512_mulhrs_epi16(r1, v_cb_r),
+                                _mm512_mulhrs_epi16(g1, v_cb_g),
                             ),
-                            _mm512_mulhi_epi16(b1, v_cb_b),
+                            _mm512_mulhrs_epi16(b1, v_cb_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,
@@ -308,16 +306,16 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
 
             let crk = _mm512_max_epi16(
                 _mm512_min_epi16(
-                    _mm512_srai_epi16::<V_SHR>(_mm512_add_epi16(
+                    _mm512_add_epi16(
                         uv_bias,
                         _mm512_add_epi16(
                             _mm512_add_epi16(
-                                _mm512_mulhi_epi16(r1, v_cr_r),
-                                _mm512_mulhi_epi16(g1, v_cr_g),
+                                _mm512_mulhrs_epi16(r1, v_cr_r),
+                                _mm512_mulhrs_epi16(g1, v_cr_g),
                             ),
-                            _mm512_mulhi_epi16(b1, v_cr_b),
+                            _mm512_mulhrs_epi16(b1, v_cr_b),
                         ),
-                    )),
+                    ),
                     i_cap_uv,
                 ),
                 i_bias_y,

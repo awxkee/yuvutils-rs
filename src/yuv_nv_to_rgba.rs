@@ -53,6 +53,7 @@ use crate::{YuvBiPlanarImage, YuvError};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use crate::built_coefficients::get_built_inverse_transform;
 
 fn yuv_nv12_to_rgbx<
     const UV_ORDER: u8,
@@ -78,23 +79,27 @@ fn yuv_nv12_to_rgbx<
         dst_chans.get_channels_count(),
     )?;
 
-    let range = get_yuv_range(8, range);
+    let chroma_range = get_yuv_range(8, range);
     let channels = dst_chans.get_channels_count();
     let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     const PRECISION: i32 = 6;
     #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-    const PRECISION: i32 = 12;
-    let inverse_transform = transform.to_integers(PRECISION as u32);
+    const PRECISION: i32 = 13;
+    let inverse_transform = if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
+        stored
+    } else {
+        let transform = get_inverse_transform(255, chroma_range.range_y, chroma_range.range_uv, kr_kb.kr, kr_kb.kb);
+        transform.to_integers(PRECISION as u32)
+    };
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
     let g_coef_1 = inverse_transform.g_coeff_1;
     let g_coef_2 = inverse_transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
@@ -130,7 +135,7 @@ fn yuv_nv12_to_rgbx<
             if _use_avx512 {
                 let processed =
                     avx512_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &range,
+                        &chroma_range,
                         &inverse_transform,
                         _y_plane,
                         _uv_plane,
@@ -145,7 +150,7 @@ fn yuv_nv12_to_rgbx<
             if _use_avx2 {
                 let processed =
                     avx2_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &range,
+                        &chroma_range,
                         &inverse_transform,
                         _y_plane,
                         _uv_plane,
@@ -160,7 +165,7 @@ fn yuv_nv12_to_rgbx<
             if _use_sse {
                 let processed =
                     sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &range,
+                        &chroma_range,
                         &inverse_transform,
                         _y_plane,
                         _uv_plane,
@@ -177,7 +182,7 @@ fn yuv_nv12_to_rgbx<
         {
             unsafe {
                 let processed = neon_wide_row(
-                    &range,
+                    &chroma_range,
                     &inverse_transform,
                     _y_plane,
                     _uv_plane,
@@ -195,7 +200,7 @@ fn yuv_nv12_to_rgbx<
             unsafe {
                 let processed =
                     wasm_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &range,
+                        &chroma_range,
                         &inverse_transform,
                         _y_plane,
                         _uv_plane,
@@ -224,7 +229,7 @@ fn yuv_nv12_to_rgbx<
         {
             unsafe {
                 let processed = neon_double_row(
-                    &range,
+                    &chroma_range,
                     &inverse_transform,
                     _y_plane0,
                     _y_plane1,
@@ -242,7 +247,7 @@ fn yuv_nv12_to_rgbx<
         {
             if _use_avx2 {
                 let processed = avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>(
-                    &range,
+                    &chroma_range,
                     &inverse_transform,
                     _y_plane0,
                     _y_plane1,
@@ -257,7 +262,7 @@ fn yuv_nv12_to_rgbx<
             }
             if _use_sse {
                 let processed = sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>(
-                    &range,
+                    &chroma_range,
                     &inverse_transform,
                     _y_plane0,
                     _y_plane1,

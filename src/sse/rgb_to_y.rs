@@ -64,7 +64,7 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    const V_SCALE: i32 = 3;
+    const V_SCALE: i32 = 2;
     let bias_y = range.bias_y as i16;
 
     let zeros = _mm_setzero_si128();

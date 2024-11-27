@@ -80,7 +80,7 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     let u_ptr = u_plane.as_ptr();
     let v_ptr = v_plane.as_ptr();
 
-    const SCALE: i32 = 3;
+    const SCALE: i32 = 2;
 
     let y_corr = _mm_set1_epi8(range.bias_y as i8);
     let uv_corr = _mm_set1_epi16(range.bias_uv as i16);

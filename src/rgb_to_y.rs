@@ -45,6 +45,7 @@ use crate::YuvError;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use crate::built_coefficients::get_built_forward_transform;
 
 // Chroma subsampling always assumed as YUV 400
 fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
@@ -66,23 +67,35 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     )?;
     gray_image.check_constraints()?;
 
-    let range = get_yuv_range(8, range);
+    let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range_p8 = (1u32 << 8u32) - 1u32;
     let transform_precise = get_forward_transform(
         max_range_p8,
-        range.range_y,
-        range.range_uv,
+        chroma_range.range_y,
+        chroma_range.range_uv,
         kr_kb.kr,
         kr_kb.kb,
     );
-    const PRECISION: i32 = 12;
-    let transform = transform_precise.to_integers(PRECISION as u32);
+    const PRECISION: i32 = 13;
+    let transform =
+        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
+            stored_t
+        } else {
+            let transform_precise = get_forward_transform(
+                max_range_p8,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform_precise.to_integers(PRECISION as u32)
+        };
     let precision_scale = (1 << PRECISION) as f32;
-    let bias_y = ((range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
+    let bias_y = ((chroma_range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
 
-    let i_bias_y = range.bias_y as i32;
-    let i_cap_y = range.range_y as i32 + i_bias_y;
+    let i_bias_y = chroma_range.bias_y as i32;
+    let i_cap_y = chroma_range.range_y as i32 + i_bias_y;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -125,7 +138,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             if use_avx512 {
                 let processed_offset = avx512_row_rgb_to_y::<ORIGIN_CHANNELS>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     y_plane,
                     rgba,
                     _cx,
@@ -136,7 +149,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             if use_avx {
                 let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     y_plane,
                     rgba,
                     _cx,
@@ -147,7 +160,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             if use_sse {
                 let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     y_plane,
                     rgba,
                     _cx,
@@ -162,7 +175,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             if is_rdm_available {
                 _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     y_plane.as_mut_ptr(),
                     rgba,
                     _cx,

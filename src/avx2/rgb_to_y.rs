@@ -66,7 +66,7 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    const V_SCALE: i32 = 3;
+    const V_SCALE: i32 = 2;
     let bias_y = range.bias_y as i16;
 
     let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);

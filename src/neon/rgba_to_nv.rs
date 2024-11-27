@@ -55,7 +55,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    const V_SCALE: i32 = 3;
+    const V_SCALE: i32 = 2;
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 

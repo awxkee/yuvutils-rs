@@ -81,7 +81,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    const V_SCALE: i32 = 3;
+    const V_SCALE: i32 = 2;
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
