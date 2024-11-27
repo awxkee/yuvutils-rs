@@ -63,7 +63,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
-    let y_corr = vdupq_n_s16(range.bias_y as i16);
+    let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
 
     let weights_arr: [i16; 8] = [
@@ -87,13 +87,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     while cx + 8 < width as usize {
         let a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
 
-        let y_values: int16x8_t = vsubq_s16(
-            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
                 v_msb_shift,
-            ),
+            )),
             y_corr,
-        );
+        ));
 
         let u_high: int16x4_t;
         let v_high: int16x4_t;
@@ -225,7 +225,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
-    let y_corr = vdupq_n_s16(range.bias_y as i16);
+    let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
 
     let weights_arr: [i16; 8] = [
@@ -248,16 +248,18 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
+    const SCALE: i32 = 2;
+
     while cx + 8 < width as usize {
         let a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
 
-        let y_values: int16x8_t = vsubq_s16(
-            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
                 v_msb_shift,
-            ),
+            )),
             y_corr,
-        );
+        ));
 
         let u_values: int16x8_t;
         let v_values: int16x8_t;
@@ -275,8 +277,8 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
             u_values_l = vsubq_s16(u_values_l, uv_corr);
             v_values_l = vsubq_s16(v_values_l, uv_corr);
 
-            u_values = vshlq_n_s16::<3>(u_values_l);
-            v_values = vshlq_n_s16::<3>(v_values_l);
+            u_values = vshlq_n_s16::<SCALE>(u_values_l);
+            v_values = vshlq_n_s16::<SCALE>(v_values_l);
         } else {
             let mut u_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
                 u_ld_ptr.get_unchecked(ux..).as_ptr(),
@@ -295,11 +297,11 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
             let u_low = vzip1_s16(u_values_l, u_values_l);
             let v_low = vzip1_s16(v_values_l, v_values_l);
 
-            u_values = vshlq_n_s16::<3>(vcombine_s16(u_low, u_high));
-            v_values = vshlq_n_s16::<3>(vcombine_s16(v_low, v_high));
+            u_values = vshlq_n_s16::<SCALE>(vcombine_s16(u_low, u_high));
+            v_values = vshlq_n_s16::<SCALE>(vcombine_s16(v_low, v_high));
         }
 
-        let y_high = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<3>(y_values), v_weights);
+        let y_high = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<SCALE>(y_values), v_weights);
 
         let r_vals = vqrdmlahq_laneq_s16::<1>(y_high, v_values, v_weights);
         let b_vals = vqrdmlahq_laneq_s16::<2>(y_high, u_values, v_weights);

@@ -58,7 +58,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let dst_ptr = rgba.as_mut_ptr();
 
-    let y_corr = vdupq_n_s16(range.bias_y as i16);
+    let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
 
     let weights_arr: [i16; 8] = [
@@ -83,13 +83,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
     let mut ux = start_ux;
 
     while cx + 8 < width as usize {
-        let y_values: int16x8_t = vsubq_s16(
-            vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
                 v_msb_shift,
-            ),
+            )),
             y_corr,
-        );
+        ));
 
         let u_high: int16x4_t;
         let v_high: int16x4_t;

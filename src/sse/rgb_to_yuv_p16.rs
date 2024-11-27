@@ -398,15 +398,15 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
 
     let y_bias = _mm_set1_epi16(bias_y);
     let uv_bias = _mm_set1_epi16(bias_uv);
-    let v_yr = _mm_set1_epi16((transform.yr as i16) << 1);
-    let v_yg = _mm_set1_epi16((transform.yg as i16) << 1);
-    let v_yb = _mm_set1_epi16((transform.yb as i16) << 1);
-    let v_cb_r = _mm_set1_epi16((transform.cb_r as i16) << 1);
-    let v_cb_g = _mm_set1_epi16((transform.cb_g as i16) << 1);
-    let v_cb_b = _mm_set1_epi16((transform.cb_b as i16) << 1);
-    let v_cr_r = _mm_set1_epi16((transform.cr_r as i16) << 1);
-    let v_cr_g = _mm_set1_epi16((transform.cr_g as i16) << 1);
-    let v_cr_b = _mm_set1_epi16((transform.cr_b as i16) << 1);
+    let v_yr = _mm_set1_epi16(transform.yr as i16);
+    let v_yg = _mm_set1_epi16(transform.yg as i16);
+    let v_yb = _mm_set1_epi16(transform.yb as i16);
+    let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
+    let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
+    let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
+    let v_cr_r = _mm_set1_epi16(transform.cr_r as i16);
+    let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
+    let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
     let big_endian_shuffle_flag =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
@@ -419,6 +419,8 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
     let i_bias_y = _mm_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
     let i_cap_uv = _mm_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
+
+    const SCALE: i32 = 2;
 
     while cx + 8 < width {
         let mut r_values;
@@ -460,13 +462,13 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
             }
         }
 
-        r_values = _mm_slli_epi16::<3>(r_values);
-        g_values = _mm_slli_epi16::<3>(g_values);
-        b_values = _mm_slli_epi16::<3>(b_values);
+        r_values = _mm_slli_epi16::<SCALE>(r_values);
+        g_values = _mm_slli_epi16::<SCALE>(g_values);
+        b_values = _mm_slli_epi16::<SCALE>(b_values);
 
-        let mut y_h = _mm_add_epi16(y_bias, _mm_mulhi_epi16(r_values, v_yr));
-        y_h = _mm_add_epi16(y_h, _mm_mulhi_epi16(g_values, v_yg));
-        y_h = _mm_add_epi16(y_h, _mm_mulhi_epi16(b_values, v_yb));
+        let mut y_h = _mm_add_epi16(y_bias, _mm_mulhrs_epi16(r_values, v_yr));
+        y_h = _mm_add_epi16(y_h, _mm_mulhrs_epi16(g_values, v_yg));
+        y_h = _mm_add_epi16(y_h, _mm_mulhrs_epi16(b_values, v_yb));
 
         let mut y_vl = _mm_min_epu16(_mm_max_epu16(y_h, i_bias_y), i_cap_y);
 
@@ -484,15 +486,15 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
         );
 
         if compute_uv_row {
-            let mut cb_h = _mm_add_epi16(uv_bias, _mm_mulhi_epi16(r_values, v_cb_r));
-            cb_h = _mm_add_epi16(cb_h, _mm_mulhi_epi16(g_values, v_cb_g));
-            cb_h = _mm_add_epi16(cb_h, _mm_mulhi_epi16(b_values, v_cb_b));
+            let mut cb_h = _mm_add_epi16(uv_bias, _mm_mulhrs_epi16(r_values, v_cb_r));
+            cb_h = _mm_add_epi16(cb_h, _mm_mulhrs_epi16(g_values, v_cb_g));
+            cb_h = _mm_add_epi16(cb_h, _mm_mulhrs_epi16(b_values, v_cb_b));
 
             let mut cb_vl = _mm_max_epu16(_mm_min_epu16(cb_h, i_cap_uv), i_bias_y);
 
-            let mut cr_h = _mm_add_epi16(uv_bias, _mm_mulhi_epi16(r_values, v_cr_r));
-            cr_h = _mm_add_epi16(cr_h, _mm_mulhi_epi16(g_values, v_cr_g));
-            cr_h = _mm_add_epi16(cr_h, _mm_mulhi_epi16(b_values, v_cr_b));
+            let mut cr_h = _mm_add_epi16(uv_bias, _mm_mulhrs_epi16(r_values, v_cr_r));
+            cr_h = _mm_add_epi16(cr_h, _mm_mulhrs_epi16(g_values, v_cr_g));
+            cr_h = _mm_add_epi16(cr_h, _mm_mulhrs_epi16(b_values, v_cr_b));
 
             let mut cr_vl = _mm_max_epu16(_mm_min_epu16(cr_h, i_cap_uv), i_bias_y);
 

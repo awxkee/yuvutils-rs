@@ -269,6 +269,100 @@ static INVERSE_BT470_FULL_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTrans
     g_coeff_2: 1535,
 };
 
+static INVERSE_BT601_LIMITED_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 9566,
+    cr_coef: 13113,
+    cb_coef: 16573,
+    g_coeff_1: 6679,
+    g_coeff_2: 3218,
+};
+
+static INVERSE_BT601_FULL_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 8192,
+    cr_coef: 11485,
+    cb_coef: 14516,
+    g_coeff_1: 5850,
+    g_coeff_2: 2819,
+};
+
+static INVERSE_BT709_LIMITED_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 9566,
+    cr_coef: 14729,
+    cb_coef: 17355,
+    g_coeff_1: 4378,
+    g_coeff_2: 1752,
+};
+
+static INVERSE_BT709_FULL_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 8192,
+    cr_coef: 12900,
+    cb_coef: 15201,
+    g_coeff_1: 3834,
+    g_coeff_2: 1534,
+};
+
+static INVERSE_BT2020_LIMITED_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 9566,
+    cr_coef: 13792,
+    cb_coef: 17597,
+    g_coeff_1: 5343,
+    g_coeff_2: 1539,
+};
+static INVERSE_BT2020_FULL_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 8192,
+    cr_coef: 12079,
+    cb_coef: 15412,
+    g_coeff_1: 4680,
+    g_coeff_2: 1348,
+};
+
+static INVERSE_BT601_LIMITED_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 9573,
+    cr_coef: 13122,
+    cb_coef: 16585,
+    g_coeff_1: 6684,
+    g_coeff_2: 3221,
+};
+
+static INVERSE_BT601_FULL_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 8192,
+    cr_coef: 11485,
+    cb_coef: 14516,
+    g_coeff_1: 5850,
+    g_coeff_2: 2819,
+};
+
+static INVERSE_BT709_LIMITED_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 9573,
+    cr_coef: 14740,
+    cb_coef: 17368,
+    g_coeff_1: 4381,
+    g_coeff_2: 1753,
+};
+
+static INVERSE_BT709_FULL_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 8192,
+    cr_coef: 12900,
+    cb_coef: 15201,
+    g_coeff_1: 3834,
+    g_coeff_2: 1534,
+};
+
+static INVERSE_BT2020_LIMITED_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 9573,
+    cr_coef: 13802,
+    cb_coef: 17609,
+    g_coeff_1: 5347,
+    g_coeff_2: 1540,
+};
+static INVERSE_BT2020_FULL_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
+    y_coef: 8192,
+    cr_coef: 12079,
+    cb_coef: 15412,
+    g_coeff_1: 4680,
+    g_coeff_2: 1348,
+};
+
 pub(crate) fn get_built_inverse_transform(
     prec: u32,
     bit_depth: u32,
@@ -303,6 +397,40 @@ pub(crate) fn get_built_inverse_transform(
             return match range {
                 YuvRange::Limited => Some(INVERSE_BT470_LIMITED_8_PREC13),
                 YuvRange::Full => Some(INVERSE_BT470_FULL_8_PREC13),
+            };
+        }
+    } else if bit_depth == 10 {
+        if matrix == YuvStandardMatrix::Bt601 {
+            return match range {
+                YuvRange::Limited => Some(INVERSE_BT601_LIMITED_10_PREC13),
+                YuvRange::Full => Some(INVERSE_BT601_FULL_10_PREC13),
+            };
+        } else if matrix == YuvStandardMatrix::Bt709 {
+            return match range {
+                YuvRange::Limited => Some(INVERSE_BT709_LIMITED_10_PREC13),
+                YuvRange::Full => Some(INVERSE_BT709_FULL_10_PREC13),
+            };
+        } else if matrix == YuvStandardMatrix::Bt2020 {
+            return match range {
+                YuvRange::Limited => Some(INVERSE_BT2020_LIMITED_10_PREC13),
+                YuvRange::Full => Some(INVERSE_BT2020_FULL_10_PREC13),
+            };
+        }
+    } else if bit_depth == 12 {
+        if matrix == YuvStandardMatrix::Bt601 {
+            return match range {
+                YuvRange::Limited => Some(INVERSE_BT601_LIMITED_12_PREC13),
+                YuvRange::Full => Some(INVERSE_BT601_FULL_12_PREC13),
+            };
+        } else if matrix == YuvStandardMatrix::Bt709 {
+            return match range {
+                YuvRange::Limited => Some(INVERSE_BT709_LIMITED_12_PREC13),
+                YuvRange::Full => Some(INVERSE_BT709_FULL_12_PREC13),
+            };
+        } else if matrix == YuvStandardMatrix::Bt2020 {
+            return match range {
+                YuvRange::Limited => Some(INVERSE_BT2020_LIMITED_12_PREC13),
+                YuvRange::Full => Some(INVERSE_BT2020_FULL_12_PREC13),
             };
         }
     }

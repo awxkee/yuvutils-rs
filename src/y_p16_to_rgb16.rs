@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_y_p16_to_rgba16_row;
 use crate::yuv_support::*;
@@ -55,18 +56,25 @@ fn yuv400_p16_to_rgbx<
     let channels = destination_channels.get_channels_count();
     let chroma_range = get_yuv_range(bit_depth, range);
     let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(
-        max_colors,
-        chroma_range.range_y,
-        chroma_range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
 
-    const PRECISION: i32 = 12;
+    const PRECISION: i32 = 13;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
-    let inverse_transform = transform.to_integers(PRECISION as u32);
-    let y_coef = inverse_transform.y_coef;
+
+    let i_transform = if let Some(stored) =
+        get_built_inverse_transform(PRECISION as u32, bit_depth, range, matrix)
+    {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            bit_depth,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(PRECISION as u32)
+    };
+    let y_coef = i_transform.y_coef;
 
     let bias_y = chroma_range.bias_y as i32;
 
@@ -103,7 +111,7 @@ fn yuv400_p16_to_rgbx<
                             rgba16.as_mut_ptr(),
                             image.width,
                             &chroma_range,
-                            &inverse_transform,
+                            &i_transform,
                             0,
                             bit_depth as usize,
                         );
@@ -115,7 +123,7 @@ fn yuv400_p16_to_rgbx<
                     let y_value = (y_src as i32 - bias_y) * y_coef;
 
                     let r = ((y_value + ROUNDING_CONST) >> PRECISION)
-                        .min(max_colors as i32)
+                        .min(max_colors)
                         .max(0);
 
                     dst[destination_channels.get_r_channel_offset()] = r as u16;

@@ -73,7 +73,7 @@ fn yuv_p16_to_image_alpha_ant<
     let range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range_p10 = (1u32 << BIT_DEPTH as u32) - 1;
-    const PRECISION: i32 = 12;
+    const PRECISION: i32 = 13;
     let transform = get_inverse_transform(
         max_range_p10,
         range.range_y,

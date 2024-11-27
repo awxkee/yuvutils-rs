@@ -300,7 +300,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
     let y_bias = vdupq_n_s16(bias_y);
     let uv_bias = vdupq_n_s16(bias_uv);
 
-    const SCALE: i32 =3;
+    const SCALE: i32 = 2;
 
     let weights_arr: [i16; 8] = [
         transform.yr as i16,

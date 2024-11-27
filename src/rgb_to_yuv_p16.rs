@@ -92,7 +92,7 @@ fn rgbx_to_yuv_ant<
         kr_kb.kb,
     );
 
-    const PRECISION: i32 = 12;
+    const PRECISION: i32 = 13;
 
     let transform = transform_precise.to_integers(PRECISION as u32);
     const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);

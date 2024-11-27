@@ -1,4 +1,4 @@
-workspace = { members = ["app", "coeffs"] }
+workspace = { members = ["app"] }
 
 [package]
 name = "yuvutils-rs"

@@ -41,6 +41,7 @@ mod avx2;
     feature = "nightly_avx512"
 ))]
 mod avx512bw;
+mod built_coefficients;
 mod from_identity;
 mod from_identity_alpha;
 mod images;
@@ -89,7 +90,6 @@ mod yuy2_to_rgb;
 mod yuy2_to_rgb_p16;
 mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
-mod built_coefficients;
 
 pub use yuv_support::{
     Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvRange,

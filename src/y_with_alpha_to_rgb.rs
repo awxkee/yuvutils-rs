@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::get_built_inverse_transform;
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -71,22 +72,24 @@ where
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
     image.check_constraints()?;
 
-    let max_colors = (1 << BIT_DEPTH) - 1;
-
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(
-        max_colors,
-        chroma_range.range_y,
-        chroma_range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
+    const PRECISION: i32 = 13;
+    let inverse_transform =
+        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
+            stored
+        } else {
+            let transform = get_inverse_transform(
+                255,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform.to_integers(PRECISION as u32)
+        };
 
-    const PRECISION: i32 = 12;
-    let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
-
     let bias_y = chroma_range.bias_y as i32;
 
     let iter;

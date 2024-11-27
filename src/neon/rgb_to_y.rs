@@ -111,7 +111,7 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8>(
 
         let y_low = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(y_low, i_bias_y)), i_cap_y);
 
-        let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
+        let y = vcombine_u8(vmovn_u16(y_low), vmovn_u16(y_high));
         vst1q_u8(y_ptr.add(cx), y);
 
         cx += 16;

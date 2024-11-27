@@ -299,22 +299,22 @@ pub fn get_inverse_transform_integral(
             / get_kg()))
         * range_uv();
     let prec = (1 << prec) as f32;
+    let y_coeff = y_coef * Float::with_val(BITS, prec);
+    println!("Y Coeff {}", y_coeff);
+    let cr_coeff = cr_coeff * Float::with_val(BITS, prec);
+    println!("Cr Coeff {}", cr_coeff);
+    let cb_coeff = cb_coeff * Float::with_val(BITS, prec);
+    println!("Cb Coeff {}", cr_coeff);
+    let g_coeff_1 = g_coeff_1 * Float::with_val(BITS, prec);
+    println!("G Coeff 1 {}", g_coeff_1);
+    let g_coeff_2 = g_coeff_2 * Float::with_val(BITS, prec);
+    println!("G Coeff 2 {}", g_coeff_2);
     CbCrInverseTransform::new(
-        (y_coef * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
-            .unwrap(),
-        (cr_coeff * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
-            .unwrap(),
-        (cb_coeff * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
-            .unwrap(),
-        (g_coeff_1 * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
-            .unwrap(),
-        (g_coeff_2 * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
-            .unwrap(),
+        y_coeff.to_i32_saturating_round(Round::Down).unwrap(),
+        cr_coeff.to_i32_saturating_round(Round::Down).unwrap(),
+        cb_coeff.to_i32_saturating_round(Round::Down).unwrap(),
+        g_coeff_1.to_i32_saturating_round(Round::Down).unwrap(),
+        g_coeff_2.to_i32_saturating_round(Round::Down).unwrap(),
     )
 }
 
@@ -374,9 +374,10 @@ fn main() {
     let integral = get_forward_coeffs_integral(0.2220f32, 0.0713f32, 8, YuvRange::Limited, 13);
     println!("Integral {:?}", integral);
 
-    let kr_kb = YuvStandardMatrix::Bt470_6.get_kr_kb();
-    let inverse = get_inverse_transform(kr_kb.kr, kr_kb.kb, 8, YuvRange::Full);
+    let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
+    let inverse = get_inverse_transform(kr_kb.kr, kr_kb.kb, 8, YuvRange::Limited);
     println!("Inverse {:?}", inverse);
-    let inverse_integral = get_inverse_transform_integral(kr_kb.kr, kr_kb.kb, 8, 13, YuvRange::Full);
-    println!("Inverse Integral {:?}", inverse_integral);
+    let inverse_integral =
+        get_inverse_transform_integral(kr_kb.kr, kr_kb.kb, 8, 13, YuvRange::Limited);
+    println!("Inverse Integral {:?};", inverse_integral);
 }

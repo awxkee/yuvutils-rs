@@ -144,7 +144,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm_srl_epi16(y_vl, v_big_shift_count);
         }
-        let y_values = _mm_sub_epi16(y_vl, y_corr);
+        let y_values = _mm_subs_epu16(y_vl, y_corr);
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {

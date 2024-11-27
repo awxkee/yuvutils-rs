@@ -28,6 +28,7 @@
  */
 #![forbid(unsafe_code)]
 
+use crate::built_coefficients::get_built_forward_transform;
 use crate::sharpyuv::SharpYuvGammaTransfer;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -377,18 +378,23 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
     });
 
-    let range = get_yuv_range(8, range);
+    let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range_p8 = (1u32 << 8u32) - 1u32;
-    let transform_precise = get_forward_transform(
-        max_range_p8,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
-    const PRECISION: i32 = 14;
-    let transform = transform_precise.to_integers(PRECISION as u32);
+    const PRECISION: i32 = 13;
+    let transform =
+        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
+            stored_t
+        } else {
+            let transform_precise = get_forward_transform(
+                max_range_p8,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform_precise.to_integers(PRECISION as u32)
+        };
 
     let y_iter;
     let u_iter;
@@ -496,7 +502,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                         rgb_layout_lane,
                         rgb_layout_next_lane,
                         &gamma_map_table,
-                        &range,
+                        &chroma_range,
                         &transform,
                         planar_image.width as usize,
                     );
@@ -513,7 +519,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     v_plane,
                     rgb_layout_lane,
                     &gamma_map_table,
-                    &range,
+                    &chroma_range,
                     &transform,
                     planar_image.width as usize,
                 );
@@ -565,7 +571,7 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 rgb_layout_lane,
                 rgb_layout_next_lane,
                 &gamma_map_table,
-                &range,
+                &chroma_range,
                 &transform,
                 planar_image.width as usize,
             );

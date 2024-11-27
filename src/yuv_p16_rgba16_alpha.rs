@@ -28,6 +28,7 @@
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx_yuv_p16_to_rgba_alpha_row;
+use crate::built_coefficients::get_built_inverse_transform;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -68,30 +69,36 @@ fn yuv_p16_to_image_alpha_ant<
     );
 
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let range = get_yuv_range(BIT_DEPTH as u32, range);
+    let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
 
     image.check_constraints(chroma_subsampling)?;
     check_rgba_destination(rgba16, rgba_stride, image.width, image.height, channels)?;
 
-    let max_range_p16 = ((1u32 << BIT_DEPTH as u32) - 1) as i32;
-    const PRECISION: i32 = 12;
-    let transform = get_inverse_transform(
-        max_range_p16 as u32,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
-    let i_transform = transform.to_integers(PRECISION as u32);
+    const PRECISION: i32 = 13;
+
+    let i_transform = if let Some(stored) =
+        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, range, matrix)
+    {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            BIT_DEPTH as u32,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(PRECISION as u32)
+    };
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
 
@@ -138,7 +145,7 @@ fn yuv_p16_to_image_alpha_ant<
                     _a_plane,
                     _rgba,
                     image.width,
-                    &range,
+                    &chroma_range,
                     &i_transform,
                     0,
                     0,
@@ -165,7 +172,7 @@ fn yuv_p16_to_image_alpha_ant<
                         _a_plane,
                         _rgba,
                         image.width,
-                        &range,
+                        &chroma_range,
                         &i_transform,
                         v_offset.cx,
                         v_offset.ux,
@@ -188,7 +195,7 @@ fn yuv_p16_to_image_alpha_ant<
                         _a_plane,
                         _rgba,
                         image.width,
-                        &range,
+                        &chroma_range,
                         &i_transform,
                         v_offset.cx,
                         v_offset.ux,

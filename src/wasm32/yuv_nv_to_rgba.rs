@@ -53,9 +53,6 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
-    uv_offset: usize,
-    rgba_offset: usize,
     width: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
@@ -82,7 +79,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
     let mut ux = start_ux;
 
     while cx + 16 < width {
-        let y_values = u8x16_sub_sat(v128_load(y_ptr.add(y_offset + cx) as *const v128), y_corr);
+        let y_values = u8x16_sub_sat(v128_load(y_ptr.add(cx) as *const v128), y_corr);
 
         let u_high_u8;
         let v_high_u8;
@@ -91,7 +88,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let mut uv_values = v128_load_deinterleave_u8_x2(uv_ptr.add(uv_offset + ux));
+                let mut uv_values = v128_load_deinterleave_u8_x2(uv_ptr.add(ux));
                 if order == YuvNVOrder::VU {
                     uv_values = (uv_values.1, uv_values.0);
                 }
@@ -102,7 +99,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
                 v_low_u8 = wasm_unpacklo_i8x16(uv_values.1, uv_values.1);
             }
             YuvChromaSubsampling::Yuv444 => {
-                let mut uv_values = v128_load_deinterleave_half_u8_x2(uv_ptr.add(uv_offset + ux));
+                let mut uv_values = v128_load_deinterleave_half_u8_x2(uv_ptr.add(ux));
                 if order == YuvNVOrder::VU {
                     uv_values = (uv_values.1, uv_values.0);
                 }
@@ -196,7 +193,7 @@ pub unsafe fn wasm_yuv_nv_to_rgba_row<
         let g_values = u16x8_pack_sat_u8x16(g_low, g_high);
         let b_values = u16x8_pack_sat_u8x16(b_low, b_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {

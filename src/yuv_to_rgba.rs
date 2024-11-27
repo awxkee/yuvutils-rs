@@ -33,6 +33,7 @@ use crate::avx2::{avx2_yuv_to_rgba_row, avx2_yuv_to_rgba_row420};
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_yuv_to_rgba;
+use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{
     neon_yuv_to_rgba_row, neon_yuv_to_rgba_row420, neon_yuv_to_rgba_row_rdm,
@@ -51,7 +52,6 @@ use crate::{YuvError, YuvPlanarImage};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-use crate::built_coefficients::get_built_inverse_transform;
 
 fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     image: &YuvPlanarImage<u8>,
@@ -74,12 +74,19 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
     const PRECISION: i32 = 13;
 
-    let inverse_transform = if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
-        stored
-    } else {
-        let transform = get_inverse_transform(255, chroma_range.range_y, chroma_range.range_uv, kr_kb.kr, kr_kb.kb);
-        transform.to_integers(PRECISION as u32)
-    };
+    let inverse_transform =
+        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
+            stored
+        } else {
+            let transform = get_inverse_transform(
+                255,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform.to_integers(PRECISION as u32)
+        };
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -169,23 +176,21 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
         {
-            let processed = wasm_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
-                &chroma_range,
-                &inverse_transform,
-                _y_plane,
-                _u_plane,
-                _v_plane,
-                _rgba,
-                _cx,
-                _uv_x,
-                0,
-                u_offset,
-                v_offset,
-                0,
-                image.width as usize,
-            );
-            _cx = processed.cx;
-            _uv_x = processed.ux;
+            unsafe {
+                let processed = wasm_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
+                    &chroma_range,
+                    &inverse_transform,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
+            }
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

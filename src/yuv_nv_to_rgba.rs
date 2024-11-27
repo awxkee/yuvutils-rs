@@ -34,6 +34,7 @@ use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row420};
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_yuv_nv_to_rgba;
+use crate::built_coefficients::get_built_inverse_transform;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -53,7 +54,6 @@ use crate::{YuvBiPlanarImage, YuvError};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-use crate::built_coefficients::get_built_inverse_transform;
 
 fn yuv_nv12_to_rgbx<
     const UV_ORDER: u8,
@@ -86,12 +86,19 @@ fn yuv_nv12_to_rgbx<
     const PRECISION: i32 = 6;
     #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
     const PRECISION: i32 = 13;
-    let inverse_transform = if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
-        stored
-    } else {
-        let transform = get_inverse_transform(255, chroma_range.range_y, chroma_range.range_uv, kr_kb.kr, kr_kb.kb);
-        transform.to_integers(PRECISION as u32)
-    };
+    let inverse_transform =
+        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
+            stored
+        } else {
+            let transform = get_inverse_transform(
+                255,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform.to_integers(PRECISION as u32)
+        };
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -207,9 +214,6 @@ fn yuv_nv12_to_rgbx<
                         _bgra,
                         _offset.cx,
                         _offset.ux,
-                        0,
-                        0,
-                        0,
                         width as usize,
                     );
                 _offset = processed;

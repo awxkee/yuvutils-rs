@@ -248,7 +248,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
 
     let v_max_colors = vdupq_n_u16((1u16 << BIT_DEPTH as u16) - 1);
 
-    let y_corr = vdupq_n_s16(bias_y as i16);
+    let y_corr = vdupq_n_u16(bias_y as u16);
     let uv_corr = vdupq_n_s16(bias_uv as i16);
 
     let weights_arr: [i16; 8] = [
@@ -271,6 +271,8 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
 
     let v_big_shift_count = vdupq_n_s16(-(16i16 - BIT_DEPTH as i16));
 
+    const V_SCALE: i32 = 2;
+
     while cx + 8 < width as usize {
         let dst_ptr = bgra.get_unchecked_mut(8 * channels..).as_mut_ptr();
 
@@ -285,7 +287,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
             y_vl = vshlq_u16(y_vl, v_big_shift_count);
         }
 
-        let y_values: int16x8_t = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
+        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(y_vl, y_corr));
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
@@ -315,8 +317,8 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
                 let u_low = vzip1_s16(u_values_c, u_values_c);
                 let v_low = vzip1_s16(v_values_c, v_values_c);
 
-                u_values = vshlq_n_s16::<3>(vcombine_s16(u_low, u_high));
-                v_values = vshlq_n_s16::<3>(vcombine_s16(v_low, v_high));
+                u_values = vshlq_n_s16::<V_SCALE>(vcombine_s16(u_low, u_high));
+                v_values = vshlq_n_s16::<V_SCALE>(vcombine_s16(v_low, v_high));
             }
             YuvChromaSubsampling::Yuv444 => {
                 let mut uv_values_u = vld2q_u16(uv_ld_ptr.get_unchecked(ux..).as_ptr());
@@ -343,12 +345,12 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
                 let u_low = vget_low_s16(u_values_c);
                 let v_low = vget_low_s16(v_values_c);
 
-                u_values = vshlq_n_s16::<3>(vcombine_s16(u_low, u_high));
-                v_values = vshlq_n_s16::<3>(vcombine_s16(v_low, v_high));
+                u_values = vshlq_n_s16::<V_SCALE>(vcombine_s16(u_low, u_high));
+                v_values = vshlq_n_s16::<V_SCALE>(vcombine_s16(v_low, v_high));
             }
         }
 
-        let y_high = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<3>(y_values), v_weights);
+        let y_high = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<V_SCALE>(y_values), v_weights);
 
         let r_vals = vqrdmlahq_laneq_s16::<1>(y_high, v_values, v_weights);
         let b_vals = vqrdmlahq_laneq_s16::<2>(y_high, u_values, v_weights);

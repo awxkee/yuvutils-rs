@@ -33,6 +33,7 @@ use crate::avx2::avx2_rgb_to_y_row;
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_row_rgb_to_y;
+use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvGrayImageMut;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_y_row;
@@ -45,7 +46,6 @@ use crate::YuvError;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-use crate::built_coefficients::get_built_forward_transform;
 
 // Chroma subsampling always assumed as YUV 400
 fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
@@ -70,13 +70,6 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range_p8 = (1u32 << 8u32) - 1u32;
-    let transform_precise = get_forward_transform(
-        max_range_p8,
-        chroma_range.range_y,
-        chroma_range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
     const PRECISION: i32 = 13;
     let transform =
         if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {

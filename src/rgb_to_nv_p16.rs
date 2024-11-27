@@ -81,10 +81,12 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     let range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range = (1u32 << BIT_DEPTH as u32) - 1u32;
+
+    const PRECISION: i32 = 12;
+
     let transform_precise =
         get_forward_transform(max_range, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    let transform = transform_precise.to_integers(8);
-    const PRECISION: i32 = 12;
+    let transform = transform_precise.to_integers(PRECISION as u32);
     const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
