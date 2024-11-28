@@ -106,7 +106,7 @@ where
 
     match yuv_range {
         YuvRange::Limited => {
-            const PRECISION: i32 = 11;
+            const PRECISION: i32 = 13;
             // All channels on identity should use Y range
             let range = get_yuv_range(BIT_DEPTH as u32, yuv_range);
             let range_rgba = (1 << BIT_DEPTH) - 1;
@@ -116,6 +116,7 @@ where
 
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter).zip(a_iter);
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
+                let y_src = &y_src[0..image.width as usize];
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
                 for ((((&y_src, &u_src), &v_src), rgb_dst), &a_src) in y_src
@@ -138,6 +139,7 @@ where
         YuvRange::Full => {
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter).zip(a_iter);
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
+                let y_src = &y_src[0..image.width as usize];
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
                 for ((((&y_src, &u_src), &v_src), rgb_dst), &a_src) in y_src

@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::get_built_inverse_transform;
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -44,7 +45,7 @@ fn y_with_alpha_to_rgbx<
     const DESTINATION_CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(
-    gray_alpha_image: &YuvGrayAlphaImage<V>,
+    image: &YuvGrayAlphaImage<V>,
     rgba: &mut [V],
     rgba_stride: u32,
     range: YuvRange,
@@ -68,31 +69,27 @@ where
         "Invalid bit depth is provided"
     );
 
-    check_rgba_destination(
-        rgba,
-        rgba_stride,
-        gray_alpha_image.width,
-        gray_alpha_image.height,
-        channels,
-    )?;
-    gray_alpha_image.check_constraints()?;
-
-    let max_colors = (1 << BIT_DEPTH) - 1;
+    check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
+    image.check_constraints()?;
 
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(
-        max_colors,
-        chroma_range.range_y,
-        chroma_range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
+    const PRECISION: i32 = 13;
+    let inverse_transform =
+        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
+            stored
+        } else {
+            let transform = get_inverse_transform(
+                255,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform.to_integers(PRECISION as u32)
+        };
 
-    const PRECISION: i32 = 12;
-    let inverse_transform = transform.to_integers(PRECISION as u32);
     let y_coef = inverse_transform.y_coef;
-
     let bias_y = chroma_range.bias_y as i32;
 
     let iter;
@@ -101,28 +98,21 @@ where
     #[cfg(feature = "rayon")]
     {
         iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
-        y_iter = gray_alpha_image
-            .y_plane
-            .par_chunks_exact(gray_alpha_image.y_stride as usize);
-        a_iter = gray_alpha_image
-            .a_plane
-            .par_chunks_exact(gray_alpha_image.a_stride as usize);
+        y_iter = image.y_plane.par_chunks_exact(image.y_stride as usize);
+        a_iter = image.a_plane.par_chunks_exact(image.a_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
         iter = rgba.chunks_exact_mut(rgba_stride as usize);
-        y_iter = gray_alpha_image
-            .y_plane
-            .chunks_exact(gray_alpha_image.y_stride as usize);
-        a_iter = gray_alpha_image
-            .a_plane
-            .chunks_exact(gray_alpha_image.a_stride as usize);
+        y_iter = image.y_plane.chunks_exact(image.y_stride as usize);
+        a_iter = image.a_plane.chunks_exact(image.a_stride as usize);
     }
 
     if range == YuvRange::Limited {
         iter.zip(y_iter)
             .zip(a_iter)
             .for_each(|((rgba, y_plane), a_plane)| {
+                let y_plane = &y_plane[0..image.width as usize];
                 for ((y_src, a_src), rgba) in y_plane
                     .iter()
                     .zip(a_plane)
@@ -141,6 +131,7 @@ where
         iter.zip(y_iter)
             .zip(a_iter)
             .for_each(|((rgba, y_plane), a_plane)| {
+                let y_plane = &y_plane[0..image.width as usize];
                 for ((y_src, a_src), rgba) in y_plane
                     .iter()
                     .zip(a_plane)

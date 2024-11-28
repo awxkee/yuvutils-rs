@@ -63,7 +63,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    const SCALE: i32 = 3;
+    const SCALE: i32 = 2;
 
     let weights_arr: [i16; 8] = [
         transform.y_coef as i16,

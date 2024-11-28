@@ -83,8 +83,6 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
 
     let rgb_iter;
     let yuy2_iter;
@@ -103,7 +101,16 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
             .chunks_exact(packed_image.yuy_stride as usize);
     }
 
+    let yuy2_width = if packed_image.width % 2 == 0 {
+        2 * packed_image.width as usize
+    } else {
+        2 * (packed_image.width as usize + 1)
+    };
+
     rgb_iter.zip(yuy2_iter).for_each(|(rgb_store, yuy2_store)| {
+        let yuy2_store = &yuy2_store[0..yuy2_width];
+        let rgb_store = &mut rgb_store[0..(packed_image.width as usize * channels)];
+
         let mut _cx = 0usize;
         let mut _yuy2_x = 0usize;
 
@@ -137,18 +144,16 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            if is_rdm_available {
-                let processed = yuy2_to_rgb_neon::<DESTINATION_CHANNELS, YUY2_SOURCE>(
-                    &range,
-                    &inverse_transform,
-                    yuy2_store,
-                    rgb_store,
-                    packed_image.width,
-                    YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
-                );
-                _cx = processed.cx;
-                _yuy2_x = processed.x;
-            }
+            let processed = yuy2_to_rgb_neon::<DESTINATION_CHANNELS, YUY2_SOURCE, PRECISION>(
+                &range,
+                &inverse_transform,
+                yuy2_store,
+                rgb_store,
+                packed_image.width,
+                YuvToYuy2Navigation::new(_cx, 0, _yuy2_x),
+            );
+            _cx = processed.cx;
+            _yuy2_x = processed.x;
         }
 
         for (rgb, yuy2) in rgb_store

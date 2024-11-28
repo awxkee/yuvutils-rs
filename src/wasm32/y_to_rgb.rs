@@ -39,8 +39,6 @@ pub unsafe fn wasm_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     y_plane: &[u8],
     rgba: &mut [u8],
     start_cx: usize,
-    y_offset: usize,
-    rgba_offset: usize,
     width: usize,
 ) -> usize {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -50,29 +48,27 @@ pub unsafe fn wasm_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = u8x16_splat(range.bias_y as u8);
-    let v_luma_coeff = u8x16_splat(transform.y_coef as u8);
+    let v_luma_coeff = i16x8_splat(transform.y_coef as i16);
     let v_min_values = i16x8_splat(0i16);
     let v_alpha = u8x16_splat(255u8);
-    let rounding_const = i16x8_splat(1 << 5);
 
     let mut cx = start_cx;
+
+    const SCALE: u32 = 2;
 
     while cx + 16 < width {
         let y_values = u8x16_sub_sat(v128_load(y_ptr.add(y_offset + cx) as *const v128), y_corr);
 
-        let y_high = u16x8_extmul_high_u8x16(y_values, v_luma_coeff);
-
-        let r_high = i16x8_shr(
-            i16x8_add_sat(i16x8_max(y_high, v_min_values), rounding_const),
-            6,
+        let y_high = u16x8_extmul_high_u8x16(
+            u16x8_shl(u16x8_extend_low_u8x16(y_values), SCALE),
+            v_luma_coeff,
         );
+
+        let r_high = i16x8_max(y_high, v_min_values);
 
         let y_low = u16x8_extmul_low_u8x16(y_values, v_luma_coeff);
 
-        let r_low = i16x8_shr(
-            i16x8_add_sat(i16x8_max(y_low, v_min_values), rounding_const),
-            6,
-        );
+        let r_low = i16x8_max(y_low, v_min_values);
 
         let r_values = u16x8_pack_sat_u8x16(r_low, r_high);
 

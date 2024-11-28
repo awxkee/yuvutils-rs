@@ -87,7 +87,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
-    const SCALE: i32 = 3;
+    const SCALE: i32 = 2;
 
     while cx + 32 < width {
         let y_values =

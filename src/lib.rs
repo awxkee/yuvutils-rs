@@ -41,6 +41,7 @@ mod avx2;
     feature = "nightly_avx512"
 ))]
 mod avx512bw;
+mod built_coefficients;
 mod from_identity;
 mod from_identity_alpha;
 mod images;

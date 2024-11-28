@@ -61,7 +61,7 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
     let v_alpha = vdupq_n_u8(255u8);
 
-    const SCALE: i32 = 3;
+    const SCALE: i32 = 2;
 
     let weights_arr: [i16; 8] = [
         transform.y_coef as i16,

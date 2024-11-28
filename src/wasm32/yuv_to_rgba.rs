@@ -47,10 +47,6 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     rgba: &mut [u8],
     start_cx: usize,
     start_ux: usize,
-    y_offset: usize,
-    u_offset: usize,
-    v_offset: usize,
-    rgba_offset: usize,
     width: usize,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
@@ -77,7 +73,7 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     let rounding_const = i16x8_splat(1 << 5);
 
     while cx + 16 < width {
-        let y_values = u8x16_sub_sat(v128_load(y_ptr.add(y_offset + cx) as *const v128), y_corr);
+        let y_values = u8x16_sub_sat(v128_load(y_ptr.add(cx) as *const v128), y_corr);
 
         let u_high_u8;
         let v_high_u8;
@@ -86,8 +82,8 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values = v128_load_half(u_ptr.add(u_offset + uv_x));
-                let v_values = v128_load_half(v_ptr.add(v_offset + uv_x));
+                let u_values = v128_load_half(u_ptr.add(uv_x));
+                let v_values = v128_load_half(v_ptr.add(uv_x));
 
                 u_high_u8 = wasm_unpackhi_i8x16(u_values, u_values);
                 v_high_u8 = wasm_unpackhi_i8x16(v_values, v_values);
@@ -95,8 +91,8 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
                 v_low_u8 = wasm_unpacklo_i8x16(v_values, v_values);
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_values = v128_load(u_ptr.add(u_offset + uv_x) as *const v128);
-                let v_values = v128_load(v_ptr.add(v_offset + uv_x) as *const v128);
+                let u_values = v128_load(u_ptr.add(uv_x) as *const v128);
+                let v_values = v128_load(v_ptr.add(uv_x) as *const v128);
 
                 u_high_u8 =
                     u8x16_shuffle::<8, 9, 10, 11, 12, 13, 14, 15, 16, 16, 16, 16, 16, 16, 16, 16>(
@@ -196,7 +192,7 @@ pub unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
         let g_values = u16x8_pack_sat_u8x16(g_low, g_high);
         let b_values = u16x8_pack_sat_u8x16(b_low, b_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
         match destination_channels {
             YuvSourceChannels::Rgb => {

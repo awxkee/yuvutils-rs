@@ -31,6 +31,7 @@
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_y_to_rgb_row;
+use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
@@ -49,7 +50,7 @@ use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 // Chroma subsampling always assumed as 400
 fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
-    gray_image: &YuvGrayImage<u8>,
+    image: &YuvGrayImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -58,30 +59,26 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
-    check_rgba_destination(
-        rgba,
-        rgba_stride,
-        gray_image.width,
-        gray_image.height,
-        channels,
-    )?;
-    gray_image.check_constraints()?;
+    check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
+    image.check_constraints()?;
 
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(
-        255,
-        chroma_range.range_y,
-        chroma_range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
 
-    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-    const PRECISION: i32 = 6;
-    #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-    const PRECISION: i32 = 12;
-    let inverse_transform = transform.to_integers(PRECISION as u32);
+    const PRECISION: i32 = 13;
+    let inverse_transform =
+        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
+            stored
+        } else {
+            let transform = get_inverse_transform(
+                255,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform.to_integers(PRECISION as u32)
+        };
     let y_coef = inverse_transform.y_coef;
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -101,8 +98,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     ))]
     let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
-    let y_plane = gray_image.y_plane;
-    let y_stride = gray_image.y_stride;
+    let y_plane = image.y_plane;
+    let y_stride = image.y_stride;
 
     let iter;
     let y_iter;
@@ -119,6 +116,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     if range == YuvRange::Limited {
         iter.zip(y_iter).for_each(|(rgba, y_plane)| {
+            let y_plane = &y_plane[0..image.width as usize];
             let mut _cx = 0usize;
 
             #[cfg(all(
@@ -135,7 +133,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                         _cx,
                         0,
                         0,
-                        gray_image.width as usize,
+                        image.width as usize,
                     );
                     _cx = processed;
                 }
@@ -149,7 +147,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                     y_plane,
                     rgba,
                     _cx,
-                    gray_image.width as usize,
+                    image.width as usize,
                 );
                 _cx = offset;
             }
@@ -162,9 +160,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                     y_plane,
                     rgba,
                     _cx,
-                    0,
-                    0,
-                    gray_image.width as usize,
+                    image.width as usize,
                 );
                 _cx = offset;
             }
@@ -187,6 +183,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     } else {
         iter.zip(y_iter).for_each(|(rgba, y_plane)| {
             let mut _cx = 0usize;
+            let y_plane = &y_plane[0..image.width as usize];
             let rgba_sliced = &mut rgba[(_cx * channels)..];
             let y_sliced = &y_plane[_cx..];
 

@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::get_built_inverse_transform;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvGrayAlphaImage};
 #[cfg(feature = "rayon")]
@@ -39,7 +40,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
 >(
-    gray_alpha_image: &YuvGrayAlphaImage<u16>,
+    image: &YuvGrayAlphaImage<u16>,
     rgba16: &mut [u16],
     rgba_stride: u32,
     bit_depth: u32,
@@ -51,7 +52,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
 
     let channels = destination_channels.get_channels_count();
 
-    gray_alpha_image.check_constraints()?;
+    image.check_constraints()?;
 
     assert!(
         destination_channels.has_alpha(),
@@ -64,18 +65,24 @@ fn yuv400_p16_with_alpha_to_rgbx<
 
     let chroma_range = get_yuv_range(bit_depth, range);
     let kr_kb = matrix.get_kr_kb();
-    let transform = get_inverse_transform(
-        max_colors,
-        chroma_range.range_y,
-        chroma_range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
 
-    const PRECISION: i32 = 12;
+    const PRECISION: i32 = 13;
     const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
-    let inverse_transform = transform.to_integers(PRECISION as u32);
-    let y_coef = inverse_transform.y_coef;
+    let i_transform = if let Some(stored) =
+        get_built_inverse_transform(PRECISION as u32, bit_depth, range, matrix)
+    {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            bit_depth,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(PRECISION as u32)
+    };
+    let y_coef = i_transform.y_coef;
 
     let bias_y = chroma_range.bias_y as i32;
 
@@ -85,22 +92,14 @@ fn yuv400_p16_with_alpha_to_rgbx<
     #[cfg(feature = "rayon")]
     {
         iter = rgba16.par_chunks_exact_mut(rgba_stride as usize);
-        y_iter = gray_alpha_image
-            .y_plane
-            .par_chunks_exact(gray_alpha_image.y_stride as usize);
-        a_iter = gray_alpha_image
-            .a_plane
-            .par_chunks_exact(gray_alpha_image.a_stride as usize);
+        y_iter = image.y_plane.par_chunks_exact(image.y_stride as usize);
+        a_iter = image.a_plane.par_chunks_exact(image.a_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
         iter = rgba16.chunks_exact_mut(rgba_stride as usize);
-        y_iter = gray_alpha_image
-            .y_plane
-            .chunks_exact(gray_alpha_image.y_stride as usize);
-        a_iter = gray_alpha_image
-            .a_plane
-            .chunks_exact(gray_alpha_image.a_stride as usize);
+        y_iter = image.y_plane.chunks_exact(image.y_stride as usize);
+        a_iter = image.a_plane.chunks_exact(image.a_stride as usize);
     }
 
     match range {
@@ -108,13 +107,14 @@ fn yuv400_p16_with_alpha_to_rgbx<
             iter.zip(y_iter)
                 .zip(a_iter)
                 .for_each(|((rgba16, y_plane16), a_plane16)| {
+                    let y_plane16 = &y_plane16[0..image.width as usize];
                     for ((&y_src, &a_src), rgba) in y_plane16
                         .iter()
                         .zip(a_plane16)
                         .zip(rgba16.chunks_exact_mut(channels))
                     {
                         let r = (((y_src as i32 - bias_y) * y_coef + ROUNDING_CONST) >> PRECISION)
-                            .min(max_colors as i32)
+                            .min(max_colors)
                             .max(0);
                         rgba[destination_channels.get_r_channel_offset()] = r as u16;
                         rgba[destination_channels.get_g_channel_offset()] = r as u16;
@@ -127,6 +127,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
             iter.zip(y_iter)
                 .zip(a_iter)
                 .for_each(|((rgba16, y_plane16), a_plane16)| {
+                    let y_plane16 = &y_plane16[0..image.width as usize];
                     for ((&y_src, &a_src), rgba) in y_plane16
                         .iter()
                         .zip(a_plane16)

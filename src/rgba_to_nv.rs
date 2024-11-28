@@ -28,6 +28,7 @@
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_rgba_to_nv;
+use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvBiPlanarImageMut;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -43,7 +44,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u8>,
+    image: &mut YuvBiPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -54,34 +55,35 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
-    check_rgba_destination(
-        rgba,
-        rgba_stride,
-        bi_planar_image.width,
-        bi_planar_image.height,
-        channels,
-    )?;
-    bi_planar_image.check_constraints(chroma_subsampling)?;
+    check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
+    image.check_constraints(chroma_subsampling)?;
 
-    let range = get_yuv_range(8, range);
+    let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range_p8 = (1u32 << 8u32) - 1;
-    let transform_precise = get_forward_transform(
-        max_range_p8,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
-    const PRECISION: i32 = 12;
-    let transform = transform_precise.to_integers(PRECISION as u32);
-    const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
-    let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
-    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    let i_bias_y = range.bias_y as i32;
-    let i_cap_y = range.range_y as i32 + i_bias_y;
-    let i_cap_uv = i_bias_y + range.range_uv as i32;
+    const PRECISION: i32 = 13;
+    let transform =
+        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
+            stored_t
+        } else {
+            let transform_precise = get_forward_transform(
+                max_range_p8,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform_precise.to_integers(PRECISION as u32)
+        };
+
+    const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
+    let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+
+    let i_bias_y = chroma_range.bias_y as i32;
+    let i_cap_y = chroma_range.range_y as i32 + i_bias_y;
+    let i_cap_uv = i_bias_y + chroma_range.range_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -96,7 +98,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
     };
 
-    let width = bi_planar_image.width;
+    let width = image.width;
 
     #[allow(unused_variables)]
     let process_wide_row =
@@ -109,7 +111,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     uv_plane,
                     rgba,
                     width,
-                    &range,
+                    &chroma_range,
                     &transform,
                     _offset.cx,
                     _offset.ux,
@@ -124,7 +126,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     uv_plane,
                     rgba,
                     width,
-                    &range,
+                    &chroma_range,
                     &transform,
                     _offset.cx,
                     _offset.ux,
@@ -140,7 +142,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     uv_plane,
                     rgba,
                     width,
-                    &range,
+                    &chroma_range,
                     &transform,
                     _offset.cx,
                     _offset.ux,
@@ -218,10 +220,10 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         }
     };
 
-    let y_plane = bi_planar_image.y_plane.borrow_mut();
-    let y_stride = bi_planar_image.y_stride;
-    let uv_plane = bi_planar_image.uv_plane.borrow_mut();
-    let uv_stride = bi_planar_image.uv_stride;
+    let y_plane = image.y_plane.borrow_mut();
+    let y_stride = image.y_stride;
+    let uv_plane = image.uv_plane.borrow_mut();
+    let uv_stride = image.uv_stride;
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
@@ -240,6 +242,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 .zip(rgba.chunks_exact(rgba_stride as usize));
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
+            let y_dst = &mut y_dst[0..image.width as usize];
             let offset = process_wide_row(y_dst, uv_dst, rgba, true);
 
             for ((y_dst, uv_dst), rgba) in y_dst
@@ -281,7 +284,12 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 .zip(rgba.chunks_exact(rgba_stride as usize));
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
-            process_halved_row(y_dst, uv_dst, rgba, true);
+            process_halved_row(
+                &mut y_dst[0..image.width as usize],
+                &mut uv_dst[0..image.width as usize],
+                &rgba[0..image.width as usize * channels],
+                true,
+            );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
@@ -306,20 +314,30 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 .zip(rgba.chunks_exact(rgba_stride as usize))
                 .enumerate()
             {
-                process_halved_row(y_dst, uv_dst, rgba, y == 0);
+                process_halved_row(
+                    &mut y_dst[0..image.width as usize],
+                    &mut uv_dst[0..image.width as usize],
+                    &rgba[0..image.width as usize * channels],
+                    y == 0,
+                );
             }
         });
 
-        if bi_planar_image.height & 1 != 0 {
-            let y_src = y_plane
+        if image.height & 1 != 0 {
+            let y_dst = y_plane
                 .chunks_exact_mut(y_stride as usize * 2)
                 .into_remainder();
-            let uv_src = uv_plane
+            let uv_dst = uv_plane
                 .chunks_exact_mut(uv_stride as usize)
                 .last()
                 .unwrap();
             let rgba = rgba.chunks_exact(rgba_stride as usize * 2).remainder();
-            process_halved_row(y_src, uv_src, rgba, true);
+            process_halved_row(
+                &mut y_dst[0..image.width as usize],
+                &mut uv_dst[0..image.width as usize],
+                &rgba[0..image.width as usize * channels],
+                true,
+            );
         }
     }
 

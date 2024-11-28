@@ -51,10 +51,10 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    const V_SCALE: i32 = 3;
+    const V_SCALE: i32 = 2;
 
     while cx + 16 < width {
-        let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
+        let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let y_high = vqrdmulhq_n_s16(
             vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values)),
@@ -116,7 +116,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row<const PRECISION: i32, const DESTINATION_C
     let mut cx = start_cx;
 
     while cx + 16 < width {
-        let y_values = vsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
+        let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let y_high =
             vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_high_u8(y_values)), v_luma_coeff);

@@ -110,16 +110,18 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
 
     let y_corr = _mm_set1_epi16(bias_y as i16);
     let uv_corr = _mm_set1_epi16(bias_uv as i16);
-    let uv_corr_q = _mm_set1_epi16((bias_uv as i16) << 1);
-    let v_luma_coeff = _mm_set1_epi16((y_coef as i16) << 1);
-    let v_cr_coeff = _mm_set1_epi16((cr_coef as i16) << 1);
-    let v_cb_coeff = _mm_set1_epi16((cb_coef as i16) << 1);
+    let uv_corr_q = _mm_set1_epi16(bias_uv as i16);
+    let v_luma_coeff = _mm_set1_epi16(y_coef as i16);
+    let v_cr_coeff = _mm_set1_epi16(cr_coef as i16);
+    let v_cb_coeff = _mm_set1_epi16(cb_coef as i16);
     let zeros = _mm_setzero_si128();
-    let v_g_coeff_1 = _mm_set1_epi16(-((g_coef_1 as i16) << 1));
-    let v_g_coeff_2 = _mm_set1_epi16(-((g_coef_2 as i16) << 1));
+    let v_g_coeff_1 = _mm_set1_epi16(-(g_coef_1 as i16));
+    let v_g_coeff_2 = _mm_set1_epi16(-(g_coef_2 as i16));
 
     let mut cx = start_cx;
     let mut ux = start_ux;
+
+    const SCALE: i32 = 2;
 
     let v_big_shift_count = _mm_set1_epi64x(16i64 - BIT_DEPTH as i64);
 
@@ -136,7 +138,7 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm_srl_epi16(y_vl, v_big_shift_count);
         }
-        let mut y_values = _mm_sub_epi16(y_vl, y_corr);
+        let mut y_values = _mm_subs_epu16(y_vl, y_corr);
 
         let mut u_values;
         let mut v_values;
@@ -180,17 +182,17 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
             }
         }
 
-        u_values = _mm_slli_epi16::<3>(u_values);
-        v_values = _mm_slli_epi16::<3>(v_values);
-        y_values = _mm_slli_epi16::<3>(y_values);
+        u_values = _mm_slli_epi16::<SCALE>(u_values);
+        v_values = _mm_slli_epi16::<SCALE>(v_values);
+        y_values = _mm_slli_epi16::<SCALE>(y_values);
 
-        let y_vals = _mm_mulhi_epi16(y_values, v_luma_coeff);
+        let y_vals = _mm_mulhrs_epi16(y_values, v_luma_coeff);
 
-        let r_vals = _mm_add_epi16(y_vals, _mm_mulhi_epi16(v_values, v_cr_coeff));
-        let b_vals = _mm_add_epi16(y_vals, _mm_mulhi_epi16(u_values, v_cb_coeff));
+        let r_vals = _mm_add_epi16(y_vals, _mm_mulhrs_epi16(v_values, v_cr_coeff));
+        let b_vals = _mm_add_epi16(y_vals, _mm_mulhrs_epi16(u_values, v_cb_coeff));
         let g_vals = _mm_add_epi16(
-            _mm_add_epi16(y_vals, _mm_mulhi_epi16(v_values, v_g_coeff_1)),
-            _mm_mulhi_epi16(u_values, v_g_coeff_2),
+            _mm_add_epi16(y_vals, _mm_mulhrs_epi16(v_values, v_g_coeff_1)),
+            _mm_mulhrs_epi16(u_values, v_g_coeff_2),
         );
 
         let r_values = _mm_min_epu16(_mm_max_epi16(r_vals, zeros), v_max_colors);

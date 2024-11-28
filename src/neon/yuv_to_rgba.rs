@@ -78,7 +78,7 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm<
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-    const SCALE: i32 = 3;
+    const SCALE: i32 = 2;
 
     while cx + 16 < width {
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);

@@ -44,16 +44,14 @@ use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     planar_image: &mut YuvPlanarImageMut<u8>,
-    yuv_packed_image: &YuvPackedImage<u8>,
+    packed_image: &YuvPackedImage<u8>,
 ) -> Result<(), YuvError> {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     planar_image.check_constraints(chroma_subsampling)?;
-    yuv_packed_image.check_constraints()?;
-    if planar_image.width != yuv_packed_image.width
-        || planar_image.height != yuv_packed_image.height
-    {
+    packed_image.check_constraints()?;
+    if planar_image.width != packed_image.width || planar_image.height != packed_image.height {
         return Err(YuvError::ImagesSizesNotMatch);
     }
 
@@ -112,6 +110,12 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let u_stride = planar_image.u_stride;
     let v_stride = planar_image.v_stride;
 
+    let yuy2_width = if packed_image.width % 2 == 0 {
+        2 * packed_image.width as usize
+    } else {
+        2 * (packed_image.width as usize + 1)
+    };
+
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
         #[cfg(feature = "rayon")]
@@ -121,9 +125,9 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
                 .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
                 .zip(
-                    yuv_packed_image
+                    packed_image
                         .yuy
-                        .par_chunks_exact(yuv_packed_image.yuy_stride as usize),
+                        .par_chunks_exact(packed_image.yuy_stride as usize),
                 );
         }
         #[cfg(not(feature = "rayon"))]
@@ -133,12 +137,17 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_plane.chunks_exact_mut(u_stride as usize))
                 .zip(v_plane.chunks_exact_mut(v_stride as usize))
                 .zip(
-                    yuv_packed_image
+                    packed_image
                         .yuy
-                        .chunks_exact(yuv_packed_image.yuy_stride as usize),
+                        .chunks_exact(packed_image.yuy_stride as usize),
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
+            let yuy2_src = &yuy2_src[0..yuy2_width];
+            let y_dst = &mut y_dst[0..planar_image.width as usize];
+            let u_dst = &mut u_dst[0..planar_image.width as usize];
+            let u_dst = &mut u_dst[0..planar_image.width as usize];
+
             let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2_src);
 
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
@@ -180,9 +189,9 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
                 .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
                 .zip(
-                    yuv_packed_image
+                    packed_image
                         .yuy
-                        .par_chunks_exact(yuv_packed_image.yuy_stride as usize),
+                        .par_chunks_exact(packed_image.yuy_stride as usize),
                 );
         }
         #[cfg(not(feature = "rayon"))]
@@ -192,12 +201,17 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_plane.chunks_exact_mut(u_stride as usize))
                 .zip(v_plane.chunks_exact_mut(v_stride as usize))
                 .zip(
-                    yuv_packed_image
+                    packed_image
                         .yuy
-                        .chunks_exact(yuv_packed_image.yuy_stride as usize),
+                        .chunks_exact(packed_image.yuy_stride as usize),
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
+            let yuy2_src = &yuy2_src[0..yuy2_width];
+            let y_dst = &mut y_dst[0..planar_image.width as usize];
+            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+
             let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2_src);
 
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
@@ -237,9 +251,9 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
                 .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
                 .zip(
-                    yuv_packed_image
+                    packed_image
                         .yuy
-                        .par_chunks_exact(yuv_packed_image.yuy_stride as usize * 2),
+                        .par_chunks_exact(packed_image.yuy_stride as usize * 2),
                 );
         }
         #[cfg(not(feature = "rayon"))]
@@ -249,17 +263,22 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_plane.chunks_exact_mut(u_stride as usize))
                 .zip(v_plane.chunks_exact_mut(v_stride as usize))
                 .zip(
-                    yuv_packed_image
+                    packed_image
                         .yuy
-                        .chunks_exact(yuv_packed_image.yuy_stride as usize * 2),
+                        .chunks_exact(packed_image.yuy_stride as usize * 2),
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
             for (y, (y_dst, yuy2)) in y_dst
                 .chunks_exact_mut(y_stride as usize)
-                .zip(yuy2_src.chunks_exact(yuv_packed_image.yuy_stride as usize))
+                .zip(yuy2_src.chunks_exact(packed_image.yuy_stride as usize))
                 .enumerate()
             {
+                let yuy2 = &yuy2[0..yuy2_width];
+                let y_dst = &mut y_dst[0..planar_image.width as usize];
+                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+
                 let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2);
 
                 let process_chroma = y & 1 == 0;

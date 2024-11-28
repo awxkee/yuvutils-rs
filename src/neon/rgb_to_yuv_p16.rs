@@ -300,6 +300,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
     let y_bias = vdupq_n_s16(bias_y);
     let uv_bias = vdupq_n_s16(bias_uv);
 
+    const SCALE: i32 = 2;
+
     let weights_arr: [i16; 8] = [
         transform.yr as i16,
         transform.yg as i16,
@@ -356,9 +358,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             }
         }
 
-        r_values = vshlq_n_u16::<3>(r_values);
-        g_values = vshlq_n_u16::<3>(g_values);
-        b_values = vshlq_n_u16::<3>(b_values);
+        r_values = vshlq_n_u16::<SCALE>(r_values);
+        g_values = vshlq_n_u16::<SCALE>(g_values);
+        b_values = vshlq_n_u16::<SCALE>(b_values);
 
         let mut y_values =
             vqrdmlahq_laneq_s16::<0>(y_bias, vreinterpretq_s16_u16(r_values), v_weights);

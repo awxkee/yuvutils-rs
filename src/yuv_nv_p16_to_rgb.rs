@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::get_built_inverse_transform;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_yuv_nv_p16_to_rgba_row, neon_yuv_nv_p16_to_rgba_row_rdm};
@@ -48,7 +49,7 @@ fn yuv_nv_p16_to_image_impl<
     const BYTES_POSITION: u8,
     const BIT_DEPTH: u8,
 >(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
+    image: &YuvBiPlanarImage<u16>,
     bgra: &mut [u16],
     bgra_stride: u32,
     range: YuvRange,
@@ -58,36 +59,36 @@ fn yuv_nv_p16_to_image_impl<
     let channels = dst_chans.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let range = get_yuv_range(BIT_DEPTH as u32, range);
+    let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range = ((1u32 << (BIT_DEPTH as u32)) - 1u32) as i32;
-    let transform = get_inverse_transform(
-        max_range as u32,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
 
-    bi_planar_image.check_constraints(chroma_subsampling)?;
-    check_rgba_destination(
-        bgra,
-        bgra_stride,
-        bi_planar_image.width,
-        bi_planar_image.height,
-        channels,
-    )?;
+    image.check_constraints(chroma_subsampling)?;
+    check_rgba_destination(bgra, bgra_stride, image.width, image.height, channels)?;
 
-    const PRECISION: i32 = 12;
-    let i_transform = transform.to_integers(PRECISION as u32);
+    const PRECISION: i32 = 13;
+    let i_transform = if let Some(stored) =
+        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, range, matrix)
+    {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            BIT_DEPTH as u32,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(PRECISION as u32)
+    };
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -134,8 +135,8 @@ fn yuv_nv_p16_to_image_impl<
                         _y_src,
                         _uv_src,
                         _rgba,
-                        bi_planar_image.width,
-                        &range,
+                        image.width,
+                        &chroma_range,
                         &i_transform,
                         _offset.cx,
                         _offset.ux,
@@ -152,8 +153,8 @@ fn yuv_nv_p16_to_image_impl<
                     _y_src,
                     _uv_src,
                     _rgba,
-                    bi_planar_image.width,
-                    &range,
+                    image.width,
+                    &chroma_range,
                     &i_transform,
                     0,
                     0,
@@ -165,7 +166,7 @@ fn yuv_nv_p16_to_image_impl<
     };
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
-    let width = bi_planar_image.width;
+    let width = image.width;
 
     let process_halved_chroma_row = |y_src: &[u16], uv_src: &[u16], rgba: &mut [u16]| {
         let processed = process_wide_row(rgba, y_src, uv_src);
@@ -263,10 +264,10 @@ fn yuv_nv_p16_to_image_impl<
         }
     };
 
-    let y_stride = bi_planar_image.y_stride;
-    let uv_stride = bi_planar_image.uv_stride;
-    let y_plane = bi_planar_image.y_plane;
-    let uv_plane = bi_planar_image.uv_plane;
+    let y_stride = image.y_stride;
+    let uv_stride = image.uv_stride;
+    let y_plane = image.y_plane;
+    let uv_plane = image.uv_plane;
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
@@ -285,6 +286,7 @@ fn yuv_nv_p16_to_image_impl<
                 .zip(bgra.chunks_exact_mut(bgra_stride as usize));
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
+            let y_src = &y_src[0..image.width as usize];
             let processed = process_wide_row(rgba, y_src, uv_src);
 
             for ((rgba, &y_src), uv_src) in rgba
@@ -343,7 +345,11 @@ fn yuv_nv_p16_to_image_impl<
                 .zip(bgra.chunks_exact_mut(bgra_stride as usize));
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
-            process_halved_chroma_row(y_src, uv_src, rgba);
+            process_halved_chroma_row(
+                &y_src[0..image.width as usize],
+                &uv_src[0..image.width as usize],
+                &mut rgba[0..image.width as usize * channels],
+            );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
@@ -366,16 +372,24 @@ fn yuv_nv_p16_to_image_impl<
                 .chunks_exact(y_stride as usize)
                 .zip(rgba.chunks_exact_mut(bgra_stride as usize))
             {
-                process_halved_chroma_row(y_src, uv_src, rgba);
+                process_halved_chroma_row(
+                    &y_src[0..image.width as usize],
+                    &uv_src[0..image.width as usize],
+                    &mut rgba[0..image.width as usize * channels],
+                );
             }
         });
-        if bi_planar_image.height & 1 != 0 {
+        if image.height & 1 != 0 {
             let y_src = y_plane.chunks_exact(y_stride as usize * 2).remainder();
             let uv_src = uv_plane.chunks_exact(uv_stride as usize).last().unwrap();
             let rgba = bgra
                 .chunks_exact_mut(bgra_stride as usize * 2)
                 .into_remainder();
-            process_halved_chroma_row(y_src, uv_src, rgba);
+            process_halved_chroma_row(
+                &y_src[0..image.width as usize],
+                &uv_src[0..image.width as usize],
+                &mut rgba[0..image.width as usize * channels],
+            );
         }
     } else {
         unreachable!();

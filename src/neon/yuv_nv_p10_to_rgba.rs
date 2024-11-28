@@ -63,7 +63,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let y_corr = vdupq_n_s16(bias_y as i16);
+    let y_corr = vdupq_n_u16(bias_y as u16);
     let uv_corr_q = vdupq_n_s16(bias_uv as i16);
 
     let weights_arr: [i16; 8] = [
@@ -97,7 +97,8 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = vshrq_n_u16::<6>(y_vl);
         }
-        let y_values: int16x8_t = vsubq_s16(vreinterpretq_s16_u16(y_vl), y_corr);
+
+        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(y_vl, y_corr));
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {

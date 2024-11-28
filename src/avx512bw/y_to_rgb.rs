@@ -55,27 +55,27 @@ pub(crate) unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
-    let rounding_const = _mm512_set1_epi16(1 << 5);
+    const SCALE: u32 = 2;
 
     while cx + 64 < width {
         let y_values = _mm512_subs_epi8(
-            _mm512_slli_epi16::<7>(_mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32)),
+            _mm512_slli_epi16::<SCALE>(_mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32)),
             y_corr,
         );
 
-        let y_high = _mm512_mulhi_epi16(
+        let y_high = _mm512_mulhrs_epi16(
             _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(y_values)),
             v_luma_coeff,
         );
 
         let r_high = _mm512_srli_epi16::<3>(y_high);
 
-        let y_low = _mm512_mulhi_epi16(
-            _mm512_slli_epi16::<7>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values))),
+        let y_low = _mm512_mulhrs_epi16(
+            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values))),
             v_luma_coeff,
         );
 
-        let r_low = _mm512_srli_epi16::<3>(_mm512_adds_epi16(y_low, rounding_const));
+        let r_low = y_low;
 
         let r_values = avx512_pack_u16(r_low, r_high);
 

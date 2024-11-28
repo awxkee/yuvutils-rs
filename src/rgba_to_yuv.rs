@@ -33,6 +33,7 @@ use crate::avx2::{avx2_rgba_to_yuv, avx2_rgba_to_yuv420};
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_rgba_to_yuv;
+use crate::built_coefficients::get_built_forward_transform;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -51,7 +52,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
-    planar_image: &mut YuvPlanarImageMut<u8>,
+    image: &mut YuvPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
     range: YuvRange,
@@ -61,35 +62,35 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
-    check_rgba_destination(
-        rgba,
-        rgba_stride,
-        planar_image.width,
-        planar_image.height,
-        channels,
-    )?;
-    planar_image.check_constraints(chroma_subsampling)?;
+    check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
+    image.check_constraints(chroma_subsampling)?;
 
-    let range = get_yuv_range(8, range);
+    let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
-    const PRECISION: i32 = 12;
+    const PRECISION: i32 = 13;
     let max_range_p8 = (1u32 << 8u32) - 1u32;
-    let transform_precise = get_forward_transform(
-        max_range_p8,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
-    let transform = transform_precise.to_integers(PRECISION as u32);
+
+    let transform =
+        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
+            stored_t
+        } else {
+            let transform_precise = get_forward_transform(
+                max_range_p8,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform_precise.to_integers(PRECISION as u32)
+        };
 
     const ROUNDING_CONST_BIAS: i32 = 1 << (PRECISION - 1);
-    let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
-    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    let i_bias_y = range.bias_y as i32;
-    let i_cap_y = range.range_y as i32 + i_bias_y;
-    let i_cap_uv = i_bias_y + range.range_uv as i32;
+    let i_bias_y = chroma_range.bias_y as i32;
+    let i_cap_y = chroma_range.range_y as i32 + i_bias_y;
+    let i_cap_uv = i_bias_y + chroma_range.range_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -131,14 +132,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 if use_avx512 {
                     let processed_offset = avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                         &transform,
-                        &range,
+                        &chroma_range,
                         y_plane,
                         u_plane,
                         v_plane,
                         rgba,
                         _offset.cx,
                         _offset.ux,
-                        planar_image.width as usize,
+                        image.width as usize,
                         compute_uv_row,
                     );
                     _offset = processed_offset;
@@ -148,14 +149,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             if use_avx {
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     y_plane,
                     u_plane,
                     v_plane,
                     rgba,
                     _offset.cx,
                     _offset.ux,
-                    planar_image.width as usize,
+                    image.width as usize,
                 );
                 _offset = processed_offset;
             }
@@ -163,14 +164,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             if use_sse {
                 let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     y_plane,
                     u_plane,
                     v_plane,
                     rgba,
                     _offset.cx,
                     _offset.ux,
-                    planar_image.width as usize,
+                    image.width as usize,
                 );
                 _offset = processed_offset;
             }
@@ -180,14 +181,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         unsafe {
             let offset = neon_wide_row_handler(
                 &transform,
-                &range,
+                &chroma_range,
                 y_plane,
                 u_plane,
                 v_plane,
                 rgba,
                 _offset.cx,
                 _offset.ux,
-                planar_image.width as usize,
+                image.width as usize,
             );
             _offset = offset;
         }
@@ -205,7 +206,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         unsafe {
             let offset = neon_double_wide_row_handler(
                 &transform,
-                &range,
+                &chroma_range,
                 _y_plane0,
                 _y_plane1,
                 _u_plane,
@@ -214,7 +215,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 _rgba1,
                 _offset.cx,
                 _offset.ux,
-                planar_image.width as usize,
+                image.width as usize,
             );
             _offset = offset;
         }
@@ -223,7 +224,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             if use_avx {
                 let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     _y_plane0,
                     _y_plane1,
                     _u_plane,
@@ -232,7 +233,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     _rgba1,
                     _offset.cx,
                     _offset.ux,
-                    planar_image.width as usize,
+                    image.width as usize,
                 );
                 _offset = processed_offset;
             }
@@ -240,7 +241,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             if use_sse {
                 let processed_offset = sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS>(
                     &transform,
-                    &range,
+                    &chroma_range,
                     _y_plane0,
                     _y_plane1,
                     _u_plane,
@@ -249,7 +250,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     _rgba1,
                     _offset.cx,
                     _offset.ux,
-                    planar_image.width as usize,
+                    image.width as usize,
                 );
                 _offset = processed_offset;
             }
@@ -301,7 +302,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
         }
 
-        if planar_image.width & 1 != 0 {
+        if image.width & 1 != 0 {
             let rgb_last = rgba.chunks_exact(channels * 2).remainder();
             let r0 = rgb_last[src_chans.get_r_channel_offset()] as i32;
             let g0 = rgb_last[src_chans.get_g_channel_offset()] as i32;
@@ -391,7 +392,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
         }
 
-        if planar_image.width & 1 != 0 {
+        if image.width & 1 != 0 {
             let rgb_last0 = rgba0.chunks_exact(channels * 2).remainder();
             let rgb_last1 = rgba1.chunks_exact(channels * 2).remainder();
             let r0 = rgb_last0[src_chans.get_r_channel_offset()] as i32;
@@ -424,12 +425,12 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
     };
 
-    let y_plane = planar_image.y_plane.borrow_mut();
-    let u_plane = planar_image.u_plane.borrow_mut();
-    let v_plane = planar_image.v_plane.borrow_mut();
-    let y_stride = planar_image.y_stride as usize;
-    let u_stride = planar_image.u_stride as usize;
-    let v_stride = planar_image.v_stride as usize;
+    let y_plane = image.y_plane.borrow_mut();
+    let u_plane = image.u_plane.borrow_mut();
+    let v_plane = image.v_plane.borrow_mut();
+    let y_stride = image.y_stride as usize;
+    let u_stride = image.u_stride as usize;
+    let v_stride = image.v_stride as usize;
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
@@ -450,6 +451,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 .zip(rgba.chunks_exact(rgba_stride as usize));
         }
         iter.for_each(|(((y_dst, u_plane), v_plane), rgba)| {
+            let y_dst = &mut y_dst[0..image.width as usize];
             let processed_offset = process_wide_row(y_dst, u_plane, v_plane, rgba, 0, 0, true);
             let cx = processed_offset.cx;
 
@@ -497,7 +499,12 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
 
         iter.for_each(|(((y_plane, u_plane), v_plane), rgba)| {
-            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+            process_halved_chroma_row(
+                &mut y_plane[0..image.width as usize],
+                &mut u_plane[0..(image.width as usize).div_ceil(2)],
+                &mut v_plane[0..(image.width as usize).div_ceil(2)],
+                &rgba[0..image.width as usize * channels],
+            );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
@@ -520,15 +527,27 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         iter.for_each(|(((y_plane, u_plane), v_plane), rgba)| {
             let (rgba0, rgba1) = rgba.split_at(rgba_stride as usize);
             let (y_plane0, y_plane1) = y_plane.split_at_mut(y_stride);
-            process_doubled_row(y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1);
+            process_doubled_row(
+                &mut y_plane0[0..image.width as usize],
+                &mut y_plane1[0..image.width as usize],
+                &mut u_plane[0..(image.width as usize).div_ceil(2)],
+                &mut v_plane[0..(image.width as usize).div_ceil(2)],
+                &rgba0[0..image.width as usize * channels],
+                &rgba1[0..image.width as usize * channels],
+            );
         });
 
-        if planar_image.height & 1 != 0 {
+        if image.height & 1 != 0 {
             let remainder_y_plane = y_plane.chunks_exact_mut(y_stride * 2).into_remainder();
             let remainder_rgba = rgba.chunks_exact(rgba_stride as usize * 2).remainder();
             let u_plane = u_plane.chunks_exact_mut(u_stride).last().unwrap();
             let v_plane = v_plane.chunks_exact_mut(v_stride).last().unwrap();
-            process_halved_chroma_row(remainder_y_plane, u_plane, v_plane, remainder_rgba);
+            process_halved_chroma_row(
+                &mut remainder_y_plane[0..image.width as usize],
+                &mut u_plane[0..(image.width as usize).div_ceil(2)],
+                &mut v_plane[0..(image.width as usize).div_ceil(2)],
+                &remainder_rgba[0..image.width as usize * channels],
+            );
         }
     } else {
         unreachable!();
