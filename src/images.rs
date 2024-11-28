@@ -34,6 +34,7 @@ use crate::YuvError;
 use std::fmt::Debug;
 
 #[derive(Debug)]
+/// Shared storage type
 pub enum BufferStoreMut<'a, T: Copy + Debug> {
     Borrowed(&'a mut [T]),
     Owned(Vec<T>),

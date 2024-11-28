@@ -37,6 +37,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
+use std::mem::size_of;
 
 #[inline]
 fn gbr_to_rgbx_alpha_impl<

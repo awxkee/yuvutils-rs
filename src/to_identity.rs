@@ -32,6 +32,7 @@ use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImageMut, YuvRange};
 use num_traits::AsPrimitive;
 use std::fmt::Debug;
+use std::mem::size_of;
 
 #[inline]
 fn rgbx_to_gbr_impl<
