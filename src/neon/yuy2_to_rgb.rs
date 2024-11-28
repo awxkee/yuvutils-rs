@@ -32,7 +32,11 @@ use crate::yuv_support::{
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
 
-pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>(
+pub(crate) fn yuy2_to_rgb_neon<
+    const DST_CHANNELS: u8,
+    const YUY2_TARGET: usize,
+    const PRECISION: i32,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     yuy2_store: &[u8],
@@ -105,15 +109,15 @@ pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
             let v_l_h = vsubq_s16(vreinterpretq_s16_u16(vmovl_high_u8(low_v_value)), uv_corr);
             let y_l_h = vreinterpretq_s16_u16(vmull_high_u8(y_first, v_luma_coeff));
 
-            let r_l_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let r_l_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_l_h, vmulq_s16(v_l_h, v_cr_coeff)),
                 v_min_values,
             ));
-            let b_l_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let b_l_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_l_h, vmulq_s16(u_l_h, v_cb_coeff)),
                 v_min_values,
             ));
-            let g_l_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let g_l_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(
                     y_l_h,
                     vqaddq_s16(vmulq_s16(v_l_h, v_g_coeff_1), vmulq_s16(u_l_h, v_g_coeff_2)),
@@ -132,15 +136,15 @@ pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
             let y_low =
                 vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_first), vget_low_u8(v_luma_coeff)));
 
-            let r_l_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let r_l_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_low, vmulq_s16(v_low, v_cr_coeff)),
                 v_min_values,
             ));
-            let b_l_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let b_l_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_low, vmulq_s16(u_low, v_cb_coeff)),
                 v_min_values,
             ));
-            let g_l_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let g_l_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(
                     y_low,
                     vqaddq_s16(vmulq_s16(v_low, v_g_coeff_1), vmulq_s16(u_low, v_g_coeff_2)),
@@ -175,15 +179,15 @@ pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
             let v_h_h = vsubq_s16(vreinterpretq_s16_u16(vmovl_high_u8(high_v_value)), uv_corr);
             let y_h_h = vreinterpretq_s16_u16(vmull_high_u8(y_second, v_luma_coeff));
 
-            let r_h_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let r_h_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_h_h, vmulq_s16(v_h_h, v_cr_coeff)),
                 v_min_values,
             ));
-            let b_h_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let b_h_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_h_h, vmulq_s16(u_h_h, v_cb_coeff)),
                 v_min_values,
             ));
-            let g_h_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let g_h_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(
                     y_h_h,
                     vqaddq_s16(vmulq_s16(v_h_h, v_g_coeff_1), vmulq_s16(u_h_h, v_g_coeff_2)),
@@ -202,15 +206,15 @@ pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
             let y_h_l =
                 vreinterpretq_s16_u16(vmull_u8(vget_low_u8(y_second), vget_low_u8(v_luma_coeff)));
 
-            let r_h_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let r_h_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_h_l, vmulq_s16(v_h_l, v_cr_coeff)),
                 v_min_values,
             ));
-            let b_h_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let b_h_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_h_l, vmulq_s16(u_h_l, v_cb_coeff)),
                 v_min_values,
             ));
-            let g_h_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let g_h_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(
                     y_h_l,
                     vqaddq_s16(vmulq_s16(v_h_l, v_g_coeff_1), vmulq_s16(u_h_l, v_g_coeff_2)),
@@ -292,15 +296,15 @@ pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
             let v_h = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(high_v_value)), uv_corr);
             let y_h = vreinterpretq_s16_u16(vmull_u8(y_second, vget_low_u8(v_luma_coeff)));
 
-            let r_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let r_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_h, vmulq_s16(v_h, v_cr_coeff)),
                 v_min_values,
             ));
-            let b_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let b_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_h, vmulq_s16(u_h, v_cb_coeff)),
                 v_min_values,
             ));
-            let g_h = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let g_h = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(
                     y_h,
                     vqaddq_s16(vmulq_s16(v_h, v_g_coeff_1), vmulq_s16(u_h, v_g_coeff_2)),
@@ -312,15 +316,15 @@ pub(crate) fn yuy2_to_rgb_neon<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
             let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(low_v_value)), uv_corr);
             let y_low = vreinterpretq_s16_u16(vmull_u8(y_first, vget_low_u8(v_luma_coeff)));
 
-            let r_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let r_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_low, vmulq_s16(v_low, v_cr_coeff)),
                 v_min_values,
             ));
-            let b_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let b_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(y_low, vmulq_s16(u_low, v_cb_coeff)),
                 v_min_values,
             ));
-            let g_l = vqrshrun_n_s16::<6>(vmaxq_s16(
+            let g_l = vqrshrun_n_s16::<PRECISION>(vmaxq_s16(
                 vqaddq_s16(
                     y_low,
                     vqaddq_s16(vmulq_s16(v_low, v_g_coeff_1), vmulq_s16(u_low, v_g_coeff_2)),
