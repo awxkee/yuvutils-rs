@@ -64,7 +64,7 @@ pub(crate) use rgb_to_yuv_p16::{neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_rdm};
 pub(crate) use rgba_to_nv::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row_rdm};
 pub(crate) use rgba_to_yuv::{neon_rgba_to_yuv, neon_rgba_to_yuv_rdm};
 pub(crate) use rgba_to_yuv420::{neon_rgba_to_yuv420, neon_rgba_to_yuv_rdm420};
-pub(crate) use y_p16_to_rgba16::{neon_y_p16_to_rgba16_row, neon_y_p16_to_rgba16_rdm};
+pub(crate) use y_p16_to_rgba16::{neon_y_p16_to_rgba16_rdm, neon_y_p16_to_rgba16_row};
 pub(crate) use y_to_rgb::{neon_y_to_rgb_row, neon_y_to_rgb_row_rdm};
 pub(crate) use ycgco_to_rgb::neon_ycgco_to_rgb_row;
 pub(crate) use ycgco_to_rgb_alpha::neon_ycgco_to_rgb_alpha_row;

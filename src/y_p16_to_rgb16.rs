@@ -95,7 +95,7 @@ fn yuv400_p16_to_rgbx<
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_handler = if is_rdm_available {
+    let neon_wide_handler = if is_rdm_available && bit_depth <= 12 {
         neon_y_p16_to_rgba16_rdm::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION>
     } else {
         neon_y_p16_to_rgba16_row::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION>
@@ -111,8 +111,8 @@ fn yuv400_p16_to_rgbx<
                 {
                     unsafe {
                         let offset = neon_wide_handler(
-                            y_plane.as_ptr(),
-                            rgba16.as_mut_ptr(),
+                            y_plane,
+                            rgba16,
                             image.width,
                             &chroma_range,
                             &i_transform,
