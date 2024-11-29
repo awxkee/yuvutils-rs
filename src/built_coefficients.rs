@@ -31,49 +31,49 @@ use crate::{YuvRange, YuvStandardMatrix};
 
 static FORWARD_BT601_FULL_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
     yr: 2449,
-    yg: 4808,
-    yb: 933,
-    cb_r: -1383,
+    yg: 4809,
+    yb: 934,
+    cb_r: -1382,
     cb_g: -2714,
     cb_b: 4096,
     cr_r: 4096,
     cr_g: -3430,
-    cr_b: -667,
+    cr_b: -666,
 };
 
 static FORWARD_BT601_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
-    yr: 2103,
-    yg: 4129,
+    yr: 2104,
+    yg: 4130,
     yb: 802,
-    cb_r: -1215,
+    cb_r: -1214,
     cb_g: -2384,
     cb_b: 3598,
     cr_r: 3598,
     cr_g: -3013,
-    cr_b: -586,
+    cr_b: -585,
 };
 
 static FORWARD_BT709_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
-    yr: 1495,
-    yg: 5031,
-    yb: 507,
-    cb_r: -825,
+    yr: 1496,
+    yg: 5032,
+    yb: 508,
+    cb_r: -824,
     cb_g: -2774,
     cb_b: 3598,
     cr_r: 3598,
-    cr_g: -3269,
+    cr_g: -3268,
     cr_b: -330,
 };
 
 static FORWARD_BT709_FULL_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
-    yr: 1741,
-    yg: 5858,
+    yr: 1742,
+    yg: 5859,
     yb: 591,
     cb_r: -939,
-    cb_g: -3158,
+    cb_g: -3157,
     cb_b: 4096,
     cr_r: 4096,
-    cr_g: -3721,
+    cr_g: -3720,
     cr_b: -376,
 };
 
@@ -82,70 +82,70 @@ static FORWARD_BT2020_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardT
     yg: 4770,
     yb: 417,
     cb_r: -1005,
-    cb_g: -2594,
+    cb_g: -2593,
     cb_b: 3598,
     cr_r: 3598,
     cr_g: -3309,
-    cr_b: -290,
+    cr_b: -289,
 };
 
 static FORWARD_BT2020_FULL_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
     yr: 2152,
     yg: 5554,
-    yb: 485,
+    yb: 486,
     cb_r: -1144,
-    cb_g: -2953,
+    cb_g: -2952,
     cb_b: 4096,
     cr_r: 4096,
     cr_g: -3767,
-    cr_b: -330,
+    cr_b: -329,
 };
 
 static FORWARD_SMPTE240_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
     yr: 612,
-    yg: 4931,
-    yb: 1491,
-    cb_r: -398,
+    yg: 4932,
+    yb: 1492,
+    cb_r: -397,
     cb_g: -3201,
     cb_b: 3598,
     cr_r: 3598,
     cr_g: -2763,
-    cr_b: -836,
+    cr_b: -835,
 };
 
 static FORWARD_SMPTE240_FULL_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
-    yr: 712,
-    yg: 5742,
-    yb: 1736,
-    cb_r: -453,
+    yr: 713,
+    yg: 5743,
+    yb: 1737,
+    cb_r: -452,
     cb_g: -3644,
     cb_b: 4096,
     cr_r: 4096,
     cr_g: -3145,
-    cr_b: -952,
+    cr_b: -951,
 };
 
 static FORWARD_BT470_FULL_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
-    yr: 1818,
+    yr: 1819,
     yg: 5789,
     yb: 584,
-    cb_r: -980,
+    cb_r: -979,
     cb_g: -3117,
     cb_b: 4096,
     cr_r: 4096,
     cr_g: -3721,
-    cr_b: -376,
+    cr_b: -375,
 };
 
 static FORWARD_BT470_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
-    yr: 1561,
-    yg: 4971,
-    yb: 501,
-    cb_r: -861,
+    yr: 1562,
+    yg: 4972,
+    yb: 502,
+    cb_r: -860,
     cb_g: -2738,
     cb_b: 3598,
     cr_r: 3598,
-    cr_g: -3269,
+    cr_g: -3268,
     cr_b: -330,
 };
 
@@ -190,10 +190,10 @@ pub(crate) fn get_built_forward_transform(
 }
 
 static INVERSE_BT601_LIMITED_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9538,
-    cr_coef: 13074,
+    y_coef: 9539,
+    cr_coef: 13075,
     cb_coef: 16525,
-    g_coeff_1: 6659,
+    g_coeff_1: 6660,
     g_coeff_2: 3209,
 };
 
@@ -206,75 +206,75 @@ static INVERSE_BT601_FULL_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTrans
 };
 
 static INVERSE_BT709_LIMITED_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9538,
+    y_coef: 9539,
     cr_coef: 14686,
-    cb_coef: 17304,
-    g_coeff_1: 4365,
-    g_coeff_2: 1746,
+    cb_coef: 17305,
+    g_coeff_1: 4366,
+    g_coeff_2: 1747,
 };
 
 static INVERSE_BT709_FULL_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 12900,
+    cr_coef: 12901,
     cb_coef: 15201,
-    g_coeff_1: 3834,
-    g_coeff_2: 1534,
+    g_coeff_1: 3835,
+    g_coeff_2: 1535,
 };
 
 static INVERSE_BT2020_LIMITED_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9538,
-    cr_coef: 13751,
+    y_coef: 9539,
+    cr_coef: 13752,
     cb_coef: 17545,
     g_coeff_1: 5328,
-    g_coeff_2: 1534,
+    g_coeff_2: 1535,
 };
 
 static INVERSE_BT2020_FULL_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 12079,
+    cr_coef: 12080,
     cb_coef: 15412,
-    g_coeff_1: 4680,
+    g_coeff_1: 4681,
     g_coeff_2: 1348,
 };
 
 static INVERSE_SMPTE240_LIMITED_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9538,
-    cr_coef: 17028,
+    y_coef: 9539,
+    cr_coef: 17029,
     cb_coef: 14697,
     g_coeff_1: 2113,
-    g_coeff_2: 4444,
+    g_coeff_2: 4445,
 };
 
 static INVERSE_SMPTE240_FULL_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 14958,
-    cb_coef: 12910,
+    cr_coef: 14959,
+    cb_coef: 12911,
     g_coeff_1: 1856,
     g_coeff_2: 3904,
 };
 
 static INVERSE_BT470_LIMITED_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9538,
-    cr_coef: 14510,
-    cb_coef: 17321,
+    y_coef: 9539,
+    cr_coef: 14511,
+    cb_coef: 17322,
     g_coeff_1: 4558,
-    g_coeff_2: 1747,
+    g_coeff_2: 1748,
 };
 
 static INVERSE_BT470_FULL_8_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 12746,
-    cb_coef: 15215,
+    cr_coef: 12747,
+    cb_coef: 15216,
     g_coeff_1: 4004,
     g_coeff_2: 1535,
 };
 
 static INVERSE_BT601_LIMITED_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9566,
+    y_coef: 9567,
     cr_coef: 13113,
-    cb_coef: 16573,
+    cb_coef: 16574,
     g_coeff_1: 6679,
-    g_coeff_2: 3218,
+    g_coeff_2: 3219,
 };
 
 static INVERSE_BT601_FULL_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
@@ -286,40 +286,41 @@ static INVERSE_BT601_FULL_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTran
 };
 
 static INVERSE_BT709_LIMITED_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9566,
+    y_coef: 9567,
     cr_coef: 14729,
-    cb_coef: 17355,
+    cb_coef: 17356,
     g_coeff_1: 4378,
     g_coeff_2: 1752,
 };
 
 static INVERSE_BT709_FULL_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 12900,
+    cr_coef: 12901,
     cb_coef: 15201,
-    g_coeff_1: 3834,
-    g_coeff_2: 1534,
+    g_coeff_1: 3835,
+    g_coeff_2: 1535,
 };
 
 static INVERSE_BT2020_LIMITED_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9566,
+    y_coef: 9567,
     cr_coef: 13792,
     cb_coef: 17597,
-    g_coeff_1: 5343,
+    g_coeff_1: 5344,
     g_coeff_2: 1539,
 };
+
 static INVERSE_BT2020_FULL_10_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 12079,
+    cr_coef: 12080,
     cb_coef: 15412,
-    g_coeff_1: 4680,
+    g_coeff_1: 4681,
     g_coeff_2: 1348,
 };
 
 static INVERSE_BT601_LIMITED_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9573,
-    cr_coef: 13122,
-    cb_coef: 16585,
+    y_coef: 9574,
+    cr_coef: 13123,
+    cb_coef: 16586,
     g_coeff_1: 6684,
     g_coeff_2: 3221,
 };
@@ -333,33 +334,34 @@ static INVERSE_BT601_FULL_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTran
 };
 
 static INVERSE_BT709_LIMITED_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9573,
+    y_coef: 9574,
     cr_coef: 14740,
     cb_coef: 17368,
-    g_coeff_1: 4381,
+    g_coeff_1: 4382,
     g_coeff_2: 1753,
 };
 
 static INVERSE_BT709_FULL_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 12900,
+    cr_coef: 12901,
     cb_coef: 15201,
-    g_coeff_1: 3834,
-    g_coeff_2: 1534,
+    g_coeff_1: 3835,
+    g_coeff_2: 1535,
 };
 
 static INVERSE_BT2020_LIMITED_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
-    y_coef: 9573,
+    y_coef: 9574,
     cr_coef: 13802,
-    cb_coef: 17609,
-    g_coeff_1: 5347,
+    cb_coef: 17610,
+    g_coeff_1: 5348,
     g_coeff_2: 1540,
 };
+
 static INVERSE_BT2020_FULL_12_PREC13: CbCrInverseTransform<i32> = CbCrInverseTransform {
     y_coef: 8192,
-    cr_coef: 12079,
+    cr_coef: 12080,
     cb_coef: 15412,
-    g_coeff_1: 4680,
+    g_coeff_1: 4681,
     g_coeff_2: 1348,
 };
 

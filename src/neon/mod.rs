@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![deny(unreachable_code, unreachable_pub)]
+mod gbr_to_rgb;
 mod neon_simd_support;
 mod neon_ycgco;
 mod neon_ycgco_r;
@@ -57,6 +58,9 @@ mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+pub(crate) use gbr_to_rgb::{
+    yuv_to_rgba_row_full, yuv_to_rgba_row_limited, yuv_to_rgba_row_limited_rdm,
+};
 pub(crate) use rgb_to_y::neon_rgb_to_y_row;
 pub(crate) use rgb_to_ycgco::neon_rgb_to_ycgco_row;
 pub(crate) use rgb_to_ycgco_r::neon_rgb_to_ycgcor_row;

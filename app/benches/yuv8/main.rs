@@ -86,7 +86,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let rgba_image = img.to_rgba8();
     let fixed_gbr = gbr_image.to_fixed();
 
-    c.bench_function("yuvutils GBR -> RGBA", |b| {
+    c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             gbr_to_rgba(

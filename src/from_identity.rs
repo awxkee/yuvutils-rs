@@ -29,6 +29,8 @@
 #![forbid(unsafe_code)]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::{yuv_to_rgba_row_full, yuv_to_rgba_row_limited, yuv_to_rgba_row_limited_rdm};
 use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::{sse_yuv_to_rgba_row_full, sse_yuv_to_rgba_row_limited};
@@ -41,8 +43,8 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
-use std::mem::size_of;
 use std::marker::PhantomData;
+use std::mem::size_of;
 
 struct WideRowGbrProcessor<T> {
     _phantom: PhantomData<T>,
@@ -70,6 +72,8 @@ struct WideRowGbrLimitedProcessor<T> {
     _use_sse: bool,
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     _use_avx: bool,
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    _use_rdm: bool,
 }
 
 impl<T> Default for WideRowGbrLimitedProcessor<T> {
@@ -80,6 +84,8 @@ impl<T> Default for WideRowGbrLimitedProcessor<T> {
             _use_sse: std::arch::is_x86_feature_detected!("sse4.1"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             _use_avx: std::arch::is_x86_feature_detected!("avx2"),
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            _use_rdm: std::arch::is_aarch64_feature_detected!("rdm"),
         }
     }
 }
@@ -113,22 +119,30 @@ trait LimitedRangeWideRow<V> {
 impl FullRangeWideRow<u8> for WideRowGbrProcessor<u8> {
     fn handle_row<const DEST: u8>(
         &self,
-        g_plane: &[u8],
-        b_plane: &[u8],
-        r_plane: &[u8],
-        rgba: &mut [u8],
-        start_cx: usize,
-        width: usize,
+        _g_plane: &[u8],
+        _b_plane: &[u8],
+        _r_plane: &[u8],
+        _rgba: &mut [u8],
+        _start_cx: usize,
+        _width: usize,
     ) -> usize {
-        let mut _cx = start_cx;
+        let mut _cx = _start_cx;
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             if self._use_avx {
-                _cx = avx_yuv_to_rgba_row_full::<DEST>(g_plane, b_plane, r_plane, rgba, _cx, width);
+                _cx = avx_yuv_to_rgba_row_full::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width,
+                );
             }
             if self._use_sse {
-                _cx = sse_yuv_to_rgba_row_full::<DEST>(g_plane, b_plane, r_plane, rgba, _cx, width);
+                _cx = sse_yuv_to_rgba_row_full::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width,
+                );
             }
+        }
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            _cx = yuv_to_rgba_row_full::<DEST>(_g_plane, _b_plane, _r_plane, _rgba, _cx, _width);
         }
         _cx
     }
@@ -152,26 +166,38 @@ impl FullRangeWideRow<u16> for WideRowGbrProcessor<u16> {
 impl LimitedRangeWideRow<u8> for WideRowGbrLimitedProcessor<u8> {
     fn handle_row<const DEST: u8, const BIT_DEPTH: usize>(
         &self,
-        g_plane: &[u8],
-        b_plane: &[u8],
-        r_plane: &[u8],
-        rgba: &mut [u8],
-        start_cx: usize,
-        width: usize,
-        y_bias: i32,
-        y_coeff: i32,
+        _g_plane: &[u8],
+        _b_plane: &[u8],
+        _r_plane: &[u8],
+        _rgba: &mut [u8],
+        _start_cx: usize,
+        _width: usize,
+        _y_bias: i32,
+        _y_coeff: i32,
     ) -> usize {
-        let mut _cx = start_cx;
+        let mut _cx = _start_cx;
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             if self._use_avx {
                 _cx = avx_yuv_to_rgba_row_limited::<DEST>(
-                    g_plane, b_plane, r_plane, rgba, _cx, width, y_bias, y_coeff,
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
                 );
             }
             if self._use_sse {
                 _cx = sse_yuv_to_rgba_row_limited::<DEST>(
-                    g_plane, b_plane, r_plane, rgba, _cx, width, y_bias, y_coeff,
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
+                );
+            }
+        }
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            if self._use_rdm {
+                _cx = yuv_to_rgba_row_limited_rdm::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
+                );
+            } else {
+                _cx = yuv_to_rgba_row_limited::<DEST, 13>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
                 );
             }
         }

@@ -95,6 +95,13 @@ pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn vmullnq_s16<const PRECISION: i32>(v: uint16x8_t, q: uint16x8_t) -> uint16x8_t {
+    let hi = vmull_high_u16(q, v);
+    let lo = vmull_u16(vget_low_u16(q), vget_low_u16(v));
+    vcombine_u16(vrshrn_n_u32::<PRECISION>(lo), vrshrn_n_u32::<PRECISION>(hi))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn neon_div_by_255(v: uint16x8_t) -> uint8x8_t {
     let addition = vdupq_n_u16(127);
     vqshrn_n_u16::<8>(vrsraq_n_u16::<8>(vaddq_u16(v, addition), v))

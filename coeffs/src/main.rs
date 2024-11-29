@@ -182,31 +182,31 @@ fn get_forward_coeffs_integral(
 
     CbCrForwardTransform {
         yr: (yr * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         yg: (yg * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         yb: (yb * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         cb_r: (cb_r * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         cb_g: (cb_g * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         cb_b: (cb_b * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         cr_r: (cr_r * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         cr_g: (cr_g * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
         cr_b: (cr_b * Float::with_val(BITS, prec))
-            .to_i32_saturating_round(Round::Down)
+            .to_i32_saturating_round(Round::Nearest)
             .unwrap(),
     }
 }
@@ -300,21 +300,16 @@ pub fn get_inverse_transform_integral(
         * range_uv();
     let prec = (1 << prec) as f32;
     let y_coeff = y_coef * Float::with_val(BITS, prec);
-    println!("Y Coeff {}", y_coeff);
     let cr_coeff = cr_coeff * Float::with_val(BITS, prec);
-    println!("Cr Coeff {}", cr_coeff);
     let cb_coeff = cb_coeff * Float::with_val(BITS, prec);
-    println!("Cb Coeff {}", cr_coeff);
     let g_coeff_1 = g_coeff_1 * Float::with_val(BITS, prec);
-    println!("G Coeff 1 {}", g_coeff_1);
     let g_coeff_2 = g_coeff_2 * Float::with_val(BITS, prec);
-    println!("G Coeff 2 {}", g_coeff_2);
     CbCrInverseTransform::new(
-        y_coeff.to_i32_saturating_round(Round::Down).unwrap(),
-        cr_coeff.to_i32_saturating_round(Round::Down).unwrap(),
-        cb_coeff.to_i32_saturating_round(Round::Down).unwrap(),
-        g_coeff_1.to_i32_saturating_round(Round::Down).unwrap(),
-        g_coeff_2.to_i32_saturating_round(Round::Down).unwrap(),
+        y_coeff.to_i32_saturating_round(Round::Nearest).unwrap(),
+        cr_coeff.to_i32_saturating_round(Round::Nearest).unwrap(),
+        cb_coeff.to_i32_saturating_round(Round::Nearest).unwrap(),
+        g_coeff_1.to_i32_saturating_round(Round::Nearest).unwrap(),
+        g_coeff_2.to_i32_saturating_round(Round::Nearest).unwrap(),
     )
 }
 
@@ -369,15 +364,16 @@ impl YuvStandardMatrix {
 }
 
 fn main() {
-    let transform = get_forward_coeffs(0.2220f32, 0.0713f32, 8, YuvRange::Limited);
-    println!("Precise {:?}", transform);
-    let integral = get_forward_coeffs_integral(0.2220f32, 0.0713f32, 8, YuvRange::Limited, 13);
-    println!("Integral {:?}", integral);
+    let kr_kb = YuvStandardMatrix::Bt2020.get_kr_kb();
+    let range = YuvRange::Full;
+    let bit_depth = 12;
+    let transform = get_forward_coeffs(kr_kb.kr, kr_kb.kb, bit_depth, range);
+    println!("Precise {:?};", transform);
+    let integral = get_forward_coeffs_integral(kr_kb.kr, kr_kb.kb, bit_depth, range, 13);
+    println!("Integral {:?};", integral);
 
-    let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
-    let inverse = get_inverse_transform(kr_kb.kr, kr_kb.kb, 8, YuvRange::Limited);
+    let inverse = get_inverse_transform(kr_kb.kr, kr_kb.kb, bit_depth, range);
     println!("Inverse {:?}", inverse);
-    let inverse_integral =
-        get_inverse_transform_integral(kr_kb.kr, kr_kb.kb, 8, 13, YuvRange::Limited);
+    let inverse_integral = get_inverse_transform_integral(kr_kb.kr, kr_kb.kb, bit_depth, 13, range);
     println!("Inverse Integral {:?};", inverse_integral);
 }

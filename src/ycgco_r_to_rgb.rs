@@ -67,7 +67,7 @@ fn ycgco_r_type_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, cons
     };
 
     const PRECISION: i32 = 6;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
+    const ROUNDING_CONST: i32 = (1 << (PRECISION - 1)) - 1;
 
     let max_colors = (1i32 << 8i32) - 1i32;
     let precision_scale = (1 << PRECISION) as f32;

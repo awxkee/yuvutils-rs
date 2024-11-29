@@ -66,7 +66,7 @@ pub(crate) unsafe fn avx2_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMP
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    const ROUNDING_CONST_BIAS: i32 = 1 << 7;
+    const ROUNDING_CONST_BIAS: i32 = (1 << 7) - 1;
     let bias_y = range.bias_y as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << 8) + ROUNDING_CONST_BIAS;
 
