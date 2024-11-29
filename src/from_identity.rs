@@ -42,6 +42,158 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
 use std::mem::size_of;
+use std::marker::PhantomData;
+
+struct WideRowGbrProcessor<T> {
+    _phantom: PhantomData<T>,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_sse: bool,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_avx: bool,
+}
+
+impl<T> Default for WideRowGbrProcessor<T> {
+    fn default() -> Self {
+        WideRowGbrProcessor {
+            _phantom: PhantomData,
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_sse: std::arch::is_x86_feature_detected!("sse4.1"),
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_avx: std::arch::is_x86_feature_detected!("avx2"),
+        }
+    }
+}
+
+struct WideRowGbrLimitedProcessor<T> {
+    _phantom: PhantomData<T>,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_sse: bool,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_avx: bool,
+}
+
+impl<T> Default for WideRowGbrLimitedProcessor<T> {
+    fn default() -> Self {
+        WideRowGbrLimitedProcessor {
+            _phantom: PhantomData,
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_sse: std::arch::is_x86_feature_detected!("sse4.1"),
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_avx: std::arch::is_x86_feature_detected!("avx2"),
+        }
+    }
+}
+
+trait FullRangeWideRow<V> {
+    fn handle_row<const DEST: u8>(
+        &self,
+        g_plane: &[V],
+        b_plane: &[V],
+        r_plane: &[V],
+        rgba: &mut [V],
+        start_cx: usize,
+        width: usize,
+    ) -> usize;
+}
+
+trait LimitedRangeWideRow<V> {
+    fn handle_row<const DEST: u8, const BIT_DEPTH: usize>(
+        &self,
+        g_plane: &[V],
+        b_plane: &[V],
+        r_plane: &[V],
+        rgba: &mut [V],
+        start_cx: usize,
+        width: usize,
+        y_bias: i32,
+        y_coeff: i32,
+    ) -> usize;
+}
+
+impl FullRangeWideRow<u8> for WideRowGbrProcessor<u8> {
+    fn handle_row<const DEST: u8>(
+        &self,
+        g_plane: &[u8],
+        b_plane: &[u8],
+        r_plane: &[u8],
+        rgba: &mut [u8],
+        start_cx: usize,
+        width: usize,
+    ) -> usize {
+        let mut _cx = start_cx;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if self._use_avx {
+                _cx = avx_yuv_to_rgba_row_full::<DEST>(g_plane, b_plane, r_plane, rgba, _cx, width);
+            }
+            if self._use_sse {
+                _cx = sse_yuv_to_rgba_row_full::<DEST>(g_plane, b_plane, r_plane, rgba, _cx, width);
+            }
+        }
+        _cx
+    }
+}
+
+impl FullRangeWideRow<u16> for WideRowGbrProcessor<u16> {
+    fn handle_row<const DEST: u8>(
+        &self,
+        _g_plane: &[u16],
+        _b_plane: &[u16],
+        _r_plane: &[u16],
+        _rgba: &mut [u16],
+        _start_cx: usize,
+        _width: usize,
+    ) -> usize {
+        let mut _cx = 0;
+        _cx
+    }
+}
+
+impl LimitedRangeWideRow<u8> for WideRowGbrLimitedProcessor<u8> {
+    fn handle_row<const DEST: u8, const BIT_DEPTH: usize>(
+        &self,
+        g_plane: &[u8],
+        b_plane: &[u8],
+        r_plane: &[u8],
+        rgba: &mut [u8],
+        start_cx: usize,
+        width: usize,
+        y_bias: i32,
+        y_coeff: i32,
+    ) -> usize {
+        let mut _cx = start_cx;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if self._use_avx {
+                _cx = avx_yuv_to_rgba_row_limited::<DEST>(
+                    g_plane, b_plane, r_plane, rgba, _cx, width, y_bias, y_coeff,
+                );
+            }
+            if self._use_sse {
+                _cx = sse_yuv_to_rgba_row_limited::<DEST>(
+                    g_plane, b_plane, r_plane, rgba, _cx, width, y_bias, y_coeff,
+                );
+            }
+        }
+        _cx
+    }
+}
+
+impl LimitedRangeWideRow<u16> for WideRowGbrLimitedProcessor<u16> {
+    fn handle_row<const DEST: u8, const BIT_DEPTH: usize>(
+        &self,
+        _g_plane: &[u16],
+        _b_plane: &[u16],
+        _r_plane: &[u16],
+        _rgba: &mut [u16],
+        _start_cx: usize,
+        _width: usize,
+        _y_bias: i32,
+        _y_coeff: i32,
+    ) -> usize {
+        0
+    }
+}
 
 #[inline]
 fn gbr_to_rgbx_impl<
