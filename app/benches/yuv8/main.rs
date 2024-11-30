@@ -34,10 +34,10 @@ use yuv_sys::{
     rs_NV21ToABGR, rs_RGB24ToI420,
 };
 use yuvutils_rs::{
-    rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, rgba_to_yuv420, rgba_to_yuv422,
-    rgba_to_yuv444, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba,
-    yuv_nv12_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    gbr_to_rgba, rgb_to_gbr, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12,
+    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba,
+    yuv444_to_rgba, yuv_nv12_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut,
+    YuvRange, YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -53,8 +53,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut planar_image =
         YuvPlanarImageMut::<u8>::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv420);
 
+    let mut gbr_image =
+        YuvPlanarImageMut::<u8>::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv444);
+
     let mut bi_planar_image =
         YuvBiPlanarImageMut::<u8>::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv420);
+
+    rgb_to_gbr(&mut gbr_image, &src_bytes, stride as u32, YuvRange::Limited).unwrap();
 
     rgb_to_yuv420(
         &mut planar_image,
@@ -79,6 +84,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let fixed_planar = planar_image.to_fixed();
 
     let rgba_image = img.to_rgba8();
+    let fixed_gbr = gbr_image.to_fixed();
+
+    c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            gbr_to_rgba(
+                &fixed_gbr,
+                &mut rgb_bytes,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+            )
+            .unwrap();
+        })
+    });
 
     c.bench_function("yuvutils RGB -> YUV 4:2:0", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(

@@ -101,12 +101,21 @@ where
                     .zip(v_dst.iter_mut())
                     .zip(rgb_chunks)
                 {
-                    *v_dst =
-                        qrshr::<PRECISION, BIT_DEPTH>(rgb_dst[0].as_() * y_coef + y_bias).as_();
-                    *y_dst =
-                        qrshr::<PRECISION, BIT_DEPTH>(rgb_dst[1].as_() * y_coef + y_bias).as_();
-                    *u_dst =
-                        qrshr::<PRECISION, BIT_DEPTH>(rgb_dst[2].as_() * y_coef + y_bias).as_();
+                    *v_dst = qrshr::<PRECISION, BIT_DEPTH>(
+                        rgb_dst[destination_channels.get_r_channel_offset()].as_() * y_coef
+                            + y_bias,
+                    )
+                    .as_();
+                    *y_dst = qrshr::<PRECISION, BIT_DEPTH>(
+                        rgb_dst[destination_channels.get_g_channel_offset()].as_() * y_coef
+                            + y_bias,
+                    )
+                    .as_();
+                    *u_dst = qrshr::<PRECISION, BIT_DEPTH>(
+                        rgb_dst[destination_channels.get_b_channel_offset()].as_() * y_coef
+                            + y_bias,
+                    )
+                    .as_();
                 }
             }
         }
@@ -120,9 +129,9 @@ where
                     .zip(v_dst.iter_mut())
                     .zip(rgb_chunks)
                 {
-                    *v_dst = rgb_dst[0];
-                    *y_dst = rgb_dst[1];
-                    *u_dst = rgb_dst[2];
+                    *v_dst = rgb_dst[destination_channels.get_r_channel_offset()];
+                    *y_dst = rgb_dst[destination_channels.get_g_channel_offset()];
+                    *u_dst = rgb_dst[destination_channels.get_b_channel_offset()];
                 }
             }
         }

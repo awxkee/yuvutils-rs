@@ -119,7 +119,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
     let zeros = _mm_setzero_si128();
     let v_g_coeff_1 = _mm_set1_epi16(-(g_coef_1 as i16));
     let v_g_coeff_2 = _mm_set1_epi16(-(g_coef_2 as i16));
-    let rounding_const = _mm_set1_epi32(1 << (PRECISION - 1));
+    let rounding_const = _mm_set1_epi32((1 << (PRECISION - 1)) - 1);
 
     let mut cx = start_cx;
     let mut ux = start_ux;

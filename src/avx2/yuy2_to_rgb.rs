@@ -81,7 +81,7 @@ unsafe fn yuy2_to_rgb_avx_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
         let v_g_coeff_2 = _mm256_set1_epi16(-(transform.g_coeff_2 as i16));
         let v_alpha = _mm256_set1_epi8(255u8 as i8);
         let zeros = _mm256_setzero_si256();
-        let rounding_const = _mm256_set1_epi16(1 << 5);
+        let rounding_const = _mm256_set1_epi16((1 << 5) - 1);
 
         for x in (_yuy2_x..max_x_32).step_by(32) {
             let yuy2_offset = x * 4;

@@ -36,7 +36,7 @@ use crate::avx512bw::avx512_row_rgb_to_y;
 use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvGrayImageMut;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgb_to_y_row;
+use crate::neon::{neon_rgb_to_y_rdm, neon_rgb_to_y_row};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgb_to_y;
 use crate::yuv_error::check_rgba_destination;
@@ -84,8 +84,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             );
             transform_precise.to_integers(PRECISION as u32)
         };
-    let precision_scale = (1 << PRECISION) as f32;
-    let bias_y = ((chroma_range.bias_y as f32 + 0.5f32) * precision_scale) as i32;
+    let bias_y = (chroma_range.bias_y as f32 + 0.5f32) as i32 + ((1 << (PRECISION - 1)) - 1);
 
     let i_bias_y = chroma_range.bias_y as i32;
     let i_cap_y = chroma_range.range_y as i32 + i_bias_y;
@@ -166,7 +165,16 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             if is_rdm_available {
-                _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS>(
+                _cx = neon_rgb_to_y_rdm::<ORIGIN_CHANNELS>(
+                    &transform,
+                    &chroma_range,
+                    y_plane.as_mut_ptr(),
+                    rgba,
+                    _cx,
+                    gray_image.width as usize,
+                );
+            } else {
+                _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     y_plane.as_mut_ptr(),

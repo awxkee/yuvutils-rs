@@ -79,7 +79,7 @@ pub(crate) unsafe fn avx2_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const
     let uv_reduction = _mm256_set1_epi16(range_reduction_uv as i16);
     let v_alpha = _mm256_set1_epi16(-128);
     let v_min_zeros = _mm256_setzero_si256();
-    let rounding_const = _mm256_set1_epi16(1 << 5);
+    let rounding_const = _mm256_set1_epi16((1 << 5) - 1);
 
     while cx + 32 < width {
         let y_values = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);

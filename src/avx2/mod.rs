@@ -29,6 +29,7 @@
 #![deny(unreachable_code, unreachable_pub)]
 mod avx2_utils;
 mod avx2_ycgco;
+mod gbr_to_rgb;
 mod rgb_to_nv;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -47,6 +48,7 @@ mod yuv_to_yuv2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::avx2_rgba_to_nv;
 pub(crate) use rgb_to_y::avx2_rgb_to_y_row;
 pub(crate) use rgb_to_ycgco::avx2_rgb_to_ycgco_row;

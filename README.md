@@ -78,11 +78,11 @@ Tests performed on the image 5763x3842
 |------------------------|:----------:|:---------:|
 | utils RGB->YUV 4:2:0   |   3.16ms   |  3.53ms   |
 | libyuv RGB->YUV 4:2:0  |   3.58ms   |  33.87ms  |
-| utils RGBA->YUV 4:2:0  |   4.07ms   |  5.47ms   |
+| utils RGBA->YUV 4:2:0  |   4.04ms   |  5.47ms   |
 | libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |
-| utils RGBA->YUV 4:2:2  |   4.46ms   |  7.08ms   |
+| utils RGBA->YUV 4:2:2  |   4.37ms   |  7.08ms   |
 | libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |
-| utils RGBA->YUV 4:4:4  |   4.66ms   |  7.97ms   |
+| utils RGBA->YUV 4:4:4  |   4.49ms   |  7.97ms   |
 
 ### Decoding
 

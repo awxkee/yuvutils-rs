@@ -54,7 +54,7 @@ fn sharpen_row420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
-    let rounding_const_bias: i32 = 1 << (PRECISION - 1);
+    let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
@@ -219,7 +219,7 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
-    let rounding_const_bias: i32 = 1 << (PRECISION - 1);
+    let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 

@@ -27,7 +27,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![forbid(unsafe_code)]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::avx2::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::{yuv_to_rgba_row_full, yuv_to_rgba_row_limited, yuv_to_rgba_row_limited_rdm};
 use crate::numerics::qrshr;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::sse::{sse_yuv_to_rgba_row_full, sse_yuv_to_rgba_row_limited};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImage, YuvRange};
@@ -37,7 +43,182 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::mem::size_of;
+
+struct WideRowGbrProcessor<T> {
+    _phantom: PhantomData<T>,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_sse: bool,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_avx: bool,
+}
+
+impl<T> Default for WideRowGbrProcessor<T> {
+    fn default() -> Self {
+        WideRowGbrProcessor {
+            _phantom: PhantomData,
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_sse: std::arch::is_x86_feature_detected!("sse4.1"),
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_avx: std::arch::is_x86_feature_detected!("avx2"),
+        }
+    }
+}
+
+struct WideRowGbrLimitedProcessor<T> {
+    _phantom: PhantomData<T>,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_sse: bool,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    _use_avx: bool,
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    _use_rdm: bool,
+}
+
+impl<T> Default for WideRowGbrLimitedProcessor<T> {
+    fn default() -> Self {
+        WideRowGbrLimitedProcessor {
+            _phantom: PhantomData,
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_sse: std::arch::is_x86_feature_detected!("sse4.1"),
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            _use_avx: std::arch::is_x86_feature_detected!("avx2"),
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            _use_rdm: std::arch::is_aarch64_feature_detected!("rdm"),
+        }
+    }
+}
+
+trait FullRangeWideRow<V> {
+    fn handle_row<const DEST: u8>(
+        &self,
+        g_plane: &[V],
+        b_plane: &[V],
+        r_plane: &[V],
+        rgba: &mut [V],
+        start_cx: usize,
+        width: usize,
+    ) -> usize;
+}
+
+trait LimitedRangeWideRow<V> {
+    fn handle_row<const DEST: u8, const BIT_DEPTH: usize>(
+        &self,
+        g_plane: &[V],
+        b_plane: &[V],
+        r_plane: &[V],
+        rgba: &mut [V],
+        start_cx: usize,
+        width: usize,
+        y_bias: i32,
+        y_coeff: i32,
+    ) -> usize;
+}
+
+impl FullRangeWideRow<u8> for WideRowGbrProcessor<u8> {
+    fn handle_row<const DEST: u8>(
+        &self,
+        _g_plane: &[u8],
+        _b_plane: &[u8],
+        _r_plane: &[u8],
+        _rgba: &mut [u8],
+        _start_cx: usize,
+        _width: usize,
+    ) -> usize {
+        let mut _cx = _start_cx;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if self._use_avx {
+                _cx = avx_yuv_to_rgba_row_full::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width,
+                );
+            }
+            if self._use_sse {
+                _cx = sse_yuv_to_rgba_row_full::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width,
+                );
+            }
+        }
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            _cx = yuv_to_rgba_row_full::<DEST>(_g_plane, _b_plane, _r_plane, _rgba, _cx, _width);
+        }
+        _cx
+    }
+}
+
+impl FullRangeWideRow<u16> for WideRowGbrProcessor<u16> {
+    fn handle_row<const DEST: u8>(
+        &self,
+        _g_plane: &[u16],
+        _b_plane: &[u16],
+        _r_plane: &[u16],
+        _rgba: &mut [u16],
+        _start_cx: usize,
+        _width: usize,
+    ) -> usize {
+        0
+    }
+}
+
+impl LimitedRangeWideRow<u8> for WideRowGbrLimitedProcessor<u8> {
+    fn handle_row<const DEST: u8, const BIT_DEPTH: usize>(
+        &self,
+        _g_plane: &[u8],
+        _b_plane: &[u8],
+        _r_plane: &[u8],
+        _rgba: &mut [u8],
+        _start_cx: usize,
+        _width: usize,
+        _y_bias: i32,
+        _y_coeff: i32,
+    ) -> usize {
+        let mut _cx = _start_cx;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if self._use_avx {
+                _cx = avx_yuv_to_rgba_row_limited::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
+                );
+            }
+            if self._use_sse {
+                _cx = sse_yuv_to_rgba_row_limited::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
+                );
+            }
+        }
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            if self._use_rdm {
+                _cx = yuv_to_rgba_row_limited_rdm::<DEST>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
+                );
+            } else {
+                _cx = yuv_to_rgba_row_limited::<DEST, 13>(
+                    _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
+                );
+            }
+        }
+        _cx
+    }
+}
+
+impl LimitedRangeWideRow<u16> for WideRowGbrLimitedProcessor<u16> {
+    fn handle_row<const DEST: u8, const BIT_DEPTH: usize>(
+        &self,
+        _g_plane: &[u16],
+        _b_plane: &[u16],
+        _r_plane: &[u16],
+        _rgba: &mut [u16],
+        _start_cx: usize,
+        _width: usize,
+        _y_bias: i32,
+        _y_coeff: i32,
+    ) -> usize {
+        0
+    }
+}
 
 #[inline]
 fn gbr_to_rgbx_impl<
@@ -52,6 +233,8 @@ fn gbr_to_rgbx_impl<
 ) -> Result<(), YuvError>
 where
     i32: AsPrimitive<V>,
+    WideRowGbrProcessor<V>: FullRangeWideRow<V>,
+    WideRowGbrLimitedProcessor<V>: LimitedRangeWideRow<V>,
 {
     let destination_channels: YuvSourceChannels = CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -115,41 +298,65 @@ where
             let y_bias = range.bias_y as i32;
 
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter);
+
+            let wide_handler = WideRowGbrLimitedProcessor::<V>::default();
+
             iter.for_each(|(((y_src, u_src), v_src), rgb)| {
                 let y_src = &y_src[0..image.width as usize];
+
+                let cx = wide_handler.handle_row::<CHANNELS, BIT_DEPTH>(
+                    y_src,
+                    u_src,
+                    v_src,
+                    rgb,
+                    0,
+                    image.width as usize,
+                    y_bias,
+                    y_coef,
+                );
 
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
                 for (((&y_src, &u_src), &v_src), rgb_dst) in
-                    y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks)
+                    y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
                 {
-                    rgb_dst[0] =
+                    rgb_dst[destination_channels.get_r_channel_offset()] =
                         qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias) * y_coef).as_();
-                    rgb_dst[1] =
+                    rgb_dst[destination_channels.get_g_channel_offset()] =
                         qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias) * y_coef).as_();
-                    rgb_dst[2] =
+                    rgb_dst[destination_channels.get_b_channel_offset()] =
                         qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias) * y_coef).as_();
                     if channels == 4 {
-                        rgb_dst[3] = max_value.as_();
+                        rgb_dst[destination_channels.get_a_channel_offset()] = max_value.as_();
                     }
                 }
             });
         }
         YuvRange::Full => {
+            let wide_handler = WideRowGbrProcessor::<V>::default();
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter);
             iter.for_each(|(((y_src, u_src), v_src), rgb)| {
                 let y_src = &y_src[0..image.width as usize];
 
+                let cx = wide_handler.handle_row::<CHANNELS>(
+                    y_src,
+                    u_src,
+                    v_src,
+                    rgb,
+                    0,
+                    image.width as usize,
+                );
+
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
                 for (((&y_src, &u_src), &v_src), rgb_dst) in
-                    y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks)
+                    y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
                 {
-                    rgb_dst[0] = v_src;
-                    rgb_dst[1] = y_src;
-                    rgb_dst[2] = u_src;
+                    rgb_dst[destination_channels.get_r_channel_offset()] = v_src;
+                    rgb_dst[destination_channels.get_g_channel_offset()] = y_src;
+                    rgb_dst[destination_channels.get_b_channel_offset()] = u_src;
                     if channels == 4 {
-                        rgb_dst[3] = max_value.as_();
+                        rgb_dst[destination_channels.get_a_channel_offset()] = max_value.as_();
                     }
                 }
             });

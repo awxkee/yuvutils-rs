@@ -77,7 +77,7 @@ pub(crate) unsafe fn sse_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, const 
     let y_reduction = _mm_set1_epi16(range_reduction_y as i16);
     let uv_reduction = _mm_set1_epi16(range_reduction_uv as i16);
     let v_alpha = _mm_set1_epi16(-128);
-    let rounding_const = _mm_set1_epi16(1 << 5);
+    let rounding_const = _mm_set1_epi16((1 << 5) - 1);
 
     let zeros = _mm_setzero_si128();
 

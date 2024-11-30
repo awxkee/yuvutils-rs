@@ -105,7 +105,7 @@ unsafe fn sse_rgba_to_yuv_impl<
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
-    let rounding_const_bias: i32 = 1 << (PRECISION - 1);
+    let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
