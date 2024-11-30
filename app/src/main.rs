@@ -95,16 +95,17 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 4).collect();
 
     let start_time = Instant::now();
-    rgb_to_gbr(
+    rgb_to_yuv420(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
         YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -257,11 +258,12 @@ fn main() {
     // let rgba_stride = width as usize * 4;
     // let mut rgba = vec![0u8; height as usize * rgba_stride];
 
-    gbr_to_rgb(
+    yuv420_to_rgb(
         &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
     )
     .unwrap();
 

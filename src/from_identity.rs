@@ -158,8 +158,7 @@ impl FullRangeWideRow<u16> for WideRowGbrProcessor<u16> {
         _start_cx: usize,
         _width: usize,
     ) -> usize {
-        let mut _cx = 0;
-        _cx
+        0
     }
 }
 

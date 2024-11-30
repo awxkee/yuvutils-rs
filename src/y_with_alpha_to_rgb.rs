@@ -27,6 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::built_coefficients::get_built_inverse_transform;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::{neon_y_to_rgb_alpha_row, neon_y_to_rgb_row_alpha_rdm};
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -37,6 +39,80 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
+use std::marker::PhantomData;
+
+struct WideRowProcessor<T> {
+    _phantom: PhantomData<T>,
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    _use_rdm: bool,
+}
+
+impl<V> Default for WideRowProcessor<V> {
+    fn default() -> Self {
+        WideRowProcessor {
+            _phantom: PhantomData,
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            _use_rdm: std::arch::is_aarch64_feature_detected!("rdm"),
+        }
+    }
+}
+
+trait ProcessRowHandler<V> {
+    fn handle_row<const PRECISION: i32, const DESTINATION_CHANNELS: u8>(
+        &self,
+        range: &YuvChromaRange,
+        transform: &CbCrInverseTransform<i32>,
+        y_plane: &[V],
+        a_plane: &[V],
+        rgba: &mut [V],
+        start_cx: usize,
+        width: usize,
+    ) -> usize;
+}
+
+impl ProcessRowHandler<u16> for WideRowProcessor<u16> {
+    fn handle_row<const PRECISION: i32, const DESTINATION_CHANNELS: u8>(
+        &self,
+        _range: &YuvChromaRange,
+        _transform: &CbCrInverseTransform<i32>,
+        _y_plane: &[u16],
+        _a_plane: &[u16],
+        _rgba: &mut [u16],
+        _start_cx: usize,
+        _width: usize,
+    ) -> usize {
+        0
+    }
+}
+
+impl ProcessRowHandler<u8> for WideRowProcessor<u8> {
+    fn handle_row<const PRECISION: i32, const DESTINATION_CHANNELS: u8>(
+        &self,
+        _range: &YuvChromaRange,
+        _transform: &CbCrInverseTransform<i32>,
+        _y_plane: &[u8],
+        _a_plane: &[u8],
+        _rgba: &mut [u8],
+        _start_cx: usize,
+        _width: usize,
+    ) -> usize {
+        let mut _cx = _start_cx;
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            let neon_wide_row_handler = if self._use_rdm {
+                neon_y_to_rgb_row_alpha_rdm::<DESTINATION_CHANNELS>
+            } else {
+                neon_y_to_rgb_alpha_row::<PRECISION, DESTINATION_CHANNELS>
+            };
+
+            let offset =
+                neon_wide_row_handler(_range, _transform, _y_plane, _a_plane, _rgba, _cx, _width);
+            _cx = offset;
+        }
+
+        _cx
+    }
+}
 
 // Chroma subsampling always assumed as 400
 #[inline]
@@ -53,6 +129,7 @@ fn y_with_alpha_to_rgbx<
 ) -> Result<(), YuvError>
 where
     i32: AsPrimitive<V>,
+    WideRowProcessor<V>: ProcessRowHandler<V>,
 {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -109,14 +186,29 @@ where
     }
 
     if range == YuvRange::Limited {
+        let handler = WideRowProcessor::<V>::default();
         iter.zip(y_iter)
             .zip(a_iter)
             .for_each(|((rgba, y_plane), a_plane)| {
                 let y_plane = &y_plane[0..image.width as usize];
+                let mut _cx = 0usize;
+
+                let offset = handler.handle_row::<PRECISION, DESTINATION_CHANNELS>(
+                    &chroma_range,
+                    &inverse_transform,
+                    y_plane,
+                    a_plane,
+                    rgba,
+                    _cx,
+                    image.width as usize,
+                );
+                _cx = offset;
+
                 for ((y_src, a_src), rgba) in y_plane
                     .iter()
                     .zip(a_plane)
                     .zip(rgba.chunks_exact_mut(channels))
+                    .skip(_cx)
                 {
                     let y_value = (y_src.as_() - bias_y) * y_coef;
 
