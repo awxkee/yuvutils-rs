@@ -32,12 +32,12 @@ use std::io::Read;
 use std::time::Instant;
 use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24};
 use yuvutils_rs::{
-    gbr_to_rgb, rgb_to_gbr, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv422_p16,
-    rgb_to_yuv444, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422,
-    yuv422_p16_to_rgb16, yuv422_to_rgb, yuv444_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgba,
-    yuyv422_to_yuv420, BufferStoreMut, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
-    YuvEndianness, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422,
+    rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv_nv12, yuv420_p16_to_rgb16, yuv420_to_rgb,
+    yuv420_to_yuyv422, yuv422_p16_to_rgb16, yuv422_to_rgb, yuv444_to_rgb, yuv_nv12_to_rgb,
+    yuv_nv12_to_rgba, yuyv422_to_yuv420, BufferStoreMut, SharpYuvGammaTransfer,
+    YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPackedImage,
+    YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
