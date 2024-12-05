@@ -286,7 +286,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         iter.for_each(|((y_dst, uv_dst), rgba)| {
             process_halved_row(
                 &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..image.width as usize],
+                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                 &rgba[0..image.width as usize * channels],
                 true,
             );
@@ -316,7 +316,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             {
                 process_halved_row(
                     &mut y_dst[0..image.width as usize],
-                    &mut uv_dst[0..image.width as usize],
+                    &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                     &rgba[0..image.width as usize * channels],
                     y == 0,
                 );
@@ -334,7 +334,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             let rgba = rgba.chunks_exact(rgba_stride as usize * 2).remainder();
             process_halved_row(
                 &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..image.width as usize],
+                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                 &rgba[0..image.width as usize * channels],
                 true,
             );

@@ -253,7 +253,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
         iter.for_each(|((y_dst, uv_dst), rgba)| {
             process_halved_row(
                 &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..image.width as usize],
+                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                 &rgba[0..image.width as usize * channels],
                 true,
             );
@@ -282,7 +282,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             {
                 process_halved_row(
                     &mut y_dst[0..image.width as usize],
-                    &mut uv_dst[0..image.width as usize],
+                    &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                     &rgba[0..image.width as usize * channels],
                     y == 0,
                 );
@@ -300,7 +300,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let rgba = rgba.chunks_exact(rgba_stride as usize * 2).remainder();
             process_halved_row(
                 &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..image.width as usize],
+                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                 &rgba[0..image.width as usize * channels],
                 true,
             );

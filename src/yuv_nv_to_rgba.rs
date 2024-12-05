@@ -559,7 +559,7 @@ fn yuv_nv12_to_rgbx<
         iter.for_each(|((y_src, uv_src), rgba)| {
             process_halved_chroma_row(
                 &y_src[0..image.width as usize],
-                &uv_src[0..image.width as usize],
+                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
                 &mut rgba[0..image.width as usize * channels],
             );
         });
@@ -585,7 +585,7 @@ fn yuv_nv12_to_rgbx<
             process_double_chroma_row(
                 &y_src0[0..image.width as usize],
                 &y_src1[0..image.width as usize],
-                &uv_src[0..image.width as usize],
+                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
                 &mut rgba0[0..image.width as usize * channels],
                 &mut rgba1[0..image.width as usize * channels],
             );
@@ -598,7 +598,7 @@ fn yuv_nv12_to_rgbx<
                 .into_remainder();
             process_halved_chroma_row(
                 &y_src[0..image.width as usize],
-                &uv_src[0..image.width as usize],
+                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
                 &mut rgba[0..image.width as usize * channels],
             );
         }
