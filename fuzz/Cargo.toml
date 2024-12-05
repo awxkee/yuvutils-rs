@@ -24,3 +24,10 @@ path = "yuv_nv_to_rgb/yuv_nv_to_rgb.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "y_to_rgb"
+path = "y_to_rgb/y_to_rgb.rs"
+test = false
+doc = false
+bench = false
