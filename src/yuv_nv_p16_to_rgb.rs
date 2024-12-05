@@ -347,7 +347,7 @@ fn yuv_nv_p16_to_image_impl<
         iter.for_each(|((y_src, uv_src), rgba)| {
             process_halved_chroma_row(
                 &y_src[0..image.width as usize],
-                &uv_src[0..image.width as usize],
+                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
                 &mut rgba[0..image.width as usize * channels],
             );
         });
@@ -374,7 +374,7 @@ fn yuv_nv_p16_to_image_impl<
             {
                 process_halved_chroma_row(
                     &y_src[0..image.width as usize],
-                    &uv_src[0..image.width as usize],
+                    &uv_src[0..(image.width as usize).div_ceil(2) * 2],
                     &mut rgba[0..image.width as usize * channels],
                 );
             }
@@ -387,7 +387,7 @@ fn yuv_nv_p16_to_image_impl<
                 .into_remainder();
             process_halved_chroma_row(
                 &y_src[0..image.width as usize],
-                &uv_src[0..image.width as usize],
+                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
                 &mut rgba[0..image.width as usize * channels],
             );
         }
