@@ -28,6 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
+use crate::sse::sse_pairwise_avg_epi16;
 use crate::sse::sse_support::{sse_deinterleave_rgb, sse_deinterleave_rgba};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
@@ -286,9 +287,9 @@ unsafe fn sse_rgba_to_nv_row_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
         {
-            let r1 = _mm_avg_epu16(r_low, r_high);
-            let g1 = _mm_avg_epu16(g_low, g_high);
-            let b1 = _mm_avg_epu16(b_low, b_high);
+            let r1 = sse_pairwise_avg_epi16(r_low, r_high);
+            let g1 = sse_pairwise_avg_epi16(g_low, g_high);
+            let b1 = sse_pairwise_avg_epi16(b_low, b_high);
 
             let cbk = _mm_max_epi16(
                 _mm_min_epi16(

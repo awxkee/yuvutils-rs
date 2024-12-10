@@ -513,4 +513,13 @@ where
         check_yuv_packed(self.yuy.borrow(), self.yuy_stride, self.width, self.height)?;
         Ok(())
     }
+
+    pub fn to_fixed(&self) -> YuvPackedImage<T> {
+        YuvPackedImage {
+            yuy: self.yuy.borrow(),
+            yuy_stride: self.yuy_stride,
+            width: self.width,
+            height: self.height,
+        }
+    }
 }

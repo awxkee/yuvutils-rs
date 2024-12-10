@@ -67,10 +67,8 @@ unsafe fn yuy2_to_yuv_avx_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let mut _uv_x = nav.uv_x;
     let mut _yuy2_x = nav.x;
 
-    let max_x_32 = (width as usize / 2).saturating_sub(32);
-
-    for x in (_yuy2_x..max_x_32).step_by(32) {
-        let dst_offset = x * 4;
+    while _cx + 64 < width as usize {
+        let dst_offset = _cx * 2;
         let u_pos = _uv_x;
         let v_pos = _uv_x;
         let y_pos = _cx;
@@ -128,15 +126,14 @@ unsafe fn yuy2_to_yuv_avx_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         _mm256_storeu_si256(y_plane_ptr as *mut __m256i, y_first);
         _mm256_storeu_si256(y_plane_ptr.add(32) as *mut __m256i, y_second);
 
-        _yuy2_x = x;
-        if x + 32 < max_x_32 {
-            _uv_x += match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 32,
-                YuvChromaSubsampling::Yuv444 => 64,
-            };
-            _cx += 64;
-        }
+        _uv_x += match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 32,
+            YuvChromaSubsampling::Yuv444 => 64,
+        };
+        _cx += 64;
     }
+
+    _yuy2_x = _cx;
 
     YuvToYuy2Navigation {
         cx: _cx,

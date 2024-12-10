@@ -26,7 +26,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::avx2::avx2_utils::{_mm256_deinterleave_x2_epi8, _mm256_store_interleaved_epi8};
+use crate::avx2::avx2_utils::{
+    _mm256_deinterleave_x2_epi8, _mm256_havg_epu8, _mm256_store_interleaved_epi8,
+};
 use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
@@ -64,10 +66,12 @@ pub(crate) unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TA
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;
     let mut _yuy2_x = nav.x;
+    let chroma_big_step = match chroma_subsampling {
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 32,
+        YuvChromaSubsampling::Yuv444 => 64,
+    };
     unsafe {
-        let max_x_32 = (width as usize / 2).saturating_sub(32);
-
-        for x in (_yuy2_x..max_x_32).step_by(32) {
+        while _cx + 64 < width as usize {
             let u_pos = _uv_x;
             let v_pos = _uv_x;
             let y_pos = _cx;
@@ -93,8 +97,8 @@ pub(crate) unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TA
                     _mm256_loadu_si256(v_ptr.add(32) as *const __m256i),
                 );
 
-                u_pixels = _mm256_avg_epu8(full_u.0, full_u.1);
-                v_pixels = _mm256_avg_epu8(full_v.0, full_v.1);
+                u_pixels = _mm256_havg_epu8(full_u.0, full_u.1);
+                v_pixels = _mm256_havg_epu8(full_v.0, full_v.1);
             } else {
                 u_pixels = _mm256_loadu_si256(u_plane.as_ptr().add(u_pos) as *const __m256i);
                 v_pixels = _mm256_loadu_si256(v_plane.as_ptr().add(v_pos) as *const __m256i);
@@ -109,7 +113,7 @@ pub(crate) unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TA
                 Yuy2Description::VYUY => (v_pixels, low_y, u_pixels, high_y),
             };
 
-            let dst_offset = x * 4;
+            let dst_offset = _cx * 2;
 
             _mm256_store_interleaved_epi8(
                 yuy2_store.as_mut_ptr().add(dst_offset),
@@ -119,16 +123,11 @@ pub(crate) unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TA
                 storage.3,
             );
 
-            _yuy2_x = x;
-
-            if x + 32 < max_x_32 {
-                _uv_x += match chroma_subsampling {
-                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 32,
-                    YuvChromaSubsampling::Yuv444 => 64,
-                };
-                _cx += 64;
-            }
+            _uv_x += chroma_big_step;
+            _cx += 64;
         }
+
+        _yuy2_x = _cx;
 
         YuvToYuy2Navigation {
             cx: _cx,

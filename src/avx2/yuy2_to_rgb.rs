@@ -70,8 +70,6 @@ unsafe fn yuy2_to_rgb_avx_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_32 = (width as usize / 2).saturating_sub(32);
-
         let y_corr = _mm256_set1_epi8(range.bias_y as i8);
         let uv_corr = _mm256_set1_epi16(range.bias_uv as i16);
         let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
@@ -83,8 +81,8 @@ unsafe fn yuy2_to_rgb_avx_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
         let zeros = _mm256_setzero_si256();
         let rounding_const = _mm256_set1_epi16((1 << 5) - 1);
 
-        for x in (_yuy2_x..max_x_32).step_by(32) {
-            let yuy2_offset = x * 4;
+        while _cx + 64 < width as usize {
+            let yuy2_offset = _cx * 2;
             let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
@@ -347,11 +345,10 @@ unsafe fn yuy2_to_rgb_avx_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
                 }
             }
 
-            _yuy2_x = x;
-            if x + 32 < max_x_32 {
-                _cx += 64;
-            }
+            _cx += 64;
         }
+
+        _yuy2_x = _cx;
     }
 
     YuvToYuy2Navigation {

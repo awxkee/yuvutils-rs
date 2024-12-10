@@ -149,3 +149,14 @@ pub(crate) unsafe fn vldq_s16_endian<const ENDIANNESS: u8, const BYTES_POSITION:
     }
     vreinterpretq_s16_u16(v)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn xvld1q_u8_x2(src: *const u8) -> uint8x16x2_t {
+    uint8x16x2_t(vld1q_u8(src), vld1q_u8(src.add(16)))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xvst1q_u8_x2(ptr: *mut u8, b: uint8x16x2_t) {
+    vst1q_u8(ptr, b.0);
+    vst1q_u8(ptr.add(16), b.1);
+}

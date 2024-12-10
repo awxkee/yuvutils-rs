@@ -67,9 +67,6 @@ unsafe fn yuy2_to_rgb_sse_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_16 = (width as usize / 2).saturating_sub(16);
-        let max_x_8 = (width as usize / 2).saturating_sub(8);
-
         let y_corr = _mm_set1_epi8(range.bias_y as i8);
         let uv_corr = _mm_set1_epi16(range.bias_uv as i16);
         let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
@@ -82,8 +79,8 @@ unsafe fn yuy2_to_rgb_sse_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
 
         let zeros = _mm_setzero_si128();
 
-        for x in (_yuy2_x..max_x_16).step_by(16) {
-            let yuy2_offset = x * 4;
+        while _cx + 32 < width as usize {
+            let yuy2_offset = _cx * 2;
             let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
@@ -328,14 +325,11 @@ unsafe fn yuy2_to_rgb_sse_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
                 }
             }
 
-            _yuy2_x = x;
-            if x + 16 < max_x_16 {
-                _cx += 32;
-            }
+            _cx += 32;
         }
 
-        for x in (_yuy2_x..max_x_8).step_by(8) {
-            let yuy2_offset = x * 4;
+        while _cx + 16 < width as usize {
+            let yuy2_offset = _cx * 2;
             let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
@@ -472,11 +466,10 @@ unsafe fn yuy2_to_rgb_sse_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
                 }
             }
 
-            _yuy2_x = x;
-            if x + 8 < max_x_8 {
-                _cx += 16;
-            }
+            _cx += 16;
         }
+
+        _yuy2_x = _cx;
     }
 
     YuvToYuy2Navigation {

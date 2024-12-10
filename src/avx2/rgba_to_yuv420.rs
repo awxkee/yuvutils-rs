@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
+    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16, avx2_pairwise_wide_avg,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -125,7 +125,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
                     b_values0 = it1;
                 }
 
-                let source_ptr1 = rgba0.get_unchecked(px..).as_ptr();
+                let source_ptr1 = rgba1.get_unchecked(px..).as_ptr();
                 let row_11 = _mm256_loadu_si256(source_ptr1 as *const __m256i);
                 let row_21 = _mm256_loadu_si256(source_ptr1.add(32) as *const __m256i);
                 let row_31 = _mm256_loadu_si256(source_ptr1.add(64) as *const __m256i);
@@ -291,9 +291,19 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
             y1_yuv,
         );
 
-        let r_uv = _mm256_avg_epu16(r0_low, r0_high);
-        let g_uv = _mm256_avg_epu16(g0_low, g0_high);
-        let b_uv = _mm256_avg_epu16(b0_low, b0_high);
+        let r_uv = _mm256_slli_epi16::<V_SCALE>(_mm256_avg_epu16(
+            avx2_pairwise_wide_avg(r_values0),
+            avx2_pairwise_wide_avg(r_values1),
+        ));
+        let g_uv = _mm256_slli_epi16::<V_SCALE>(_mm256_avg_epu16(
+            avx2_pairwise_wide_avg(g_values0),
+            avx2_pairwise_wide_avg(g_values1),
+        ));
+        let b_uv = _mm256_slli_epi16::<V_SCALE>(_mm256_avg_epu16(
+            avx2_pairwise_wide_avg(b_values0),
+            avx2_pairwise_wide_avg(b_values1),
+        ));
+
         let cb = _mm256_max_epi16(
             _mm256_min_epi16(
                 _mm256_add_epi16(
@@ -310,6 +320,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
             ),
             i_bias_y,
         );
+
         let cr = _mm256_max_epi16(
             _mm256_min_epi16(
                 _mm256_add_epi16(
@@ -338,8 +349,8 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
             v_ptr.add(uv_x) as *mut _ as *mut __m128i,
             _mm256_castsi256_si128(cr),
         );
-        uv_x += 16;
 
+        uv_x += 16;
         cx += 32;
     }
 

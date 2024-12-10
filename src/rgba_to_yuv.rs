@@ -380,9 +380,9 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 >> PRECISION;
             y_dst1[1] = y_11.max(i_bias_y).min(i_cap_y) as u8;
 
-            let ruv = (r00 + r01 + 1) >> 1;
-            let guv = (g00 + g01 + 1) >> 1;
-            let buv = (b00 + b01 + 1) >> 1;
+            let ruv = (r00 + r01 + r10 + r11 + 2) >> 2;
+            let guv = (g00 + g01 + g10 + g11 + 2) >> 2;
+            let buv = (b00 + b01 + b10 + b11 + 2) >> 2;
 
             let cb = (ruv * transform.cb_r + guv * transform.cb_g + buv * transform.cb_b + bias_uv)
                 >> PRECISION;
@@ -415,6 +415,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
             *y1_last = y_1.max(i_bias_y).min(i_cap_y) as u8;
+
+            let r0 = (r0 + r1) >> 1;
+            let g0 = (g0 + g1) >> 1;
+            let b0 = (b0 + b1) >> 1;
 
             let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
                 >> PRECISION;

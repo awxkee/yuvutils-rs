@@ -294,6 +294,22 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn avx2_pairwise_wide_avg(v: __m256i) -> __m256i {
+    let ones = _mm256_set1_epi8(1);
+    let sums = _mm256_maddubs_epi16(v, ones);
+    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, ones));
+    shifted
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx_pairwise_avg_epi16(a: __m256i, b: __m256i) -> __m256i {
+    let sums = _mm256_hadd_epi16(a, b);
+    let product = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
+    const MASK: i32 = shuffle(3, 1, 2, 0);
+    _mm256_permute4x64_epi64::<MASK>(product)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
     let addition = _mm256_set1_epi16(127);
     _mm256_srli_epi16::<8>(_mm256_add_epi16(
@@ -390,4 +406,14 @@ pub(crate) unsafe fn _mm256_interleave_rgb_epi16(
     let bgr0 = _mm256_permute2x128_si256::<32>(p0, p2);
     let bgr2 = _mm256_permute2x128_si256::<49>(p0, p2);
     (bgr0, p1, bgr2)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_havg_epu8(a: __m256i, b: __m256i) -> __m256i {
+    let ones = _mm256_set1_epi8(1);
+    let sums_lo = _mm256_maddubs_epi16(a, ones);
+    let lo = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums_lo, ones));
+    let sums_hi = _mm256_maddubs_epi16(b, ones);
+    let hi = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums_hi, ones));
+    avx_pairwise_avg_epi16(lo, hi)
 }
