@@ -45,3 +45,10 @@ path = "y16_to_rgb16/y16_to_rgb16.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "yuv_to_yuyu2"
+path = "yuv_to_yuyu2/yuv_to_yuyu2.rs"
+test = false
+doc = false
+bench = false

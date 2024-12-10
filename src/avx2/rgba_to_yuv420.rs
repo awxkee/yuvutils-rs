@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
+    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16, avx_pairwise_avg_epi16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -291,9 +291,19 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
             y1_yuv,
         );
 
-        let r_uv = _mm256_avg_epu16(r0_low, r0_high);
-        let g_uv = _mm256_avg_epu16(g0_low, g0_high);
-        let b_uv = _mm256_avg_epu16(b0_low, b0_high);
+        let r_uv = _mm256_avg_epu16(
+            avx_pairwise_avg_epi16(r0_low, r0_high),
+            avx_pairwise_avg_epi16(r1_low, r1_high),
+        );
+        let g_uv = _mm256_avg_epu16(
+            avx_pairwise_avg_epi16(g0_low, g0_high),
+            avx_pairwise_avg_epi16(g1_low, g1_high),
+        );
+        let b_uv = _mm256_avg_epu16(
+            avx_pairwise_avg_epi16(b0_low, b0_high),
+            avx_pairwise_avg_epi16(b1_low, b1_high),
+        );
+
         let cb = _mm256_max_epi16(
             _mm256_min_epi16(
                 _mm256_add_epi16(
@@ -310,6 +320,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
             ),
             i_bias_y,
         );
+
         let cr = _mm256_max_epi16(
             _mm256_min_epi16(
                 _mm256_add_epi16(

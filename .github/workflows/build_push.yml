@@ -44,3 +44,4 @@ jobs:
       - run: cargo fuzz run y_to_rgb -- -max_total_time=15
       - run: cargo fuzz run yuv16_to_rgb16 -- -max_total_time=15
       - run: cargo fuzz run y16_to_rgb16 -- -max_total_time=15
+      - run: cargo fuzz run yuv_to_yuyu2 -- -max_total_time=15

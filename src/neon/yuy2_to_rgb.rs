@@ -51,9 +51,6 @@ pub(crate) fn yuy2_to_rgb_neon<
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_16 = (width as usize / 2).saturating_sub(16);
-        let max_x_8 = (width as usize / 2).saturating_sub(8);
-
         let y_corr = vdupq_n_u8(range.bias_y as u8);
         let uv_corr = vdupq_n_s16(range.bias_uv as i16);
         let v_luma_coeff = vdupq_n_u8(transform.y_coef as u8);
@@ -64,12 +61,12 @@ pub(crate) fn yuy2_to_rgb_neon<
         let v_g_coeff_2 = vdupq_n_s16(-(transform.g_coeff_2 as i16));
         let v_alpha = vdupq_n_u8(255u8);
 
-        for x in (_yuy2_x..max_x_16).step_by(16) {
-            let dst_offset = x * 4;
+        while _cx + 32 < width as usize {
+            let yuy2_offset = _cx * 2;
             let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
-            let pixel_set = vld4q_u8(yuy2_store.as_ptr().add(dst_offset));
+            let pixel_set = vld4q_u8(yuy2_store.as_ptr().add(yuy2_offset));
             let mut y_first = match yuy2_source {
                 Yuy2Description::YUYV | Yuy2Description::YVYU => pixel_set.0,
                 Yuy2Description::UYVY | Yuy2Description::VYUY => pixel_set.1,
@@ -245,18 +242,15 @@ pub(crate) fn yuy2_to_rgb_neon<
                 }
             }
 
-            _yuy2_x = x;
-            if x + 16 < max_x_16 {
-                _cx += 32;
-            }
+            _cx += 32;
         }
 
-        for x in (_yuy2_x..max_x_8).step_by(8) {
-            let dst_offset = x * 4;
+        while _cx + 16 < width as usize {
+            let yuy2_offset = _cx * 2;
             let dst_pos = _cx * dst_chans.get_channels_count();
             let dst_ptr = rgb.as_mut_ptr().add(dst_pos);
 
-            let pixel_set = vld4_u8(yuy2_store.as_ptr().add(dst_offset));
+            let pixel_set = vld4_u8(yuy2_store.as_ptr().add(yuy2_offset));
             let mut y_first = match yuy2_source {
                 Yuy2Description::YUYV | Yuy2Description::YVYU => pixel_set.0,
                 Yuy2Description::UYVY | Yuy2Description::VYUY => pixel_set.1,
@@ -355,11 +349,9 @@ pub(crate) fn yuy2_to_rgb_neon<
                 }
             }
 
-            _yuy2_x = x;
-            if x + 8 < max_x_8 {
-                _cx += 16;
-            }
+            _cx += 16;
         }
+        _yuy2_x = _cx;
     }
 
     YuvToYuy2Navigation {

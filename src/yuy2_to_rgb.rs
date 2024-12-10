@@ -80,9 +80,9 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     let bias_uv = range.bias_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
+    let _use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     let rgb_iter;
     let yuy2_iter;

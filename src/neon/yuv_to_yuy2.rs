@@ -26,19 +26,16 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::neon::neon_simd_support::xvld1q_u8_x2;
 use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
 
 pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     y_plane: &[u8],
-    y_offset: usize,
     u_plane: &[u8],
-    u_offset: usize,
     v_plane: &[u8],
-    v_offset: usize,
     yuy2_store: &mut [u8],
-    yuy2_offset: usize,
     width: u32,
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
@@ -47,27 +44,34 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
 
     let shuffle_table: [u8; 16] = [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15];
 
+    let chroma_big_step_size = match chroma_subsampling {
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
+        YuvChromaSubsampling::Yuv444 => 32,
+    };
+
+    let chroma_small_step_size = match chroma_subsampling {
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
+        YuvChromaSubsampling::Yuv444 => 16,
+    };
+
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;
     let mut _yuy2_x = nav.x;
     unsafe {
         let v_shuffle = vld1q_u8(shuffle_table.as_ptr());
 
-        let max_x_16 = (width as usize / 2).saturating_sub(16);
-        let max_x_8 = (width as usize / 2).saturating_sub(8);
-
-        for x in (_yuy2_x..max_x_16).step_by(16) {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+        while _cx + 32 < width as usize {
+            let u_pos = _uv_x;
+            let v_pos = _uv_x;
+            let y_pos = _cx;
 
             let u_pixels;
             let v_pixels;
-            let y_pixels = vld1q_u8_x2(y_plane.as_ptr().add(y_pos));
+            let y_pixels = xvld1q_u8_x2(y_plane.as_ptr().add(y_pos));
 
             if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-                let full_u = vld1q_u8_x2(u_plane.as_ptr().add(u_pos));
-                let full_v = vld1q_u8_x2(v_plane.as_ptr().add(v_pos));
+                let full_u = xvld1q_u8_x2(u_plane.as_ptr().add(u_pos));
+                let full_v = xvld1q_u8_x2(v_plane.as_ptr().add(v_pos));
 
                 u_pixels = vhaddq_u8(full_u.0, full_u.1);
                 v_pixels = vhaddq_u8(full_v.0, full_v.1);
@@ -89,25 +93,17 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 Yuy2Description::VYUY => uint8x16x4_t(v_pixels, low_y, u_pixels, high_y),
             };
 
-            let dst_offset = yuy2_offset + x * 4;
+            let dst_offset = _cx * 2;
 
             vst4q_u8(yuy2_store.as_mut_ptr().add(dst_offset), storage);
-
-            _yuy2_x = x;
-
-            if x + 16 < max_x_16 {
-                _uv_x += match chroma_subsampling {
-                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
-                    YuvChromaSubsampling::Yuv444 => 32,
-                };
-                _cx += 32;
-            }
+            _cx += 32;
+            _uv_x += chroma_big_step_size;
         }
 
-        for x in (_yuy2_x..max_x_8).step_by(8) {
-            let u_pos = u_offset + _uv_x;
-            let v_pos = v_offset + _uv_x;
-            let y_pos = y_offset + _cx;
+        while _cx + 16 < width as usize {
+            let u_pos = _uv_x;
+            let v_pos = _uv_x;
+            let y_pos = _cx;
 
             let u_pixels;
             let v_pixels;
@@ -144,20 +140,15 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 Yuy2Description::VYUY => uint8x8x4_t(v_pixels, low_y, u_pixels, high_y),
             };
 
-            let dst_offset = yuy2_offset + x * 4;
+            let dst_offset = _cx * 2;
 
             vst4_u8(yuy2_store.as_mut_ptr().add(dst_offset), storage);
 
-            _yuy2_x = x;
-
-            if x + 8 < max_x_8 {
-                _uv_x += match chroma_subsampling {
-                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
-                    YuvChromaSubsampling::Yuv444 => 16,
-                };
-                _cx += 16;
-            }
+            _cx += 16;
+            _uv_x += chroma_small_step_size;
         }
+
+        _yuy2_x = _cx;
     }
 
     YuvToYuy2Navigation {

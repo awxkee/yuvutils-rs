@@ -28,6 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
+use crate::sse::sse_pairwise_avg_epi16;
 use crate::sse::sse_support::{sse_deinterleave_rgb, sse_deinterleave_rgba};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -272,9 +273,18 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
             y1_yuv,
         );
 
-        let r1 = _mm_avg_epu16(r0_low, r0_high);
-        let g1 = _mm_avg_epu16(g0_low, g0_high);
-        let b1 = _mm_avg_epu16(b0_low, b0_high);
+        let r1 = _mm_avg_epu16(
+            sse_pairwise_avg_epi16(r0_low, r0_high),
+            sse_pairwise_avg_epi16(r1_low, r1_high),
+        );
+        let g1 = _mm_avg_epu16(
+            sse_pairwise_avg_epi16(g0_low, g0_high),
+            sse_pairwise_avg_epi16(g1_low, g1_high),
+        );
+        let b1 = _mm_avg_epu16(
+            sse_pairwise_avg_epi16(b0_low, b0_high),
+            sse_pairwise_avg_epi16(b1_low, b1_high),
+        );
 
         let cbk = _mm_max_epi16(
             _mm_min_epi16(

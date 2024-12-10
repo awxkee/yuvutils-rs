@@ -238,6 +238,16 @@ pub(crate) unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm_havg_epu8(a: __m128i, b: __m128i) -> __m128i {
+    let ones = _mm_set1_epi8(1);
+    let sums_lo = _mm_maddubs_epi16(a, ones);
+    let lo = _mm_srli_epi16::<1>(_mm_add_epi16(sums_lo, ones));
+    let sums_hi = _mm_maddubs_epi16(b, ones);
+    let hi = _mm_srli_epi16::<1>(_mm_add_epi16(sums_hi, ones));
+    _mm_packus_epi16(lo, hi)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn sse_div_by255(v: __m128i) -> __m128i {
     let addition = _mm_set1_epi16(127);
     _mm_srli_epi16::<8>(_mm_add_epi16(

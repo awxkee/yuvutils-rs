@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::neon::neon_simd_support::xvst1q_u8_x2;
 use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
@@ -46,11 +47,8 @@ pub(crate) fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_16 = (width as usize / 2).saturating_sub(16);
-        let max_x_8 = (width as usize / 2).saturating_sub(8);
-
-        for x in (_yuy2_x..max_x_16).step_by(16) {
-            let dst_offset = x * 4;
+        while _cx + 32 < width as usize {
+            let dst_offset = _cx * 2;
             let u_pos = _uv_x;
             let v_pos = _uv_x;
             let y_pos = _cx;
@@ -83,7 +81,7 @@ pub(crate) fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 Yuy2Description::VYUY => pixel_set.0,
             };
 
-            vst1q_u8_x2(
+            xvst1q_u8_x2(
                 y_plane.as_mut_ptr().add(y_pos),
                 uint8x16x2_t(y_first, y_second),
             );
@@ -93,11 +91,11 @@ pub(crate) fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 let high_u_value = vzip2q_u8(u_value, u_value);
                 let low_v_value = vzip1q_u8(v_value, v_value);
                 let high_v_value = vzip2q_u8(v_value, v_value);
-                vst1q_u8_x2(
+                xvst1q_u8_x2(
                     u_plane.as_mut_ptr().add(u_pos),
                     uint8x16x2_t(low_u_value, high_u_value),
                 );
-                vst1q_u8_x2(
+                xvst1q_u8_x2(
                     v_plane.as_mut_ptr().add(v_pos),
                     uint8x16x2_t(low_v_value, high_v_value),
                 );
@@ -106,18 +104,15 @@ pub(crate) fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 vst1q_u8(v_plane.as_mut_ptr().add(v_pos), v_value);
             }
 
-            _yuy2_x = x;
-            if x + 16 < max_x_16 {
-                _uv_x += match chroma_subsampling {
-                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
-                    YuvChromaSubsampling::Yuv444 => 32,
-                };
-                _cx += 32;
-            }
+            _uv_x += match chroma_subsampling {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
+                YuvChromaSubsampling::Yuv444 => 32,
+            };
+            _cx += 32;
         }
 
-        for x in (_yuy2_x..max_x_8).step_by(8) {
-            let dst_offset = x * 4;
+        while _cx + 16 < width as usize {
+            let dst_offset = _cx * 2;
             let u_pos = _uv_x;
             let v_pos = _uv_x;
             let y_pos = _cx;
@@ -173,15 +168,14 @@ pub(crate) fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 vst1_u8(v_plane.as_mut_ptr().add(v_pos), v_value);
             }
 
-            _yuy2_x = x;
-            if x + 8 < max_x_8 {
-                _uv_x += match chroma_subsampling {
-                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
-                    YuvChromaSubsampling::Yuv444 => 16,
-                };
-                _cx += 16;
-            }
+            _uv_x += match chroma_subsampling {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
+                YuvChromaSubsampling::Yuv444 => 16,
+            };
+            _cx += 16;
         }
+
+        _yuy2_x = _cx;
     }
 
     YuvToYuy2Navigation {

@@ -128,13 +128,9 @@ impl ProcessWideRow<u8> for u8 {
         {
             let processed = yuv_to_yuy2_neon_impl::<SAMPLING, YUY2_TARGET>(
                 _y_src,
-                0,
                 _u_src,
-                0,
                 _v_src,
-                0,
                 _yuy2,
-                0,
                 _width as u32,
                 YuvToYuy2Navigation::new(0, 0, 0),
             );

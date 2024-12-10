@@ -66,16 +66,13 @@ unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let mut _yuy2_x = nav.x;
 
     unsafe {
-        let max_x_16 = (width as usize / 2).saturating_sub(16);
-        let max_x_8 = (width as usize / 2).saturating_sub(8);
-
-        for x in (_yuy2_x..max_x_16).step_by(16) {
-            let yuy2_offset = x * 4;
+        while _cx + 32 < width as usize {
+            let dst_offset = _cx * 2;
             let u_pos = _uv_x;
             let v_pos = _uv_x;
             let y_pos = _cx;
 
-            let yuy2_ptr = yuy2_store.as_ptr().add(yuy2_offset);
+            let yuy2_ptr = yuy2_store.as_ptr().add(dst_offset);
 
             let j0 = _mm_loadu_si128(yuy2_ptr as *const __m128i);
             let j1 = _mm_loadu_si128(yuy2_ptr.add(16) as *const __m128i);
@@ -133,23 +130,20 @@ unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             _mm_storeu_si128(y_plane_ptr as *mut __m128i, y_first);
             _mm_storeu_si128(y_plane_ptr.add(16) as *mut __m128i, y_second);
 
-            _yuy2_x = x;
-            if x + 16 < max_x_16 {
-                _uv_x += match chroma_subsampling {
-                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
-                    YuvChromaSubsampling::Yuv444 => 32,
-                };
-                _cx += 32;
-            }
+            _uv_x += match chroma_subsampling {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 16,
+                YuvChromaSubsampling::Yuv444 => 32,
+            };
+            _cx += 32;
         }
 
-        for x in (_yuy2_x..max_x_8).step_by(8) {
-            let yuy2_offset = x * 4;
+        while _cx + 16 < width as usize {
+            let dst_offset = _cx * 2;
             let u_pos = _uv_x;
             let v_pos = _uv_x;
             let y_pos = _cx;
 
-            let yuy2_ptr = yuy2_store.as_ptr().add(yuy2_offset);
+            let yuy2_ptr = yuy2_store.as_ptr().add(dst_offset);
 
             let j0 = _mm_loadu_si128(yuy2_ptr as *const __m128i);
             let j1 = _mm_loadu_si128(yuy2_ptr.add(16) as *const __m128i);
@@ -203,15 +197,14 @@ unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 );
             }
 
-            _yuy2_x = x;
-            if x + 8 < max_x_8 {
-                _uv_x += match chroma_subsampling {
-                    YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
-                    YuvChromaSubsampling::Yuv444 => 16,
-                };
-                _cx += 16;
-            }
+            _uv_x += match chroma_subsampling {
+                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 8,
+                YuvChromaSubsampling::Yuv444 => 16,
+            };
+            _cx += 16;
         }
+
+        _yuy2_x = _cx;
     }
 
     YuvToYuy2Navigation {
