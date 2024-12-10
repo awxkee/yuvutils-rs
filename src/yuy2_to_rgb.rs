@@ -159,7 +159,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
         for (rgb, yuy2) in rgb_store
             .chunks_exact_mut(2 * channels)
             .zip(yuy2_store.chunks_exact(4))
-            .skip(_cx)
+            .skip(_cx / 2)
         {
             let first_y = yuy2[yuy2_source.get_first_y_position()];
             let second_y = yuy2[yuy2_source.get_second_y_position()];

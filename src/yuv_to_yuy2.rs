@@ -101,26 +101,26 @@ impl ProcessWideRow<u8> for u8 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             let mut nav = YuvToYuy2Navigation::new(0, 0, 0);
-            if _use_avx2 {
-                nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
-                    _y_src,
-                    _u_src,
-                    _v_src,
-                    _yuy2,
-                    _width as u32,
-                    nav,
-                );
-            }
-            if _use_sse {
-                nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
-                    _y_src,
-                    _u_src,
-                    _v_src,
-                    _yuy2,
-                    _width as u32,
-                    nav,
-                );
-            }
+            // if _use_avx2 {
+            //     nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
+            //         _y_src,
+            //         _u_src,
+            //         _v_src,
+            //         _yuy2,
+            //         _width as u32,
+            //         nav,
+            //     );
+            // }
+            // if _use_sse {
+            //     nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
+            //         _y_src,
+            //         _u_src,
+            //         _v_src,
+            //         _yuy2,
+            //         _width as u32,
+            //         nav,
+            //     );
+            // }
             _processed = nav.cx;
         }
 

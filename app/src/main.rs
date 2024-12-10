@@ -55,7 +55,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/test_short_lanes.png")
+    let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -164,7 +164,7 @@ fn main() {
     //
     let packed_image = packed_image_mut.to_fixed();
     //
-    // yuyv422_to_yuv420(&mut planar_image, &packed_image).unwrap();
+    yuyv422_to_yuv420(&mut planar_image, &packed_image).unwrap();
     // // //
     // let end_time = Instant::now().sub(start_time);
     // println!("yuyv422_to_yuv444 time: {:?}", end_time);
@@ -252,14 +252,14 @@ fn main() {
     // let rgba_stride = width as usize * 4;
     // let mut rgba = vec![0u8; height as usize * rgba_stride];
 
-    // yuv420_to_rgb(
-    //     &fixed_planar,
-    //     &mut rgba,
-    //     rgba_stride as u32,
-    //     YuvRange::Limited,
-    //     YuvStandardMatrix::Bt601,
-    // )
-    // .unwrap();
+    yuv420_to_rgb(
+        &fixed_planar,
+        &mut rgba,
+        rgba_stride as u32,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 
