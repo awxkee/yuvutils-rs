@@ -55,7 +55,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/main_test.jpg")
+    let mut img = ImageReader::open("./assets/test_image_2.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -113,7 +113,7 @@ fn main() {
     // println!("rgb_to_yuv_nv12 time: {:?}", start_time.elapsed());
     //
     println!("Forward time: {:?}", start_time.elapsed());
-    // // //
+    // // // //
     let full_size = if width % 2 == 0 {
         2 * width as usize * height as usize
     } else {
@@ -252,14 +252,14 @@ fn main() {
     // let rgba_stride = width as usize * 4;
     // let mut rgba = vec![0u8; height as usize * rgba_stride];
 
-    yuv420_to_rgb(
-        &fixed_planar,
-        &mut rgba,
-        rgba_stride as u32,
-        YuvRange::Limited,
-        YuvStandardMatrix::Bt601,
-    )
-    .unwrap();
+    // yuv420_to_rgb(
+    //     &fixed_planar,
+    //     &mut rgba,
+    //     rgba_stride as u32,
+    //     YuvRange::Limited,
+    //     YuvStandardMatrix::Bt601,
+    // )
+    // .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 

@@ -294,6 +294,14 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn avx2_pairwise_wide_avg(v: __m256i) -> __m256i {
+    let ones = _mm256_set1_epi8(1);
+    let sums = _mm256_maddubs_epi16(v, ones);
+    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, ones));
+    shifted
+}
+
+#[inline(always)]
 pub(crate) unsafe fn avx_pairwise_avg_epi16(a: __m256i, b: __m256i) -> __m256i {
     let sums = _mm256_hadd_epi16(a, b);
     let product = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));

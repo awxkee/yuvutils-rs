@@ -94,33 +94,33 @@ impl ProcessWideRow<u8> for u8 {
         let mut _processed = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        let mut _use_sse = is_x86_feature_detected!("sse4.1");
+        let _use_sse = is_x86_feature_detected!("sse4.1");
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        let mut _use_avx2 = is_x86_feature_detected!("avx2");
+        let _use_avx2 = is_x86_feature_detected!("avx2");
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             let mut nav = YuvToYuy2Navigation::new(0, 0, 0);
-            // if _use_avx2 {
-            //     nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
-            //         _y_src,
-            //         _u_src,
-            //         _v_src,
-            //         _yuy2,
-            //         _width as u32,
-            //         nav,
-            //     );
-            // }
-            // if _use_sse {
-            //     nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
-            //         _y_src,
-            //         _u_src,
-            //         _v_src,
-            //         _yuy2,
-            //         _width as u32,
-            //         nav,
-            //     );
-            // }
+            if _use_avx2 {
+                nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
+                    _y_src,
+                    _u_src,
+                    _v_src,
+                    _yuy2,
+                    _width as u32,
+                    nav,
+                );
+            }
+            if _use_sse {
+                nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
+                    _y_src,
+                    _u_src,
+                    _v_src,
+                    _yuy2,
+                    _width as u32,
+                    nav,
+                );
+            }
             _processed = nav.cx;
         }
 
@@ -328,7 +328,7 @@ pub(crate) fn yuv_to_yuy2_impl<
                 .zip(y_src.chunks_exact(2))
                 .zip(u_src.iter())
                 .zip(v_src.iter())
-                .skip(processed)
+                .skip(processed / 2)
             {
                 yuy2[yuy2_target.get_first_y_position()] = y_src[0];
                 yuy2[yuy2_target.get_second_y_position()] = y_src[1];
@@ -418,7 +418,7 @@ pub(crate) fn yuv_to_yuy2_impl<
                     .zip(y_src.chunks_exact(2))
                     .zip(u_src.iter())
                     .zip(v_src.iter())
-                    .skip(processed)
+                    .skip(processed / 2)
                 {
                     yuy2[yuy2_target.get_first_y_position()] = y_src[0];
                     yuy2[yuy2_target.get_second_y_position()] = y_src[1];
@@ -479,7 +479,7 @@ pub(crate) fn yuv_to_yuy2_impl<
                 .zip(rem_y.chunks_exact(2))
                 .zip(last_u.iter())
                 .zip(last_v.iter())
-                .skip(processed)
+                .skip(processed / 2)
             {
                 yuy2[yuy2_target.get_first_y_position()] = y_src[0];
                 yuy2[yuy2_target.get_second_y_position()] = y_src[1];
