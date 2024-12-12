@@ -197,12 +197,9 @@ unsafe fn sse_rgba_to_yuv_impl<
         y_l = _mm_add_epi32(y_l, _mm_madd_epi16(b_lo, v_yb));
 
         let mut y_vl = _mm_min_epu16(
-            _mm_max_epu16(
-                _mm_packus_epi32(
-                    _mm_srai_epi32::<PRECISION>(y_l),
-                    _mm_srai_epi32::<PRECISION>(y_h),
-                ),
-                i_bias_y,
+            _mm_packus_epi32(
+                _mm_srai_epi32::<PRECISION>(y_l),
+                _mm_srai_epi32::<PRECISION>(y_h),
             ),
             i_cap_y,
         );
@@ -470,7 +467,7 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
         y_h = _mm_add_epi16(y_h, _mm_mulhrs_epi16(g_values, v_yg));
         y_h = _mm_add_epi16(y_h, _mm_mulhrs_epi16(b_values, v_yb));
 
-        let mut y_vl = _mm_min_epu16(_mm_max_epu16(y_h, i_bias_y), i_cap_y);
+        let mut y_vl = _mm_min_epu16(y_h, i_cap_y);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm_sll_epi32(y_vl, v_shift_count);

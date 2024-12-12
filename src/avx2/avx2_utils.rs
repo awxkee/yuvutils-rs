@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -34,7 +35,6 @@ use std::arch::x86_64::*;
 
 #[inline(always)]
 pub(crate) const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
-    // Checked: we want to reinterpret the bits
     ((z << 6) | (y << 4) | (x << 2) | w) as i32
 }
 
@@ -297,7 +297,7 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 pub(crate) unsafe fn avx2_pairwise_wide_avg(v: __m256i) -> __m256i {
     let ones = _mm256_set1_epi8(1);
     let sums = _mm256_maddubs_epi16(v, ones);
-    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, ones));
+    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
     shifted
 }
 
@@ -412,8 +412,56 @@ pub(crate) unsafe fn _mm256_interleave_rgb_epi16(
 pub(crate) unsafe fn _mm256_havg_epu8(a: __m256i, b: __m256i) -> __m256i {
     let ones = _mm256_set1_epi8(1);
     let sums_lo = _mm256_maddubs_epi16(a, ones);
-    let lo = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums_lo, ones));
+    let ones_16 = _mm256_set1_epi16(1);
+    let lo = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums_lo, ones_16));
     let sums_hi = _mm256_maddubs_epi16(b, ones);
-    let hi = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums_hi, ones));
+    let hi = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums_hi, ones_16));
     avx_pairwise_avg_epi16(lo, hi)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (__m256i, __m256i, __m256i) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+
+    let (r_values, g_values, b_values);
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm256_loadu_si256(ptr as *const __m256i);
+            let row_2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+            let row_3 = _mm256_loadu_si256(ptr.add(64) as *const __m256i);
+
+            let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm256_loadu_si256(ptr as *const __m256i);
+            let row_2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+            let row_3 = _mm256_loadu_si256(ptr.add(64) as *const __m256i);
+            let row_4 = _mm256_loadu_si256(ptr.add(96) as *const __m256i);
+
+            let (it1, it2, it3, _) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+    }
+
+    (r_values, g_values, b_values)
 }

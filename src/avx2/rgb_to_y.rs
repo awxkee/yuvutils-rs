@@ -27,9 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, avx2_deinterleave_rgb, avx2_pack_u16,
-};
+use crate::avx2::avx2_utils::{_mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -69,7 +67,6 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
     const V_SCALE: i32 = 2;
     let bias_y = range.bias_y as i16;
 
-    let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm256_set1_epi16(range.range_y as i16 + range.bias_y as i16);
 
     let y_bias = _mm256_set1_epi16(bias_y);
@@ -78,47 +75,9 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
     while cx + 32 < width {
-        let (r_values, g_values, b_values);
-
         let px = cx * channels;
-
-        match source_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let source_ptr = rgba_ptr.add(px);
-                let row_1 = _mm256_loadu_si256(source_ptr as *const __m256i);
-                let row_2 = _mm256_loadu_si256(source_ptr.add(32) as *const __m256i);
-                let row_3 = _mm256_loadu_si256(source_ptr.add(64) as *const __m256i);
-
-                let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
-                if source_channels == YuvSourceChannels::Rgb {
-                    r_values = it1;
-                    g_values = it2;
-                    b_values = it3;
-                } else {
-                    r_values = it3;
-                    g_values = it2;
-                    b_values = it1;
-                }
-            }
-            YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let source_ptr = rgba_ptr.add(px);
-                let row_1 = _mm256_loadu_si256(source_ptr as *const __m256i);
-                let row_2 = _mm256_loadu_si256(source_ptr.add(32) as *const __m256i);
-                let row_3 = _mm256_loadu_si256(source_ptr.add(64) as *const __m256i);
-                let row_4 = _mm256_loadu_si256(source_ptr.add(96) as *const __m256i);
-
-                let (it1, it2, it3, _) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
-                if source_channels == YuvSourceChannels::Rgba {
-                    r_values = it1;
-                    g_values = it2;
-                    b_values = it3;
-                } else {
-                    r_values = it3;
-                    g_values = it2;
-                    b_values = it1;
-                }
-            }
-        }
+        let (r_values, g_values, b_values) =
+            _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
         let r_low =
             _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values)));
@@ -136,38 +95,32 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8>(
             _mm256_extracti128_si256::<1>(b_values),
         ));
 
-        let y_l = _mm256_max_epi16(
-            _mm256_min_epi16(
+        let y_l = _mm256_min_epi16(
+            _mm256_add_epi16(
+                y_bias,
                 _mm256_add_epi16(
-                    y_bias,
                     _mm256_add_epi16(
-                        _mm256_add_epi16(
-                            _mm256_mulhrs_epi16(r_low, v_yr),
-                            _mm256_mulhrs_epi16(g_low, v_yg),
-                        ),
-                        _mm256_mulhrs_epi16(b_low, v_yb),
+                        _mm256_mulhrs_epi16(r_low, v_yr),
+                        _mm256_mulhrs_epi16(g_low, v_yg),
                     ),
+                    _mm256_mulhrs_epi16(b_low, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
-        let y_h = _mm256_max_epi16(
-            _mm256_min_epi16(
+        let y_h = _mm256_min_epi16(
+            _mm256_add_epi16(
+                y_bias,
                 _mm256_add_epi16(
-                    y_bias,
                     _mm256_add_epi16(
-                        _mm256_add_epi16(
-                            _mm256_mulhrs_epi16(r_high, v_yr),
-                            _mm256_mulhrs_epi16(g_high, v_yg),
-                        ),
-                        _mm256_mulhrs_epi16(b_high, v_yb),
+                        _mm256_mulhrs_epi16(r_high, v_yr),
+                        _mm256_mulhrs_epi16(g_high, v_yg),
                     ),
+                    _mm256_mulhrs_epi16(b_high, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
         let y_yuv = avx2_pack_u16(y_l, y_h);

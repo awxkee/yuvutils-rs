@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -241,16 +242,17 @@ pub(crate) unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
 pub(crate) unsafe fn sse_pairwise_wide_avg(v: __m128i) -> __m128i {
     let ones = _mm_set1_epi8(1);
     let sums = _mm_maddubs_epi16(v, ones);
-    _mm_srli_epi16::<1>(_mm_add_epi16(sums, ones))
+    _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn _mm_havg_epu8(a: __m128i, b: __m128i) -> __m128i {
     let ones = _mm_set1_epi8(1);
+    let ones_16 = _mm_set1_epi16(1);
     let sums_lo = _mm_maddubs_epi16(a, ones);
-    let lo = _mm_srli_epi16::<1>(_mm_add_epi16(sums_lo, ones));
+    let lo = _mm_srli_epi16::<1>(_mm_add_epi16(sums_lo, ones_16));
     let sums_hi = _mm_maddubs_epi16(b, ones);
-    let hi = _mm_srli_epi16::<1>(_mm_add_epi16(sums_hi, ones));
+    let hi = _mm_srli_epi16::<1>(_mm_add_epi16(sums_hi, ones_16));
     _mm_packus_epi16(lo, hi)
 }
 
@@ -408,4 +410,50 @@ pub(crate) unsafe fn _mm_interleave_rgba_epi16(
     let v2 = _mm_unpacklo_epi16(u1, u3); // a4 b4 c4 d4 ...
     let v3 = _mm_unpackhi_epi16(u1, u3); // a6 b6 c6 d6 ...
     (v0, v1, v2, v3)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_load_deinterleave_rgb_for_yuv<const CHANS: u8>(
+    ptr: *const u8,
+) -> (__m128i, __m128i, __m128i) {
+    let (r_values0, g_values0, b_values0);
+
+    let source_channels: YuvSourceChannels = CHANS.into();
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
+            let row_3 = _mm_loadu_si128(ptr.add(32) as *const __m128i);
+
+            let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, row_3);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+            }
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
+            let row_3 = _mm_loadu_si128(ptr.add(32) as *const __m128i);
+            let row_4 = _mm_loadu_si128(ptr.add(48) as *const __m128i);
+
+            let (it1, it2, it3, _) = sse_deinterleave_rgba(row_1, row_2, row_3, row_4);
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+            }
+        }
+    }
+    (r_values0, g_values0, b_values0)
 }

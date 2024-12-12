@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::sse_support::{sse_div_by255, sse_store_rgb_u8, sse_store_rgba};
+use crate::sse::utils::{sse_div_by255, sse_store_rgb_u8, sse_store_rgba};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };

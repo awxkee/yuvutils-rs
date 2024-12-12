@@ -29,15 +29,16 @@
 #![deny(unreachable_code, unreachable_pub)]
 mod gbr_to_rgb;
 mod rgb_to_nv;
+mod rgb_to_nv420;
 mod rgb_to_y;
 mod rgb_to_ycgco;
 mod rgb_to_ycgco_r;
 mod rgb_to_yuv_p16;
 mod rgba_to_yuv;
 mod rgba_to_yuv420;
-pub(crate) mod sse_support;
 mod sse_ycbcr;
 mod sse_ycgco_r;
+pub(crate) mod utils;
 mod ycgco_to_rgb;
 mod ycgco_to_rgb_alpha;
 mod ycgcor_to_rgb;
@@ -55,13 +56,14 @@ mod yuy2_to_yuv;
 
 pub(crate) use gbr_to_rgb::{sse_yuv_to_rgba_row_full, sse_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::sse_rgba_to_nv_row;
+pub(crate) use rgb_to_nv420::sse_rgba_to_nv_row420;
 pub(crate) use rgb_to_y::sse_rgb_to_y;
 pub(crate) use rgb_to_ycgco::sse_rgb_to_ycgco_row;
 pub(crate) use rgb_to_ycgco_r::sse_rgb_to_ycgcor_row;
 pub(crate) use rgb_to_yuv_p16::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_lp};
 pub(crate) use rgba_to_yuv::sse_rgba_to_yuv_row;
 pub(crate) use rgba_to_yuv420::sse_rgba_to_yuv_row420;
-pub(crate) use sse_support::*;
+pub(crate) use utils::*;
 pub(crate) use ycgco_to_rgb::sse_ycgco_to_rgb_row;
 pub(crate) use ycgco_to_rgb_alpha::sse_ycgco_to_rgb_alpha_row;
 pub(crate) use ycgcor_to_rgb::sse_ycgcor_type_to_rgb_row;

@@ -279,7 +279,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b0 = src0[src_chans.get_b_channel_offset()] as i32;
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0.max(i_bias_y).min(i_cap_y) as u8;
+            y_dst[0] = y_0.min(i_cap_y) as u8;
 
             let src1 = &rgba[channels..channels * 2];
 
@@ -288,7 +288,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b1 = src1[src_chans.get_b_channel_offset()] as i32;
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = y_1.max(i_bias_y).min(i_cap_y) as u8;
+            y_dst[1] = y_1.min(i_cap_y) as u8;
 
             let r = (r0 + r1 + 1) >> 1;
             let g = (g0 + g1 + 1) >> 1;
@@ -314,7 +314,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y_last = y_0.max(i_bias_y).min(i_cap_y) as u8;
+            *y_last = y_0.min(i_cap_y) as u8;
 
             let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
                 >> PRECISION;
@@ -351,7 +351,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b00 = src00[src_chans.get_b_channel_offset()] as i32;
             let y_00 = (r00 * transform.yr + g00 * transform.yg + b00 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst0[0] = y_00.max(i_bias_y).min(i_cap_y) as u8;
+            y_dst0[0] = y_00.min(i_cap_y) as u8;
 
             let src1 = &rgba0[channels..channels * 2];
 
@@ -360,7 +360,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b01 = src1[src_chans.get_b_channel_offset()] as i32;
             let y_01 = (r01 * transform.yr + g01 * transform.yg + b01 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst0[1] = y_01.max(i_bias_y).min(i_cap_y) as u8;
+            y_dst0[1] = y_01.min(i_cap_y) as u8;
 
             let src10 = &rgba1[0..channels];
 
@@ -369,7 +369,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b10 = src10[src_chans.get_b_channel_offset()] as i32;
             let y_10 = (r10 * transform.yr + g10 * transform.yg + b10 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst1[0] = y_10.max(i_bias_y).min(i_cap_y) as u8;
+            y_dst1[0] = y_10.min(i_cap_y) as u8;
 
             let src11 = &rgba1[channels..channels * 2];
 
@@ -378,7 +378,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b11 = src11[src_chans.get_b_channel_offset()] as i32;
             let y_11 = (r11 * transform.yr + g11 * transform.yg + b11 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst1[1] = y_11.max(i_bias_y).min(i_cap_y) as u8;
+            y_dst1[1] = y_11.min(i_cap_y) as u8;
 
             let ruv = (r00 + r01 + r10 + r11 + 2) >> 2;
             let guv = (g00 + g01 + g10 + g11 + 2) >> 2;
@@ -410,11 +410,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y0_last = y_0.max(i_bias_y).min(i_cap_y) as u8;
+            *y0_last = y_0.min(i_cap_y) as u8;
 
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            *y1_last = y_1.max(i_bias_y).min(i_cap_y) as u8;
+            *y1_last = y_1.min(i_cap_y) as u8;
 
             let r0 = (r0 + r1) >> 1;
             let g0 = (g0 + g1) >> 1;
@@ -471,7 +471,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
                 let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                     >> PRECISION;
-                *y_dst = y_0.max(i_bias_y).min(i_cap_y) as u8;
+                *y_dst = y_0.min(i_cap_y) as u8;
 
                 let cb =
                     (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
