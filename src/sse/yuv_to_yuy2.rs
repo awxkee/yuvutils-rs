@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::sse::_mm_havg_epu8;
-use crate::sse::sse_support::{
+use crate::sse::utils::{
     __mm128x4, _mm_combineh_epi8, _mm_combinel_epi8, _mm_gethigh_epi8, _mm_getlow_epi8,
     _mm_loadu_si128_x2, _mm_storeu_si128_x4, sse_interleave_rgba,
 };

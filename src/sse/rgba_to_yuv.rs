@@ -28,8 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::sse_pairwise_avg_epi16;
-use crate::sse::sse_support::{sse_deinterleave_rgb, sse_deinterleave_rgba};
+use crate::sse::{_mm_load_deinterleave_rgb_for_yuv, sse_pairwise_avg_epi16};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -103,47 +102,9 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
     let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
     while cx + 16 < width {
-        let (r_values, g_values, b_values);
-
         let px = cx * channels;
-
-        match source_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let row_start = rgba_ptr.add(px);
-                let row_1 = _mm_loadu_si128(row_start as *const __m128i);
-                let row_2 = _mm_loadu_si128(row_start.add(16) as *const __m128i);
-                let row_3 = _mm_loadu_si128(row_start.add(32) as *const __m128i);
-
-                let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, row_3);
-                if source_channels == YuvSourceChannels::Rgb {
-                    r_values = it1;
-                    g_values = it2;
-                    b_values = it3;
-                } else {
-                    r_values = it3;
-                    g_values = it2;
-                    b_values = it1;
-                }
-            }
-            YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let row_start = rgba_ptr.add(px);
-                let row_1 = _mm_loadu_si128(row_start as *const __m128i);
-                let row_2 = _mm_loadu_si128(row_start.add(16) as *const __m128i);
-                let row_3 = _mm_loadu_si128(row_start.add(32) as *const __m128i);
-                let row_4 = _mm_loadu_si128(row_start.add(48) as *const __m128i);
-
-                let (it1, it2, it3, _) = sse_deinterleave_rgba(row_1, row_2, row_3, row_4);
-                if source_channels == YuvSourceChannels::Rgba {
-                    r_values = it1;
-                    g_values = it2;
-                    b_values = it3;
-                } else {
-                    r_values = it3;
-                    g_values = it2;
-                    b_values = it1;
-                }
-            }
-        }
+        let (r_values, g_values, b_values) =
+            _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
         let r_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(r_values));
         let r_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(r_values, zeros));
@@ -152,35 +113,29 @@ unsafe fn sse_rgba_to_yuv_row_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
         let b_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(b_values));
         let b_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values, zeros));
 
-        let y_l = _mm_max_epi16(
-            _mm_min_epi16(
+        let y_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
                 _mm_add_epi16(
-                    y_bias,
-                    _mm_add_epi16(
-                        _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
-                        _mm_mulhrs_epi16(b_low, v_yb),
-                    ),
+                    _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
+                    _mm_mulhrs_epi16(b_low, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
-        let y_h = _mm_max_epi16(
-            _mm_min_epi16(
+        let y_h = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
                 _mm_add_epi16(
-                    y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(
-                            _mm_mulhrs_epi16(r_high, v_yr),
-                            _mm_mulhrs_epi16(g_high, v_yg),
-                        ),
-                        _mm_mulhrs_epi16(b_high, v_yb),
+                        _mm_mulhrs_epi16(r_high, v_yr),
+                        _mm_mulhrs_epi16(g_high, v_yg),
                     ),
+                    _mm_mulhrs_epi16(b_high, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
         let y_yuv = _mm_packus_epi16(y_l, y_h);

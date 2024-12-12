@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
+use crate::neon::neon_simd_support::neon_vld_rgb16_for_yuv;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -92,38 +93,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
     while cx + 8 < width {
-        let r_values;
-        let g_values;
-        let b_values;
-
         let src_ptr = rgba.get_unchecked(cx * channels..);
-
-        match source_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u16(src_ptr.as_ptr());
-                if source_channels == YuvSourceChannels::Rgb {
-                    r_values = rgb_values.0;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.2;
-                } else {
-                    r_values = rgb_values.2;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.0;
-                }
-            }
-            YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u16(src_ptr.as_ptr());
-                r_values = rgb_values.0;
-                g_values = rgb_values.1;
-                b_values = rgb_values.2;
-            }
-            YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u16(src_ptr.as_ptr());
-                r_values = rgb_values.2;
-                g_values = rgb_values.1;
-                b_values = rgb_values.0;
-            }
-        }
+        let (r_values, g_values, b_values) =
+            neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
         let mut y_h = vmlal_high_laneq_s16::<0>(y_bias, vreinterpretq_s16_u16(r_values), v_weights);
         y_h = vmlal_high_laneq_s16::<1>(y_h, vreinterpretq_s16_u16(g_values), v_weights);
@@ -138,12 +110,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
         y_l = vmlal_laneq_s16::<2>(y_l, vreinterpret_s16_u16(vget_low_u16(b_values)), v_weights);
 
         let mut y_vl = vminq_u16(
-            vmaxq_u16(
-                vcombine_u16(
-                    vqshrun_n_s32::<PRECISION>(y_l),
-                    vqshrun_n_s32::<PRECISION>(y_h),
-                ),
-                i_bias_y,
+            vcombine_u16(
+                vqshrun_n_s32::<PRECISION>(y_l),
+                vqshrun_n_s32::<PRECISION>(y_h),
             ),
             i_cap_y,
         );
@@ -325,38 +294,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
     let v_shift_count = vdupq_n_s16(16 - BIT_DEPTH as i16);
 
     while cx + 8 < width {
-        let mut r_values;
-        let mut g_values;
-        let mut b_values;
-
         let src_ptr = rgba.get_unchecked(cx * channels..);
-
-        match source_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = vld3q_u16(src_ptr.as_ptr());
-                if source_channels == YuvSourceChannels::Rgb {
-                    r_values = rgb_values.0;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.2;
-                } else {
-                    r_values = rgb_values.2;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.0;
-                }
-            }
-            YuvSourceChannels::Rgba => {
-                let rgb_values = vld4q_u16(src_ptr.as_ptr());
-                r_values = rgb_values.0;
-                g_values = rgb_values.1;
-                b_values = rgb_values.2;
-            }
-            YuvSourceChannels::Bgra => {
-                let rgb_values = vld4q_u16(src_ptr.as_ptr());
-                r_values = rgb_values.2;
-                g_values = rgb_values.1;
-                b_values = rgb_values.0;
-            }
-        }
+        let (mut r_values, mut g_values, mut b_values) =
+            neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
         r_values = vshlq_n_u16::<SCALE>(r_values);
         g_values = vshlq_n_u16::<SCALE>(g_values);
@@ -367,7 +307,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
         y_values = vqrdmlahq_laneq_s16::<1>(y_values, vreinterpretq_s16_u16(g_values), v_weights);
         y_values = vqrdmlahq_laneq_s16::<2>(y_values, vreinterpretq_s16_u16(b_values), v_weights);
 
-        let mut y_vl = vreinterpretq_u16_s16(vminq_s16(vmaxq_s16(y_values, i_bias_y), i_cap_y));
+        let mut y_vl = vreinterpretq_u16_s16(vminq_s16(y_values, i_cap_y));
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = vshlq_u16(y_vl, v_shift_count);

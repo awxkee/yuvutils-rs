@@ -28,10 +28,8 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::sse_support::{
-    sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_widen_avg,
-};
 use crate::sse::sse_ycbcr::sse_rgb_to_ycgco;
+use crate::sse::utils::{sse_deinterleave_rgb, sse_deinterleave_rgba, sse_pairwise_widen_avg};
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;

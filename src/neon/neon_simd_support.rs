@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::yuv_support::YuvSourceChannels;
 use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
 
@@ -159,4 +160,80 @@ pub(crate) unsafe fn xvld1q_u8_x2(src: *const u8) -> uint8x16x2_t {
 pub(crate) unsafe fn xvst1q_u8_x2(ptr: *mut u8, b: uint8x16x2_t) {
     vst1q_u8(ptr, b.0);
     vst1q_u8(ptr.add(16), b.1);
+}
+
+#[inline(always)]
+pub(crate) unsafe fn neon_vld_rgb_for_yuv<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (uint8x16_t, uint8x16_t, uint8x16_t) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let r_values_u8: uint8x16_t;
+    let g_values_u8: uint8x16_t;
+    let b_values_u8: uint8x16_t;
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = vld3q_u8(ptr);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values_u8 = rgb_values.0;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.2;
+            } else {
+                r_values_u8 = rgb_values.2;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.0;
+            }
+        }
+        YuvSourceChannels::Rgba => {
+            let rgb_values = vld4q_u8(ptr);
+            r_values_u8 = rgb_values.0;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.2;
+        }
+        YuvSourceChannels::Bgra => {
+            let rgb_values = vld4q_u8(ptr);
+            r_values_u8 = rgb_values.2;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.0;
+        }
+    }
+    (r_values_u8, g_values_u8, b_values_u8)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn neon_vld_rgb16_for_yuv<const ORIGINS: u8>(
+    ptr: *const u16,
+) -> (uint16x8_t, uint16x8_t, uint16x8_t) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let r_values;
+    let g_values;
+    let b_values;
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = vld3q_u16(ptr);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = rgb_values.0;
+                g_values = rgb_values.1;
+                b_values = rgb_values.2;
+            } else {
+                r_values = rgb_values.2;
+                g_values = rgb_values.1;
+                b_values = rgb_values.0;
+            }
+        }
+        YuvSourceChannels::Rgba => {
+            let rgb_values = vld4q_u16(ptr);
+            r_values = rgb_values.0;
+            g_values = rgb_values.1;
+            b_values = rgb_values.2;
+        }
+        YuvSourceChannels::Bgra => {
+            let rgb_values = vld4q_u16(ptr);
+            r_values = rgb_values.2;
+            g_values = rgb_values.1;
+            b_values = rgb_values.0;
+        }
+    }
+    (r_values, g_values, b_values)
 }

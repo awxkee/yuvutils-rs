@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::sse_support::{sse_store_rgb_u8, sse_store_rgba};
+use crate::sse::utils::{sse_store_rgb_u8, sse_store_rgba};
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;

@@ -350,7 +350,7 @@ impl From<u8> for YuvBytesPacking {
             0 => YuvBytesPacking::MostSignificantBytes,
             1 => YuvBytesPacking::LeastSignificantBytes,
             _ => {
-                panic!("Unknown value")
+                unimplemented!("Unknown value")
             }
         }
     }
@@ -374,7 +374,7 @@ impl From<u8> for YuvSourceChannels {
             2 => YuvSourceChannels::Bgra,
             3 => YuvSourceChannels::Bgr,
             _ => {
-                panic!("Unknown value")
+                unimplemented!("Unknown value")
             }
         }
     }

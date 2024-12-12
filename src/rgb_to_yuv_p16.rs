@@ -214,18 +214,14 @@ fn rgbx_to_yuv_ant<
             let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_0.max(i_bias_y).min(i_cap_y),
-            );
+            y_dst[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_0.min(i_cap_y));
 
             let r1 = rgba[channels + src_chans.get_r_channel_offset()] as i32;
             let g1 = rgba[channels + src_chans.get_g_channel_offset()] as i32;
             let b1 = rgba[channels + src_chans.get_b_channel_offset()] as i32;
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_1.max(i_bias_y).min(i_cap_y),
-            );
+            y_dst[1] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_1.min(i_cap_y));
 
             if compute_chroma_row {
                 let r = (r0 + r1 + 1) >> 1;
@@ -258,7 +254,7 @@ fn rgbx_to_yuv_ant<
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
             *y_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_0.max(i_bias_y).min(i_cap_y),
+                y_0.min(i_cap_y),
             );
 
             if compute_chroma_row {
@@ -320,9 +316,8 @@ fn rgbx_to_yuv_ant<
                 let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
                 let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                     >> PRECISION;
-                *y_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                    y_0.max(i_bias_y).min(i_cap_y),
-                );
+                *y_dst =
+                    transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_0.min(i_cap_y));
 
                 let cb =
                     (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
