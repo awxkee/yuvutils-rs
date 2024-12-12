@@ -297,8 +297,7 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 pub(crate) unsafe fn avx2_pairwise_wide_avg(v: __m256i) -> __m256i {
     let ones = _mm256_set1_epi8(1);
     let sums = _mm256_maddubs_epi16(v, ones);
-    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
-    shifted
+    _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
 }
 
 #[inline(always)]
@@ -464,4 +463,70 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
     }
 
     (r_values, g_values, b_values)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_store_interleave_rgb16_for_yuv<const ORIGINS: u8>(
+    ptr: *mut u16,
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+    a: __m256i,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack = _mm256_interleave_rgb_epi16(r, g, b);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack = _mm256_interleave_rgb_epi16(b, g, r);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack = _mm256_interleave_rgba_epi16(r, g, b, a);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+            _mm256_storeu_si256(ptr.add(48) as *mut __m256i, dst_pack.3);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack = _mm256_interleave_rgba_epi16(b, g, r, a);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+            _mm256_storeu_si256(ptr.add(48) as *mut __m256i, dst_pack.3);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_store_interleave_rgb_for_yuv<const ORIGINS: u8>(
+    ptr: *mut u8,
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+    a: __m256i,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            avx2_store_u8_rgb(ptr, r, g, b);
+        }
+        YuvSourceChannels::Bgr => {
+            avx2_store_u8_rgb(ptr, b, g, r);
+        }
+        YuvSourceChannels::Rgba => {
+            _mm256_store_interleaved_epi8(ptr, r, g, b, a);
+        }
+        YuvSourceChannels::Bgra => {
+            _mm256_store_interleaved_epi8(ptr, b, g, r, a);
+        }
+    }
 }

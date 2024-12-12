@@ -183,28 +183,20 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_
 
         let dst_shift = cx * channels;
 
-        let ptr0 = rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr();
-        let ptr1 = rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr();
-
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                avx2_store_u8_rgb(ptr0, r_values0, g_values0, b_values0);
-                avx2_store_u8_rgb(ptr1, r_values1, g_values1, b_values1);
-            }
-            YuvSourceChannels::Bgr => {
-                avx2_store_u8_rgb(ptr0, b_values0, g_values0, r_values0);
-                avx2_store_u8_rgb(ptr1, b_values1, g_values1, r_values1);
-            }
-            YuvSourceChannels::Rgba => {
-                _mm256_store_interleaved_epi8(ptr0, r_values0, g_values0, b_values0, v_alpha);
-                _mm256_store_interleaved_epi8(ptr1, r_values1, g_values1, b_values1, v_alpha);
-            }
-            YuvSourceChannels::Bgra => {
-                _mm256_store_interleaved_epi8(ptr0, b_values0, g_values0, r_values0, v_alpha);
-                _mm256_store_interleaved_epi8(ptr1, b_values1, g_values1, r_values1, v_alpha);
-            }
-        }
-
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
         cx += 32;
         uv_x += 32;
     }

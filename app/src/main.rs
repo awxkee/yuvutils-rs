@@ -58,7 +58,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/test_short_lanes.png")
+    let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
         .unwrap();

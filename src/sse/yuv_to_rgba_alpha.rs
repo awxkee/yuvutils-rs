@@ -28,7 +28,8 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::utils::{sse_div_by255, sse_store_rgb_u8, sse_store_rgba};
+use crate::sse::_mm_store_interleave_rgb_for_yuv;
+use crate::sse::utils::sse_div_by255;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -193,32 +194,13 @@ unsafe fn sse_yuv_to_rgba_alpha_row_impl<const DESTINATION_CHANNELS: u8, const S
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(rgba_ptr.add(dst_shift), r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                sse_store_rgb_u8(rgba_ptr.add(dst_shift), b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                sse_store_rgba(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                    a_values,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                sse_store_rgba(
-                    rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
-                    r_values,
-                    a_values,
-                );
-            }
-        }
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            a_values,
+        );
 
         cx += 16;
 

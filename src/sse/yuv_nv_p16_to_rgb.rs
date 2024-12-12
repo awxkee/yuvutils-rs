@@ -33,7 +33,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_deinterleave_x2_epi16, _mm_interleave_rgb_epi16, _mm_interleave_rgba_epi16};
+use crate::sse::{_mm_deinterleave_x2_epi16, _mm_store_interleave_rgb16_for_yuv};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
@@ -247,79 +247,17 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
             rounding_const,
         ));
 
-        let r_values = _mm_min_epi16(
-            _mm_max_epi16(_mm_packs_epi32(r_low, r_high), zeros),
-            v_max_colors,
-        );
-        let g_values = _mm_min_epi16(
-            _mm_max_epi16(_mm_packs_epi32(g_low, g_high), zeros),
-            v_max_colors,
-        );
-        let b_values = _mm_min_epi16(
-            _mm_max_epi16(_mm_packs_epi32(b_low, b_high), zeros),
-            v_max_colors,
-        );
+        let r_values = _mm_min_epu16(_mm_packus_epi32(r_low, r_high), v_max_colors);
+        let g_values = _mm_min_epu16(_mm_packus_epi32(g_low, g_high), v_max_colors);
+        let b_values = _mm_min_epu16(_mm_packus_epi32(b_low, b_high), v_max_colors);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack = _mm_interleave_rgb_epi16(r_values, g_values, b_values);
-                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.1,
-                );
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.2,
-                );
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack = _mm_interleave_rgb_epi16(b_values, g_values, r_values);
-                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.1,
-                );
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.2,
-                );
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack =
-                    _mm_interleave_rgba_epi16(r_values, g_values, b_values, v_max_colors);
-                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.1,
-                );
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.2,
-                );
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(24..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.3,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack =
-                    _mm_interleave_rgba_epi16(b_values, g_values, r_values, v_max_colors);
-                _mm_storeu_si128(dst_ptr.as_mut_ptr() as *mut __m128i, dst_pack.0);
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(8..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.1,
-                );
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.2,
-                );
-                _mm_storeu_si128(
-                    dst_ptr.get_unchecked_mut(24..).as_mut_ptr() as *mut __m128i,
-                    dst_pack.3,
-                );
-            }
-        }
+        _mm_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
+            dst_ptr.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_max_colors,
+        );
 
         cx += 8;
         match chroma_subsampling {
