@@ -253,9 +253,7 @@ fn rgbx_to_yuv_ant<
 
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_0.min(i_cap_y),
-            );
+            *y_last = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_0.min(i_cap_y));
 
             if compute_chroma_row {
                 let cb =
