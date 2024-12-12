@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - 'master'
-      - 'dev'
       - '!ci_test_*'
     tags-ignore:
       - '*'
