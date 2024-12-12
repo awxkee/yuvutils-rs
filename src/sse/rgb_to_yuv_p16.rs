@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_deinterleave_rgb_epi16, _mm_deinterleave_rgba_epi16, sse_avg_epi16};
+use crate::sse::{_mm_havg_epi16_epi32, _mm_load_deinterleave_rgb16_for_yuv, sse_avg_epi16};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -54,7 +54,6 @@ pub(crate) fn sse_rgba_to_yuv_p16<
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     unsafe {
         sse_rgba_to_yuv_impl::<
@@ -65,16 +64,7 @@ pub(crate) fn sse_rgba_to_yuv_p16<
             PRECISION,
             BIT_DEPTH,
         >(
-            transform,
-            range,
-            y_plane,
-            u_plane,
-            v_plane,
-            rgba,
-            start_cx,
-            start_ux,
-            width,
-            compute_uv_row,
+            transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
         )
     }
 }
@@ -97,7 +87,6 @@ unsafe fn sse_rgba_to_yuv_impl<
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -142,44 +131,9 @@ unsafe fn sse_rgba_to_yuv_impl<
     let i_cap_uv = _mm_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
 
     while cx + 8 < width {
-        let r_values;
-        let g_values;
-        let b_values;
-
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
-
-        let row0 = _mm_loadu_si128(src_ptr.as_ptr() as *const __m128i);
-        let row1 = _mm_loadu_si128(src_ptr.get_unchecked(8..).as_ptr() as *const __m128i);
-        let row2 = _mm_loadu_si128(src_ptr.get_unchecked(16..).as_ptr() as *const __m128i);
-
-        match source_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = _mm_deinterleave_rgb_epi16(row0, row1, row2);
-                if source_channels == YuvSourceChannels::Rgb {
-                    r_values = rgb_values.0;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.2;
-                } else {
-                    r_values = rgb_values.2;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.0;
-                }
-            }
-            YuvSourceChannels::Rgba => {
-                let row3 = _mm_loadu_si128(src_ptr.get_unchecked(24..).as_ptr() as *const __m128i);
-                let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
-                r_values = rgb_values.0;
-                g_values = rgb_values.1;
-                b_values = rgb_values.2;
-            }
-            YuvSourceChannels::Bgra => {
-                let row3 = _mm_loadu_si128(src_ptr.get_unchecked(24..).as_ptr() as *const __m128i);
-                let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
-                r_values = rgb_values.2;
-                g_values = rgb_values.1;
-                b_values = rgb_values.0;
-            }
-        }
+        let (r_values, g_values, b_values) =
+            _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
         let r_hi = _mm_unpackhi_epi16(r_values, zeros);
         let g_hi = _mm_unpackhi_epi16(g_values, zeros);
@@ -205,7 +159,7 @@ unsafe fn sse_rgba_to_yuv_impl<
         );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm_sll_epi32(y_vl, v_shift_count);
+            y_vl = _mm_sll_epi16(y_vl, v_shift_count);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -217,7 +171,7 @@ unsafe fn sse_rgba_to_yuv_impl<
             y_vl,
         );
 
-        if compute_uv_row {
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cb_r));
             cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(g_hi, v_cb_g));
             cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(b_hi, v_cb_b));
@@ -256,57 +210,77 @@ unsafe fn sse_rgba_to_yuv_impl<
                 i_bias_y,
             );
 
-            match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                    let mut cb_s = sse_avg_epi16(cb_vl);
-                    let mut cr_s = sse_avg_epi16(cr_vl);
-
-                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        cb_s = _mm_sll_epi32(cb_s, v_shift_count);
-                        cr_s = _mm_sll_epi32(cr_s, v_shift_count);
-                    }
-
-                    if endianness == YuvEndianness::BigEndian {
-                        cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
-                        cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
-                    }
-
-                    std::ptr::copy_nonoverlapping(
-                        &cb_s as *const _ as *const u8,
-                        u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
-                        8,
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        &cr_s as *const _ as *const u8,
-                        v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
-                        8,
-                    );
-
-                    ux += 4;
-                }
-                YuvChromaSubsampling::Yuv444 => {
-                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        cb_vl = _mm_sll_epi32(cb_vl, v_shift_count);
-                        cr_vl = _mm_sll_epi32(cr_vl, v_shift_count);
-                    }
-
-                    if endianness == YuvEndianness::BigEndian {
-                        cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
-                        cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
-                    }
-
-                    _mm_storeu_si128(
-                        u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
-                        cb_vl,
-                    );
-                    _mm_storeu_si128(
-                        v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
-                        cr_vl,
-                    );
-
-                    ux += 8;
-                }
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_vl = _mm_sll_epi16(cb_vl, v_shift_count);
+                cr_vl = _mm_sll_epi16(cr_vl, v_shift_count);
             }
+
+            if endianness == YuvEndianness::BigEndian {
+                cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
+                cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
+            }
+
+            _mm_storeu_si128(
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                cb_vl,
+            );
+            _mm_storeu_si128(
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                cr_vl,
+            );
+
+            ux += 8;
+        } else {
+            let r_values = _mm_havg_epi16_epi32(r_values);
+            let g_values = _mm_havg_epi16_epi32(g_values);
+            let b_values = _mm_havg_epi16_epi32(b_values);
+
+            let mut cb_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_values, v_cb_r));
+            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(g_values, v_cb_g));
+            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(b_values, v_cb_b));
+
+            let mut cb_s = _mm_max_epu16(
+                _mm_min_epu16(
+                    _mm_packus_epi32(_mm_srai_epi32::<PRECISION>(cb_h), _mm_setzero_si128()),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+
+            let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_values, v_cr_r));
+            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(g_values, v_cr_g));
+            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(b_values, v_cr_b));
+
+            let mut cr_s = _mm_max_epu16(
+                _mm_min_epu16(
+                    _mm_packus_epi32(_mm_srai_epi32::<PRECISION>(cr_h), _mm_setzero_si128()),
+                    i_cap_uv,
+                ),
+                i_bias_y,
+            );
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_s = _mm_sll_epi16(cb_s, v_shift_count);
+                cr_s = _mm_sll_epi16(cr_s, v_shift_count);
+            }
+
+            if endianness == YuvEndianness::BigEndian {
+                cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
+                cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+            }
+
+            std::ptr::copy_nonoverlapping(
+                &cb_s as *const _ as *const u8,
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
+                8,
+            );
+            std::ptr::copy_nonoverlapping(
+                &cr_s as *const _ as *const u8,
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
+                8,
+            );
+
+            ux += 4;
         }
 
         cx += 8;
@@ -333,7 +307,6 @@ pub(crate) fn sse_rgba_to_yuv_p16_lp<
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     unsafe {
         sse_rgba_to_yuv_impl_lp::<
@@ -344,16 +317,7 @@ pub(crate) fn sse_rgba_to_yuv_p16_lp<
             PRECISION,
             BIT_DEPTH,
         >(
-            transform,
-            range,
-            y_plane,
-            u_plane,
-            v_plane,
-            rgba,
-            start_cx,
-            start_ux,
-            width,
-            compute_uv_row,
+            transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
         )
     }
 }
@@ -376,7 +340,6 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -420,44 +383,9 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
     const SCALE: i32 = 2;
 
     while cx + 8 < width {
-        let mut r_values;
-        let mut g_values;
-        let mut b_values;
-
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
-
-        let row0 = _mm_loadu_si128(src_ptr.as_ptr() as *const __m128i);
-        let row1 = _mm_loadu_si128(src_ptr.get_unchecked(8..).as_ptr() as *const __m128i);
-        let row2 = _mm_loadu_si128(src_ptr.get_unchecked(16..).as_ptr() as *const __m128i);
-
-        match source_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let rgb_values = _mm_deinterleave_rgb_epi16(row0, row1, row2);
-                if source_channels == YuvSourceChannels::Rgb {
-                    r_values = rgb_values.0;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.2;
-                } else {
-                    r_values = rgb_values.2;
-                    g_values = rgb_values.1;
-                    b_values = rgb_values.0;
-                }
-            }
-            YuvSourceChannels::Rgba => {
-                let row3 = _mm_loadu_si128(src_ptr.get_unchecked(24..).as_ptr() as *const __m128i);
-                let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
-                r_values = rgb_values.0;
-                g_values = rgb_values.1;
-                b_values = rgb_values.2;
-            }
-            YuvSourceChannels::Bgra => {
-                let row3 = _mm_loadu_si128(src_ptr.get_unchecked(24..).as_ptr() as *const __m128i);
-                let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
-                r_values = rgb_values.2;
-                g_values = rgb_values.1;
-                b_values = rgb_values.0;
-            }
-        }
+        let (mut r_values, mut g_values, mut b_values) =
+            _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
         r_values = _mm_slli_epi16::<SCALE>(r_values);
         g_values = _mm_slli_epi16::<SCALE>(g_values);
@@ -470,7 +398,7 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
         let mut y_vl = _mm_min_epu16(y_h, i_cap_y);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm_sll_epi32(y_vl, v_shift_count);
+            y_vl = _mm_sll_epi16(y_vl, v_shift_count);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -482,7 +410,7 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
             y_vl,
         );
 
-        if compute_uv_row {
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_h = _mm_add_epi16(uv_bias, _mm_mulhrs_epi16(r_values, v_cb_r));
             cb_h = _mm_add_epi16(cb_h, _mm_mulhrs_epi16(g_values, v_cb_g));
             cb_h = _mm_add_epi16(cb_h, _mm_mulhrs_epi16(b_values, v_cb_b));
@@ -495,57 +423,65 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
 
             let mut cr_vl = _mm_max_epu16(_mm_min_epu16(cr_h, i_cap_uv), i_bias_y);
 
-            match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                    let mut cb_s = sse_avg_epi16(cb_vl);
-                    let mut cr_s = sse_avg_epi16(cr_vl);
-
-                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        cb_s = _mm_sll_epi32(cb_s, v_shift_count);
-                        cr_s = _mm_sll_epi32(cr_s, v_shift_count);
-                    }
-
-                    if endianness == YuvEndianness::BigEndian {
-                        cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
-                        cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
-                    }
-
-                    std::ptr::copy_nonoverlapping(
-                        &cb_s as *const _ as *const u8,
-                        u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
-                        8,
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        &cr_s as *const _ as *const u8,
-                        v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
-                        8,
-                    );
-
-                    ux += 4;
-                }
-                YuvChromaSubsampling::Yuv444 => {
-                    if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                        cb_vl = _mm_sll_epi32(cb_vl, v_shift_count);
-                        cr_vl = _mm_sll_epi32(cr_vl, v_shift_count);
-                    }
-
-                    if endianness == YuvEndianness::BigEndian {
-                        cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
-                        cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
-                    }
-
-                    _mm_storeu_si128(
-                        u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
-                        cb_vl,
-                    );
-                    _mm_storeu_si128(
-                        v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
-                        cr_vl,
-                    );
-
-                    ux += 8;
-                }
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_vl = _mm_sll_epi16(cb_vl, v_shift_count);
+                cr_vl = _mm_sll_epi16(cr_vl, v_shift_count);
             }
+
+            if endianness == YuvEndianness::BigEndian {
+                cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
+                cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
+            }
+
+            _mm_storeu_si128(
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                cb_vl,
+            );
+            _mm_storeu_si128(
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                cr_vl,
+            );
+
+            ux += 8;
+        } else {
+            let r_values = sse_avg_epi16(r_values);
+            let g_values = sse_avg_epi16(g_values);
+            let b_values = sse_avg_epi16(b_values);
+
+            let mut cb_h = _mm_add_epi16(uv_bias, _mm_mulhrs_epi16(r_values, v_cb_r));
+            cb_h = _mm_add_epi16(cb_h, _mm_mulhrs_epi16(g_values, v_cb_g));
+            cb_h = _mm_add_epi16(cb_h, _mm_mulhrs_epi16(b_values, v_cb_b));
+
+            let mut cb_s = _mm_max_epu16(_mm_min_epu16(cb_h, i_cap_uv), i_bias_y);
+
+            let mut cr_h = _mm_add_epi16(uv_bias, _mm_mulhrs_epi16(r_values, v_cr_r));
+            cr_h = _mm_add_epi16(cr_h, _mm_mulhrs_epi16(g_values, v_cr_g));
+            cr_h = _mm_add_epi16(cr_h, _mm_mulhrs_epi16(b_values, v_cr_b));
+
+            let mut cr_s = _mm_max_epu16(_mm_min_epu16(cr_h, i_cap_uv), i_bias_y);
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_s = _mm_sll_epi16(cb_s, v_shift_count);
+                cr_s = _mm_sll_epi16(cr_s, v_shift_count);
+            }
+
+            if endianness == YuvEndianness::BigEndian {
+                cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
+                cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+            }
+
+            std::ptr::copy_nonoverlapping(
+                &cb_s as *const _ as *const u8,
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
+                8,
+            );
+            std::ptr::copy_nonoverlapping(
+                &cr_s as *const _ as *const u8,
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
+                8,
+            );
+
+            ux += 4;
         }
 
         cx += 8;
