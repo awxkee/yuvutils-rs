@@ -1,5 +1,8 @@
 # Rust utilities for YUV format handling and conversion.
 
+[![crates.io](https://img.shields.io/crates/v/yuvutils-rs.svg)](https://crates.io/crates/yuvutils-rs)
+[![Build Status](https://github.com/awxkee/yuvutils-rs/actions/workflows/Build/badge.svg)](https://github.com/awxkee/yuvutils-rs/actions)
+
 Fast and simple YUV approximation conversion in pure Rust. At most the same as libyuv does. Performance will be equal to libyuv or slightly higher on platforms where SIMD is implemented. Otherwise equal or slower. 
 
 Mostly implemented AVX-512, AVX2, SSE, NEON, WASM

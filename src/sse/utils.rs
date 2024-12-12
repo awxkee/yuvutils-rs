@@ -279,6 +279,12 @@ pub(crate) unsafe fn sse_avg_epi16(a: __m128i) -> __m128i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm_havg_epi16_epi32(a: __m128i) -> __m128i {
+    let sums = _mm_madd_epi16(a, _mm_set1_epi16(1));
+    _mm_srli_epi32::<1>(_mm_add_epi32(sums, _mm_set1_epi32(1)))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm_loadu_si128_x2(ptr: *const u8) -> (__m128i, __m128i) {
     (
         _mm_loadu_si128(ptr as *const __m128i),
@@ -456,4 +462,49 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgb_for_yuv<const CHANS: u8>(
         }
     }
     (r_values0, g_values0, b_values0)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
+    ptr: *const u16,
+) -> (__m128i, __m128i, __m128i) {
+    let r_values;
+    let g_values;
+    let b_values;
+
+    let source_channels: YuvSourceChannels = CHANS.into();
+
+    let row0 = _mm_loadu_si128(ptr as *const __m128i);
+    let row1 = _mm_loadu_si128(ptr.add(8) as *const __m128i);
+    let row2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = _mm_deinterleave_rgb_epi16(row0, row1, row2);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = rgb_values.0;
+                g_values = rgb_values.1;
+                b_values = rgb_values.2;
+            } else {
+                r_values = rgb_values.2;
+                g_values = rgb_values.1;
+                b_values = rgb_values.0;
+            }
+        }
+        YuvSourceChannels::Rgba => {
+            let row3 = _mm_loadu_si128(ptr.add(24) as *const __m128i);
+            let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
+            r_values = rgb_values.0;
+            g_values = rgb_values.1;
+            b_values = rgb_values.2;
+        }
+        YuvSourceChannels::Bgra => {
+            let row3 = _mm_loadu_si128(ptr.add(24) as *const __m128i);
+            let rgb_values = _mm_deinterleave_rgba_epi16(row0, row1, row2, row3);
+            r_values = rgb_values.2;
+            g_values = rgb_values.1;
+            b_values = rgb_values.0;
+        }
+    }
+    (r_values, g_values, b_values)
 }

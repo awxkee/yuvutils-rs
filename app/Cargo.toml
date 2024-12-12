@@ -14,3 +14,7 @@ criterion = "0.5.1"
 [[bench]]
 name = "yuv8"
 harness = false
+
+[[bench]]
+name = "yuv16"
+harness = false

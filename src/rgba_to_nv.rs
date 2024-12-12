@@ -161,8 +161,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             _offset
         };
 
-    let process_halved_row = |y_dst: &mut [u8], uv_dst: &mut [u8], rgba: &[u8], compute_chroma| {
-        let offset = process_wide_row(y_dst, uv_dst, rgba, compute_chroma);
+    let process_halved_row = |y_dst: &mut [u8], uv_dst: &mut [u8], rgba: &[u8]| {
+        let offset = process_wide_row(y_dst, uv_dst, rgba, true);
 
         for ((y_dst, uv_dst), rgba) in y_dst
             .chunks_exact_mut(2)
@@ -188,18 +188,16 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
             y_dst[1] = y_1.min(i_cap_y) as u8;
 
-            if compute_chroma {
-                let r = (r0 + r1 + 1) >> 1;
-                let g = (g0 + g1 + 1) >> 1;
-                let b = (b0 + b1 + 1) >> 1;
+            let r = (r0 + r1 + 1) >> 1;
+            let g = (g0 + g1 + 1) >> 1;
+            let b = (b0 + b1 + 1) >> 1;
 
-                let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
-                    >> PRECISION;
-                let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
-                    >> PRECISION;
-                uv_dst[order.get_u_position()] = cb.max(i_bias_y).min(i_cap_uv) as u8;
-                uv_dst[order.get_v_position()] = cr.max(i_bias_y).min(i_cap_uv) as u8;
-            }
+            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                >> PRECISION;
+            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                >> PRECISION;
+            uv_dst[order.get_u_position()] = cb.max(i_bias_y).min(i_cap_uv) as u8;
+            uv_dst[order.get_v_position()] = cr.max(i_bias_y).min(i_cap_uv) as u8;
         }
 
         if width & 1 != 0 {
@@ -215,16 +213,12 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
             y_dst[0] = y_0.min(i_cap_y) as u8;
 
-            if compute_chroma {
-                let cb =
-                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
-                        >> PRECISION;
-                let cr =
-                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                        >> PRECISION;
-                uv_dst[order.get_u_position()] = cb.max(i_bias_y).min(i_cap_uv) as u8;
-                uv_dst[order.get_v_position()] = cr.max(i_bias_y).min(i_cap_uv) as u8;
-            }
+            let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                >> PRECISION;
+            let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                >> PRECISION;
+            uv_dst[order.get_u_position()] = cb.max(i_bias_y).min(i_cap_uv) as u8;
+            uv_dst[order.get_v_position()] = cr.max(i_bias_y).min(i_cap_uv) as u8;
         }
     };
 
@@ -447,7 +441,6 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 &mut y_dst[0..image.width as usize],
                 &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                 &rgba[0..image.width as usize * channels],
-                true,
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -492,7 +485,6 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 &mut y_dst[0..image.width as usize],
                 &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
                 &rgba[0..image.width as usize * channels],
-                true,
             );
         }
     }
