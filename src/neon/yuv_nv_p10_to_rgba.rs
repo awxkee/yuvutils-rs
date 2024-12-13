@@ -42,11 +42,11 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const PRECISION: i32,
 >(
     y_ld_ptr: &[u16],
     uv_ld_ptr: &[u16],
     bgra: &mut [u8],
-    dst_offset: usize,
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -158,9 +158,9 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         let y_high = vmull_high_laneq_s16::<0>(y_values, v_weights);
 
-        let r_high = vrshrn_n_s32::<6>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
-        let b_high = vrshrn_n_s32::<6>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
-        let g_high = vshrn_n_s32::<6>(vmlal_laneq_s16::<4>(
+        let r_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
+        let b_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
+        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
             vmlal_laneq_s16::<3>(y_high, v_high, v_weights),
             u_high,
             v_weights,
@@ -168,9 +168,9 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         let y_low = vmull_laneq_s16::<0>(vget_low_s16(y_values), v_weights);
 
-        let r_low = vshrn_n_s32::<6>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vshrn_n_s32::<6>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vshrn_n_s32::<6>(vmlal_laneq_s16::<4>(
+        let r_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
+        let b_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
+        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
             vmlal_laneq_s16::<3>(y_low, v_low, v_weights),
             u_low,
             v_weights,
@@ -181,7 +181,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let b_values = vqrshrun_n_s16::<2>(vcombine_s16(b_low, b_high));
 
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst_ptr.add(dst_offset + cx * channels),
+            dst_ptr.add(cx * channels),
             r_values,
             g_values,
             b_values,
