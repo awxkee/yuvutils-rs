@@ -108,8 +108,8 @@ fn main() {
         &bytes_16,
         rgba_stride as u32,
         12,
-        YuvRange::Full,
-        YuvStandardMatrix::Bt2020,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
         YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
@@ -266,8 +266,8 @@ fn main() {
         &mut bytes_16,
         rgba_stride as u32,
         12,
-        YuvRange::Full,
-        YuvStandardMatrix::Bt2020,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
         YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )

@@ -72,7 +72,6 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     let uv_corr = vdup_n_s16(range.bias_uv as i16);
     let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
     let v_store_shift = vdupq_n_s16(8 - (BIT_DEPTH as i16));
-    let v_min_values = vdupq_n_s16(0i16);
 
     let weights_arr: [i16; 8] = [
         transform.y_coef as i16,
@@ -150,9 +149,9 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
 
         let y_high = vmull_high_laneq_s16::<0>(y_values, v_weights);
 
-        let r_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
-        let b_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
-        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
+        let r_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
+        let b_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
+        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
             vmlal_laneq_s16::<3>(y_high, v_high, v_weights),
             u_high,
             v_weights,
@@ -162,26 +161,17 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
         let u_low = vzip1_s16(u_values_c, u_values_c);
         let v_low = vzip1_s16(v_values_c, v_values_c);
 
-        let r_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
+        let r_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
+        let b_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
+        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
             vmlal_laneq_s16::<3>(y_low, v_low, v_weights),
             u_low,
             v_weights,
         ));
 
-        let r_values = vqmovn_u16(vqshlq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(r_low, r_high), v_min_values)),
-            v_store_shift,
-        ));
-        let g_values = vqmovn_u16(vqshlq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(g_low, g_high), v_min_values)),
-            v_store_shift,
-        ));
-        let b_values = vqmovn_u16(vqshlq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(b_low, b_high), v_min_values)),
-            v_store_shift,
-        ));
+        let r_values = vqmovn_u16(vqshlq_u16(vcombine_u16(r_low, r_high), v_store_shift));
+        let g_values = vqmovn_u16(vqshlq_u16(vcombine_u16(g_low, g_high), v_store_shift));
+        let b_values = vqmovn_u16(vqshlq_u16(vcombine_u16(b_low, b_high), v_store_shift));
 
         let v_alpha = vqmovn_u16(vshlq_u16(a_values_l, v_store_shift));
 
