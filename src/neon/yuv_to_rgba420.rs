@@ -29,7 +29,8 @@
 
 use crate::internals::ProcessedOffset;
 use crate::neon::neon_simd_support::{
-    vaddn_dot, vdotl_laneq_s16, vmullq_laneq_s16, vweight_laneq_x2,
+    neon_store_half_rgb8, neon_store_rgb8, vaddn_dot, vdotl_laneq_s16, vmullq_laneq_s16,
+    vweight_laneq_x2,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
@@ -149,36 +150,20 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack0: uint8x16x3_t = uint8x16x3_t(r_values0, g_values0, b_values0);
-                vst3q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x3_t = uint8x16x3_t(r_values1, g_values1, b_values1);
-                vst3q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack0: uint8x16x3_t = uint8x16x3_t(b_values0, g_values0, r_values0);
-                vst3q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x3_t = uint8x16x3_t(b_values1, g_values1, r_values1);
-                vst3q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack0: uint8x16x4_t =
-                    uint8x16x4_t(r_values0, g_values0, b_values0, v_alpha);
-                vst4q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x4_t =
-                    uint8x16x4_t(r_values1, g_values1, b_values1, v_alpha);
-                vst4q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack0: uint8x16x4_t =
-                    uint8x16x4_t(b_values0, g_values0, r_values0, v_alpha);
-                vst4q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x4_t =
-                    uint8x16x4_t(b_values1, g_values1, r_values1, v_alpha);
-                vst4q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
 
         cx += 16;
         uv_x += 8;
@@ -226,32 +211,20 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack0: uint8x8x3_t = uint8x8x3_t(r0, g0, b0);
-                vst3_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x8x3_t = uint8x8x3_t(r1, g1, b1);
-                vst3_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack0: uint8x8x3_t = uint8x8x3_t(b0, g0, r0);
-                vst3_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x8x3_t = uint8x8x3_t(b1, g1, r1);
-                vst3_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack0: uint8x8x4_t = uint8x8x4_t(r0, g0, b0, vget_low_u8(v_alpha));
-                vst4_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x8x4_t = uint8x8x4_t(r1, g1, b1, vget_low_u8(v_alpha));
-                vst4_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack0: uint8x8x4_t = uint8x8x4_t(b0, g0, r0, vget_low_u8(v_alpha));
-                vst4_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x8x4_t = uint8x8x4_t(b1, g1, r1, vget_low_u8(v_alpha));
-                vst4_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-        }
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r0,
+            g0,
+            b0,
+            vget_low_u8(v_alpha),
+        );
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r1,
+            g1,
+            b1,
+            vget_low_u8(v_alpha),
+        );
 
         cx += 8;
         uv_x += 4;
@@ -362,36 +335,20 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack0: uint8x16x3_t = uint8x16x3_t(r_values0, g_values0, b_values0);
-                vst3q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x3_t = uint8x16x3_t(r_values1, g_values1, b_values1);
-                vst3q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack0: uint8x16x3_t = uint8x16x3_t(b_values0, g_values0, r_values0);
-                vst3q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x3_t = uint8x16x3_t(b_values1, g_values1, r_values1);
-                vst3q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack0: uint8x16x4_t =
-                    uint8x16x4_t(r_values0, g_values0, b_values0, v_alpha);
-                vst4q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x4_t =
-                    uint8x16x4_t(r_values1, g_values1, b_values1, v_alpha);
-                vst4q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack0: uint8x16x4_t =
-                    uint8x16x4_t(b_values0, g_values0, r_values0, v_alpha);
-                vst4q_u8(rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack0);
-                let dst_pack1: uint8x16x4_t =
-                    uint8x16x4_t(b_values1, g_values1, r_values1, v_alpha);
-                vst4q_u8(rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(), dst_pack1);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
 
         cx += 16;
         uv_x += 8;

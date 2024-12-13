@@ -58,7 +58,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/test_short_lanes.png")
+    let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -98,18 +98,18 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 4).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420_p16(
+    rgb_to_yuv422_p16(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
         12,
-        YuvRange::Full,
-        YuvStandardMatrix::Bt2020,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
         YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
@@ -261,13 +261,13 @@ fn main() {
     // let rgba_stride = width as usize * 4;
     // let mut rgba = vec![0u8; height as usize * rgba_stride];
 
-    yuv420_p16_to_rgb16(
+    yuv422_p16_to_rgb16(
         &fixed_planar,
         &mut bytes_16,
         rgba_stride as u32,
         12,
-        YuvRange::Full,
-        YuvStandardMatrix::Bt2020,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
         YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )

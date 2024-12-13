@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::_mm256_interleave_rgba_epi16;
+use crate::avx2::avx2_utils::_mm256_store_interleave_rgb16_for_yuv;
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
@@ -220,43 +220,13 @@ unsafe fn avx_yuv_p16_to_rgba_row_alpha_impl<
 
         let a_values = _mm256_loadu_si256(a_plane.get_unchecked(cx..).as_ptr() as *const __m256i);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                unreachable!("This method can't be called with Rgb/Bgr");
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack = _mm256_interleave_rgba_epi16(r_values, g_values, b_values, a_values);
-                _mm256_storeu_si256(dst_ptr.as_mut_ptr() as *mut __m256i, dst_pack.0);
-                _mm256_storeu_si256(
-                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m256i,
-                    dst_pack.1,
-                );
-                _mm256_storeu_si256(
-                    dst_ptr.get_unchecked_mut(32..).as_mut_ptr() as *mut __m256i,
-                    dst_pack.2,
-                );
-                _mm256_storeu_si256(
-                    dst_ptr.get_unchecked_mut(48..).as_mut_ptr() as *mut __m256i,
-                    dst_pack.3,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = _mm256_interleave_rgba_epi16(b_values, g_values, r_values, a_values);
-                _mm256_storeu_si256(dst_ptr.as_mut_ptr() as *mut __m256i, dst_pack.0);
-                _mm256_storeu_si256(
-                    dst_ptr.get_unchecked_mut(16..).as_mut_ptr() as *mut __m256i,
-                    dst_pack.1,
-                );
-                _mm256_storeu_si256(
-                    dst_ptr.get_unchecked_mut(32..).as_mut_ptr() as *mut __m256i,
-                    dst_pack.2,
-                );
-                _mm256_storeu_si256(
-                    dst_ptr.get_unchecked_mut(48..).as_mut_ptr() as *mut __m256i,
-                    dst_pack.3,
-                );
-            }
-        }
+        _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
+            dst_ptr.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            a_values,
+        );
 
         cx += 16;
         match chroma_subsampling {

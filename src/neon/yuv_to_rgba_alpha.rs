@@ -29,7 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::neon::neon_simd_support::{
-    neon_premultiply_alpha, vdotl_laneq_s16, vdotl_laneq_s16_x2, vmullq_laneq_s16,
+    neon_premultiply_alpha, neon_store_rgb8, vdotl_laneq_s16, vdotl_laneq_s16_x2, vmullq_laneq_s16,
 };
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -167,19 +167,13 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
             b_values = neon_premultiply_alpha(b_values, a_values);
         }
 
-        match destination_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                panic!("Should not be reached");
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, a_values);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(b_values, g_values, r_values, a_values);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            a_values,
+        );
 
         cx += 16;
 
@@ -303,19 +297,13 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha<
             b_values = neon_premultiply_alpha(b_values, a_values);
         }
 
-        match destination_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                unreachable!("Should not be reached");
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, a_values);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(b_values, g_values, r_values, a_values);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            a_values,
+        );
 
         cx += 16;
 

@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::get_built_inverse_transform;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_nv12_p10_to_rgba_row;
@@ -57,25 +58,32 @@ fn yuv_nv_p10_to_image_impl<
 
     image.check_constraints(chroma_subsampling)?;
 
-    let range = get_yuv_range(10, range);
+    const PRECISION: i32 = 13;
+
+    let chroma_range = get_yuv_range(10, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range_p10 = (1u32 << 10u32) - 1u32;
-    let transform = get_inverse_transform(
-        max_range_p10,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
-    let i_transform = transform.to_integers(6u32);
+    let i_transform =
+        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 10u32, range, matrix) {
+            stored
+        } else {
+            let transform = get_inverse_transform(
+                max_range_p10,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform.to_integers(PRECISION as u32)
+        };
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
 
     let process_wide_row = |_rgba: &mut [u8], _y_src: &[u16], _uv_src: &[u16]| {
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
@@ -87,13 +95,13 @@ fn yuv_nv_p10_to_image_impl<
                 SAMPLING,
                 ENDIANNESS,
                 BYTES_POSITION,
+                PRECISION,
             >(
                 _y_src,
                 _uv_src,
                 _rgba,
-                0,
                 image.width,
-                &range,
+                &chroma_range,
                 &i_transform,
                 0,
                 0,
@@ -104,7 +112,7 @@ fn yuv_nv_p10_to_image_impl<
 
     let msb_shift = 16 - 10;
     let width = image.width;
-    const V_R_SHR: i32 = 8;
+    const V_R_SHR: i32 = PRECISION + 2;
 
     let process_halved_chroma_row = |y_src: &[u16], uv_src: &[u16], rgba: &mut [u8]| {
         let processed = process_wide_row(rgba, y_src, uv_src);

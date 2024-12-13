@@ -430,7 +430,7 @@ fn yuv_nv_p16_to_image<
             12,
         >(bi_planar_image, bgra, bgra_stride, range, matrix)
     } else {
-        panic!("Bit depth {} is not implemented", bit_depth);
+        unimplemented!("Bit depth {} is not implemented", bit_depth);
     }
 }
 

@@ -46,6 +46,19 @@ pub(crate) unsafe fn avx2_pack_u16(s_1: __m256i, s_2: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn avx2_pack_u32(s_1: __m256i, s_2: __m256i) -> __m256i {
+    let packed = _mm256_packus_epi32(s_1, s_2);
+    const MASK: i32 = shuffle(3, 1, 2, 0);
+    _mm256_permute4x64_epi64::<MASK>(packed)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_havg_epi16_epi32(a: __m256i) -> __m256i {
+    let sums = _mm256_madd_epi16(a, _mm256_set1_epi16(1));
+    _mm256_srli_epi32::<1>(_mm256_add_epi32(sums, _mm256_set1_epi32(1)))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_interleave_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let xy_l = _mm256_unpacklo_epi8(a, b);
     let xy_h = _mm256_unpackhi_epi8(a, b);
@@ -297,8 +310,16 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 pub(crate) unsafe fn avx2_pairwise_wide_avg(v: __m256i) -> __m256i {
     let ones = _mm256_set1_epi8(1);
     let sums = _mm256_maddubs_epi16(v, ones);
-    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
-    shifted
+    _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx_avg_epi16(a: __m256i) -> __m256i {
+    let sums = _mm256_madd_epi16(a, _mm256_set1_epi16(1));
+    let shifted = _mm256_srli_epi32::<1>(_mm256_add_epi32(sums, _mm256_set1_epi32(1)));
+    let a = _mm256_packus_epi32(shifted, shifted);
+    const MASK: i32 = shuffle(3, 1, 2, 0);
+    _mm256_permute4x64_epi64::<MASK>(a)
 }
 
 #[inline(always)]
@@ -463,5 +484,187 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
         }
     }
 
+    (r_values, g_values, b_values)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_store_interleave_rgb16_for_yuv<const ORIGINS: u8>(
+    ptr: *mut u16,
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+    a: __m256i,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack = _mm256_interleave_rgb_epi16(r, g, b);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack = _mm256_interleave_rgb_epi16(b, g, r);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack = _mm256_interleave_rgba_epi16(r, g, b, a);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+            _mm256_storeu_si256(ptr.add(48) as *mut __m256i, dst_pack.3);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack = _mm256_interleave_rgba_epi16(b, g, r, a);
+            _mm256_storeu_si256(ptr as *mut __m256i, dst_pack.0);
+            _mm256_storeu_si256(ptr.add(16) as *mut __m256i, dst_pack.1);
+            _mm256_storeu_si256(ptr.add(32) as *mut __m256i, dst_pack.2);
+            _mm256_storeu_si256(ptr.add(48) as *mut __m256i, dst_pack.3);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_store_interleave_rgb_for_yuv<const ORIGINS: u8>(
+    ptr: *mut u8,
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+    a: __m256i,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            avx2_store_u8_rgb(ptr, r, g, b);
+        }
+        YuvSourceChannels::Bgr => {
+            avx2_store_u8_rgb(ptr, b, g, r);
+        }
+        YuvSourceChannels::Rgba => {
+            _mm256_store_interleaved_epi8(ptr, r, g, b, a);
+        }
+        YuvSourceChannels::Bgra => {
+            _mm256_store_interleaved_epi8(ptr, b, g, r, a);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_deinterleave_rgba_epi16(
+    a: __m256i,
+    b: __m256i,
+    c: __m256i,
+    d: __m256i,
+) -> (__m256i, __m256i, __m256i, __m256i) {
+    let sh = _mm256_setr_epi8(
+        0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15, 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12,
+        13, 6, 7, 14, 15,
+    );
+    let p0 = _mm256_shuffle_epi8(a, sh);
+    let p1 = _mm256_shuffle_epi8(b, sh);
+    let p2 = _mm256_shuffle_epi8(c, sh);
+    let p3 = _mm256_shuffle_epi8(d, sh);
+
+    let p01l = _mm256_unpacklo_epi32(p0, p1);
+    let p01h = _mm256_unpackhi_epi32(p0, p1);
+    let p23l = _mm256_unpacklo_epi32(p2, p3);
+    let p23h = _mm256_unpackhi_epi32(p2, p3);
+
+    let pll = _mm256_permute2x128_si256::<32>(p01l, p23l);
+    let plh = _mm256_permute2x128_si256::<49>(p01l, p23l);
+    let phl = _mm256_permute2x128_si256::<32>(p01h, p23h);
+    let phh = _mm256_permute2x128_si256::<49>(p01h, p23h);
+
+    let b0 = _mm256_unpacklo_epi32(pll, plh);
+    let g0 = _mm256_unpackhi_epi32(pll, plh);
+    let r0 = _mm256_unpacklo_epi32(phl, phh);
+    let a0 = _mm256_unpackhi_epi32(phl, phh);
+    (b0, g0, r0, a0)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_deinterleave_rgb_epi16(
+    a: __m256i,
+    b: __m256i,
+    c: __m256i,
+) -> (__m256i, __m256i, __m256i) {
+    let s02_low = _mm256_permute2x128_si256::<32>(a, c);
+    let s02_high = _mm256_permute2x128_si256::<49>(a, c);
+
+    let m0 = _mm256_setr_epi8(
+        0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1,
+        -1, 0, 0, 0, 0,
+    );
+    let m1 = _mm256_setr_epi8(
+        0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0,
+        -1, -1, 0, 0,
+    );
+    let b0 = _mm256_blendv_epi8(_mm256_blendv_epi8(s02_low, s02_high, m0), b, m1);
+    let g0 = _mm256_blendv_epi8(_mm256_blendv_epi8(b, s02_low, m0), s02_high, m1);
+    let r0 = _mm256_blendv_epi8(_mm256_blendv_epi8(s02_high, s02_low, m1), b, m0);
+    let sh_b = _mm256_setr_epi8(
+        0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14,
+        15, 4, 5, 10, 11,
+    );
+    let sh_g = _mm256_setr_epi8(
+        2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0,
+        1, 6, 7, 12, 13,
+    );
+    let sh_r = _mm256_setr_epi8(
+        4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2,
+        3, 8, 9, 14, 15,
+    );
+    let b0 = _mm256_shuffle_epi8(b0, sh_b);
+    let g0 = _mm256_shuffle_epi8(g0, sh_g);
+    let r0 = _mm256_shuffle_epi8(r0, sh_r);
+    (b0, g0, r0)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
+    ptr: *const u16,
+) -> (__m256i, __m256i, __m256i) {
+    let r_values;
+    let g_values;
+    let b_values;
+
+    let source_channels: YuvSourceChannels = CHANS.into();
+
+    let row0 = _mm256_loadu_si256(ptr as *const __m256i);
+    let row1 = _mm256_loadu_si256(ptr.add(16) as *const __m256i);
+    let row2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = _mm256_deinterleave_rgb_epi16(row0, row1, row2);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = rgb_values.0;
+                g_values = rgb_values.1;
+                b_values = rgb_values.2;
+            } else {
+                r_values = rgb_values.2;
+                g_values = rgb_values.1;
+                b_values = rgb_values.0;
+            }
+        }
+        YuvSourceChannels::Rgba => {
+            let row3 = _mm256_loadu_si256(ptr.add(48) as *const __m256i);
+            let rgb_values = _mm256_deinterleave_rgba_epi16(row0, row1, row2, row3);
+            r_values = rgb_values.0;
+            g_values = rgb_values.1;
+            b_values = rgb_values.2;
+        }
+        YuvSourceChannels::Bgra => {
+            let row3 = _mm256_loadu_si256(ptr.add(48) as *const __m256i);
+            let rgb_values = _mm256_deinterleave_rgba_epi16(row0, row1, row2, row3);
+            r_values = rgb_values.2;
+            g_values = rgb_values.1;
+            b_values = rgb_values.0;
+        }
+    }
     (r_values, g_values, b_values)
 }

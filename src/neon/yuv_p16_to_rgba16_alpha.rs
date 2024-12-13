@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{vld_s16_endian, vldq_s16_endian};
+use crate::neon::neon_simd_support::{neon_store_rgb16, vld_s16_endian, vldq_s16_endian};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -162,24 +162,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
 
         let v_alpha = a_values_l;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {}
-            YuvSourceChannels::Bgr => {}
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u16(
-                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u16(
-                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-        }
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 8;
 
@@ -326,24 +315,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
 
         let v_alpha = a_values_l;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {}
-            YuvSourceChannels::Bgr => {}
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u16(
-                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u16(
-                    rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-        }
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 8;
 

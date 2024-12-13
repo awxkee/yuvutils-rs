@@ -237,3 +237,90 @@ pub(crate) unsafe fn neon_vld_rgb16_for_yuv<const ORIGINS: u8>(
     }
     (r_values, g_values, b_values)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn neon_store_rgb16<const ORIGINS: u8>(
+    ptr: *mut u16,
+    r_values: uint16x8_t,
+    g_values: uint16x8_t,
+    b_values: uint16x8_t,
+    v_max_colors: uint16x8_t,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack = uint16x8x3_t(r_values, g_values, b_values);
+            vst3q_u16(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack = uint16x8x3_t(b_values, g_values, r_values);
+            vst3q_u16(ptr, dst_pack);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_max_colors);
+            vst4q_u16(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_max_colors);
+            vst4q_u16(ptr, dst_pack);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn neon_store_rgb8<const ORIGINS: u8>(
+    ptr: *mut u8,
+    r_values: uint8x16_t,
+    g_values: uint8x16_t,
+    b_values: uint8x16_t,
+    v_max_colors: uint8x16_t,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
+            vst3q_u8(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack: uint8x16x3_t = uint8x16x3_t(b_values, g_values, r_values);
+            vst3q_u8(ptr, dst_pack);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, v_max_colors);
+            vst4q_u8(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack: uint8x16x4_t = uint8x16x4_t(b_values, g_values, r_values, v_max_colors);
+            vst4q_u8(ptr, dst_pack);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn neon_store_half_rgb8<const ORIGINS: u8>(
+    ptr: *mut u8,
+    r_values: uint8x8_t,
+    g_values: uint8x8_t,
+    b_values: uint8x8_t,
+    v_max_colors: uint8x8_t,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);
+            vst3_u8(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack: uint8x8x3_t = uint8x8x3_t(b_values, g_values, r_values);
+            vst3_u8(ptr, dst_pack);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack: uint8x8x4_t = uint8x8x4_t(r_values, g_values, b_values, v_max_colors);
+            vst4_u8(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack: uint8x8x4_t = uint8x8x4_t(b_values, g_values, r_values, v_max_colors);
+            vst4_u8(ptr, dst_pack);
+        }
+    }
+}

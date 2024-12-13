@@ -52,3 +52,24 @@ path = "yuv_to_yuyu2/yuv_to_yuyu2.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "rgb_to_yuv"
+path = "rgb_to_yuv/rgb_to_yuv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rgb16_to_yuv16"
+path = "rgb16_to_yuv16/rgb16_to_yuv16.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rgb_to_y"
+path = "rgb_to_y/rgb_to_y.rs"
+test = false
+doc = false
+bench = false

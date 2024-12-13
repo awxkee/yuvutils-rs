@@ -76,19 +76,6 @@ pub(crate) unsafe fn sse_store_rgba(ptr: *mut u8, r: __m128i, g: __m128i, b: __m
 }
 
 #[inline(always)]
-pub(crate) unsafe fn sse_store_rgba_half_epi8(
-    ptr: *mut u8,
-    r: __m128i,
-    g: __m128i,
-    b: __m128i,
-    a: __m128i,
-) {
-    let (row1, row2, _, _) = sse_interleave_rgba(r, g, b, a);
-    _mm_storeu_si128(ptr as *mut __m128i, row1);
-    _mm_storeu_si128(ptr.add(16) as *mut __m128i, row2);
-}
-
-#[inline(always)]
 pub(crate) unsafe fn sse_deinterleave_rgba(
     rgba0: __m128i,
     rgba1: __m128i,
@@ -222,13 +209,6 @@ pub(crate) unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: _
     _mm_storeu_si128(ptr as *mut __m128i, v0);
     _mm_storeu_si128(ptr.add(16) as *mut __m128i, v1);
     _mm_storeu_si128(ptr.add(32) as *mut __m128i, v2);
-}
-
-#[inline(always)]
-pub(crate) unsafe fn sse_store_rgb_half_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: __m128i) {
-    let (v0, v1, _) = sse_interleave_rgb(r, g, b);
-    _mm_storeu_si128(ptr as *mut __m128i, v0);
-    std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
 }
 
 #[inline(always)]
@@ -507,4 +487,104 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
         }
     }
     (r_values, g_values, b_values)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_store_interleave_rgb16_for_yuv<const CHANS: u8>(
+    ptr: *mut u16,
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    a: __m128i,
+) {
+    let destination_channels: YuvSourceChannels = CHANS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack = _mm_interleave_rgb_epi16(r, g, b);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack = _mm_interleave_rgb_epi16(b, g, r);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack = _mm_interleave_rgba_epi16(r, g, b, a);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+            _mm_storeu_si128(ptr.add(24) as *mut __m128i, dst_pack.3);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack = _mm_interleave_rgba_epi16(b, g, r, a);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+            _mm_storeu_si128(ptr.add(24) as *mut __m128i, dst_pack.3);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_store_interleave_rgb_for_yuv<const CHANS: u8>(
+    ptr: *mut u8,
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    a: __m128i,
+) {
+    let destination_channels: YuvSourceChannels = CHANS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            sse_store_rgb_u8(ptr, r, g, b);
+        }
+        YuvSourceChannels::Bgr => {
+            sse_store_rgb_u8(ptr, b, g, r);
+        }
+        YuvSourceChannels::Rgba => {
+            sse_store_rgba(ptr, r, g, b, a);
+        }
+        YuvSourceChannels::Bgra => {
+            sse_store_rgba(ptr, b, g, r, a);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CHANS: u8>(
+    ptr: *mut u8,
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    a: __m128i,
+) {
+    let destination_channels: YuvSourceChannels = CHANS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let (v0, v1, _) = sse_interleave_rgb(r, g, b);
+            _mm_storeu_si128(ptr as *mut __m128i, v0);
+            std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
+        }
+        YuvSourceChannels::Bgr => {
+            let (v0, v1, _) = sse_interleave_rgb(b, g, r);
+            _mm_storeu_si128(ptr as *mut __m128i, v0);
+            std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
+        }
+        YuvSourceChannels::Rgba => {
+            let (row1, row2, _, _) = sse_interleave_rgba(r, g, b, a);
+            _mm_storeu_si128(ptr as *mut __m128i, row1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, row2);
+        }
+        YuvSourceChannels::Bgra => {
+            let (row1, row2, _, _) = sse_interleave_rgba(b, g, r, a);
+            _mm_storeu_si128(ptr as *mut __m128i, row1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, row2);
+        }
+    }
 }

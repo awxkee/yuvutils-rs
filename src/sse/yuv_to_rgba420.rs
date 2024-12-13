@@ -28,8 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::utils::{sse_store_rgb_u8, sse_store_rgba};
-use crate::sse::{sse_store_rgb_half_u8, sse_store_rgba_half_epi8};
+use crate::sse::{_mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -170,68 +169,20 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values0,
-                    g_values0,
-                    b_values0,
-                );
-                sse_store_rgb_u8(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values1,
-                    g_values1,
-                    b_values1,
-                );
-            }
-            YuvSourceChannels::Bgr => {
-                sse_store_rgb_u8(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values0,
-                    g_values0,
-                    r_values0,
-                );
-                sse_store_rgb_u8(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values1,
-                    g_values1,
-                    r_values1,
-                );
-            }
-            YuvSourceChannels::Rgba => {
-                sse_store_rgba(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values0,
-                    g_values0,
-                    b_values0,
-                    v_alpha,
-                );
-                sse_store_rgba(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values1,
-                    g_values1,
-                    b_values1,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                sse_store_rgba(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values0,
-                    g_values0,
-                    r_values0,
-                    v_alpha,
-                );
-                sse_store_rgba(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values1,
-                    g_values1,
-                    r_values1,
-                    v_alpha,
-                );
-            }
-        }
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
 
         cx += 16;
         uv_x += 8;
@@ -298,68 +249,21 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                sse_store_rgb_half_u8(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values0,
-                    g_values0,
-                    b_values0,
-                );
-                sse_store_rgb_half_u8(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values1,
-                    g_values1,
-                    b_values1,
-                );
-            }
-            YuvSourceChannels::Bgr => {
-                sse_store_rgb_half_u8(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values0,
-                    g_values0,
-                    r_values0,
-                );
-                sse_store_rgb_half_u8(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values1,
-                    g_values1,
-                    r_values1,
-                );
-            }
-            YuvSourceChannels::Rgba => {
-                sse_store_rgba_half_epi8(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values0,
-                    g_values0,
-                    b_values0,
-                    v_alpha,
-                );
-                sse_store_rgba_half_epi8(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    r_values1,
-                    g_values1,
-                    b_values1,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                sse_store_rgba_half_epi8(
-                    rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values0,
-                    g_values0,
-                    r_values0,
-                    v_alpha,
-                );
-                sse_store_rgba_half_epi8(
-                    rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-                    b_values1,
-                    g_values1,
-                    r_values1,
-                    v_alpha,
-                );
-            }
-        }
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
 
         cx += 8;
         uv_x += 4;

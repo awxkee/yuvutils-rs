@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{vld_s16_endian, vldq_s16_endian};
+use crate::neon::neon_simd_support::{neon_store_half_rgb8, vld_s16_endian, vldq_s16_endian};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -75,7 +75,6 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
     let v_alpha = vdup_n_u8(255u8);
-    let v_min_values = vdupq_n_s16(0i16);
     let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
     let v_store_shift = vdupq_n_s16(8 - (BIT_DEPTH as i16));
 
@@ -134,9 +133,9 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
 
         let y_high = vmull_high_laneq_s16::<0>(y_values, v_weights);
 
-        let r_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
-        let b_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
-        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
+        let r_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
+        let b_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
+        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
             vmlal_laneq_s16::<3>(y_high, v_high, v_weights),
             u_high,
             v_weights,
@@ -144,45 +143,25 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
 
         let y_low = vmull_laneq_s16::<0>(vget_low_s16(y_values), v_weights);
 
-        let r_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
+        let r_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
+        let b_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
+        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
             vmlal_laneq_s16::<3>(y_low, v_low, v_weights),
             u_low,
             v_weights,
         ));
 
-        let r_values = vqmovn_u16(vqshlq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(r_low, r_high), v_min_values)),
-            v_store_shift,
-        ));
-        let g_values = vqmovn_u16(vqshlq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(g_low, g_high), v_min_values)),
-            v_store_shift,
-        ));
-        let b_values = vqmovn_u16(vqshlq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(vcombine_s16(b_low, b_high), v_min_values)),
-            v_store_shift,
-        ));
+        let r_values = vqmovn_u16(vqshlq_u16(vcombine_u16(r_low, r_high), v_store_shift));
+        let g_values = vqmovn_u16(vqshlq_u16(vcombine_u16(g_low, g_high), v_store_shift));
+        let b_values = vqmovn_u16(vqshlq_u16(vcombine_u16(b_low, b_high), v_store_shift));
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);
-                vst3_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(b_values, g_values, r_values);
-                vst3_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x8x4_t = uint8x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x8x4_t = uint8x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-        }
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_ptr.add(dst_offset + cx * channels),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 8;
 

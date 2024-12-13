@@ -28,8 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::utils::{sse_store_rgb_u8, sse_store_rgba};
-use crate::sse::{sse_store_rgb_half_u8, sse_store_rgba_half_epi8};
+use crate::sse::{_mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -160,32 +159,13 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(rgba_ptr.add(dst_shift), r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                sse_store_rgb_u8(rgba_ptr.add(dst_shift), b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                sse_store_rgba(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                sse_store_rgba(
-                    rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-        }
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 16;
 
@@ -253,32 +233,13 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                sse_store_rgb_half_u8(rgba_ptr.add(dst_shift), r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                sse_store_rgb_half_u8(rgba_ptr.add(dst_shift), b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                sse_store_rgba_half_epi8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                sse_store_rgba_half_epi8(
-                    rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-        }
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 8;
 

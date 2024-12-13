@@ -192,34 +192,13 @@ unsafe fn avx2_yuv_to_rgba_alpha_impl<const DESTINATION_CHANNELS: u8, const SAMP
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx2_store_u8_rgb(ptr, r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx2_store_u8_rgb(ptr, b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                _mm256_store_interleaved_epi8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                    a_values,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                _mm256_store_interleaved_epi8(
-                    rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
-                    r_values,
-                    a_values,
-                );
-            }
-        }
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            a_values,
+        );
 
         cx += 32;
 

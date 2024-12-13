@@ -28,7 +28,9 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{vdotl_laneq_s16, vdotl_laneq_s16_x2, vmullq_laneq_s16};
+use crate::neon::neon_simd_support::{
+    neon_store_half_rgb8, neon_store_rgb8, vdotl_laneq_s16, vdotl_laneq_s16_x2, vmullq_laneq_s16,
+};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
@@ -157,24 +159,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
-                vst3q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(b_values, g_values, r_values);
-                vst3q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            bgra_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 16;
 
@@ -248,26 +239,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);
-                vst3_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(b_values, g_values, r_values);
-                vst3_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x8x4_t =
-                    uint8x8x4_t(r_values, g_values, b_values, vget_low_u8(v_alpha));
-                vst4_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x8x4_t =
-                    uint8x8x4_t(b_values, g_values, r_values, vget_low_u8(v_alpha));
-                vst4_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            bgra_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            vget_low_u8(v_alpha),
+        );
 
         cx += 8;
 
@@ -387,24 +365,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row<
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
-                vst3q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(b_values, g_values, r_values);
-                vst3q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            bgra_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 16;
 
@@ -466,26 +433,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row<
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);
-                vst3_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(b_values, g_values, r_values);
-                vst3_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x8x4_t =
-                    uint8x8x4_t(r_values, g_values, b_values, vget_low_u8(v_alpha));
-                vst4_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x8x4_t =
-                    uint8x8x4_t(b_values, g_values, r_values, vget_low_u8(v_alpha));
-                vst4_u8(bgra_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            bgra_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            vget_low_u8(v_alpha),
+        );
 
         cx += 8;
 
