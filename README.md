@@ -83,7 +83,7 @@ Tests performed on the image 5763x3842
 | libyuv RGB->YUV 4:2:0  |   3.58ms   |  33.87ms  |
 | utils RGBA->YUV 4:2:0  |   4.04ms   |  5.47ms   |
 | libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |
-| utils RGBA->YUV 4:2:2  |   4.37ms   |  7.08ms   |
+| utils RGBA->YUV 4:2:2  |   4.34ms   |  7.08ms   |
 | libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |
 | utils RGBA->YUV 4:4:4  |   4.49ms   |  7.97ms   |
 
@@ -102,12 +102,18 @@ Tests performed on the image 5763x3842
 | utils YUV 4:4:4->RGBA  |   4.79ms   |  7.20ms   |
 | libyuv YUV 4:4:4->RGBA |   4.82ms   |  7.30ms   |
 
+YUV 16 bit-depth conversion
+
+```bash
+cargo bench --bench yuv16 --manifest-path ./app/Cargo.toml
+```
+
 ### Encoding 10-bit
 
 |                            | time(NEON) | Time(AVX) |
 |----------------------------|:----------:|:---------:|
 | utils RGB10->YUV10 4:2:0   |   4.98ms   |     x     |
-| libyuv RGB10->YUV10 4:2:0  |     -      |     -     |
+| libyuv RGB10->YUV10 4:2:0  |     x      |     -     |
 | utils RGBA10->YUV10 4:2:0  |   6.03ms   |     x     |
 | libyuv RGBA10->YUV10 4:2:0 |     x      |     -     |
 | utils RGBA10->YUV10 4:2:2  |   5.99ms   |     x     |
@@ -118,15 +124,15 @@ Tests performed on the image 5763x3842
 
 |                            | time(NEON) | Time(AVX) |
 |----------------------------|:----------:|:---------:|
-| utils YUV10 4:2:0->RGB10   |   5.73ms   |     -     |
+| utils YUV10 4:2:0->RGB10   |   5.64ms   |     -     |
 | libyuv YUV10 4:2:0->RGB10  |     -      |     -     |
-| utils YUV10 4:2:0->RGBA10  |   6.38ms   |     -     |
+| utils YUV10 4:2:0->RGBA10  |   6.26ms   |     -     |
 | utils YUV10 4:2:0->RGBA8   |   7.05ms   |     -     |
 | libyuv YUV10 4:2:0->RGBA8  |  12.79ms   |     -     |
 | utils YUV10 4:2:2->RGBA10  |   6.31ms   |     -     |
-| utils YUV10 4:2:2->RGBA8   |   7.50ms   |     -     |
+| utils YUV10 4:2:2->RGBA8   |   7.33ms   |     -     |
 | libyuv YUV10 4:2:2->RGBA10 |  12.62ms   |     -     |
-| utils YUV10 4:4:4->RGBA10  |   6.41ms   |     -     |
+| utils YUV10 4:4:4->RGBA10  |   6.39ms   |     -     |
 
 This project is licensed under either of
 
