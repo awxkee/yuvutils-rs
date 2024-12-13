@@ -75,7 +75,7 @@ cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
 
 Tests performed on the image 5763x3842
 
-### Encoding
+### Encoding 8-bit
 
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
@@ -87,7 +87,7 @@ Tests performed on the image 5763x3842
 | libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |
 | utils RGBA->YUV 4:4:4  |   4.49ms   |  7.97ms   |
 
-### Decoding
+### Decoding 8-bit
 
 |                        | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
@@ -101,6 +101,32 @@ Tests performed on the image 5763x3842
 | libyuv YUV 4:2:2->RGBA |   5.91ms   |  6.91ms   |
 | utils YUV 4:4:4->RGBA  |   4.79ms   |  7.20ms   |
 | libyuv YUV 4:4:4->RGBA |   4.82ms   |  7.30ms   |
+
+### Encoding 10-bit
+
+|                            | time(NEON) | Time(AVX) |
+|----------------------------|:----------:|:---------:|
+| utils RGB10->YUV10 4:2:0   |   4.98ms   |     x     |
+| libyuv RGB10->YUV10 4:2:0  |     -      |     -     |
+| utils RGBA10->YUV10 4:2:0  |   6.03ms   |     x     |
+| libyuv RGBA10->YUV10 4:2:0 |     x      |     -     |
+| utils RGBA10->YUV10 4:2:2  |   5.99ms   |     x     |
+| libyuv RGBA10->YUV10 4:2:2 |     x      |     -     |
+| utils RGBA10->YUV10 4:4:4  |   4.84ms   |     x     |
+
+### Decoding 10-bit
+
+|                            | time(NEON) | Time(AVX) |
+|----------------------------|:----------:|:---------:|
+| utils YUV10 4:2:0->RGB10   |   5.73ms   |     -     |
+| libyuv YUV10 4:2:0->RGB10  |     -      |     -     |
+| utils YUV10 4:2:0->RGBA10  |   6.38ms   |     -     |
+| utils YUV10 4:2:0->RGBA8   |   7.05ms   |     -     |
+| libyuv YUV10 4:2:0->RGBA8  |  12.79ms   |     -     |
+| utils YUV10 4:2:2->RGBA10  |   6.31ms   |     -     |
+| utils YUV10 4:2:2->RGBA8   |   7.50ms   |     -     |
+| libyuv YUV10 4:2:2->RGBA10 |  12.62ms   |     -     |
+| utils YUV10 4:4:4->RGBA10  |   6.41ms   |     -     |
 
 This project is licensed under either of
 

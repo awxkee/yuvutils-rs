@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::vmullq_laneq_s16;
+use crate::neon::neon_simd_support::{neon_store_rgb8, vmullq_laneq_s16};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -74,20 +74,13 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, r_values, r_values);
-                vst3q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
 
         cx += 16;
     }
@@ -140,20 +133,13 @@ pub(crate) unsafe fn neon_y_to_rgb_row<const PRECISION: i32, const DESTINATION_C
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, r_values, r_values);
-                vst3q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u8(rgba_ptr.add(dst_shift), dst_pack);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
 
         cx += 16;
     }

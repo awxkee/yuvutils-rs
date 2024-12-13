@@ -30,6 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
+use crate::neon::neon_simd_support::neon_store_half_rgb8;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
@@ -179,24 +180,13 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let g_values = vqrshrun_n_s16::<2>(vcombine_s16(g_low, g_high));
         let b_values = vqrshrun_n_s16::<2>(vcombine_s16(b_low, b_high));
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);
-                vst3_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x8x3_t = uint8x8x3_t(b_values, g_values, r_values);
-                vst3_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x8x4_t = uint8x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x8x4_t = uint8x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4_u8(dst_ptr.add(dst_offset + cx * channels), dst_pack);
-            }
-        }
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_ptr.add(dst_offset + cx * channels),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 8;
 

@@ -30,6 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
+use crate::neon::neon_simd_support::neon_store_rgb16;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
@@ -183,25 +184,13 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
         let g_values = vminq_u16(vcombine_u16(g_low, g_high), v_max_colors);
         let b_values = vminq_u16(vcombine_u16(b_low, b_high), v_max_colors);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack = uint16x8x3_t(r_values, g_values, b_values);
-                vst3q_u16(dst_ptr, dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack = uint16x8x3_t(b_values, g_values, r_values);
-                vst3q_u16(dst_ptr, dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_max_colors);
-                vst4q_u16(dst_ptr, dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_max_colors);
-                vst4q_u16(dst_ptr, dst_pack);
-            }
-        }
-
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            dst_ptr,
+            r_values,
+            g_values,
+            b_values,
+            v_max_colors,
+        );
         cx += 8;
 
         match chroma_subsampling {
@@ -373,24 +362,13 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
             v_max_colors,
         );
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack = uint16x8x3_t(r_values, g_values, b_values);
-                vst3q_u16(dst_ptr, dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack = uint16x8x3_t(b_values, g_values, r_values);
-                vst3q_u16(dst_ptr, dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_max_colors);
-                vst4q_u16(dst_ptr, dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_max_colors);
-                vst4q_u16(dst_ptr, dst_pack);
-            }
-        }
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            dst_ptr,
+            r_values,
+            g_values,
+            b_values,
+            v_max_colors,
+        );
 
         cx += 8;
 

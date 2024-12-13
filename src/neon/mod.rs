@@ -50,9 +50,9 @@ mod yuv_nv_p10_to_rgba;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
-mod yuv_p10_to_rgba;
 mod yuv_p16_to_rgba16;
 mod yuv_p16_to_rgba16_alpha;
+mod yuv_p16_to_rgba8;
 mod yuv_p16_to_rgba_alpha;
 mod yuv_to_rgba;
 mod yuv_to_rgba420;
@@ -83,11 +83,11 @@ pub(crate) use yuv_nv_p10_to_rgba::neon_yuv_nv12_p10_to_rgba_row;
 pub(crate) use yuv_nv_p16_to_rgb::{neon_yuv_nv_p16_to_rgba_row, neon_yuv_nv_p16_to_rgba_row_rdm};
 pub(crate) use yuv_nv_to_rgba::{neon_yuv_nv_to_rgba_row, neon_yuv_nv_to_rgba_row_rdm};
 pub(crate) use yuv_nv_to_rgba420::{neon_yuv_nv_to_rgba_row420, neon_yuv_nv_to_rgba_row_rdm420};
-pub(crate) use yuv_p10_to_rgba::neon_yuv_p16_to_rgba_row;
 pub(crate) use yuv_p16_to_rgba16::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
 pub(crate) use yuv_p16_to_rgba16_alpha::{
     neon_yuv_p16_to_rgba16_alpha_row, neon_yuv_p16_to_rgba16_alpha_row_rdm,
 };
+pub(crate) use yuv_p16_to_rgba8::neon_yuv_p16_to_rgba_row;
 pub(crate) use yuv_p16_to_rgba_alpha::neon_yuv_p16_to_rgba_alpha_row;
 pub(crate) use yuv_to_rgba::{neon_yuv_to_rgba_row, neon_yuv_to_rgba_row_rdm};
 pub(crate) use yuv_to_rgba420::{neon_yuv_to_rgba_row420, neon_yuv_to_rgba_row_rdm420};

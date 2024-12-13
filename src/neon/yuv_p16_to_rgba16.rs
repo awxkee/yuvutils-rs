@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{vld_s16_endian, vldq_s16_endian};
+use crate::neon::neon_simd_support::{neon_store_rgb16, vld_s16_endian, vldq_s16_endian};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -154,36 +154,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         let g_values = vminq_u16(vcombine_u16(g_low, g_high), v_alpha);
         let b_values = vminq_u16(vcombine_u16(b_low, b_high), v_alpha);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack = uint16x8x3_t(r_values, g_values, b_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack = uint16x8x3_t(b_values, g_values, r_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-        }
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 8;
 
@@ -222,7 +199,6 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let dst_ptr = rgba;
 
     let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
@@ -312,36 +288,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         let g_values = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(g_vals, zeros)), v_alpha);
         let b_values = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(b_vals, zeros)), v_alpha);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack = uint16x8x3_t(r_values, g_values, b_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack = uint16x8x3_t(b_values, g_values, r_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-        }
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 8;
 

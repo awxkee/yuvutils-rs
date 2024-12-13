@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::vldq_s16_endian;
+use crate::neon::neon_simd_support::{neon_store_rgb16, vldq_s16_endian};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 
 #[target_feature(enable = "rdm")]
@@ -76,36 +76,13 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_rdm<
             v_alpha,
         );
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack = uint16x8x3_t(r_values, r_values, r_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack = uint16x8x3_t(r_values, r_values, r_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-        }
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
 
         cx += 8;
     }
@@ -158,36 +135,13 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
 
         let r_values = vcombine_u16(r_low, r_high);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack = uint16x8x3_t(r_values, r_values, r_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack = uint16x8x3_t(r_values, r_values, r_values);
-                vst3q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack = uint16x8x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack = uint16x8x4_t(r_values, r_values, r_values, v_alpha);
-                vst4q_u16(
-                    dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-                    dst_pack,
-                );
-            }
-        }
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
 
         cx += 8;
     }
