@@ -165,7 +165,7 @@ fn yuv_p16_to_image_p16_ant<
                             &chroma_range,
                             &i_transform,
                             v_offset.cx,
-                            v_offset.cx,
+                            v_offset.ux,
                         );
                         v_offset = offset;
                         _cx = v_offset.cx;
