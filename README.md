@@ -97,9 +97,9 @@ Tests performed on the image 5763x3842
 | libyuv YUV 4:2:0->RGB  |   5.70ms   |  44.95ms  |
 | utils YUV 4:2:0->RGBA  |   3.70ms   |  5.98ms   |
 | libyuv YUV 4:2:0->RGBA |   6.13ms   |  6.88ms   |
-| utils YUV 4:2:2->RGBA  |   4.05ms   |  6.91ms   |
+| utils YUV 4:2:2->RGBA  |   4.05ms   |  6.48ms   |
 | libyuv YUV 4:2:2->RGBA |   5.91ms   |  6.91ms   |
-| utils YUV 4:4:4->RGBA  |   3.91ms   |  7.20ms   |
+| utils YUV 4:4:4->RGBA  |   3.91ms   |  7.16ms   |
 | libyuv YUV 4:4:4->RGBA |   4.82ms   |  7.30ms   |
 
 YUV 16 bit-depth conversion
@@ -130,11 +130,11 @@ cargo bench --bench yuv16 --manifest-path ./app/Cargo.toml
 | libyuv YUV10 4:2:0->RGB10  |     -      |     -     |
 | utils YUV10 4:2:0->RGBA10  |   6.26ms   |  14.79ms  |
 | utils YUV10 4:2:0->RGBA8   |   7.05ms   |  42.44ms  |
-| libyuv YUV10 4:2:0->RGBA8  |  12.79ms   |  63.02ms  |
-| utils YUV10 4:2:2->RGBA10  |   6.31ms   |  15.33ms  |
-| utils YUV10 4:2:2->RGBA8   |   7.33ms   |  13.55ms  |
+| libyuv YUV10 4:2:0->RGBA8  |  12.79ms   |  56.31ms  |
+| utils YUV10 4:2:2->RGBA10  |   6.31ms   |  14.77ms  |
+| utils YUV10 4:2:2->RGBA8   |   7.33ms   |  12.90ms  |
 | libyuv YUV10 4:2:2->RGBA10 |  12.62ms   |  58.98ms  |
-| utils YUV10 4:4:4->RGBA10  |   6.39ms   |  16.39ms  |
+| utils YUV10 4:4:4->RGBA10  |   6.39ms   |  15.77ms  |
 
 This project is licensed under either of
 

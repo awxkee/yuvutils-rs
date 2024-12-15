@@ -668,3 +668,13 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
     }
     (r_values, g_values, b_values)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_interleave_epi16(x: __m256i, y: __m256i) -> (__m256i, __m256i) {
+    let xy_l = _mm256_unpacklo_epi16(x, y);
+    let xy_h = _mm256_unpackhi_epi16(x, y);
+
+    let xy0 = _mm256_permute2x128_si256::<32>(xy_l, xy_h);
+    let xy1 = _mm256_permute2x128_si256::<49>(xy_l, xy_h);
+    (xy0, xy1)
+}
