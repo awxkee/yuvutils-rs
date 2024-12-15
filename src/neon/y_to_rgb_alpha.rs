@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::{neon_store_rgb8, vmullq_laneq_s16};
+use crate::neon::neon_simd_support::{neon_store_rgb8, vmullq_laneq_s16, xvld1q_u8_x2};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -56,6 +56,63 @@ pub(crate) unsafe fn neon_y_to_rgb_row_alpha_rdm<const DESTINATION_CHANNELS: u8>
     let mut cx = start_cx;
 
     const V_SCALE: i32 = 2;
+
+    while cx + 32 < width {
+        let y_vals = xvld1q_u8_x2(y_ptr.add(cx));
+        let y_values0 = vqsubq_u8(y_vals.0, y_corr);
+        let y_values1 = vqsubq_u8(y_vals.1, y_corr);
+
+        let y_high0 = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values0)),
+            transform.y_coef as i16,
+        );
+
+        let y_high1 = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values1)),
+            transform.y_coef as i16,
+        );
+
+        let r_high0 = vqmovun_s16(y_high0);
+        let r_high1 = vqmovun_s16(y_high1);
+
+        let y_low0 = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(y_values0))),
+            transform.y_coef as i16,
+        );
+
+        let y_low1 = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(y_values1))),
+            transform.y_coef as i16,
+        );
+
+        let r_low0 = vqmovun_s16(y_low0);
+        let r_low1 = vqmovun_s16(y_low1);
+
+        let r_values0 = vcombine_u8(r_low0, r_high0);
+        let r_values1 = vcombine_u8(r_low1, r_high1);
+
+        let dst_shift = cx * channels;
+
+        let a_vals = xvld1q_u8_x2(a_plane.get_unchecked(cx..).as_ptr());
+
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values0,
+            r_values0,
+            r_values0,
+            a_vals.0,
+        );
+
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift + channels * 16),
+            r_values1,
+            r_values1,
+            r_values1,
+            a_vals.1,
+        );
+
+        cx += 32;
+    }
 
     while cx + 16 < width {
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
@@ -120,6 +177,77 @@ pub(crate) unsafe fn neon_y_to_rgb_alpha_row<
     let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
 
     let mut cx = start_cx;
+
+    while cx + 32 < width {
+        let y_vals = xvld1q_u8_x2(y_plane.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsubq_u8(y_vals.0, y_corr);
+        let y_values1 = vqsubq_u8(y_vals.1, y_corr);
+
+        let y_high0 = vmullq_laneq_s16::<0>(
+            vreinterpretq_s16_u16(vmovl_high_u8(y_values0)),
+            v_luma_coeff,
+        );
+
+        let y_high1 = vmullq_laneq_s16::<0>(
+            vreinterpretq_s16_u16(vmovl_high_u8(y_values1)),
+            v_luma_coeff,
+        );
+
+        let r_high0 = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_high0.0),
+            vrshrn_n_s32::<PRECISION>(y_high0.1),
+        ));
+
+        let r_high1 = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_high1.0),
+            vrshrn_n_s32::<PRECISION>(y_high1.1),
+        ));
+
+        let y_low0 = vmullq_laneq_s16::<0>(
+            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_values0))),
+            v_luma_coeff,
+        );
+
+        let y_low1 = vmullq_laneq_s16::<0>(
+            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_values1))),
+            v_luma_coeff,
+        );
+
+        let r_low0 = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_low0.0),
+            vrshrn_n_s32::<PRECISION>(y_low0.1),
+        ));
+
+        let r_low1 = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_low1.0),
+            vrshrn_n_s32::<PRECISION>(y_low1.1),
+        ));
+
+        let r_values0 = vcombine_u8(r_low0, r_high0);
+        let r_values1 = vcombine_u8(r_low1, r_high1);
+
+        let dst_shift = cx * channels;
+
+        let a_vals = xvld1q_u8_x2(a_plane.get_unchecked(cx..).as_ptr());
+
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values0,
+            r_values0,
+            r_values0,
+            a_vals.0,
+        );
+
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift + 16 * channels),
+            r_values1,
+            r_values1,
+            r_values1,
+            a_vals.1,
+        );
+
+        cx += 32;
+    }
 
     while cx + 16 < width {
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);

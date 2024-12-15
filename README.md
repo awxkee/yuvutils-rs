@@ -91,7 +91,8 @@ Tests performed on the image 5763x3842
 
 | Conversion             | time(NEON) | Time(AVX) |
 |------------------------|:----------:|:---------:|
-| utils YUV NV12->RGB    |   3.86ms   |  6.24ms   |
+| utils YUV NV12->RGBA   |   3.91ms   |  6.24ms   |
+| utils YUV NV12->RGB    |   3.28ms   |  6.24ms   |
 | libyuv YUV NV12->RGB   |   5.20ms   |  45.28ms  |
 | utils YUV 4:2:0->RGB   |   3.15ms   |  5.25ms   |
 | libyuv YUV 4:2:0->RGB  |   5.70ms   |  44.95ms  |

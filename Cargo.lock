@@ -1526,6 +1526,7 @@ name = "yuvutils-rs"
 version = "0.5.12"
 dependencies = [
  "num-traits",
+ "rand",
  "rayon",
 ]
 
