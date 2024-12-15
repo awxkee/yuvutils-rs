@@ -128,13 +128,13 @@ cargo bench --bench yuv16 --manifest-path ./app/Cargo.toml
 |----------------------------|:----------:|:---------:|
 | utils YUV10 4:2:0->RGB10   |   5.64ms   |  12.27ms  |
 | libyuv YUV10 4:2:0->RGB10  |     -      |     -     |
-| utils YUV10 4:2:0->RGBA10  |   6.26ms   |  14.79ms  |
-| utils YUV10 4:2:0->RGBA8   |   7.05ms   |  42.44ms  |
-| libyuv YUV10 4:2:0->RGBA8  |  12.79ms   |  56.31ms  |
-| utils YUV10 4:2:2->RGBA10  |   6.31ms   |  14.77ms  |
+| utils YUV10 4:2:0->RGBA10  |   6.03ms   |  14.79ms  |
+| utils YUV10 4:2:0->RGBA8   |   6.94ms   |  42.44ms  |
+| libyuv YUV10 4:2:0->RGBA8  |  12.39ms   |  56.31ms  |
+| utils YUV10 4:2:2->RGBA10  |   5.88ms   |  14.77ms  |
 | utils YUV10 4:2:2->RGBA8   |   7.33ms   |  12.90ms  |
-| libyuv YUV10 4:2:2->RGBA10 |  12.62ms   |  58.98ms  |
-| utils YUV10 4:4:4->RGBA10  |   6.39ms   |  15.77ms  |
+| libyuv YUV10 4:2:2->RGBA10 |  12.40ms   |  58.98ms  |
+| utils YUV10 4:4:4->RGBA10  |   6.01ms   |  15.77ms  |
 
 This project is licensed under either of
 
