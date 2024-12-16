@@ -73,3 +73,17 @@ path = "rgb_to_y/rgb_to_y.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "rgb_to_nv"
+path = "rgb_to_nv/rgb_to_nv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rgb16_to_nv16"
+path = "rgb16_to_nv16/rgb16_to_nv16.rs"
+test = false
+doc = false
+bench = false

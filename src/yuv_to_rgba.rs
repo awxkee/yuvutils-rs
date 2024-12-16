@@ -1242,6 +1242,20 @@ mod tests {
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+
+            let nx = (point[0] + 1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].saturating_sub(1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
         }
 
         let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
@@ -1285,12 +1299,24 @@ mod tests {
             let diff_g = g as i32 - og as i32;
             let diff_b = b as i32 - ob as i32;
 
-            let rmse = ((diff_r * diff_r + diff_g * diff_g + diff_b * diff_b) as f32 / 3.).sqrt();
-
             assert!(
-                rmse <= 70.,
-                "RMSE {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                rmse,
+                diff_r <= 2,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_r,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_g <= 2,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_g,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_b <= 2,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_b,
                 [or, og, ob],
                 [r, g, b]
             );
@@ -1332,6 +1358,20 @@ mod tests {
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+
+            let nx = (point[0] + 1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].saturating_sub(1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
         }
 
         let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
@@ -1362,7 +1402,7 @@ mod tests {
         )
         .unwrap();
 
-        for point in &pixel_points {
+        for point in pixel_points.iter() {
             let x = point[0];
             let y = point[1];
             let px = x * CHANNELS + y * image_width * CHANNELS;
@@ -1375,12 +1415,24 @@ mod tests {
             let diff_g = g as i32 - og as i32;
             let diff_b = b as i32 - ob as i32;
 
-            let rmse = ((diff_r * diff_r + diff_g * diff_g + diff_b * diff_b) as f32 / 3.).sqrt();
-
             assert!(
-                rmse <= 70.,
-                "RMSE {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                rmse,
+                diff_r <= 10,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_r,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_g <= 10,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_g,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_b <= 10,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_b,
                 [or, og, ob],
                 [r, g, b]
             );
@@ -1422,6 +1474,48 @@ mod tests {
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+
+            let nx = (point[0] + 1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = (point[0] + 1).min(image_width - 1);
+            let ny = (point[1] + 1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].min(image_width - 1);
+            let ny = (point[1] + 1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].saturating_sub(1).min(image_width - 1);
+            let ny = point[1].saturating_sub(1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].min(image_width - 1);
+            let ny = point[1].saturating_sub(1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].saturating_sub(1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
         }
 
         let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
@@ -1465,12 +1559,24 @@ mod tests {
             let diff_g = g as i32 - og as i32;
             let diff_b = b as i32 - ob as i32;
 
-            let rmse = ((diff_r * diff_r + diff_g * diff_g + diff_b * diff_b) as f32 / 3.).sqrt();
-
             assert!(
-                rmse <= 100.,
-                "RMSE {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                rmse,
+                diff_r <= 47,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_r,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_g <= 47,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_g,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_b <= 47,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_b,
                 [or, og, ob],
                 [r, g, b]
             );
@@ -1512,6 +1618,48 @@ mod tests {
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
             source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+
+            let nx = (point[0] + 1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = (point[0] + 1).min(image_width - 1);
+            let ny = (point[1] + 1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].min(image_width - 1);
+            let ny = (point[1] + 1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].saturating_sub(1).min(image_width - 1);
+            let ny = point[1].saturating_sub(1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].min(image_width - 1);
+            let ny = point[1].saturating_sub(1).min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+
+            let nx = point[0].saturating_sub(1).min(image_width - 1);
+            let ny = point[1].min(image_height - 1);
+
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
         }
 
         let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
@@ -1555,12 +1703,24 @@ mod tests {
             let diff_g = g as i32 - og as i32;
             let diff_b = b as i32 - ob as i32;
 
-            let rmse = ((diff_r * diff_r + diff_g * diff_g + diff_b * diff_b) as f32 / 3.).sqrt();
-
             assert!(
-                rmse <= 100.,
-                "RMSE {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                rmse,
+                diff_r <= 55,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_r,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_g <= 55,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_g,
+                [or, og, ob],
+                [r, g, b]
+            );
+            assert!(
+                diff_b <= 55,
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_b,
                 [or, og, ob],
                 [r, g, b]
             );

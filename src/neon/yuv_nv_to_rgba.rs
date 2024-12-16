@@ -112,7 +112,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
                     uv_values0 = uint8x16x2_t(uv_values0.1, uv_values0.0);
                     uv_values1 = uint8x16x2_t(uv_values1.1, uv_values1.0);
                 }
-                u_high_u8 = uv_values1.1;
+                u_high_u8 = uv_values1.0;
                 v_high_u8 = uv_values1.1;
                 u_low_u8 = uv_values0.0;
                 v_low_u8 = uv_values0.1;

@@ -694,6 +694,8 @@ mod tests {
         let random_point_x = rand::thread_rng().gen_range(0..image_width);
         let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
+        const CHANNELS: usize = 4;
+
         let pixel_points = [
             [0, 0],
             [image_width - 1, image_height - 1],
@@ -708,7 +710,7 @@ mod tests {
             [image_width / 5, image_height / 5 * 3],
             [random_point_x, random_point_y],
         ];
-        let mut image_rgb = vec![0u8; image_width * image_height * 4];
+        let mut image_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
         let or = rand::thread_rng().gen_range(0..256) as u8;
         let og = rand::thread_rng().gen_range(0..256) as u8;
@@ -731,7 +733,7 @@ mod tests {
         rgba_to_yuv444(
             &mut planar_image,
             &image_rgb,
-            image_width as u32 * 4,
+            image_width as u32 * CHANNELS as u32,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
         )
@@ -757,7 +759,7 @@ mod tests {
         yuv444_with_alpha_to_rgba(
             &fixed_planar,
             &mut image_rgb,
-            image_width as u32 * 4,
+            image_width as u32 * CHANNELS as u32,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
             false,
@@ -767,10 +769,10 @@ mod tests {
         for point in &pixel_points {
             let x = point[0];
             let y = point[1];
-            let r = image_rgb[x * 4 + y * image_width * 4];
-            let g = image_rgb[x * 4 + y * image_width * 4 + 1];
-            let b = image_rgb[x * 4 + y * image_width * 4 + 2];
-            let a = image_rgb[x * 4 + y * image_width * 4 + 3];
+            let r = image_rgb[x * CHANNELS + y * image_width * CHANNELS];
+            let g = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 1];
+            let b = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 2];
+            let a = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 3];
 
             let diff_r = (r as i32 - or as i32).abs();
             let diff_g = (g as i32 - og as i32).abs();
@@ -812,6 +814,8 @@ mod tests {
         let random_point_x = rand::thread_rng().gen_range(0..image_width);
         let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
+        const CHANNELS: usize = 4;
+
         let pixel_points = [
             [0, 0],
             [image_width - 1, image_height - 1],
@@ -826,7 +830,7 @@ mod tests {
             [image_width / 5, image_height / 5 * 3],
             [random_point_x, random_point_y],
         ];
-        let mut image_rgb = vec![0u8; image_width * image_height * 4];
+        let mut image_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
         let or = rand::thread_rng().gen_range(0..256) as u8;
         let og = rand::thread_rng().gen_range(0..256) as u8;
@@ -834,10 +838,10 @@ mod tests {
         let oa = rand::thread_rng().gen_range(0..256) as u8;
 
         for point in &pixel_points {
-            image_rgb[point[0] * 4 + point[1] * image_width * 4] = or;
-            image_rgb[point[0] * 4 + point[1] * image_width * 4 + 1] = og;
-            image_rgb[point[0] * 4 + point[1] * image_width * 4 + 2] = ob;
-            image_rgb[point[0] * 4 + point[1] * image_width * 4 + 3] = oa;
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 3] = oa;
         }
 
         let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
@@ -849,7 +853,7 @@ mod tests {
         rgba_to_yuv444(
             &mut planar_image,
             &image_rgb,
-            image_width as u32 * 4,
+            image_width as u32 * CHANNELS as u32,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
         )
@@ -885,10 +889,10 @@ mod tests {
         for point in &pixel_points {
             let x = point[0];
             let y = point[1];
-            let r = image_rgb[x * 4 + y * image_width * 4];
-            let g = image_rgb[x * 4 + y * image_width * 4 + 1];
-            let b = image_rgb[x * 4 + y * image_width * 4 + 2];
-            let a = image_rgb[x * 4 + y * image_width * 4 + 3];
+            let r = image_rgb[x * CHANNELS + y * image_width * CHANNELS];
+            let g = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 1];
+            let b = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 2];
+            let a = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 3];
 
             let diff_r = (r as i32 - or as i32).abs();
             let diff_g = (g as i32 - og as i32).abs();

@@ -67,5 +67,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
       - run: cargo fuzz run rgb_to_yuv -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_nv -- -max_total_time=15
       - run: cargo fuzz run rgb_to_y -- -max_total_time=15
       - run: cargo fuzz run rgb16_to_yuv16 -- -max_total_time=15
+      - run: cargo fuzz run rgb16_to_nv16 -- -max_total_time=15
