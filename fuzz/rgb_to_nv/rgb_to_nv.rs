@@ -30,7 +30,10 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24, BufferStoreMut, YuvBiPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{
+    rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba_to_yuv_nv12, rgba_to_yuv_nv16,
+    rgba_to_yuv_nv24, BufferStoreMut, YuvBiPlanarImageMut, YuvRange, YuvStandardMatrix,
+};
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8)| {
     fuzz_yuv_420(data.0, data.1, data.2, data.3);
@@ -43,7 +46,8 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
         return;
     }
     let y_plane = vec![y_value; i_height as usize * i_width as usize];
-    let uv_plane = vec![u_value; (i_width as usize).div_ceil(2) * (i_height as usize).div_ceil(2) * 2];
+    let uv_plane =
+        vec![u_value; (i_width as usize).div_ceil(2) * (i_height as usize).div_ceil(2) * 2];
 
     let mut bi_planar_image = YuvBiPlanarImageMut {
         y_plane: BufferStoreMut::Owned(y_plane),

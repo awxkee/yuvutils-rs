@@ -46,7 +46,7 @@ use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::{sse_yuv_nv_to_rgba, sse_yuv_nv_to_rgba420};
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-use crate::wasm32::wasm_yuv_nv_to_rgba_row;
+use crate::wasm32::{wasm_yuv_nv_to_rgba_row, wasm_yuv_nv_to_rgba_row420};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvBiPlanarImage, YuvError};
@@ -82,10 +82,8 @@ fn yuv_nv12_to_rgbx<
     let chroma_range = get_yuv_range(8, range);
     let channels = dst_chans.get_channels_count();
     let kr_kb = matrix.get_kr_kb();
-    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-    const PRECISION: i32 = 6;
-    #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
     const PRECISION: i32 = 13;
+
     let inverse_transform =
         if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
             stored
@@ -266,6 +264,28 @@ fn yuv_nv12_to_rgbx<
             }
             if _use_sse {
                 let processed = sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>(
+                    &chroma_range,
+                    &inverse_transform,
+                    _y_plane0,
+                    _y_plane1,
+                    _uv_plane,
+                    _bgra0,
+                    _bgra1,
+                    _offset.cx,
+                    _offset.ux,
+                    width as usize,
+                );
+                _offset = processed;
+            }
+        }
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        {
+            unsafe {
+                let processed = wasm_yuv_nv_to_rgba_row420::<
+                    UV_ORDER,
+                    DESTINATION_CHANNELS,
+                    YUV_CHROMA_SAMPLING,
+                >(
                     &chroma_range,
                     &inverse_transform,
                     _y_plane0,

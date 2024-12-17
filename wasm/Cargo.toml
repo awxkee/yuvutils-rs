@@ -1,0 +1,16 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasm-bindgen = "0.2.93"
+yuvutils-rs = {path = "../"}
+image = {version = "0.25.2", features = ["default"]}
+js-sys = "0.3.70"
+wee_alloc = "0.4.5"
+console_error_panic_hook = "0.1.7"
+
+
+[lib]
+crate-type = ["cdylib"]
