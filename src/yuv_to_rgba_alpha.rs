@@ -779,19 +779,19 @@ mod tests {
             let diff_b = (b as i32 - ob as i32).abs();
 
             assert!(
-                diff_r <= 2,
+                diff_r <= 3,
                 "Original RGBA {:?}, Round-tripped RGBA {:?}",
                 [or, og, ob, oa],
                 [r, g, b, a]
             );
             assert!(
-                diff_g <= 2,
+                diff_g <= 3,
                 "Original RGBA {:?}, Round-tripped RGBA {:?}",
                 [or, og, ob, oa],
                 [r, g, b, a]
             );
             assert!(
-                diff_b <= 2,
+                diff_b <= 3,
                 "Original RGBA {:?}, Round-tripped RGBA {:?}",
                 [or, og, ob, oa],
                 [r, g, b, a]

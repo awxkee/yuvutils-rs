@@ -30,7 +30,7 @@
 use crate::internals::ProcessedOffset;
 use crate::sse::{
     _mm_deinterleave_x2_epi8, _mm_store_interleave_half_rgb_for_yuv,
-    _mm_store_interleave_rgb_for_yuv, sse_interleave_rgb, sse_interleave_rgba,
+    _mm_store_interleave_rgb_for_yuv,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
