@@ -4,7 +4,7 @@ use js_sys::Uint8Array;
 use std::io::Cursor;
 use std::panic;
 use wasm_bindgen::prelude::wasm_bindgen;
-use yuvutils_rs::{rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv_nv12, yuv420_to_rgb, yuv422_to_rgb, yuv_nv12_to_rgb, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{rgb_to_yuv_nv12, yuv_nv12_to_rgb, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvRange, YuvStandardMatrix};
 
 #[wasm_bindgen]
 extern "C" {

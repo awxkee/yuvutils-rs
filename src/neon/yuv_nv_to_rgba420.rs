@@ -273,8 +273,10 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     }
 
     while cx + 16 < width {
-        let y_values0 = vqsubq_u8(vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
-        let y_values1 = vqsubq_u8(vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
+        let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsubq_u8(vl0, y_corr);
+        let y_values1 = vqsubq_u8(vl1, y_corr);
 
         let mut uv_values = vld2_u8(uv_ptr.add(ux));
         if order == YuvNVOrder::VU {
@@ -370,14 +372,10 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     let shuffle_v = vld1_u8([1, 1, 3, 3, 5, 5, 7, 7].as_ptr());
 
     while cx + 8 < width {
-        let y_values0 = vqsub_u8(
-            vld1_u8(y_plane0.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
-        let y_values1 = vqsub_u8(
-            vld1_u8(y_plane0.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
+        let vl0 = vld1_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsub_u8(vl0, vget_low_u8(y_corr));
+        let y_values1 = vqsub_u8(vl1, vget_low_u8(y_corr));
 
         let mut u_low_u8: uint8x8_t;
         let mut v_low_u8: uint8x8_t;
@@ -494,8 +492,10 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
     let mut ux = start_ux;
 
     while cx + 16 < width {
-        let y_values0 = vqsubq_u8(vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
-        let y_values1 = vqsubq_u8(vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
+        let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsubq_u8(vl0, y_corr);
+        let y_values1 = vqsubq_u8(vl1, y_corr);
 
         let mut uv_values = vld2_u8(uv_ptr.add(ux));
         if order == YuvNVOrder::VU {
@@ -578,14 +578,10 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
     let shuffle_v = vld1_u8([1, 1, 3, 3, 5, 5, 7, 7].as_ptr());
 
     while cx + 8 < width {
-        let y_values0 = vqsub_u8(
-            vld1_u8(y_plane0.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
-        let y_values1 = vqsub_u8(
-            vld1_u8(y_plane1.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
+        let vl0 = vld1_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsub_u8(vl0, vget_low_u8(y_corr));
+        let y_values1 = vqsub_u8(vl1, vget_low_u8(y_corr));
 
         let mut u_low_u8: uint8x8_t;
         let mut v_low_u8: uint8x8_t;

@@ -88,7 +88,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
     let v_big_shift_count = vdupq_n_s16(-(16i16 - BIT_DEPTH as i16));
 
     while cx + 8 < width as usize {
-        let dst_ptr = bgra.get_unchecked_mut(8 * channels..).as_mut_ptr();
+        let dst_ptr = bgra.get_unchecked_mut(cx * channels..).as_mut_ptr();
 
         let u_high: int16x4_t;
         let v_high: int16x4_t;
@@ -263,7 +263,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
     const V_SCALE: i32 = 2;
 
     while cx + 8 < width as usize {
-        let dst_ptr = bgra.get_unchecked_mut(8 * channels..).as_mut_ptr();
+        let dst_ptr = bgra.get_unchecked_mut(cx * channels..).as_mut_ptr();
 
         let u_values: int16x8_t;
         let v_values: int16x8_t;

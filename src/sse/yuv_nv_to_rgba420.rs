@@ -29,8 +29,8 @@
 
 use crate::internals::ProcessedOffset;
 use crate::sse::{
-    _mm_deinterleave_x2_epi8, _mm_store_interleave_rgb_for_yuv, sse_interleave_rgb,
-    sse_interleave_rgba,
+    _mm_deinterleave_x2_epi8, _mm_store_interleave_half_rgb_for_yuv,
+    _mm_store_interleave_rgb_for_yuv, sse_interleave_rgb, sse_interleave_rgba,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -265,48 +265,13 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
         let dst_shift = cx * channels;
         let dst_ptr0 = rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr();
         let dst_ptr1 = rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr();
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let (v0, v1, _) = sse_interleave_rgb(r_values0, g_values0, b_values0);
-                _mm_storeu_si128(dst_ptr0 as *mut __m128i, v0);
-                std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, dst_ptr0.add(16), 8);
 
-                let (v0, v1, _) = sse_interleave_rgb(r_values1, g_values1, b_values1);
-                _mm_storeu_si128(dst_ptr1 as *mut __m128i, v0);
-                std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, dst_ptr1.add(16), 8);
-            }
-            YuvSourceChannels::Bgr => {
-                let (v0, v1, _) = sse_interleave_rgb(b_values0, g_values0, r_values0);
-                _mm_storeu_si128(dst_ptr0 as *mut __m128i, v0);
-                std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, dst_ptr0.add(16), 8);
-
-                let (v0, v1, _) = sse_interleave_rgb(b_values1, g_values1, r_values1);
-                _mm_storeu_si128(dst_ptr1 as *mut __m128i, v0);
-                std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, dst_ptr1.add(16), 8);
-            }
-            YuvSourceChannels::Rgba => {
-                let (row1, row2, _, _) =
-                    sse_interleave_rgba(r_values0, g_values0, b_values0, v_alpha);
-                _mm_storeu_si128(dst_ptr0 as *mut __m128i, row1);
-                _mm_storeu_si128(dst_ptr0.add(16) as *mut __m128i, row2);
-
-                let (row1, row2, _, _) =
-                    sse_interleave_rgba(r_values1, g_values1, b_values1, v_alpha);
-                _mm_storeu_si128(dst_ptr1 as *mut __m128i, row1);
-                _mm_storeu_si128(dst_ptr1.add(16) as *mut __m128i, row2);
-            }
-            YuvSourceChannels::Bgra => {
-                let (row1, row2, _, _) =
-                    sse_interleave_rgba(b_values0, g_values0, r_values0, v_alpha);
-                _mm_storeu_si128(dst_ptr0 as *mut __m128i, row1);
-                _mm_storeu_si128(dst_ptr0.add(16) as *mut __m128i, row2);
-
-                let (row1, row2, _, _) =
-                    sse_interleave_rgba(b_values1, g_values1, r_values1, v_alpha);
-                _mm_storeu_si128(dst_ptr1 as *mut __m128i, row1);
-                _mm_storeu_si128(dst_ptr1.add(16) as *mut __m128i, row2);
-            }
-        }
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_ptr0, r_values0, g_values0, b_values0, v_alpha,
+        );
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_ptr1, r_values1, g_values1, b_values1, v_alpha,
+        );
 
         cx += 8;
         uv_x += 8;

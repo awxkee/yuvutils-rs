@@ -26,6 +26,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "yuv_nv16_to_rgb16"
+path = "yuv_nv16_to_rgb16/yuv_nv16_to_rgb16.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "y_to_rgb"
 path = "y_to_rgb/y_to_rgb.rs"
 test = false
