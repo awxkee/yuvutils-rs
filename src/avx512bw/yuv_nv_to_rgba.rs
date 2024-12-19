@@ -55,13 +55,59 @@ pub(crate) fn avx512_yuv_nv_to_rgba<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx512_yuv_nv_to_rgba_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, HAS_VBMI>(
-            range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
-        )
+        if HAS_VBMI {
+            avx512_yuv_nv_to_rgba_bmi_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+            )
+        } else {
+            avx512_yuv_nv_to_rgba_def_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+                range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+            )
+        }
     }
 }
 
+#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
+unsafe fn avx512_yuv_nv_to_rgba_bmi_impl<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    uv_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_yuv_nv_to_rgba_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, true>(
+        range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+    )
+}
+
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
+unsafe fn avx512_yuv_nv_to_rgba_def_impl<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    uv_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_yuv_nv_to_rgba_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, false>(
+        range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+    )
+}
+
+#[inline(always)]
 unsafe fn avx512_yuv_nv_to_rgba_impl<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,

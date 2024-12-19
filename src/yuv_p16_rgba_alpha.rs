@@ -26,6 +26,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::avx2::avx_yuv_p16_to_rgba8_alpha_row;
 use crate::built_coefficients::get_built_inverse_transform;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -102,6 +104,8 @@ fn yuv_p16_to_image_alpha_ant<
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
     let store_shift = BIT_DEPTH - 8;
@@ -125,6 +129,28 @@ fn yuv_p16_to_image_alpha_ant<
         {
             let mut _v_offset = ProcessedOffset { cx: 0, ux: 0 };
             unsafe {
+                if use_avx {
+                    let offset = avx_yuv_p16_to_rgba8_alpha_row::<
+                        DESTINATION_CHANNELS,
+                        SAMPLING,
+                        ENDIANNESS,
+                        BYTES_POSITION,
+                        BIT_DEPTH,
+                        PRECISION,
+                    >(
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _a_plane,
+                        _rgba,
+                        image.width,
+                        &chroma_range,
+                        &i_transform,
+                        _v_offset.cx,
+                        _v_offset.ux,
+                    );
+                    _v_offset = offset;
+                }
                 if use_sse {
                     let offset = sse_yuv_p16_to_rgba8_alpha_row::<
                         DESTINATION_CHANNELS,

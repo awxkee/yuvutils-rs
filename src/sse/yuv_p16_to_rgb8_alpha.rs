@@ -209,7 +209,12 @@ unsafe fn sse_yuv_p16_to_rgba8_alpha_row_impl<
             _mm_setzero_si128(),
         );
 
-        let a_values = _mm_loadu_si128(a_plane.get_unchecked(cx..).as_ptr() as *const __m128i);
+        let a_values = _mm_packus_epi16(
+            _mm_store_shr_epi16_epi8::<BIT_DEPTH>(_mm_loadu_si128(
+                a_plane.get_unchecked(cx..).as_ptr() as *const __m128i,
+            )),
+            _mm_setzero_si128(),
+        );
 
         _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
             dst_ptr.as_mut_ptr(),

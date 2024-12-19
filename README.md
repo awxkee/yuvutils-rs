@@ -75,17 +75,19 @@ cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
 
 Tests performed on the image 5763x3842
 
+
+
 ### Encoding 8-bit
 
-| Conversion             | time(NEON) | Time(AVX) |
-|------------------------|:----------:|:---------:|
-| utils RGB->YUV 4:2:0   |   3.16ms   |  3.53ms   |
-| libyuv RGB->YUV 4:2:0  |   3.58ms   |  33.87ms  |
-| utils RGBA->YUV 4:2:0  |   4.04ms   |  5.47ms   |
-| libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |
-| utils RGBA->YUV 4:2:2  |   4.34ms   |  7.08ms   |
-| libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |
-| utils RGBA->YUV 4:4:4  |   4.49ms   |  7.97ms   |
+| Conversion             | time(NEON) | Time(AVX) | Time(AVX-512) |
+|------------------------|:----------:|:---------:|:-------------:|
+| utils RGB->YUV 4:2:0   |   3.16ms   |  3.53ms   |    3.53ms     |
+| libyuv RGB->YUV 4:2:0  |   3.58ms   |  33.87ms  |    33.87ms    |
+| utils RGBA->YUV 4:2:0  |   4.04ms   |  5.47ms   |    5.47ms     |
+| libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms  |    23.48ms    |
+| utils RGBA->YUV 4:2:2  |   4.34ms   |  7.08ms   |    7.08ms     |
+| libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms  |    35.23ms    |
+| utils RGBA->YUV 4:4:4  |   4.49ms   |  7.97ms   |    7.97ms     |
 
 ### Decoding 8-bit
 

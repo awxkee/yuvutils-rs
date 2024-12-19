@@ -13,7 +13,7 @@ documentation = "https://github.com/awxkee/yuvutils-rs"
 categories = ["multimedia::images", "multimedia::video"]
 homepage = "https://github.com/awxkee/yuvutils-rs"
 repository = "https://github.com/awxkee/yuvutils-rs"
-exclude = ["*.jpg", "assets/*", "*.png"]
+exclude = ["*.jpg", "assets/*", "*.png", "assets/bench.jpg"]
 rust-version = "1.73.0"
 
 [dependencies]

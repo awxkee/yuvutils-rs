@@ -38,7 +38,11 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) fn avx512_yuv_to_rgba<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const HAS_VBMI: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -50,14 +54,58 @@ pub(crate) fn avx512_yuv_to_rgba<const DESTINATION_CHANNELS: u8, const SAMPLING:
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx512_yuv_to_rgba_impl::<DESTINATION_CHANNELS, SAMPLING>(
-            range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-        )
+        if HAS_VBMI {
+            avx512_yuv_to_rgba_bmi_impl::<DESTINATION_CHANNELS, SAMPLING>(
+                range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+            )
+        } else {
+            avx512_yuv_to_rgba_def_impl::<DESTINATION_CHANNELS, SAMPLING>(
+                range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+            )
+        }
     }
 }
 
+#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
+unsafe fn avx512_yuv_to_rgba_bmi_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    u_plane: &[u8],
+    v_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_yuv_to_rgba_impl::<DESTINATION_CHANNELS, SAMPLING, true>(
+        range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+    )
+}
+
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_yuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+unsafe fn avx512_yuv_to_rgba_def_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    u_plane: &[u8],
+    v_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_yuv_to_rgba_impl::<DESTINATION_CHANNELS, SAMPLING, false>(
+        range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+    )
+}
+
+#[inline(always)]
+unsafe fn avx512_yuv_to_rgba_impl<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const HAS_VBMI: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -102,8 +150,10 @@ unsafe fn avx512_yuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const SAMPLING
                 let u_values_full = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
                 let v_values_full = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
 
-                let (u_values0, u_values1) = avx2_zip_epi8::<false>(u_values_full, u_values_full);
-                let (v_values0, v_values1) = avx2_zip_epi8::<false>(v_values_full, v_values_full);
+                let (u_values0, u_values1) =
+                    avx2_zip_epi8::<HAS_VBMI>(u_values_full, u_values_full);
+                let (v_values0, v_values1) =
+                    avx2_zip_epi8::<HAS_VBMI>(v_values_full, v_values_full);
 
                 u_high00 = _mm512_extracti64x4_epi64::<1>(u_values0);
                 v_high00 = _mm512_extracti64x4_epi64::<1>(v_values0);
