@@ -79,7 +79,7 @@ AVX2 tests performed on `Digital Ocean Shared Premium Intel 2 vCPU` droplet.
 cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
 ```
 
-AVX-512 tests performed on `AWS c5.large` instance with command
+AVX-512 tests performed on `AWS c5.large` with Ubuntu 24.04 instance with command
 
 ```bash
 cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features nightly_avx512
