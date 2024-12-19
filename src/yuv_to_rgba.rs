@@ -117,9 +117,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_double_row_handler = if is_rdm_available {
-        neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS, SAMPLING>
+        neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS>
     } else {
-        neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+        neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>
     };
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
