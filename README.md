@@ -75,7 +75,11 @@ cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
 
 Tests performed on the image 5763x3842
 
+AVX-512 tests performed on AWS c5.large instance with command
 
+```bash
+cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features nightly_avx512
+```
 
 ### Encoding 8-bit
 
