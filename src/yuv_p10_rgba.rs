@@ -34,6 +34,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 use crate::built_coefficients::get_built_inverse_transform;
+#[allow(dead_code, unused_imports)]
 use crate::internals::ProcessedOffset;
 use crate::numerics::to_ne;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
