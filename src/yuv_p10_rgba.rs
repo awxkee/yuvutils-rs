@@ -72,7 +72,7 @@ fn yuv_p16_to_image_ant<
     let kr_kb = matrix.get_kr_kb();
     const PRECISION: i32 = 13;
     let i_transform = if let Some(stored) =
-        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, chroma_range, matrix)
+        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, range, matrix)
     {
         stored
     } else {
