@@ -33,7 +33,7 @@ use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row420};
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
 ))]
-use crate::avx512bw::avx512_yuv_nv_to_rgba;
+use crate::avx512bw::{avx512_yuv_nv_to_rgba, avx512_yuv_nv_to_rgba420};
 use crate::built_coefficients::get_built_inverse_transform;
 #[allow(unused_imports)]
 use crate::internals::*;
@@ -252,6 +252,23 @@ fn yuv_nv12_to_rgbx<
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "nightly_avx512")]
+            if _use_avx512 {
+                let processed = avx512_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS, false>(
+                    &chroma_range,
+                    &inverse_transform,
+                    _y_plane0,
+                    _y_plane1,
+                    _uv_plane,
+                    _bgra0,
+                    _bgra1,
+                    _offset.cx,
+                    _offset.ux,
+                    width as usize,
+                );
+                _offset = processed;
+            }
+
             if _use_avx2 {
                 let processed = avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>(
                     &chroma_range,
