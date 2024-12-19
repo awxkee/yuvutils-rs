@@ -71,6 +71,10 @@ Tests performed on the image 5763x3842
 
 YUV 8 bit-depth conversion
 
+`aarch64` tested on Mac Pro M3.
+
+AVX2 tests performed on `Digital Ocean Shared Premium Intel 2 vCPU` droplet.
+
 ```bash
 cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
 ```
@@ -85,29 +89,29 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 
 | Conversion             | time(NEON) | Time(AVX2) | Time(AVX-512) |
 |------------------------|:----------:|:----------:|:-------------:|
-| utils RGB->YUV 4:2:0   |   3.16ms   |   3.53ms   |    8.93ms     |
-| libyuv RGB->YUV 4:2:0  |   3.58ms   |  33.87ms   |    12.83ms    |
-| utils RGBA->YUV 4:2:0  |   4.04ms   |   5.47ms   |    10.27ms    |
-| libyuv RGBA->YUV 4:2:0 |   4.87ms   |  23.48ms   |    10.73ms    |
-| utils RGBA->YUV 4:2:2  |   4.34ms   |   7.08ms   |    18.53ms    |
-| libyuv RGBA->YUV 4:2:2 |   5.90ms   |  35.23ms   |    17.94ms    |
-| utils RGBA->YUV 4:4:4  |   4.49ms   |   7.97ms   |    22.08ms    |
+| utils RGB->YUV 4:2:0   |   3.16ms   |  16.28ms   |    8.93ms     |
+| libyuv RGB->YUV 4:2:0  |   3.58ms   |  17.64ms   |    12.83ms    |
+| utils RGBA->YUV 4:2:0  |   4.04ms   |  12.63ms   |    10.27ms    |
+| libyuv RGBA->YUV 4:2:0 |   4.87ms   |  11.27ms   |    10.73ms    |
+| utils RGBA->YUV 4:2:2  |   4.34ms   |  24.02ms   |    18.53ms    |
+| libyuv RGBA->YUV 4:2:2 |   5.90ms   |  19.43ms   |    17.94ms    |
+| utils RGBA->YUV 4:4:4  |   4.49ms   |  29.18ms   |    22.08ms    |
 
 ### Decoding 8-bit
 
 | Conversion             | time(NEON) | Time(AVX2) | Time(AVX-512) | 
 |------------------------|:----------:|:----------:|:-------------:| 
-| utils YUV NV12->RGBA   |   3.91ms   |   6.24ms   |    18.55ms    | 
-| utils YUV NV12->RGB    |   3.28ms   |   6.24ms   |    13.64ms    | 
-| libyuv YUV NV12->RGB   |   5.20ms   |  45.28ms   |    18.55ms    | 
-| utils YUV 4:2:0->RGB   |   3.15ms   |   5.25ms   |    13.70ms    | 
-| libyuv YUV 4:2:0->RGB  |   5.70ms   |  44.95ms   |    20.07ms    | 
-| utils YUV 4:2:0->RGBA  |   3.70ms   |   5.98ms   |    18.84ms    | 
-| libyuv YUV 4:2:0->RGBA |   6.13ms   |   6.88ms   |    18.50ms    | 
-| utils YUV 4:2:2->RGBA  |   4.05ms   |   6.48ms   |    22.05ms    | 
-| libyuv YUV 4:2:2->RGBA |   5.91ms   |   6.91ms   |    18.71ms    | 
-| utils YUV 4:4:4->RGBA  |   3.91ms   |   7.16ms   |    22.85ms    | 
-| libyuv YUV 4:4:4->RGBA |   4.82ms   |   7.30ms   |    21.47ms    | 
+| utils YUV NV12->RGBA   |   3.91ms   |  22.59ms   |    18.55ms    | 
+| utils YUV NV12->RGB    |   3.28ms   |  17.56ms   |    13.64ms    | 
+| libyuv YUV NV12->RGB   |   5.20ms   |  22.27ms   |    18.55ms    | 
+| utils YUV 4:2:0->RGB   |   3.15ms   |  17.69ms   |    13.70ms    | 
+| libyuv YUV 4:2:0->RGB  |   5.70ms   |  23.91ms   |    20.07ms    | 
+| utils YUV 4:2:0->RGBA  |   3.70ms   |  20.81ms   |    18.84ms    | 
+| libyuv YUV 4:2:0->RGBA |   6.13ms   |  24.32ms   |    18.50ms    | 
+| utils YUV 4:2:2->RGBA  |   4.05ms   |  24.44ms   |    22.05ms    | 
+| libyuv YUV 4:2:2->RGBA |   5.91ms   |  23.72ms   |    18.71ms    | 
+| utils YUV 4:4:4->RGBA  |   3.91ms   |  27.58ms   |    22.85ms    | 
+| libyuv YUV 4:4:4->RGBA |   4.82ms   |  34.60ms   |    21.47ms    | 
 
 YUV 16 bit-depth conversion
 
@@ -121,27 +125,27 @@ cargo bench --bench yuv16 --manifest-path ./app/Cargo.toml
 
 |                            | time(NEON) | Time(AVX2) |
 |----------------------------|:----------:|:----------:|
-| utils RGB10->YUV10 4:2:0   |   4.98ms   |   8.71ms   |
+| utils RGB10->YUV10 4:2:0   |   4.98ms   |  33.88ms   |
 | libyuv RGB10->YUV10 4:2:0  |     x      |     x      |
-| utils RGBA10->YUV10 4:2:0  |   6.03ms   |   9.79ms   |
+| utils RGBA10->YUV10 4:2:0  |   6.03ms   |  32.69ms   |
 | libyuv RGBA10->YUV10 4:2:0 |     x      |     x      |
-| utils RGBA10->YUV10 4:2:2  |   5.99ms   |  13.54ms   |
+| utils RGBA10->YUV10 4:2:2  |   5.99ms   |  50.26ms   |
 | libyuv RGBA10->YUV10 4:2:2 |     x      |     x      |
-| utils RGBA10->YUV10 4:4:4  |   4.84ms   |  16.88ms   |
+| utils RGBA10->YUV10 4:4:4  |   4.84ms   |  70.11ms   |
 
 ### Decoding 10-bit
 
 |                            | time(NEON) | Time(AVX2) |
 |----------------------------|:----------:|:----------:|
-| utils YUV10 4:2:0->RGB10   |   5.64ms   |  12.27ms   |
+| utils YUV10 4:2:0->RGB10   |   5.64ms   |  45.58ms   |
 | libyuv YUV10 4:2:0->RGB10  |     -      |     -      |
-| utils YUV10 4:2:0->RGBA10  |   6.03ms   |  14.79ms   |
-| utils YUV10 4:2:0->RGBA8   |   6.94ms   |  42.44ms   |
-| libyuv YUV10 4:2:0->RGBA8  |  12.39ms   |  56.31ms   |
-| utils YUV10 4:2:2->RGBA10  |   5.88ms   |  14.77ms   |
-| utils YUV10 4:2:2->RGBA8   |   7.33ms   |  12.90ms   |
-| libyuv YUV10 4:2:2->RGBA10 |  12.40ms   |  58.98ms   |
-| utils YUV10 4:4:4->RGBA10  |   6.01ms   |  15.77ms   |
+| utils YUV10 4:2:0->RGBA10  |   6.03ms   |  65.95ms   |
+| utils YUV10 4:2:0->RGBA8   |   6.94ms   |  31.15ms   |
+| libyuv YUV10 4:2:0->RGBA8  |  12.39ms   |  24.59ms   |
+| utils YUV10 4:2:2->RGBA10  |   5.88ms   |  59.44ms   |
+| utils YUV10 4:2:2->RGBA8   |   7.33ms   |  29.15ms   |
+| libyuv YUV10 4:2:2->RGBA10 |  12.40ms   |  29.96ms   |
+| utils YUV10 4:4:4->RGBA10  |   6.01ms   |  70.84ms   |
 
 This project is licensed under either of
 
