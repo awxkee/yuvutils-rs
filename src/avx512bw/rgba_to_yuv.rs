@@ -49,20 +49,10 @@ pub(crate) fn avx512_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     unsafe {
         avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING>(
-            transform,
-            range,
-            y_plane,
-            u_plane,
-            v_plane,
-            rgba,
-            start_cx,
-            start_ux,
-            width,
-            compute_uv_row,
+            transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
         )
     }
 }
@@ -78,7 +68,6 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
     start_cx: usize,
     start_ux: usize,
     width: usize,
-    compute_uv_row: bool,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -238,11 +227,11 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
             _mm512_storeu_si512(v_ptr.add(uv_x) as *mut i32, cr);
             uv_x += 64;
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
-            || (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_uv_row)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = avx512_pairwise_avg_epi8(r_values);
-            let g1 = avx512_pairwise_avg_epi8(g_values);
-            let b1 = avx512_pairwise_avg_epi8(b_values);
+            let r1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(r_values));
+            let g1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(g_values));
+            let b1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(b_values));
 
             let cbk = _mm512_max_epi16(
                 _mm512_min_epi16(

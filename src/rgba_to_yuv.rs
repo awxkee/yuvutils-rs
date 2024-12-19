@@ -140,7 +140,6 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                         _offset.cx,
                         _offset.ux,
                         image.width as usize,
-                        compute_uv_row,
                     );
                     _offset = processed_offset;
                 }
