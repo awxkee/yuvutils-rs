@@ -67,7 +67,7 @@ pub(crate) fn avx512_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     }
 }
 
-#[target_feature(enable = "avx512bw")]
+#[target_feature(enable = "avx512bw", enable = "avx512f")]
 unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,

@@ -129,6 +129,12 @@ fn yuv_nv12_to_rgbx<
     } else {
         neon_yuv_nv_to_rgba_row420::<PRECISION, UV_ORDER, DESTINATION_CHANNELS>
     };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let dispatch_wide_row_avx512 =
+        avx512_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, false>;
 
     let width = image.width;
 
@@ -138,17 +144,16 @@ fn yuv_nv12_to_rgbx<
         {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
-                let processed =
-                    avx512_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &chroma_range,
-                        &inverse_transform,
-                        _y_plane,
-                        _uv_plane,
-                        _bgra,
-                        _offset.cx,
-                        _offset.ux,
-                        width as usize,
-                    );
+                let processed = dispatch_wide_row_avx512(
+                    &chroma_range,
+                    &inverse_transform,
+                    _y_plane,
+                    _uv_plane,
+                    _bgra,
+                    _offset.cx,
+                    _offset.ux,
+                    width as usize,
+                );
                 _offset = processed;
             }
 

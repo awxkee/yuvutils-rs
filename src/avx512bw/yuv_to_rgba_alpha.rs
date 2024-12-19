@@ -67,7 +67,7 @@ pub(crate) fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
     }
 }
 
-#[target_feature(enable = "avx512bw")]
+#[target_feature(enable = "avx512bw", enable = "avx512f")]
 unsafe fn avx512_yuv_to_rgba_alpha_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,

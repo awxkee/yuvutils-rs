@@ -32,7 +32,7 @@ use crate::avx2::{avx2_yuv_to_rgba_row, avx2_yuv_to_rgba_row420};
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
 ))]
-use crate::avx512bw::avx512_yuv_to_rgba;
+use crate::avx512bw::{avx512_yuv_to_rgba, avx512_yuv_to_rgba420};
 use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{
@@ -239,6 +239,25 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "nightly_avx512")]
+                if use_avx512 {
+                    let processed = avx512_yuv_to_rgba420::<DESTINATION_CHANNELS, SAMPLING>(
+                        &chroma_range,
+                        &inverse_transform,
+                        _y_plane0,
+                        _y_plane1,
+                        _u_plane,
+                        _v_plane,
+                        _rgba0,
+                        _rgba1,
+                        _cx,
+                        _uv_x,
+                        image.width as usize,
+                    );
+                    _cx = processed.cx;
+                    _uv_x = processed.ux;
+                }
+
                 if use_avx2 {
                     let processed = avx2_yuv_to_rgba_row420::<DESTINATION_CHANNELS>(
                         &chroma_range,
