@@ -34,7 +34,10 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 use crate::built_coefficients::get_built_inverse_transform;
+use crate::internals::ProcessedOffset;
 use crate::numerics::to_ne;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::sse::sse_yuv_p16_to_rgba8_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
@@ -96,6 +99,9 @@ fn yuv_p16_to_image_ant<
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+
     #[inline(always)]
     /// Saturating rounding shift right against bit depth
     fn qrshr<const BIT_DEPTH: usize>(val: i32) -> i32 {
@@ -108,6 +114,34 @@ fn yuv_p16_to_image_ant<
     let process_wide_row =
         |_y_plane: &[u16], _u_plane: &[u16], _v_plane: &[u16], _rgba: &mut [u8]| {
             let mut _cx = 0usize;
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                let mut _v_offset = ProcessedOffset { cx: 0, ux: 0 };
+                unsafe {
+                    if use_sse {
+                        let offset = sse_yuv_p16_to_rgba8_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            BIT_DEPTH,
+                            PRECISION,
+                        >(
+                            _y_plane,
+                            _u_plane,
+                            _v_plane,
+                            _rgba,
+                            image.width,
+                            &chroma_range,
+                            &i_transform,
+                            _v_offset.cx,
+                            _v_offset.ux,
+                        );
+                        _v_offset = offset;
+                    }
+                }
+                _cx = _v_offset.cx;
+            }
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 unsafe {

@@ -109,7 +109,7 @@ fn yuv_nv12_to_rgbx<
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
@@ -172,7 +172,7 @@ fn yuv_nv12_to_rgbx<
                 _offset = processed;
             }
 
-            if _use_sse {
+            if use_sse {
                 let processed =
                     sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
                         &chroma_range,
@@ -284,7 +284,7 @@ fn yuv_nv12_to_rgbx<
                 );
                 _offset = processed;
             }
-            if _use_sse {
+            if use_sse {
                 let processed = sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>(
                     &chroma_range,
                     &inverse_transform,

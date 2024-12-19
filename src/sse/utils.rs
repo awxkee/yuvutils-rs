@@ -601,3 +601,18 @@ pub(crate) unsafe fn _mm_from_msb_epi16<const BIT_DEPTH: usize>(a: __m128i) -> _
         a
     }
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_store_shr_epi16_epi8<const BIT_DEPTH: usize>(a: __m128i) -> __m128i {
+    if BIT_DEPTH == 10 {
+        _mm_srai_epi16::<2>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm_srai_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm_srai_epi16::<6>(a)
+    } else if BIT_DEPTH == 16 {
+        _mm_srai_epi16::<8>(a)
+    } else {
+        a
+    }
+}
