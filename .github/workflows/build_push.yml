@@ -22,11 +22,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: rustup target add aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu i686-unknown-linux-gnu powerpc-unknown-linux-gnu
+      - run: rustup target add aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu i686-unknown-linux-gnu powerpc-unknown-linux-gnu wasm32-unknown-unknown
       - run: RUSTFLAGS="-C target-feature=+neon" cargo build --target aarch64-unknown-linux-gnu
       - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --target i686-unknown-linux-gnu
       - run: cargo build --target powerpc-unknown-linux-gnu
       - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --features "nightly_avx512" --target x86_64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+simd128" cargo build --target wasm32-unknown-unknown
+
+
+  tests:
+    name: Testing
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo test
 
   fuzz_decoding:
     name: Fuzzing decoders
@@ -44,6 +57,7 @@ jobs:
       - run: cargo fuzz run yuv16_to_rgb16 -- -max_total_time=15
       - run: cargo fuzz run y16_to_rgb16 -- -max_total_time=15
       - run: cargo fuzz run yuv_to_yuyu2 -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv16_to_rgb16 -- -max_total_time=15
 
   fuzz_encoding:
     name: Fuzzing encoders
@@ -56,5 +70,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
       - run: cargo fuzz run rgb_to_yuv -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_nv -- -max_total_time=15
       - run: cargo fuzz run rgb_to_y -- -max_total_time=15
       - run: cargo fuzz run rgb16_to_yuv16 -- -max_total_time=15
+      - run: cargo fuzz run rgb16_to_nv16 -- -max_total_time=15

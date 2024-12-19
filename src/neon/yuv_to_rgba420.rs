@@ -78,8 +78,10 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
     while cx + 16 < width {
-        let y_values0 = vqsubq_u8(vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
-        let y_values1 = vqsubq_u8(vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
+        let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsubq_u8(vl0, y_corr);
+        let y_values1 = vqsubq_u8(vl1, y_corr);
 
         let u_values = vld1_u8(u_ptr.add(uv_x));
         let v_values = vld1_u8(v_ptr.add(uv_x));
@@ -170,14 +172,10 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
     }
 
     while cx + 8 < width {
-        let y_values0 = vqsub_u8(
-            vld1_u8(y_plane0.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
-        let y_values1 = vqsub_u8(
-            vld1_u8(y_plane1.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
+        let vl0 = vld1_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsub_u8(vl0, vget_low_u8(y_corr));
+        let y_values1 = vqsub_u8(vl1, vget_low_u8(y_corr));
 
         let u_values = vreinterpret_u8_u32(vld1_dup_u32(u_ptr.add(uv_x) as *const u32));
         let v_values = vreinterpret_u8_u32(vld1_dup_u32(v_ptr.add(uv_x) as *const u32));
@@ -275,8 +273,10 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
     let v_alpha = vdupq_n_u8(255u8);
 
     while cx + 16 < width {
-        let y_values0 = vqsubq_u8(vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
-        let y_values1 = vqsubq_u8(vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
+        let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let y_values0 = vqsubq_u8(vl0, y_corr);
+        let y_values1 = vqsubq_u8(vl1, y_corr);
 
         let u_values = vld1_u8(u_ptr.add(uv_x));
         let v_values = vld1_u8(v_ptr.add(uv_x));

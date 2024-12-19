@@ -33,7 +33,9 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_deinterleave_x2_epi16, _mm_store_interleave_rgb16_for_yuv};
+use crate::sse::{
+    _mm_deinterleave_x2_epi16, _mm_from_msb_epi16, _mm_store_interleave_rgb16_for_yuv,
+};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
@@ -45,7 +47,7 @@ pub(crate) unsafe fn sse_yuv_nv_p16_to_rgba_row<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: u8,
+    const BIT_DEPTH: usize,
     const PRECISION: i32,
 >(
     y_ld_ptr: &[u16],
@@ -79,7 +81,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: u8,
+    const BIT_DEPTH: usize,
     const PRECISION: i32,
 >(
     y_ld_ptr: &[u16],
@@ -124,8 +126,6 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_big_shift_count = _mm_set1_epi64x(16i64 - BIT_DEPTH as i64);
-
     let big_endian_shuffle_flag =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
@@ -142,7 +142,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
             y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm_srl_epi16(y_vl, v_big_shift_count);
+            y_vl = _mm_from_msb_epi16::<BIT_DEPTH>(y_vl);
         }
         let y_values = _mm_subs_epu16(y_vl, y_corr);
 
@@ -167,8 +167,8 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                     v_vl = _mm_shuffle_epi8(v_vl, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vl = _mm_srl_epi16(u_vl, v_big_shift_count);
-                    v_vl = _mm_srl_epi16(v_vl, v_big_shift_count);
+                    u_vl = _mm_from_msb_epi16::<BIT_DEPTH>(u_vl);
+                    v_vl = _mm_from_msb_epi16::<BIT_DEPTH>(v_vl);
                 }
                 let u_values_c = _mm_sub_epi16(u_vl, uv_corr);
                 let v_values_c = _mm_sub_epi16(v_vl, uv_corr);
@@ -199,9 +199,10 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                     v_vl = _mm_shuffle_epi8(v_vl, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vl = _mm_srl_epi16(u_vl, v_big_shift_count);
-                    v_vl = _mm_srl_epi16(v_vl, v_big_shift_count);
+                    u_vl = _mm_from_msb_epi16::<BIT_DEPTH>(u_vl);
+                    v_vl = _mm_from_msb_epi16::<BIT_DEPTH>(v_vl);
                 }
+
                 let u_values_c = _mm_sub_epi16(u_vl, uv_corr_q);
                 let v_values_c = _mm_sub_epi16(v_vl, uv_corr_q);
                 u_high = _mm_unpackhi_epi16(u_values_c, zeros);

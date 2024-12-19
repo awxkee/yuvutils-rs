@@ -47,7 +47,7 @@ fn yuv_nv_p16_to_image_impl<
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: u8,
+    const BIT_DEPTH: usize,
 >(
     image: &YuvBiPlanarImage<u16>,
     bgra: &mut [u16],

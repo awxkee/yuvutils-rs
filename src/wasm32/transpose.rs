@@ -30,28 +30,27 @@ use crate::wasm32::utils::{wasm_unpackhi_i8x16, wasm_unpacklo_i8x16};
 use std::arch::wasm32::*;
 
 #[inline]
-pub unsafe fn v128_deinterleave_u8_x2(a: v128, b: v128) -> (v128, v128) {
+pub(crate) unsafe fn v128_deinterleave_u8_x2(a: v128, b: v128) -> (v128, v128) {
     let x0 = u8x16_shuffle::<0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30>(a, b);
     let x1 = u8x16_shuffle::<1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31>(a, b);
     (x0, x1)
 }
 
 #[inline]
-pub unsafe fn v128_load_deinterleave_u8_x2(ptr: *const u8) -> (v128, v128) {
+pub(crate) unsafe fn v128_load_deinterleave_u8_x2(ptr: *const u8) -> (v128, v128) {
     let a = v128_load(ptr as *const v128);
     let b = v128_load(ptr.add(16) as *const v128);
     v128_deinterleave_u8_x2(a, b)
 }
 
 #[inline]
-pub unsafe fn v128_load_deinterleave_half_u8_x2(ptr: *const u8) -> (v128, v128) {
-    let a = u64x2_replace_lane(i64x2_splat(0), (ptr as *const u64).read_unaligned());
-    let b = u64x2_replace_lane(i64x2_splat(0), (ptr.add(8) as *const u64).read_unaligned());
-    v128_deinterleave_u8_x2(a, b)
+pub(crate) unsafe fn v128_load_deinterleave_half_u8_x2(ptr: *const u8) -> (v128, v128) {
+    let a = v128_load(ptr as *const v128);
+    v128_deinterleave_u8_x2(a, u8x16_splat(0))
 }
 
 #[inline]
-pub unsafe fn wasm_store_interleave_u8x4(ptr: *mut u8, packed: (v128, v128, v128, v128)) {
+pub(crate) unsafe fn wasm_store_interleave_u8x4(ptr: *mut u8, packed: (v128, v128, v128, v128)) {
     let a = packed.0;
     let b = packed.1;
     let c = packed.2;
@@ -77,7 +76,7 @@ pub unsafe fn wasm_store_interleave_u8x4(ptr: *mut u8, packed: (v128, v128, v128
 }
 
 #[inline]
-pub unsafe fn wasm_store_interleave_u8x3(ptr: *mut u8, packed: (v128, v128, v128)) {
+pub(crate) unsafe fn wasm_store_interleave_u8x3(ptr: *mut u8, packed: (v128, v128, v128)) {
     let a = packed.0;
     let b = packed.1;
     let c = packed.2;

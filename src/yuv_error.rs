@@ -256,7 +256,7 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
     if (stride as usize * chroma_height as usize)
         < (chroma_min_width as usize * chroma_height as usize)
     {
-        return Err(YuvError::LumaPlaneMinimumSizeMismatch(MismatchedSize {
+        return Err(YuvError::ChromaPlaneMinimumSizeMismatch(MismatchedSize {
             expected: chroma_min_width as usize * chroma_height as usize,
             received: stride as usize * chroma_height as usize,
         }));
@@ -264,7 +264,7 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
     if stride as usize * chroma_height as usize != data.len()
         || chroma_min_width as usize * chroma_height as usize != data.len()
     {
-        return Err(YuvError::LumaPlaneSizeMismatch(MismatchedSize {
+        return Err(YuvError::ChromaPlaneSizeMismatch(MismatchedSize {
             expected: stride as usize * chroma_height as usize,
             received: data.len(),
         }));

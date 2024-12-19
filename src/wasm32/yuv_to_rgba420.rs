@@ -37,13 +37,15 @@ use crate::yuv_support::{
 use std::arch::wasm32::*;
 
 #[target_feature(enable = "simd128")]
-pub(crate) unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) unsafe fn wasm_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
-    y_plane: &[u8],
+    y_plane0: &[u8],
+    y_plane1: &[u8],
     u_plane: &[u8],
     v_plane: &[u8],
-    rgba: &mut [u8],
+    rgba0: &mut [u8],
+    rgba1: &mut [u8],
     start_cx: usize,
     start_ux: usize,
     width: usize,
@@ -55,10 +57,8 @@ pub(crate) unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const 
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    let y_ptr = y_plane.as_ptr();
     let u_ptr = u_plane.as_ptr();
     let v_ptr = v_plane.as_ptr();
-    let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = u8x16_splat(range.bias_y as u8);
     let uv_corr = i16x8_splat(range.bias_uv as i16);
@@ -72,7 +72,14 @@ pub(crate) unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const 
     const V_SCALE: u32 = 2;
 
     while cx + 16 < width {
-        let y_values = u8x16_sub_sat(v128_load(y_ptr.add(cx) as *const v128), y_corr);
+        let y_values0 = u8x16_sub_sat(
+            v128_load(y_plane0.get_unchecked(cx..).as_ptr() as *const v128),
+            y_corr,
+        );
+        let y_values1 = u8x16_sub_sat(
+            v128_load(y_plane1.get_unchecked(cx..).as_ptr() as *const v128),
+            y_corr,
+        );
 
         let u_high_u16;
         let v_high_u16;
@@ -105,49 +112,74 @@ pub(crate) unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const 
 
         let u_high = i16x8_shl(i16x8_sub(u_high_u16, uv_corr), V_SCALE);
         let v_high = i16x8_shl(i16x8_sub(v_high_u16, uv_corr), V_SCALE);
-        let y_high = i16x8_q15mulr_sat(
-            i16x8_shl(u16x8_extend_high_u8x16(y_values), V_SCALE),
+        let y_high0 = i16x8_q15mulr_sat(
+            i16x8_shl(u16x8_extend_high_u8x16(y_values0), V_SCALE),
+            v_luma_coeff,
+        );
+        let y_high1 = i16x8_q15mulr_sat(
+            i16x8_shl(u16x8_extend_high_u8x16(y_values1), V_SCALE),
             v_luma_coeff,
         );
 
-        let r_high = i16x8_add(y_high, i16x8_q15mulr_sat(v_high, v_cr_coeff));
-        let b_high = i16x8_add(y_high, i16x8_q15mulr_sat(u_high, v_cb_coeff));
-        let g_high = i16x8_add(
-            y_high,
-            i16x8_add(
-                i16x8_q15mulr_sat(v_high, v_g_coeff_1),
-                i16x8_q15mulr_sat(u_high, v_g_coeff_2),
-            ),
+        let g_coeff0 = i16x8_add(
+            i16x8_q15mulr_sat(v_high, v_g_coeff_1),
+            i16x8_q15mulr_sat(u_high, v_g_coeff_2),
         );
+
+        let r_high0 = i16x8_add(y_high0, i16x8_q15mulr_sat(v_high, v_cr_coeff));
+        let b_high0 = i16x8_add(y_high0, i16x8_q15mulr_sat(u_high, v_cb_coeff));
+        let g_high0 = i16x8_add(y_high0, g_coeff0);
+
+        let r_high1 = i16x8_add(y_high1, i16x8_q15mulr_sat(v_high, v_cr_coeff));
+        let b_high1 = i16x8_add(y_high1, i16x8_q15mulr_sat(u_high, v_cb_coeff));
+        let g_high1 = i16x8_add(y_high1, g_coeff0);
 
         let u_low = i16x8_shl(i16x8_sub(u_low_u16, uv_corr), V_SCALE);
         let v_low = i16x8_shl(i16x8_sub(v_low_u16, uv_corr), V_SCALE);
-        let y_low = i16x8_q15mulr_sat(
-            i16x8_shl(u16x8_extend_low_u8x16(y_values), V_SCALE),
+        let y_low0 = i16x8_q15mulr_sat(
+            i16x8_shl(u16x8_extend_low_u8x16(y_values0), V_SCALE),
+            v_luma_coeff,
+        );
+        let y_low1 = i16x8_q15mulr_sat(
+            i16x8_shl(u16x8_extend_low_u8x16(y_values1), V_SCALE),
             v_luma_coeff,
         );
 
-        let r_low = i16x8_add(y_low, i16x8_q15mulr_sat(v_low, v_cr_coeff));
-        let b_low = i16x8_add(y_low, i16x8_q15mulr_sat(u_low, v_cb_coeff));
-        let g_low = i16x8_add(
-            y_low,
-            i16x8_add(
-                i16x8_q15mulr_sat(v_low, v_g_coeff_1),
-                i16x8_q15mulr_sat(u_low, v_g_coeff_2),
-            ),
+        let g_coeff2 = i16x8_add(
+            i16x8_q15mulr_sat(v_low, v_g_coeff_1),
+            i16x8_q15mulr_sat(u_low, v_g_coeff_2),
         );
 
-        let r_values = i16x8_pack_sat_u8x16(r_low, r_high);
-        let g_values = i16x8_pack_sat_u8x16(g_low, g_high);
-        let b_values = i16x8_pack_sat_u8x16(b_low, b_high);
+        let r_low0 = i16x8_add(y_low0, i16x8_q15mulr_sat(v_low, v_cr_coeff));
+        let b_low0 = i16x8_add(y_low0, i16x8_q15mulr_sat(u_low, v_cb_coeff));
+        let g_low0 = i16x8_add(y_low0, g_coeff2);
+
+        let r_low1 = i16x8_add(y_low1, i16x8_q15mulr_sat(v_low, v_cr_coeff));
+        let b_low1 = i16x8_add(y_low1, i16x8_q15mulr_sat(u_low, v_cb_coeff));
+        let g_low1 = i16x8_add(y_low1, g_coeff2);
+
+        let r_values0 = i16x8_pack_sat_u8x16(r_low0, r_high0);
+        let g_values0 = i16x8_pack_sat_u8x16(g_low0, g_high0);
+        let b_values0 = i16x8_pack_sat_u8x16(b_low0, b_high0);
+
+        let r_values1 = i16x8_pack_sat_u8x16(r_low1, r_high1);
+        let g_values1 = i16x8_pack_sat_u8x16(g_low1, g_high1);
+        let b_values1 = i16x8_pack_sat_u8x16(b_low1, b_high1);
 
         let dst_shift = cx * channels;
 
         wasm_store_rgb::<DESTINATION_CHANNELS>(
-            rgba_ptr.add(dst_shift),
-            r_values,
-            g_values,
-            b_values,
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+        wasm_store_rgb::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
             v_alpha,
         );
 
