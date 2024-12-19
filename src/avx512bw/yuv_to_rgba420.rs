@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::avx2::_mm256_interleave_epi8;
 use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8, shuffle};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -109,13 +110,14 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const SAMPL
                 let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
                 let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
 
+                let i_u = _mm256_interleave_epi8(u_values, u_values);
+                let i_v = _mm256_interleave_epi8(v_values, v_values);
+
                 const MASK: i32 = shuffle(3, 1, 2, 0);
-                u_high0 =
-                    _mm256_permute4x64_epi64::<MASK>(_mm256_unpackhi_epi8(u_values, u_values));
-                v_high0 =
-                    _mm256_permute4x64_epi64::<MASK>(_mm256_unpackhi_epi8(v_values, v_values));
-                u_low0 = _mm256_permute4x64_epi64::<MASK>(_mm256_unpacklo_epi8(u_values, u_values));
-                v_low0 = _mm256_permute4x64_epi64::<MASK>(_mm256_unpacklo_epi8(v_values, v_values));
+                u_high0 = i_u.1;
+                v_high0 = i_v.1;
+                u_low0 = i_u.0;
+                v_low0 = i_v.0;
             }
             YuvChromaSubsampling::Yuv444 => {
                 let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
