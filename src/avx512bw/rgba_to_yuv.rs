@@ -28,8 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_load_rgb_u8, avx512_pack_u16,
-    avx512_pairwise_avg_epi8,
+    avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{

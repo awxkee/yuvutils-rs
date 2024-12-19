@@ -51,6 +51,7 @@ mod yuv_to_yuv2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+pub(crate) use avx2_utils::_mm256_interleave_epi8;
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::avx2_rgba_to_nv;
 pub(crate) use rgb_to_nv420::avx2_rgba_to_nv420;
@@ -72,4 +73,3 @@ pub(crate) use yuv_to_rgba_alpha::avx2_yuv_to_rgba_alpha;
 pub(crate) use yuv_to_yuv2::yuv_to_yuy2_avx2_row;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_avx;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_avx;
-pub(crate) use avx2_utils::_mm256_interleave_epi8;

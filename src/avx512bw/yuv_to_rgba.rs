@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::_mm256_interleave_epi8;
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8};
+use crate::avx512bw::avx512_utils::{avx2_zip_epi8, avx512_pack_u16, avx512_store_u8};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -90,166 +90,166 @@ unsafe fn avx512_yuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const SAMPLING
 
     const SCALE: u32 = 2;
 
-    // while cx + 128 < width {
-    //     let y_values0 = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
-    //     let y_values1 =
-    //         _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx + 64) as *const i32), y_corr);
-    //
-    //     let (u_high00, v_high00, u_low00, v_low00, u_high10, v_high10, u_low10, v_low10);
-    //
-    //     match chroma_subsampling {
-    //         YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-    //             let u_values_full = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
-    //             let v_values_full = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
-    //
-    //             let (u_values0, u_values1) = avx2_zip_epi8::<false>(u_values_full, u_values_full);
-    //             let (v_values0, v_values1) = avx2_zip_epi8::<false>(v_values_full, v_values_full);
-    //
-    //             u_high00 = _mm512_extracti64x4_epi64::<1>(u_values0);
-    //             v_high00 = _mm512_extracti64x4_epi64::<1>(v_values0);
-    //             u_low00 = _mm512_castsi512_si256(u_values0);
-    //             v_low00 = _mm512_castsi512_si256(v_values0);
-    //
-    //             u_high10 = _mm512_extracti64x4_epi64::<1>(u_values1);
-    //             v_high10 = _mm512_extracti64x4_epi64::<1>(v_values1);
-    //             u_low10 = _mm512_castsi512_si256(u_values1);
-    //             v_low10 = _mm512_castsi512_si256(v_values1);
-    //         }
-    //         YuvChromaSubsampling::Yuv444 => {
-    //             let u_values0 = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
-    //             let u_values1 = _mm512_loadu_si512(u_ptr.add(uv_x + 64) as *const i32);
-    //             let v_values0 = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
-    //             let v_values1 = _mm512_loadu_si512(v_ptr.add(uv_x + 64) as *const i32);
-    //
-    //             u_high00 = _mm512_extracti64x4_epi64::<1>(u_values0);
-    //             v_high00 = _mm512_extracti64x4_epi64::<1>(v_values0);
-    //             u_low00 = _mm512_castsi512_si256(u_values0);
-    //             v_low00 = _mm512_castsi512_si256(v_values0);
-    //
-    //             u_high10 = _mm512_extracti64x4_epi64::<1>(u_values1);
-    //             v_high10 = _mm512_extracti64x4_epi64::<1>(v_values1);
-    //             u_low10 = _mm512_castsi512_si256(u_values1);
-    //             v_low10 = _mm512_castsi512_si256(v_values1);
-    //         }
-    //     }
-    //
-    //     let u_high0 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_high00), uv_corr));
-    //     let v_high0 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_high00), uv_corr));
-    //     let y_high0 = _mm512_mulhrs_epi16(
-    //         _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(
-    //             y_values0,
-    //         ))),
-    //         v_luma_coeff,
-    //     );
-    //
-    //     let u_high1 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_high10), uv_corr));
-    //     let v_high1 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_high10), uv_corr));
-    //     let y_high1 = _mm512_mulhrs_epi16(
-    //         _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(
-    //             y_values1,
-    //         ))),
-    //         v_luma_coeff,
-    //     );
-    //
-    //     let r_high0 = _mm512_add_epi16(y_high0, _mm512_mulhrs_epi16(v_high0, v_cr_coeff));
-    //     let b_high0 = _mm512_add_epi16(y_high0, _mm512_mulhrs_epi16(u_high0, v_cb_coeff));
-    //     let g_high0 = _mm512_sub_epi16(
-    //         y_high0,
-    //         _mm512_add_epi16(
-    //             _mm512_mulhrs_epi16(v_high0, v_g_coeff_1),
-    //             _mm512_mulhrs_epi16(u_high0, v_g_coeff_2),
-    //         ),
-    //     );
-    //
-    //     let r_high1 = _mm512_add_epi16(y_high1, _mm512_mulhrs_epi16(v_high1, v_cr_coeff));
-    //     let b_high1 = _mm512_add_epi16(y_high1, _mm512_mulhrs_epi16(u_high1, v_cb_coeff));
-    //     let g_high1 = _mm512_sub_epi16(
-    //         y_high1,
-    //         _mm512_add_epi16(
-    //             _mm512_mulhrs_epi16(v_high1, v_g_coeff_1),
-    //             _mm512_mulhrs_epi16(u_high1, v_g_coeff_2),
-    //         ),
-    //     );
-    //
-    //     let u_low0 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_low00), uv_corr));
-    //     let v_low0 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_low00), uv_corr));
-    //     let y_low0 = _mm512_mulhrs_epi16(
-    //         _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values0))),
-    //         v_luma_coeff,
-    //     );
-    //
-    //     let u_low1 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_low10), uv_corr));
-    //     let v_low1 =
-    //         _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_low10), uv_corr));
-    //     let y_low1 = _mm512_mulhrs_epi16(
-    //         _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values1))),
-    //         v_luma_coeff,
-    //     );
-    //
-    //     let r_low0 = _mm512_add_epi16(y_low0, _mm512_mulhrs_epi16(v_low0, v_cr_coeff));
-    //     let b_low0 = _mm512_add_epi16(y_low0, _mm512_mulhrs_epi16(u_low0, v_cb_coeff));
-    //     let g_low0 = _mm512_sub_epi16(
-    //         y_low0,
-    //         _mm512_add_epi16(
-    //             _mm512_mulhrs_epi16(v_low0, v_g_coeff_1),
-    //             _mm512_mulhrs_epi16(u_low0, v_g_coeff_2),
-    //         ),
-    //     );
-    //
-    //     let r_low1 = _mm512_add_epi16(y_low1, _mm512_mulhrs_epi16(v_low1, v_cr_coeff));
-    //     let b_low1 = _mm512_add_epi16(y_low1, _mm512_mulhrs_epi16(u_low1, v_cb_coeff));
-    //     let g_low1 = _mm512_sub_epi16(
-    //         y_low1,
-    //         _mm512_add_epi16(
-    //             _mm512_mulhrs_epi16(v_low1, v_g_coeff_1),
-    //             _mm512_mulhrs_epi16(u_low1, v_g_coeff_2),
-    //         ),
-    //     );
-    //
-    //     let r_values0 = avx512_pack_u16(r_low0, r_high0);
-    //     let g_values0 = avx512_pack_u16(g_low0, g_high0);
-    //     let b_values0 = avx512_pack_u16(b_low0, b_high0);
-    //
-    //     let r_values1 = avx512_pack_u16(r_low1, r_high1);
-    //     let g_values1 = avx512_pack_u16(g_low1, g_high1);
-    //     let b_values1 = avx512_pack_u16(b_low1, b_high1);
-    //
-    //     let dst_shift = cx * channels;
-    //
-    //     avx512_store_u8::<DESTINATION_CHANNELS>(
-    //         rgba_ptr.add(dst_shift),
-    //         r_values0,
-    //         g_values0,
-    //         b_values0,
-    //         v_alpha,
-    //     );
-    //
-    //     avx512_store_u8::<DESTINATION_CHANNELS>(
-    //         rgba_ptr.add(dst_shift + 64 * channels),
-    //         r_values1,
-    //         g_values1,
-    //         b_values1,
-    //         v_alpha,
-    //     );
-    //
-    //     cx += 128;
-    //
-    //     match chroma_subsampling {
-    //         YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-    //             uv_x += 64;
-    //         }
-    //         YuvChromaSubsampling::Yuv444 => {
-    //             uv_x += 128;
-    //         }
-    //     }
-    // }
+    while cx + 128 < width {
+        let y_values0 = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
+        let y_values1 =
+            _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx + 64) as *const i32), y_corr);
+
+        let (u_high00, v_high00, u_low00, v_low00, u_high10, v_high10, u_low10, v_low10);
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                let u_values_full = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
+                let v_values_full = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
+
+                let (u_values0, u_values1) = avx2_zip_epi8::<false>(u_values_full, u_values_full);
+                let (v_values0, v_values1) = avx2_zip_epi8::<false>(v_values_full, v_values_full);
+
+                u_high00 = _mm512_extracti64x4_epi64::<1>(u_values0);
+                v_high00 = _mm512_extracti64x4_epi64::<1>(v_values0);
+                u_low00 = _mm512_castsi512_si256(u_values0);
+                v_low00 = _mm512_castsi512_si256(v_values0);
+
+                u_high10 = _mm512_extracti64x4_epi64::<1>(u_values1);
+                v_high10 = _mm512_extracti64x4_epi64::<1>(v_values1);
+                u_low10 = _mm512_castsi512_si256(u_values1);
+                v_low10 = _mm512_castsi512_si256(v_values1);
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                let u_values0 = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
+                let u_values1 = _mm512_loadu_si512(u_ptr.add(uv_x + 64) as *const i32);
+                let v_values0 = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
+                let v_values1 = _mm512_loadu_si512(v_ptr.add(uv_x + 64) as *const i32);
+
+                u_high00 = _mm512_extracti64x4_epi64::<1>(u_values0);
+                v_high00 = _mm512_extracti64x4_epi64::<1>(v_values0);
+                u_low00 = _mm512_castsi512_si256(u_values0);
+                v_low00 = _mm512_castsi512_si256(v_values0);
+
+                u_high10 = _mm512_extracti64x4_epi64::<1>(u_values1);
+                v_high10 = _mm512_extracti64x4_epi64::<1>(v_values1);
+                u_low10 = _mm512_castsi512_si256(u_values1);
+                v_low10 = _mm512_castsi512_si256(v_values1);
+            }
+        }
+
+        let u_high0 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_high00), uv_corr));
+        let v_high0 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_high00), uv_corr));
+        let y_high0 = _mm512_mulhrs_epi16(
+            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(
+                y_values0,
+            ))),
+            v_luma_coeff,
+        );
+
+        let u_high1 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_high10), uv_corr));
+        let v_high1 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_high10), uv_corr));
+        let y_high1 = _mm512_mulhrs_epi16(
+            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(
+                y_values1,
+            ))),
+            v_luma_coeff,
+        );
+
+        let r_high0 = _mm512_add_epi16(y_high0, _mm512_mulhrs_epi16(v_high0, v_cr_coeff));
+        let b_high0 = _mm512_add_epi16(y_high0, _mm512_mulhrs_epi16(u_high0, v_cb_coeff));
+        let g_high0 = _mm512_sub_epi16(
+            y_high0,
+            _mm512_add_epi16(
+                _mm512_mulhrs_epi16(v_high0, v_g_coeff_1),
+                _mm512_mulhrs_epi16(u_high0, v_g_coeff_2),
+            ),
+        );
+
+        let r_high1 = _mm512_add_epi16(y_high1, _mm512_mulhrs_epi16(v_high1, v_cr_coeff));
+        let b_high1 = _mm512_add_epi16(y_high1, _mm512_mulhrs_epi16(u_high1, v_cb_coeff));
+        let g_high1 = _mm512_sub_epi16(
+            y_high1,
+            _mm512_add_epi16(
+                _mm512_mulhrs_epi16(v_high1, v_g_coeff_1),
+                _mm512_mulhrs_epi16(u_high1, v_g_coeff_2),
+            ),
+        );
+
+        let u_low0 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_low00), uv_corr));
+        let v_low0 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_low00), uv_corr));
+        let y_low0 = _mm512_mulhrs_epi16(
+            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values0))),
+            v_luma_coeff,
+        );
+
+        let u_low1 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_low10), uv_corr));
+        let v_low1 =
+            _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_low10), uv_corr));
+        let y_low1 = _mm512_mulhrs_epi16(
+            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values1))),
+            v_luma_coeff,
+        );
+
+        let r_low0 = _mm512_add_epi16(y_low0, _mm512_mulhrs_epi16(v_low0, v_cr_coeff));
+        let b_low0 = _mm512_add_epi16(y_low0, _mm512_mulhrs_epi16(u_low0, v_cb_coeff));
+        let g_low0 = _mm512_sub_epi16(
+            y_low0,
+            _mm512_add_epi16(
+                _mm512_mulhrs_epi16(v_low0, v_g_coeff_1),
+                _mm512_mulhrs_epi16(u_low0, v_g_coeff_2),
+            ),
+        );
+
+        let r_low1 = _mm512_add_epi16(y_low1, _mm512_mulhrs_epi16(v_low1, v_cr_coeff));
+        let b_low1 = _mm512_add_epi16(y_low1, _mm512_mulhrs_epi16(u_low1, v_cb_coeff));
+        let g_low1 = _mm512_sub_epi16(
+            y_low1,
+            _mm512_add_epi16(
+                _mm512_mulhrs_epi16(v_low1, v_g_coeff_1),
+                _mm512_mulhrs_epi16(u_low1, v_g_coeff_2),
+            ),
+        );
+
+        let r_values0 = avx512_pack_u16(r_low0, r_high0);
+        let g_values0 = avx512_pack_u16(g_low0, g_high0);
+        let b_values0 = avx512_pack_u16(b_low0, b_high0);
+
+        let r_values1 = avx512_pack_u16(r_low1, r_high1);
+        let g_values1 = avx512_pack_u16(g_low1, g_high1);
+        let b_values1 = avx512_pack_u16(b_low1, b_high1);
+
+        let dst_shift = cx * channels;
+
+        avx512_store_u8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+
+        avx512_store_u8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift + 64 * channels),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
+
+        cx += 128;
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                uv_x += 64;
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                uv_x += 128;
+            }
+        }
+    }
 
     while cx + 64 < width {
         let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);

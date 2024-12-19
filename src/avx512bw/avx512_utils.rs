@@ -294,9 +294,9 @@ pub(crate) unsafe fn avx2_zip_epi8<const HAS_VBMI: bool>(
     } else {
         let low = _mm512_unpacklo_epi8(a, b);
         let high = _mm512_unpackhi_epi8(a, b);
-        let ab0 = _mm512_permutex2var_epi64(low, _mm512_setr_epi64(11, 10, 3, 2, 9, 8, 1, 0), high);
+        let ab0 = _mm512_permutex2var_epi64(low, _mm512_set_epi64(11, 10, 3, 2, 9, 8, 1, 0), high);
         let ab1 =
-            _mm512_permutex2var_epi64(low, _mm512_setr_epi64(15, 14, 7, 6, 13, 12, 5, 4), high);
+            _mm512_permutex2var_epi64(low, _mm512_set_epi64(15, 14, 7, 6, 13, 12, 5, 4), high);
         (ab0, ab1)
     }
 }
