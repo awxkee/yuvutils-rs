@@ -8,6 +8,9 @@ yuvutils-rs = { path = "..", features = [] }
 image = "0.25.5"
 yuv-sys = "0.3.7"
 
+[features]
+nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
+
 [dev-dependencies]
 criterion = "0.5.1"
 
