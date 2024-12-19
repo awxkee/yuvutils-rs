@@ -678,3 +678,16 @@ pub(crate) unsafe fn _mm256_interleave_epi16(x: __m256i, y: __m256i) -> (__m256i
     let xy1 = _mm256_permute2x128_si256::<49>(xy_l, xy_h);
     (xy0, xy1)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_from_msb_epi16<const BIT_DEPTH: usize>(a: __m256i) -> __m256i {
+    if BIT_DEPTH == 10 {
+        _mm256_srli_epi16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm256_srli_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm256_srli_epi16::<2>(a)
+    } else {
+        a
+    }
+}

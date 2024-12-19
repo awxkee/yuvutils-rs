@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_p16_to_rgba_alpha_row;
 use crate::numerics::to_ne;
@@ -70,26 +71,31 @@ fn yuv_p16_to_image_alpha_ant<
     image.check_constraints(chroma_subsampling)?;
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
 
-    let range = get_yuv_range(BIT_DEPTH as u32, range);
+    let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p10 = (1u32 << BIT_DEPTH as u32) - 1;
     const PRECISION: i32 = 13;
-    let transform = get_inverse_transform(
-        max_range_p10,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
-    let i_transform = transform.to_integers(PRECISION as u32);
+    let i_transform = if let Some(stored) =
+        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, range, matrix)
+    {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            BIT_DEPTH as u32,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(PRECISION as u32)
+    };
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
     let store_shift = BIT_DEPTH - 8;
@@ -126,7 +132,7 @@ fn yuv_p16_to_image_alpha_ant<
                     _a_plane,
                     _rgba,
                     image.width,
-                    &range,
+                    &chroma_range,
                     &i_transform,
                     0,
                     0,

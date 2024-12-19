@@ -115,8 +115,8 @@ fn main() {
         12,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
+        YuvEndianness::BigEndian,
+        YuvBytesPacking::MostSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -275,8 +275,8 @@ fn main() {
         12,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
+        YuvEndianness::BigEndian,
+        YuvBytesPacking::MostSignificantBytes,
     )
     .unwrap();
 

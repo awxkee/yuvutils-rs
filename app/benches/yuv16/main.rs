@@ -84,123 +84,123 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let rgba_image = img.to_rgba16().iter().map(|&x| x >> 6).collect::<Vec<_>>();
 
-    // c.bench_function("yuvutils RGB10 -> YUV10 4:2:0", |b| {
-    //     let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
-    //         dimensions.0,
-    //         dimensions.1,
-    //         YuvChromaSubsampling::Yuv420,
-    //     );
-    //     b.iter(|| {
-    //         rgb_to_yuv420_p16(
-    //             &mut test_planar,
-    //             &src_bytes,
-    //             stride as u32,
-    //             10,
-    //             YuvRange::Limited,
-    //             YuvStandardMatrix::Bt601,
-    //             YuvEndianness::LittleEndian,
-    //             YuvBytesPacking::LeastSignificantBytes,
-    //         )
-    //         .unwrap();
-    //     })
-    // });
-    //
-    // c.bench_function("yuvutils RGBA10 -> YUV10 4:2:0", |b| {
-    //     let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
-    //         dimensions.0,
-    //         dimensions.1,
-    //         YuvChromaSubsampling::Yuv420,
-    //     );
-    //     b.iter(|| {
-    //         rgba_to_yuv420_p16(
-    //             &mut test_planar,
-    //             &rgba_image,
-    //             dimensions.0 * 4,
-    //             10,
-    //             YuvRange::Limited,
-    //             YuvStandardMatrix::Bt601,
-    //             YuvEndianness::LittleEndian,
-    //             YuvBytesPacking::LeastSignificantBytes,
-    //         )
-    //         .unwrap();
-    //     })
-    // });
-    //
-    // c.bench_function("yuvutils RGBA10 -> YUV10 4:2:2", |b| {
-    //     let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
-    //         dimensions.0,
-    //         dimensions.1,
-    //         YuvChromaSubsampling::Yuv422,
-    //     );
-    //     b.iter(|| {
-    //         rgba_to_yuv422_p16(
-    //             &mut test_planar,
-    //             &rgba_image,
-    //             dimensions.0 * 4,
-    //             10,
-    //             YuvRange::Limited,
-    //             YuvStandardMatrix::Bt601,
-    //             YuvEndianness::LittleEndian,
-    //             YuvBytesPacking::LeastSignificantBytes,
-    //         )
-    //         .unwrap();
-    //     })
-    // });
-    //
-    // c.bench_function("yuvutils RGBA10 -> YUV 4:4:4", |b| {
-    //     let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
-    //         dimensions.0,
-    //         dimensions.1,
-    //         YuvChromaSubsampling::Yuv444,
-    //     );
-    //     b.iter(|| {
-    //         rgba_to_yuv444_p16(
-    //             &mut test_planar,
-    //             &rgba_image,
-    //             dimensions.0 * 4,
-    //             10,
-    //             YuvRange::Limited,
-    //             YuvStandardMatrix::Bt601,
-    //             YuvEndianness::LittleEndian,
-    //             YuvBytesPacking::LeastSignificantBytes,
-    //         )
-    //         .unwrap();
-    //     })
-    // });
-    //
-    // c.bench_function("yuvutils YUV10 NV12 -> RGB10", |b| {
-    //     let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
-    //     b.iter(|| {
-    //         yuv_nv12_to_rgba_p16(
-    //             &fixed_bi_planar,
-    //             &mut rgb_bytes,
-    //             dimensions.0 * 4u32,
-    //             10,
-    //             YuvRange::Limited,
-    //             YuvStandardMatrix::Bt601,
-    //             YuvEndianness::LittleEndian,
-    //             YuvBytesPacking::LeastSignificantBytes,
-    //         )
-    //         .unwrap();
-    //     })
-    // });
-    //
-    // c.bench_function("yuvutils YUV10 4:2:0 -> RGB10", |b| {
-    //     let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 3 * dimensions.1 as usize];
-    //     b.iter(|| {
-    //         yuv420_p16_to_rgb16(
-    //             &fixed_planar,
-    //             &mut rgb_bytes,
-    //             dimensions.0 * 3u32,
-    //             10,
-    //             YuvRange::Limited,
-    //             YuvStandardMatrix::Bt601,
-    //             YuvEndianness::LittleEndian,
-    //             YuvBytesPacking::LeastSignificantBytes,
-    //         )
-    //         .unwrap();
-    //     })
-    // });
+    c.bench_function("yuvutils RGB10 -> YUV10 4:2:0", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgb_to_yuv420_p16(
+                &mut test_planar,
+                &src_bytes,
+                stride as u32,
+                10,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::LeastSignificantBytes,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA10 -> YUV10 4:2:0", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_yuv420_p16(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                10,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::LeastSignificantBytes,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA10 -> YUV10 4:2:2", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv422,
+        );
+        b.iter(|| {
+            rgba_to_yuv422_p16(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                10,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::LeastSignificantBytes,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA10 -> YUV 4:4:4", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv444,
+        );
+        b.iter(|| {
+            rgba_to_yuv444_p16(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                10,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::LeastSignificantBytes,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YUV10 NV12 -> RGB10", |b| {
+        let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv_nv12_to_rgba_p16(
+                &fixed_bi_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                10,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::LeastSignificantBytes,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YUV10 4:2:0 -> RGB10", |b| {
+        let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 3 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv420_p16_to_rgb16(
+                &fixed_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 3u32,
+                10,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::LeastSignificantBytes,
+            )
+            .unwrap();
+        })
+    });
 
     c.bench_function("yuvutils YUV10 4:2:0 -> RGBA10", |b| {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];

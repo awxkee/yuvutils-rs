@@ -33,7 +33,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::sse::_mm_store_interleave_rgb16_for_yuv;
+use crate::sse::{_mm_from_msb_epi16, _mm_store_interleave_rgb16_for_yuv};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvSourceChannels,
@@ -123,8 +123,6 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
 
     const SCALE: i32 = 2;
 
-    let v_big_shift_count = _mm_set1_epi64x(16i64 - BIT_DEPTH as i64);
-
     let big_endian_shuffle_flag =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
@@ -136,7 +134,7 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
             y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm_srl_epi16(y_vl, v_big_shift_count);
+            y_vl = _mm_from_msb_epi16::<BIT_DEPTH>(y_vl);
         }
         let mut y_values = _mm_subs_epu16(y_vl, y_corr);
 
@@ -153,8 +151,8 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
                     v_vals = _mm_shuffle_epi8(v_vals, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
-                    v_vals = _mm_srl_epi16(v_vals, v_big_shift_count);
+                    u_vals = _mm_from_msb_epi16::<BIT_DEPTH>(u_vals);
+                    v_vals = _mm_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
 
                 let u_vl = _mm_unpacklo_epi16(u_vals, u_vals);
@@ -174,8 +172,8 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
                     v_vals = _mm_shuffle_epi8(v_vals, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
-                    v_vals = _mm_srl_epi16(v_vals, v_big_shift_count);
+                    u_vals = _mm_from_msb_epi16::<BIT_DEPTH>(u_vals);
+                    v_vals = _mm_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
                 u_values = _mm_sub_epi16(u_vals, uv_corr_q);
                 v_values = _mm_sub_epi16(v_vals, uv_corr_q);

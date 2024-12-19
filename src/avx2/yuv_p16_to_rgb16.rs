@@ -27,8 +27,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{_mm256_interleave_epi16, _mm256_store_interleave_rgb16_for_yuv};
+use crate::avx2::avx2_utils::{
+    _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm256_store_interleave_rgb16_for_yuv,
+};
 use crate::internals::ProcessedOffset;
+use crate::sse::_mm_from_msb_epi16;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvSourceChannels,
@@ -120,8 +123,6 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_big_shift_count = _mm_set1_epi64x(16i64 - BIT_DEPTH as i64);
-
     let big_endian_shuffle_flag = _mm256_setr_epi8(
         1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10,
         13, 12, 15, 14,
@@ -144,8 +145,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             y_vl1 = _mm256_permute2x128_si256::<0x01>(y_vl1, y_vl1);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl0 = _mm256_srl_epi16(y_vl0, v_big_shift_count);
-            y_vl1 = _mm256_srl_epi16(y_vl1, v_big_shift_count);
+            y_vl0 = _mm256_from_msb_epi16::<BIT_DEPTH>(y_vl0);
+            y_vl1 = _mm256_from_msb_epi16::<BIT_DEPTH>(y_vl1);
         }
         let mut y_values0 = _mm256_subs_epu16(y_vl0, y_corr);
         let mut y_values1 = _mm256_subs_epu16(y_vl1, y_corr);
@@ -170,8 +171,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
                     v_vals = _mm256_permute2x128_si256::<0x01>(v_vals, v_vals);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals = _mm256_srl_epi16(u_vals, v_big_shift_count);
-                    v_vals = _mm256_srl_epi16(v_vals, v_big_shift_count);
+                    u_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals);
+                    v_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
 
                 (u_values0, u_values1) = _mm256_interleave_epi16(u_vals, u_vals);
@@ -207,10 +208,10 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
                     v_vals1 = _mm256_permute2x128_si256::<0x01>(v_vals1, v_vals1);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals0 = _mm256_srl_epi16(u_vals0, v_big_shift_count);
-                    v_vals0 = _mm256_srl_epi16(v_vals0, v_big_shift_count);
-                    u_vals1 = _mm256_srl_epi16(u_vals1, v_big_shift_count);
-                    v_vals1 = _mm256_srl_epi16(v_vals1, v_big_shift_count);
+                    u_vals0 = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals0);
+                    v_vals0 = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals0);
+                    u_vals1 = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals1);
+                    v_vals1 = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals1);
                 }
                 u_values0 = _mm256_sub_epi16(u_vals0, uv_corr);
                 v_values0 = _mm256_sub_epi16(v_vals0, uv_corr);
@@ -290,7 +291,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             y_vl = _mm256_permute2x128_si256::<0x01>(y_vl, y_vl);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm256_srl_epi16(y_vl, v_big_shift_count);
+            y_vl = _mm256_from_msb_epi16::<BIT_DEPTH>(y_vl);
         }
         let mut y_values = _mm256_subs_epu16(y_vl, y_corr);
 
@@ -309,8 +310,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
                     v_vals = _mm_shuffle_epi8(v_vals, big_endian_shuffle_flag_sse);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals = _mm_srl_epi16(u_vals, v_big_shift_count);
-                    v_vals = _mm_srl_epi16(v_vals, v_big_shift_count);
+                    u_vals = _mm_from_msb_epi16::<BIT_DEPTH>(u_vals);
+                    v_vals = _mm_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
 
                 let u_expanded = _mm256_set_m128i(
@@ -337,8 +338,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
                     v_vals = _mm256_permute2x128_si256::<0x01>(v_vals, v_vals);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals = _mm256_srl_epi16(u_vals, v_big_shift_count);
-                    v_vals = _mm256_srl_epi16(v_vals, v_big_shift_count);
+                    u_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals);
+                    v_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
                 u_values = _mm256_sub_epi16(u_vals, uv_corr_q);
                 v_values = _mm256_sub_epi16(v_vals, uv_corr_q);
