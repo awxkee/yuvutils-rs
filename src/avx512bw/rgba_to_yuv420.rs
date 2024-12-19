@@ -209,9 +209,10 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
             y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
             y_yuv1,
         );
-        let r1 = avx512_pairwise_avg_epi16_epi8(r_values0, r_values1);
-        let g1 = avx512_pairwise_avg_epi16_epi8(g_values0, g_values1);
-        let b1 = avx512_pairwise_avg_epi16_epi8(b_values0, b_values1);
+
+        let r1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi16_epi8(r_values0, r_values1));
+        let g1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi16_epi8(g_values0, g_values1));
+        let b1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi16_epi8(b_values0, b_values1));
 
         let cbk = _mm512_max_epi16(
             _mm512_min_epi16(
