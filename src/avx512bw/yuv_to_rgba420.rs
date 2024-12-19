@@ -28,17 +28,15 @@
  */
 
 use crate::avx2::_mm256_interleave_epi8;
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8, shuffle};
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8};
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx512_yuv_to_rgba420<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) fn avx512_yuv_to_rgba420<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -52,7 +50,7 @@ pub(crate) fn avx512_yuv_to_rgba420<const DESTINATION_CHANNELS: u8, const SAMPLI
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx512_yuv_to_rgba_impl420::<DESTINATION_CHANNELS, SAMPLING>(
+        avx512_yuv_to_rgba_impl420::<DESTINATION_CHANNELS>(
             range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
             start_ux, width,
         )
@@ -60,7 +58,7 @@ pub(crate) fn avx512_yuv_to_rgba420<const DESTINATION_CHANNELS: u8, const SAMPLI
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -73,7 +71,6 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const SAMPL
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -103,32 +100,16 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const SAMPL
             y_corr,
         );
 
-        let (u_high0, v_high0, u_low0, v_low0);
+        let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
+        let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
 
-        match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
-                let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
+        let i_u = _mm256_interleave_epi8(u_values, u_values);
+        let i_v = _mm256_interleave_epi8(v_values, v_values);
 
-                let i_u = _mm256_interleave_epi8(u_values, u_values);
-                let i_v = _mm256_interleave_epi8(v_values, v_values);
-
-                const MASK: i32 = shuffle(3, 1, 2, 0);
-                u_high0 = i_u.1;
-                v_high0 = i_v.1;
-                u_low0 = i_u.0;
-                v_low0 = i_v.0;
-            }
-            YuvChromaSubsampling::Yuv444 => {
-                let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
-                let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
-
-                u_high0 = _mm512_extracti64x4_epi64::<1>(u_values);
-                v_high0 = _mm512_extracti64x4_epi64::<1>(v_values);
-                u_low0 = _mm512_castsi512_si256(u_values);
-                v_low0 = _mm512_castsi512_si256(v_values);
-            }
-        }
+        let u_high0 = i_u.1;
+        let v_high0 = i_v.1;
+        let u_low0 = i_u.0;
+        let v_low0 = i_v.0;
 
         let u_high =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_high0), uv_corr));
@@ -215,15 +196,7 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const SAMPL
         );
 
         cx += 64;
-
-        match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                uv_x += 32;
-            }
-            YuvChromaSubsampling::Yuv444 => {
-                uv_x += 64;
-            }
-        }
+        uv_x += 32;
     }
 
     ProcessedOffset { cx, ux: uv_x }

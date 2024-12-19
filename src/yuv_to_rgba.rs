@@ -241,7 +241,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             {
                 #[cfg(feature = "nightly_avx512")]
                 if use_avx512 {
-                    let processed = avx512_yuv_to_rgba420::<DESTINATION_CHANNELS, SAMPLING>(
+                    let processed = avx512_yuv_to_rgba420::<DESTINATION_CHANNELS>(
                         &chroma_range,
                         &inverse_transform,
                         _y_plane0,

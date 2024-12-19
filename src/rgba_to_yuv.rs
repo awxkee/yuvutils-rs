@@ -32,7 +32,7 @@ use crate::avx2::{avx2_rgba_to_yuv, avx2_rgba_to_yuv420};
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
 ))]
-use crate::avx512bw::avx512_rgba_to_yuv;
+use crate::avx512bw::{avx512_rgba_to_yuv, avx512_rgba_to_yuv420};
 use crate::built_coefficients::get_built_forward_transform;
 #[allow(unused_imports)]
 use crate::internals::*;
@@ -221,6 +221,25 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "nightly_avx512")]
+            {
+                if use_avx512 {
+                    let processed_offset = avx512_rgba_to_yuv420::<ORIGIN_CHANNELS>(
+                        &transform,
+                        &chroma_range,
+                        _y_plane0,
+                        _y_plane1,
+                        _u_plane,
+                        _v_plane,
+                        _rgba0,
+                        _rgba1,
+                        _offset.cx,
+                        _offset.ux,
+                        image.width as usize,
+                    );
+                    _offset = processed_offset;
+                }
+            }
             if use_avx {
                 let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS>(
                     &transform,
