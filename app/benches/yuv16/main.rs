@@ -38,7 +38,7 @@ use yuvutils_rs::{
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let img = ImageReader::open("../assets/test_image_2.jpg")
+    let img = ImageReader::open("../assets/main_test.jpg")
         .unwrap()
         .decode()
         .unwrap();
