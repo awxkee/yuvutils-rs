@@ -27,9 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{
-    avx2_zip_epi8, avx512_pack_u16, avx512_store_u8, shuffle,
-};
+use crate::avx512bw::avx512_utils::{avx2_zip_epi8, avx512_pack_u16, avx512_store_u8, shuffle};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -106,7 +104,6 @@ unsafe fn avx512_yuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const SAMPLING
                 let (u_values0, u_values1) = avx2_zip_epi8::<false>(u_values_full, u_values_full);
                 let (v_values0, v_values1) = avx2_zip_epi8::<false>(v_values_full, v_values_full);
 
-                const MASK: i32 = shuffle(3, 1, 2, 0);
                 u_high00 = _mm512_extracti64x4_epi64::<1>(u_values0);
                 v_high00 = _mm512_extracti64x4_epi64::<1>(v_values0);
                 u_low00 = _mm512_castsi512_si256(u_values0);

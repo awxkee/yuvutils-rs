@@ -33,6 +33,7 @@ mod avx512_utils;
 mod rgb_to_y;
 mod rgb_to_ycgco;
 mod rgba_to_yuv;
+mod rgba_to_yuv420;
 mod y_to_rgb;
 mod ycgco_to_rgb;
 mod ycgco_to_rgba_alpha;

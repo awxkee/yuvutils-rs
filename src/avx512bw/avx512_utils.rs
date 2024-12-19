@@ -300,3 +300,68 @@ pub(crate) unsafe fn avx2_zip_epi8<const HAS_VBMI: bool>(
         (ab0, ab1)
     }
 }
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_load_rgb_u8<const CN: u8>(
+    src: *const u8,
+) -> (__m512i, __m512i, __m512i) {
+    let source_channels: YuvSourceChannels = CN.into();
+    let (r_values, g_values, b_values);
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm512_loadu_si512(src as *const i32);
+            let row_2 = _mm512_loadu_si512(src.add(64) as *const i32);
+            let row_3 = _mm512_loadu_si512(src.add(128) as *const i32);
+
+            let (it1, it2, it3) = avx512_deinterleave_rgb(row_1, row_2, row_3);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm512_loadu_si512(src as *const i32);
+            let row_2 = _mm512_loadu_si512(src.add(64) as *const i32);
+            let row_3 = _mm512_loadu_si512(src.add(128) as *const i32);
+            let row_4 = _mm512_loadu_si512(src.add(128 + 64) as *const i32);
+
+            let (it1, it2, it3, _) = avx512_deinterleave_rgba(row_1, row_2, row_3, row_4);
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+    }
+    (r_values, g_values, b_values)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8(a: __m512i, b: __m512i) -> __m512i {
+    let a0 = _mm512_slli_epi16::<1>(_mm512_add_epi16(
+        _mm512_maddubs_epi16(a, _mm512_set1_epi8(1)),
+        _mm512_set1_epi16(1),
+    ));
+    let b0 = _mm512_slli_epi16::<1>(_mm512_add_epi16(
+        _mm512_maddubs_epi16(b, _mm512_set1_epi8(1)),
+        _mm512_set1_epi16(1),
+    ));
+    _mm512_avg_epu16(a0, b0)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_pairwise_avg_epi8(a: __m512i) -> __m512i {
+    _mm512_slli_epi16::<1>(_mm512_add_epi16(
+        _mm512_maddubs_epi16(a, _mm512_set1_epi8(1)),
+        _mm512_set1_epi16(1),
+    ))
+}
