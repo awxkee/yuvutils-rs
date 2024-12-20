@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::sse::{sse_store_rgb_u8, sse_store_rgba};
+use crate::sse::_mm_store_interleave_rgb_for_yuv;
 use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -71,20 +71,13 @@ unsafe fn sse_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
         let dst_shift = cx * destination_channels.get_channels_count();
         let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(rgba_ptr.as_mut_ptr(), r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                sse_store_rgb_u8(rgba_ptr.as_mut_ptr(), b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                sse_store_rgba(rgba_ptr.as_mut_ptr(), r_values, g_values, b_values, v_alpha);
-            }
-            YuvSourceChannels::Bgra => {
-                sse_store_rgba(rgba_ptr.as_mut_ptr(), b_values, g_values, r_values, v_alpha);
-            }
-        }
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 16;
     }
@@ -178,20 +171,13 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         let dst_shift = cx * destination_channels.get_channels_count();
         let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                sse_store_rgb_u8(rgba_ptr.as_mut_ptr(), r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                sse_store_rgb_u8(rgba_ptr.as_mut_ptr(), b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                sse_store_rgba(rgba_ptr.as_mut_ptr(), r_values, g_values, b_values, v_alpha);
-            }
-            YuvSourceChannels::Bgra => {
-                sse_store_rgba(rgba_ptr.as_mut_ptr(), b_values, g_values, r_values, v_alpha);
-            }
-        }
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 16;
     }

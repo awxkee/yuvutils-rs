@@ -132,7 +132,6 @@ unsafe fn avx512_yuv_to_rgba_impl<
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
     let v_g_coeff_1 = _mm512_set1_epi16(transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
-    let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
     const SCALE: u32 = 2;
 
@@ -273,6 +272,7 @@ unsafe fn avx512_yuv_to_rgba_impl<
 
         let dst_shift = cx * channels;
 
+        let v_alpha = _mm512_set1_epi8(255u8 as i8);
         avx512_store_u8::<DESTINATION_CHANNELS>(
             rgba_ptr.add(dst_shift),
             r_values0,
@@ -373,6 +373,8 @@ unsafe fn avx512_yuv_to_rgba_impl<
         let b_values = avx512_pack_u16(b_low, b_high);
 
         let dst_shift = cx * channels;
+
+        let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
         avx512_store_u8::<DESTINATION_CHANNELS>(
             rgba_ptr.add(dst_shift),

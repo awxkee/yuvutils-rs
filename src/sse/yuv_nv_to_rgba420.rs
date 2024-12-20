@@ -88,7 +88,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
     let v_g_coeff_1 = _mm_set1_epi16(transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm_set1_epi16(transform.g_coeff_2 as i16);
-    let v_alpha = _mm_set1_epi8(255u8 as i8);
+
     let zeros = _mm_setzero_si128();
 
     let distribute_shuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
@@ -182,6 +182,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let dst_shift = cx * channels;
 
+        let v_alpha = _mm_set1_epi8(255u8 as i8);
+
         _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
             rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values0,
@@ -265,6 +267,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
         let dst_shift = cx * channels;
         let dst_ptr0 = rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr();
         let dst_ptr1 = rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr();
+
+        let v_alpha = _mm_set1_epi8(255u8 as i8);
 
         _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
             dst_ptr0, r_values0, g_values0, b_values0, v_alpha,

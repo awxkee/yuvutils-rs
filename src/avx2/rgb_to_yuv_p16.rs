@@ -383,7 +383,6 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
 
     let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
 
-    let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm256_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
     let i_cap_uv = _mm256_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
 
@@ -423,13 +422,13 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
             cb_h = _mm256_add_epi16(cb_h, _mm256_mulhrs_epi16(g_values, v_cb_g));
             cb_h = _mm256_add_epi16(cb_h, _mm256_mulhrs_epi16(b_values, v_cb_b));
 
-            let mut cb_vl = _mm256_max_epu16(_mm256_min_epu16(cb_h, i_cap_uv), i_bias_y);
+            let mut cb_vl = _mm256_max_epu16(_mm256_min_epu16(cb_h, i_cap_uv), y_bias);
 
             let mut cr_h = _mm256_add_epi16(uv_bias, _mm256_mulhrs_epi16(r_values, v_cr_r));
             cr_h = _mm256_add_epi16(cr_h, _mm256_mulhrs_epi16(g_values, v_cr_g));
             cr_h = _mm256_add_epi16(cr_h, _mm256_mulhrs_epi16(b_values, v_cr_b));
 
-            let mut cr_vl = _mm256_max_epu16(_mm256_min_epu16(cr_h, i_cap_uv), i_bias_y);
+            let mut cr_vl = _mm256_max_epu16(_mm256_min_epu16(cr_h, i_cap_uv), y_bias);
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_vl = _mm256_sll_epi16(cb_vl, v_shift_count);
@@ -462,13 +461,13 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
             cb_h = _mm256_add_epi16(cb_h, _mm256_mulhrs_epi16(g_values, v_cb_g));
             cb_h = _mm256_add_epi16(cb_h, _mm256_mulhrs_epi16(b_values, v_cb_b));
 
-            let mut cb_s = _mm256_max_epu16(_mm256_min_epu16(cb_h, i_cap_uv), i_bias_y);
+            let mut cb_s = _mm256_max_epu16(_mm256_min_epu16(cb_h, i_cap_uv), y_bias);
 
             let mut cr_h = _mm256_add_epi16(uv_bias, _mm256_mulhrs_epi16(r_values, v_cr_r));
             cr_h = _mm256_add_epi16(cr_h, _mm256_mulhrs_epi16(g_values, v_cr_g));
             cr_h = _mm256_add_epi16(cr_h, _mm256_mulhrs_epi16(b_values, v_cr_b));
 
-            let mut cr_s = _mm256_max_epu16(_mm256_min_epu16(cr_h, i_cap_uv), i_bias_y);
+            let mut cr_s = _mm256_max_epu16(_mm256_min_epu16(cr_h, i_cap_uv), y_bias);
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_s = _mm256_sll_epi16(cb_s, v_shift_count);

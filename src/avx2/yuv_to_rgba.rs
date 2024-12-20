@@ -85,7 +85,6 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
     let v_g_coeff_1 = _mm256_set1_epi16(transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
-    let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
     const SCALE: i32 = 2;
 
@@ -217,6 +216,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         let dst_shift = cx * channels;
 
+        let v_alpha = _mm256_set1_epi8(255u8 as i8);
         _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
             rgba_ptr.add(dst_shift),
             r_values0,
@@ -314,6 +314,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         let dst_shift = cx * channels;
 
+        let v_alpha = _mm256_set1_epi8(255u8 as i8);
         _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
             rgba_ptr.add(dst_shift),
             r_values,

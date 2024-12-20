@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::avx2::avx2_utils::{_mm256_store_interleaved_epi8, avx2_pack_u16, avx2_store_u8_rgb};
+use crate::avx2::avx2_utils::{_mm256_store_interleave_rgb_for_yuv, avx2_pack_u16};
 use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -71,32 +71,13 @@ unsafe fn avx_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
         let dst_shift = cx * destination_channels.get_channels_count();
         let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                avx2_store_u8_rgb(rgba_ptr.as_mut_ptr(), r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                avx2_store_u8_rgb(rgba_ptr.as_mut_ptr(), b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                _mm256_store_interleaved_epi8(
-                    rgba_ptr.as_mut_ptr(),
-                    r_values,
-                    g_values,
-                    b_values,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                _mm256_store_interleaved_epi8(
-                    rgba_ptr.as_mut_ptr(),
-                    b_values,
-                    g_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-        }
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 32;
     }
@@ -196,32 +177,13 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         let dst_shift = cx * destination_channels.get_channels_count();
         let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                avx2_store_u8_rgb(rgba_ptr.as_mut_ptr(), r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                avx2_store_u8_rgb(rgba_ptr.as_mut_ptr(), b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                _mm256_store_interleaved_epi8(
-                    rgba_ptr.as_mut_ptr(),
-                    r_values,
-                    g_values,
-                    b_values,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                _mm256_store_interleaved_epi8(
-                    rgba_ptr.as_mut_ptr(),
-                    b_values,
-                    g_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-        }
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 32;
     }
