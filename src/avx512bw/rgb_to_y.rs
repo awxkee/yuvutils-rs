@@ -79,7 +79,7 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
         let px = cx * channels;
 
         let (r_values, g_values, b_values) =
-            avx512_load_rgb_u8::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, false>(rgba_ptr.add(px));
 
         let r_low =
             _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));

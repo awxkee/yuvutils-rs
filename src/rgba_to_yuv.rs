@@ -101,6 +101,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         feature = "nightly_avx512"
     ))]
     let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -114,6 +119,24 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS, PRECISION>
     } else {
         neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>
+    };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_row_dispatch = if use_vbmi {
+        avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, true>
+    } else {
+        avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, false>
+    };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_double_wide_row_handler = if use_vbmi {
+        avx512_rgba_to_yuv420::<ORIGIN_CHANNELS, true>
+    } else {
+        avx512_rgba_to_yuv420::<ORIGIN_CHANNELS, false>
     };
 
     #[allow(unused_variables)]
@@ -130,7 +153,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             #[cfg(feature = "nightly_avx512")]
             {
                 if use_avx512 {
-                    let processed_offset = avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
+                    let processed_offset = avx512_row_dispatch(
                         &transform,
                         &chroma_range,
                         y_plane,
@@ -223,7 +246,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             #[cfg(feature = "nightly_avx512")]
             {
                 if use_avx512 {
-                    let processed_offset = avx512_rgba_to_yuv420::<ORIGIN_CHANNELS>(
+                    let processed_offset = avx512_double_wide_row_handler(
                         &transform,
                         &chroma_range,
                         _y_plane0,
