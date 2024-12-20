@@ -335,5 +335,75 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
         }
     }
 
+    while cx + 16 < width {
+        let y_values = _mm256_subs_epu8(
+            _mm256_castsi128_si256(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i)),
+            y_corr,
+        );
+
+        let (u_low_u16, v_low_u16);
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                let u_values = _mm_loadu_si64(u_ptr.add(uv_x));
+                let v_values = _mm_loadu_si64(v_ptr.add(uv_x));
+
+                u_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(u_values, u_values));
+                v_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(v_values, v_values));
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
+                let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
+
+                u_low_u16 = _mm256_cvtepu8_epi16(u_values);
+                v_low_u16 = _mm256_cvtepu8_epi16(v_values);
+            }
+        }
+
+        let u_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_low_u16, uv_corr));
+        let v_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_low_u16, uv_corr));
+        let y_low = _mm256_mulhrs_epi16(
+            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values))),
+            v_luma_coeff,
+        );
+
+        let r_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
+        let b_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
+        let g_low = _mm256_sub_epi16(
+            y_low,
+            _mm256_add_epi16(
+                _mm256_mulhrs_epi16(v_low, v_g_coeff_1),
+                _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
+            ),
+        );
+
+        let r_values = avx2_pack_u16(r_low, _mm256_setzero_si256());
+        let g_values = avx2_pack_u16(g_low, _mm256_setzero_si256());
+        let b_values = avx2_pack_u16(b_low, _mm256_setzero_si256());
+
+        let dst_shift = cx * channels;
+
+        let v_alpha = _mm256_set1_epi8(255u8 as i8);
+
+        _mm256_store_interleave_rgb_half_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        cx += 16;
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                uv_x += 8;
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                uv_x += 16;
+            }
+        }
+    }
+
     ProcessedOffset { cx, ux: uv_x }
 }

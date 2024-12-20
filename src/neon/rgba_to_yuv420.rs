@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::neon_vld_rgb_for_yuv;
+use crate::neon::neon_simd_support::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -56,7 +56,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
     let u_ptr = u_plane;
     let v_ptr = v_plane;
 
-    let i_bias_y = vdupq_n_s16(range.bias_y as i16);
     let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
@@ -143,7 +142,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         cbl = vqrdmlahq_laneq_s16::<5>(cbl, b1, v_weights);
 
         let cb = vmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(cbl, i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16(cbl, y_bias)),
             i_cap_uv,
         ));
 
@@ -152,7 +151,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         crl = vqrdmlahq_laneq_s16::<0>(crl, b1, v_cr_b);
 
         let cr = vmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(crl, i_bias_y)),
+            vreinterpretq_u16_s16(vmaxq_s16(crl, y_bias)),
             i_cap_uv,
         ));
 
@@ -161,6 +160,83 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
 
         ux += 8;
         cx += 16;
+    }
+
+    while cx + 8 < width {
+        let (r_values0, g_values0, b_values0) = neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(
+            rgba0.get_unchecked(cx * channels..).as_ptr(),
+        );
+        let (r_values1, g_values1, b_values1) = neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(
+            rgba1.get_unchecked(cx * channels..).as_ptr(),
+        );
+
+        let r0_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values0));
+        let g0_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values0));
+        let b0_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(b_values0));
+
+        let r1_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values1));
+        let g1_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values1));
+        let b1_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(b_values1));
+
+        let mut y0_low = vqrdmlahq_laneq_s16::<0>(y_bias, r0_low, v_weights);
+        y0_low = vqrdmlahq_laneq_s16::<1>(y0_low, g0_low, v_weights);
+        y0_low = vqrdmlahq_laneq_s16::<2>(y0_low, b0_low, v_weights);
+
+        let y0_low = vminq_u16(vreinterpretq_u16_s16(y0_low), i_cap_y);
+
+        let mut y1_low = vqrdmlahq_laneq_s16::<0>(y_bias, r1_low, v_weights);
+        y1_low = vqrdmlahq_laneq_s16::<1>(y1_low, g1_low, v_weights);
+        y1_low = vqrdmlahq_laneq_s16::<2>(y1_low, b1_low, v_weights);
+
+        let y1_low = vminq_u16(vreinterpretq_u16_s16(y1_low), i_cap_y);
+
+        vst1_u8(
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
+            vmovn_u16(y0_low),
+        );
+        vst1_u8(
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
+            vmovn_u16(y1_low),
+        );
+
+        let box_r_values = vhadd_u16(vpaddl_u8(r_values0), vpaddl_u8(r_values1));
+        let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(box_r_values)));
+        let box_g_values = vhadd_u16(vpaddl_u8(g_values0), vpaddl_u8(g_values1));
+        let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(box_g_values)));
+        let box_b_values = vhadd_u16(vpaddl_u8(b_values0), vpaddl_u8(b_values1));
+        let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(box_b_values)));
+
+        let mut cbl = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
+        cbl = vqrdmlah_laneq_s16::<4>(cbl, g1, v_weights);
+        cbl = vqrdmlah_laneq_s16::<5>(cbl, b1, v_weights);
+
+        let cb = vmovn_u16(vcombine_u16(
+            vmin_u16(
+                vreinterpret_u16_s16(vmax_s16(cbl, vget_low_s16(y_bias))),
+                vget_low_u16(i_cap_uv),
+            ),
+            vdup_n_u16(0),
+        ));
+
+        let mut crl = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);
+        crl = vqrdmlah_laneq_s16::<7>(crl, g1, v_weights);
+        crl = vqrdmlah_laneq_s16::<0>(crl, b1, v_cr_b);
+
+        let cr = vmovn_u16(vcombine_u16(
+            vmin_u16(
+                vreinterpret_u16_s16(vmax_s16(crl, vget_low_s16(y_bias))),
+                vget_low_u16(i_cap_uv),
+            ),
+            vdup_n_u16(0),
+        ));
+
+        (u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
+            .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cb)));
+        (v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
+            .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cr)));
+
+        ux += 4;
+        cx += 8;
     }
 
     ProcessedOffset { cx, ux }

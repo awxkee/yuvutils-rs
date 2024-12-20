@@ -169,6 +169,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
         let dst_shift = cx * channels;
 
         let v_alpha = _mm256_set1_epi8(255u8 as i8);
+
         _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
             rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values0,
@@ -186,6 +187,82 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
 
         cx += 32;
         uv_x += 16;
+    }
+
+    while cx + 16 < width {
+        let y_values0 = _mm256_subs_epu8(
+            _mm256_castsi128_si256(_mm_loadu_si128(
+                y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i
+            )),
+            y_corr,
+        );
+        let y_values1 = _mm256_subs_epu8(
+            _mm256_castsi128_si256(_mm_loadu_si128(
+                y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i
+            )),
+            y_corr,
+        );
+
+        let u_values = _mm_loadu_si64(u_ptr.add(uv_x));
+        let v_values = _mm_loadu_si64(v_ptr.add(uv_x));
+
+        let u_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(u_values, u_values));
+        let v_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(v_values, v_values));
+
+        let u_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_low_u16, uv_corr));
+        let v_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_low_u16, uv_corr));
+        let y_low0 = _mm256_mulhrs_epi16(
+            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values0))),
+            v_luma_coeff,
+        );
+        let y_low1 = _mm256_mulhrs_epi16(
+            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values1))),
+            v_luma_coeff,
+        );
+
+        let g_coeff_lo = _mm256_add_epi16(
+            _mm256_mulhrs_epi16(v_low, v_g_coeff_1),
+            _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
+        );
+
+        let r_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
+        let b_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
+        let g_low0 = _mm256_sub_epi16(y_low0, g_coeff_lo);
+
+        let r_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
+        let b_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
+        let g_low1 = _mm256_sub_epi16(y_low1, g_coeff_lo);
+
+        let zeros = _mm256_setzero_si256();
+
+        let r_values0 = avx2_pack_u16(r_low0, zeros);
+        let g_values0 = avx2_pack_u16(g_low0, zeros);
+        let b_values0 = avx2_pack_u16(b_low0, zeros);
+
+        let r_values1 = avx2_pack_u16(r_low1, zeros);
+        let g_values1 = avx2_pack_u16(g_low1, zeros);
+        let b_values1 = avx2_pack_u16(b_low1, zeros);
+
+        let dst_shift = cx * channels;
+
+        let v_alpha = _mm256_set1_epi8(255u8 as i8);
+        _mm256_store_interleave_rgb_half_for_yuv::<DESTINATION_CHANNELS>(
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+        _mm256_store_interleave_rgb_half_for_yuv::<DESTINATION_CHANNELS>(
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
+
+        cx += 16;
+        uv_x += 8;
     }
 
     ProcessedOffset { cx, ux: uv_x }
