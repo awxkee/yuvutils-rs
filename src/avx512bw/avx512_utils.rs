@@ -440,6 +440,55 @@ pub(crate) unsafe fn avx512_load_rgb_u8<const CN: u8, const HAS_VBMI: bool>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn avx512_load_half_rgb_u8<const CN: u8, const HAS_VBMI: bool>(
+    src: *const u8,
+) -> (__m512i, __m512i, __m512i) {
+    let source_channels: YuvSourceChannels = CN.into();
+    let (r_values, g_values, b_values);
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm512_loadu_si512(src as *const i32);
+            let row_2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
+
+            let (it1, it2, it3) = avx512_deinterleave_rgb::<HAS_VBMI>(
+                row_1,
+                _mm512_castsi256_si512(row_2),
+                _mm512_setzero_si512(),
+            );
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm512_loadu_si512(src as *const i32);
+            let row_2 = _mm512_loadu_si512(src.add(64) as *const i32);
+            let (it1, it2, it3, _) = avx512_deinterleave_rgba::<HAS_VBMI>(
+                row_1,
+                row_2,
+                _mm512_setzero_si512(),
+                _mm512_setzero_si512(),
+            );
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+    }
+    (r_values, g_values, b_values)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8(a: __m512i, b: __m512i) -> __m512i {
     let v = _mm512_avg_epu8(a, b);
     let v1 = _mm512_srli_epi16::<1>(_mm512_add_epi16(
