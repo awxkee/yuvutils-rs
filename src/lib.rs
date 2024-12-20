@@ -53,7 +53,6 @@ mod rgb_ar30;
 mod rgb_to_nv_p16;
 mod rgb_to_y;
 mod rgb_to_ycgco;
-mod rgb_to_ycgco_r;
 mod rgb_to_yuv_p16;
 mod rgba_to_nv;
 mod rgba_to_yuv;
@@ -67,7 +66,6 @@ mod y_p16_to_rgb16;
 mod y_p16_with_alpha_to_rgb16;
 mod y_to_rgb;
 mod y_with_alpha_to_rgb;
-mod ycgco_r_to_rgb;
 mod ycgco_to_rgb;
 mod ycgco_to_rgb_alpha;
 mod ycgcor_support;
@@ -289,9 +287,6 @@ pub use ycgco_to_rgb_alpha::ycgco422_with_alpha_to_bgra;
 pub use ycgco_to_rgb_alpha::ycgco422_with_alpha_to_rgba;
 pub use ycgco_to_rgb_alpha::ycgco444_with_alpha_to_bgra;
 pub use ycgco_to_rgb_alpha::ycgco444_with_alpha_to_rgba;
-
-pub use rgb_to_ycgco_r::*;
-pub use ycgco_r_to_rgb::*;
 
 pub use yuv_to_yuy2::yuv420_to_uyvy422;
 pub use yuv_to_yuy2::yuv420_to_vyuy422;
