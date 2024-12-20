@@ -99,7 +99,6 @@ unsafe fn avx2_rgba_to_nv_impl<
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
-    let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm256_set1_epi16(range.range_y as i16 + range.bias_y as i16);
     let i_cap_uv = _mm256_set1_epi16(range.bias_y as i16 + range.range_uv as i16);
 
@@ -182,7 +181,7 @@ unsafe fn avx2_rgba_to_nv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr_l = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -198,7 +197,7 @@ unsafe fn avx2_rgba_to_nv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cb_h = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -214,7 +213,7 @@ unsafe fn avx2_rgba_to_nv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr_h = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -230,7 +229,7 @@ unsafe fn avx2_rgba_to_nv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let cb = avx2_pack_u16(cb_l, cb_h);
@@ -264,7 +263,7 @@ unsafe fn avx2_rgba_to_nv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -280,7 +279,7 @@ unsafe fn avx2_rgba_to_nv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let cb = avx2_pack_u16(cb, cb);

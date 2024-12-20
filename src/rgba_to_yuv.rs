@@ -32,7 +32,7 @@ use crate::avx2::{avx2_rgba_to_yuv, avx2_rgba_to_yuv420};
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
 ))]
-use crate::avx512bw::avx512_rgba_to_yuv;
+use crate::avx512bw::{avx512_rgba_to_yuv, avx512_rgba_to_yuv420};
 use crate::built_coefficients::get_built_forward_transform;
 #[allow(unused_imports)]
 use crate::internals::*;
@@ -101,6 +101,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         feature = "nightly_avx512"
     ))]
     let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -115,32 +120,49 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     } else {
         neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>
     };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_row_dispatch = if use_vbmi {
+        avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, true>
+    } else {
+        avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, false>
+    };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_double_wide_row_handler = if use_vbmi {
+        avx512_rgba_to_yuv420::<ORIGIN_CHANNELS, true>
+    } else {
+        avx512_rgba_to_yuv420::<ORIGIN_CHANNELS, false>
+    };
 
     #[allow(unused_variables)]
-    let process_wide_row = |y_plane: &mut [u8],
-                            u_plane: &mut [u8],
-                            v_plane: &mut [u8],
-                            rgba: &[u8],
-                            cx,
-                            ux,
-                            compute_uv_row| {
-        let mut _offset = ProcessedOffset { ux: cx, cx: ux };
+    let process_wide_row = |_y_plane: &mut [u8],
+                            _u_plane: &mut [u8],
+                            _v_plane: &mut [u8],
+                            _rgba: &[u8],
+                            _cx,
+                            _ux,
+                            _compute_uv_row| {
+        let mut _offset = ProcessedOffset { ux: _cx, cx: _ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             #[cfg(feature = "nightly_avx512")]
             {
                 if use_avx512 {
-                    let processed_offset = avx512_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
+                    let processed_offset = avx512_row_dispatch(
                         &transform,
                         &chroma_range,
-                        y_plane,
-                        u_plane,
-                        v_plane,
-                        rgba,
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _rgba,
                         _offset.cx,
                         _offset.ux,
                         image.width as usize,
-                        compute_uv_row,
                     );
                     _offset = processed_offset;
                 }
@@ -150,10 +172,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &chroma_range,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
                     _offset.cx,
                     _offset.ux,
                     image.width as usize,
@@ -165,10 +187,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &chroma_range,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
                     _offset.cx,
                     _offset.ux,
                     image.width as usize,
@@ -182,10 +204,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let offset = neon_wide_row_handler(
                 &transform,
                 &chroma_range,
-                y_plane,
-                u_plane,
-                v_plane,
-                rgba,
+                _y_plane,
+                _u_plane,
+                _v_plane,
+                _rgba,
                 _offset.cx,
                 _offset.ux,
                 image.width as usize,
@@ -221,6 +243,25 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "nightly_avx512")]
+            {
+                if use_avx512 {
+                    let processed_offset = avx512_double_wide_row_handler(
+                        &transform,
+                        &chroma_range,
+                        _y_plane0,
+                        _y_plane1,
+                        _u_plane,
+                        _v_plane,
+                        _rgba0,
+                        _rgba1,
+                        _offset.cx,
+                        _offset.ux,
+                        image.width as usize,
+                    );
+                    _offset = processed_offset;
+                }
+            }
             if use_avx {
                 let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS>(
                     &transform,

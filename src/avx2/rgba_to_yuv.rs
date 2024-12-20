@@ -28,7 +28,8 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16,
+    _mm256_load_deinterleave_half_rgb_for_yuv, _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16,
+    avx_pairwise_avg_epi16_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -85,7 +86,6 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
-    let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm256_set1_epi16(range.range_y as i16 + range.bias_y as i16);
     let i_cap_uv = _mm256_set1_epi16(range.bias_y as i16 + range.range_uv as i16);
 
@@ -168,7 +168,7 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr_l = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -184,7 +184,7 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cb_h = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -200,7 +200,7 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr_h = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -216,7 +216,7 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let cb = avx2_pack_u16(cb_l, cb_h);
@@ -228,9 +228,9 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = avx_pairwise_avg_epi16(r_low, r_high);
-            let g1 = avx_pairwise_avg_epi16(g_low, g_high);
-            let b1 = avx_pairwise_avg_epi16(b_low, b_high);
+            let r1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(r_values));
+            let g1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(g_values));
+            let b1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(b_values));
             let cb = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_add_epi16(
@@ -245,7 +245,7 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr = _mm256_max_epi16(
                 _mm256_min_epi16(
@@ -261,7 +261,7 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let cb = avx2_pack_u16(cb, cb);
@@ -279,6 +279,126 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
 
         cx += 32;
+    }
+
+    while cx + 16 < width {
+        let px = cx * channels;
+        let (r_values, g_values, b_values) =
+            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
+
+        let r_low =
+            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values)));
+        let g_low =
+            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values)));
+        let b_low =
+            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values)));
+
+        let y_l = _mm256_min_epi16(
+            _mm256_add_epi16(
+                y_bias,
+                _mm256_add_epi16(
+                    _mm256_add_epi16(
+                        _mm256_mulhrs_epi16(r_low, v_yr),
+                        _mm256_mulhrs_epi16(g_low, v_yg),
+                    ),
+                    _mm256_mulhrs_epi16(b_low, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
+        let y_yuv = avx2_pack_u16(y_l, y_l);
+        _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, _mm256_castsi256_si128(y_yuv));
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let cb_l = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhrs_epi16(r_low, v_cb_r),
+                                _mm256_mulhrs_epi16(g_low, v_cb_g),
+                            ),
+                            _mm256_mulhrs_epi16(b_low, v_cb_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+            let cr_l = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhrs_epi16(r_low, v_cr_r),
+                                _mm256_mulhrs_epi16(g_low, v_cr_g),
+                            ),
+                            _mm256_mulhrs_epi16(b_low, v_cr_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+
+            let cb = avx2_pack_u16(cb_l, cb_l);
+            let cr = avx2_pack_u16(cr_l, cr_l);
+
+            _mm_storeu_si128(u_ptr.add(uv_x) as *mut __m128i, _mm256_castsi256_si128(cb));
+            _mm_storeu_si128(v_ptr.add(uv_x) as *mut __m128i, _mm256_castsi256_si128(cr));
+            uv_x += 16;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+        {
+            let r1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(r_values));
+            let g1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(g_values));
+            let b1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(b_values));
+            let cb = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhrs_epi16(r1, v_cb_r),
+                                _mm256_mulhrs_epi16(g1, v_cb_g),
+                            ),
+                            _mm256_mulhrs_epi16(b1, v_cb_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+            let cr = _mm256_max_epi16(
+                _mm256_min_epi16(
+                    _mm256_add_epi16(
+                        uv_bias,
+                        _mm256_add_epi16(
+                            _mm256_add_epi16(
+                                _mm256_mulhrs_epi16(r1, v_cr_r),
+                                _mm256_mulhrs_epi16(g1, v_cr_g),
+                            ),
+                            _mm256_mulhrs_epi16(b1, v_cr_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+
+            let cb = _mm256_castsi256_si128(avx2_pack_u16(cb, cb));
+            let cr = _mm256_castsi256_si128(avx2_pack_u16(cr, cr));
+
+            std::ptr::copy_nonoverlapping(&cb as *const _ as *const u8, u_ptr.add(uv_x), 8);
+            std::ptr::copy_nonoverlapping(&cr as *const _ as *const u8, v_ptr.add(uv_x), 8);
+
+            uv_x += 8;
+        }
+
+        cx += 16;
     }
 
     ProcessedOffset { cx, ux: uv_x }

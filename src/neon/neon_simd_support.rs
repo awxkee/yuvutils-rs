@@ -118,9 +118,12 @@ pub(crate) unsafe fn neon_premultiply_alpha(v: uint8x16_t, a_values: uint8x16_t)
 }
 
 #[inline(always)]
-pub(crate) unsafe fn vld_s16_endian<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
+pub(crate) unsafe fn vld_s16_endian<
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
+>(
     ptr: *const u16,
-    msb: int16x4_t,
 ) -> int16x4_t {
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
@@ -129,15 +132,24 @@ pub(crate) unsafe fn vld_s16_endian<const ENDIANNESS: u8, const BYTES_POSITION: 
         v = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v)));
     }
     if bytes_position == YuvBytesPacking::MostSignificantBytes {
-        v = vshl_u16(v, msb);
+        if BIT_DEPTH == 10 {
+            v = vshr_n_u16::<6>(v);
+        } else if BIT_DEPTH == 12 {
+            v = vshr_n_u16::<4>(v);
+        } else if BIT_DEPTH == 14 {
+            v = vshr_n_u16::<2>(v);
+        }
     }
     vreinterpret_s16_u16(v)
 }
 
 #[inline(always)]
-pub(crate) unsafe fn vldq_s16_endian<const ENDIANNESS: u8, const BYTES_POSITION: u8>(
+pub(crate) unsafe fn vldq_s16_endian<
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
+>(
     ptr: *const u16,
-    msb: int16x8_t,
 ) -> int16x8_t {
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
@@ -146,7 +158,13 @@ pub(crate) unsafe fn vldq_s16_endian<const ENDIANNESS: u8, const BYTES_POSITION:
         v = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v)));
     }
     if bytes_position == YuvBytesPacking::MostSignificantBytes {
-        v = vshlq_u16(v, msb);
+        if BIT_DEPTH == 10 {
+            v = vshrq_n_u16::<6>(v);
+        } else if BIT_DEPTH == 12 {
+            v = vshrq_n_u16::<4>(v);
+        } else if BIT_DEPTH == 14 {
+            v = vshrq_n_u16::<2>(v);
+        }
     }
     vreinterpretq_s16_u16(v)
 }
@@ -192,6 +210,44 @@ pub(crate) unsafe fn neon_vld_rgb_for_yuv<const ORIGINS: u8>(
         }
         YuvSourceChannels::Bgra => {
             let rgb_values = vld4q_u8(ptr);
+            r_values_u8 = rgb_values.2;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.0;
+        }
+    }
+    (r_values_u8, g_values_u8, b_values_u8)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn neon_vld_h_rgb_for_yuv<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (uint8x8_t, uint8x8_t, uint8x8_t) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let r_values_u8: uint8x8_t;
+    let g_values_u8: uint8x8_t;
+    let b_values_u8: uint8x8_t;
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = vld3_u8(ptr);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values_u8 = rgb_values.0;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.2;
+            } else {
+                r_values_u8 = rgb_values.2;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.0;
+            }
+        }
+        YuvSourceChannels::Rgba => {
+            let rgb_values = vld4_u8(ptr);
+            r_values_u8 = rgb_values.0;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.2;
+        }
+        YuvSourceChannels::Bgra => {
+            let rgb_values = vld4_u8(ptr);
             r_values_u8 = rgb_values.2;
             g_values_u8 = rgb_values.1;
             b_values_u8 = rgb_values.0;
@@ -322,5 +378,87 @@ pub(crate) unsafe fn neon_store_half_rgb8<const ORIGINS: u8>(
             let dst_pack: uint8x8x4_t = uint8x8x4_t(b_values, g_values, r_values, v_max_colors);
             vst4_u8(ptr, dst_pack);
         }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vtomsb_u16<const BIT_DEPTH: usize>(a: uint16x4_t) -> uint16x4_t {
+    if BIT_DEPTH == 10 {
+        vshl_n_u16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        vshl_n_u16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        vshl_n_u16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vtomsbq_u16<const BIT_DEPTH: usize>(a: uint16x8_t) -> uint16x8_t {
+    if BIT_DEPTH == 10 {
+        vshlq_n_u16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        vshlq_n_u16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        vshlq_n_u16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vfrommsb_u16<const BIT_DEPTH: usize>(a: uint16x4_t) -> uint16x4_t {
+    if BIT_DEPTH == 10 {
+        vshr_n_u16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        vshr_n_u16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        vshr_n_u16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vfrommsbq_u16<const BIT_DEPTH: usize>(a: uint16x8_t) -> uint16x8_t {
+    if BIT_DEPTH == 10 {
+        vshrq_n_u16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        vshrq_n_u16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        vshrq_n_u16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vpackq_n_shift16<const BIT_DEPTH: usize>(a: uint16x8_t) -> uint8x8_t {
+    if BIT_DEPTH == 10 {
+        vqshrn_n_u16::<2>(a)
+    } else if BIT_DEPTH == 12 {
+        vqshrn_n_u16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        vqshrn_n_u16::<6>(a)
+    } else if BIT_DEPTH == 16 {
+        vqshrn_n_u16::<8>(a)
+    } else {
+        vqmovn_u16(a)
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn vpackuq_n_shift16<const BIT_DEPTH: usize>(a: int16x8_t) -> uint8x8_t {
+    if BIT_DEPTH == 10 {
+        vqshrun_n_s16::<2>(a)
+    } else if BIT_DEPTH == 12 {
+        vqshrun_n_s16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        vqshrun_n_s16::<6>(a)
+    } else if BIT_DEPTH == 16 {
+        vqshrun_n_s16::<8>(a)
+    } else {
+        vqmovun_s16(a)
     }
 }

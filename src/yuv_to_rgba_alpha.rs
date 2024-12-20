@@ -102,6 +102,11 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         feature = "nightly_avx512"
     ))]
     let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -109,6 +114,15 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         neon_yuv_to_rgba_alpha_rdm::<DESTINATION_CHANNELS, SAMPLING>
     } else {
         neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+    };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_dispatch = if use_vbmi {
+        avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, true>
+    } else {
+        avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, false>
     };
 
     let process_wide_row =
@@ -120,7 +134,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 #[cfg(feature = "nightly_avx512")]
                 {
                     if use_avx512 {
-                        let processed = avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
+                        let processed = avx512_dispatch(
                             &chroma_range,
                             &inverse_transform,
                             _y_plane,
@@ -678,4 +692,251 @@ pub fn yuv444_with_alpha_to_bgra(
         matrix,
         premultiply_alpha,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{rgba_to_yuv444, YuvPlanarImageMut};
+    use rand::Rng;
+
+    #[test]
+    fn test_yuv444_round_trip_full_range_with_alpha() {
+        let image_width = 256usize;
+        let image_height = 256usize;
+
+        let random_point_x = rand::thread_rng().gen_range(0..image_width);
+        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+
+        const CHANNELS: usize = 4;
+
+        let pixel_points = [
+            [0, 0],
+            [image_width - 1, image_height - 1],
+            [image_width - 1, 0],
+            [0, image_height - 1],
+            [(image_width - 1) / 2, (image_height - 1) / 2],
+            [image_width / 5, image_height / 5],
+            [0, image_height / 5],
+            [image_width / 5, 0],
+            [image_width / 5 * 3, image_height / 5],
+            [image_width / 5 * 3, image_height / 5 * 3],
+            [image_width / 5, image_height / 5 * 3],
+            [random_point_x, random_point_y],
+        ];
+        let mut image_rgb = vec![0u8; image_width * image_height * CHANNELS];
+
+        let or = rand::thread_rng().gen_range(0..256) as u8;
+        let og = rand::thread_rng().gen_range(0..256) as u8;
+        let ob = rand::thread_rng().gen_range(0..256) as u8;
+        let oa = rand::thread_rng().gen_range(0..256) as u8;
+
+        for point in &pixel_points {
+            image_rgb[point[0] * 4 + point[1] * image_width * 4] = or;
+            image_rgb[point[0] * 4 + point[1] * image_width * 4 + 1] = og;
+            image_rgb[point[0] * 4 + point[1] * image_width * 4 + 2] = ob;
+            image_rgb[point[0] * 4 + point[1] * image_width * 4 + 3] = oa;
+        }
+
+        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+            image_width as u32,
+            image_height as u32,
+            YuvChromaSubsampling::Yuv444,
+        );
+
+        rgba_to_yuv444(
+            &mut planar_image,
+            &image_rgb,
+            image_width as u32 * CHANNELS as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt709,
+        )
+        .unwrap();
+
+        image_rgb.fill(0);
+
+        let a_plane = vec![oa; image_width * image_height];
+
+        let fixed_planar = YuvPlanarImageWithAlpha {
+            y_plane: planar_image.y_plane.borrow(),
+            y_stride: planar_image.y_stride,
+            u_plane: planar_image.u_plane.borrow(),
+            u_stride: planar_image.u_stride,
+            v_plane: planar_image.v_plane.borrow(),
+            v_stride: planar_image.v_stride,
+            a_plane: &a_plane,
+            a_stride: image_width as u32,
+            width: image_width as u32,
+            height: image_height as u32,
+        };
+
+        yuv444_with_alpha_to_rgba(
+            &fixed_planar,
+            &mut image_rgb,
+            image_width as u32 * CHANNELS as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt709,
+            false,
+        )
+        .unwrap();
+
+        for point in &pixel_points {
+            let x = point[0];
+            let y = point[1];
+            let r = image_rgb[x * CHANNELS + y * image_width * CHANNELS];
+            let g = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 1];
+            let b = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 2];
+            let a = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 3];
+
+            let diff_r = (r as i32 - or as i32).abs();
+            let diff_g = (g as i32 - og as i32).abs();
+            let diff_b = (b as i32 - ob as i32).abs();
+
+            assert!(
+                diff_r <= 3,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+            assert!(
+                diff_g <= 3,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+            assert!(
+                diff_b <= 3,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+            assert_eq!(
+                a,
+                oa,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+        }
+    }
+
+    #[test]
+    fn test_yuv444_round_trip_limited_range_with_alpha() {
+        let image_width = 256usize;
+        let image_height = 256usize;
+
+        let random_point_x = rand::thread_rng().gen_range(0..image_width);
+        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+
+        const CHANNELS: usize = 4;
+
+        let pixel_points = [
+            [0, 0],
+            [image_width - 1, image_height - 1],
+            [image_width - 1, 0],
+            [0, image_height - 1],
+            [(image_width - 1) / 2, (image_height - 1) / 2],
+            [image_width / 5, image_height / 5],
+            [0, image_height / 5],
+            [image_width / 5, 0],
+            [image_width / 5 * 3, image_height / 5],
+            [image_width / 5 * 3, image_height / 5 * 3],
+            [image_width / 5, image_height / 5 * 3],
+            [random_point_x, random_point_y],
+        ];
+        let mut image_rgb = vec![0u8; image_width * image_height * CHANNELS];
+
+        let or = rand::thread_rng().gen_range(0..256) as u8;
+        let og = rand::thread_rng().gen_range(0..256) as u8;
+        let ob = rand::thread_rng().gen_range(0..256) as u8;
+        let oa = rand::thread_rng().gen_range(0..256) as u8;
+
+        for point in &pixel_points {
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+            image_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 3] = oa;
+        }
+
+        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+            image_width as u32,
+            image_height as u32,
+            YuvChromaSubsampling::Yuv444,
+        );
+
+        rgba_to_yuv444(
+            &mut planar_image,
+            &image_rgb,
+            image_width as u32 * CHANNELS as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt709,
+        )
+        .unwrap();
+
+        image_rgb.fill(0);
+
+        let a_plane = vec![oa; image_width * image_height];
+
+        let fixed_planar = YuvPlanarImageWithAlpha {
+            y_plane: planar_image.y_plane.borrow(),
+            y_stride: planar_image.y_stride,
+            u_plane: planar_image.u_plane.borrow(),
+            u_stride: planar_image.u_stride,
+            v_plane: planar_image.v_plane.borrow(),
+            v_stride: planar_image.v_stride,
+            a_plane: &a_plane,
+            a_stride: image_width as u32,
+            width: image_width as u32,
+            height: image_height as u32,
+        };
+
+        yuv444_with_alpha_to_rgba(
+            &fixed_planar,
+            &mut image_rgb,
+            image_width as u32 * 4,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt709,
+            false,
+        )
+        .unwrap();
+
+        for point in &pixel_points {
+            let x = point[0];
+            let y = point[1];
+            let r = image_rgb[x * CHANNELS + y * image_width * CHANNELS];
+            let g = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 1];
+            let b = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 2];
+            let a = image_rgb[x * CHANNELS + y * image_width * CHANNELS + 3];
+
+            let diff_r = (r as i32 - or as i32).abs();
+            let diff_g = (g as i32 - og as i32).abs();
+            let diff_b = (b as i32 - ob as i32).abs();
+
+            assert!(
+                diff_r <= 10,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+            assert!(
+                diff_g <= 10,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+            assert!(
+                diff_b <= 10,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+            assert_eq!(
+                a,
+                oa,
+                "Original RGBA {:?}, Round-tripped RGBA {:?}",
+                [or, og, ob, oa],
+                [r, g, b, a]
+            );
+        }
+    }
 }

@@ -445,6 +445,50 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgb_for_yuv<const CHANS: u8>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm_load_deinterleave_half_rgb_for_yuv<const CHANS: u8>(
+    ptr: *const u8,
+) -> (__m128i, __m128i, __m128i) {
+    let (r_values0, g_values0, b_values0);
+
+    let source_channels: YuvSourceChannels = CHANS.into();
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si64(ptr.add(16));
+
+            let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, _mm_setzero_si128());
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+            }
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
+
+            let (it1, it2, it3, _) =
+                sse_deinterleave_rgba(row_1, row_2, _mm_setzero_si128(), _mm_setzero_si128());
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+            }
+        }
+    }
+    (r_values0, g_values0, b_values0)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
     ptr: *const u16,
 ) -> (__m128i, __m128i, __m128i) {
@@ -587,4 +631,49 @@ pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CHANS: u8>(
             _mm_storeu_si128(ptr.add(16) as *mut __m128i, row2);
         }
     }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_from_msb_epi16<const BIT_DEPTH: usize>(a: __m128i) -> __m128i {
+    if BIT_DEPTH == 10 {
+        _mm_srli_epi16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm_srli_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm_srli_epi16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_store_shr_epi16_epi8<const BIT_DEPTH: usize>(a: __m128i) -> __m128i {
+    if BIT_DEPTH == 10 {
+        _mm_srai_epi16::<2>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm_srai_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm_srai_epi16::<6>(a)
+    } else if BIT_DEPTH == 16 {
+        _mm_srai_epi16::<8>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn sse_pairwise_avg_epi8(a: __m128i) -> __m128i {
+    _mm_srli_epi16::<1>(_mm_add_epi16(
+        _mm_maddubs_epi16(a, _mm_set1_epi8(1)),
+        _mm_set1_epi16(1),
+    ))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn sse_pairwise_avg_epi16_epi8(a: __m128i, b: __m128i) -> __m128i {
+    let v = _mm_avg_epu8(a, b);
+    _mm_srli_epi16::<1>(_mm_add_epi16(
+        _mm_maddubs_epi16(v, _mm_set1_epi8(1)),
+        _mm_set1_epi16(1),
+    ))
 }

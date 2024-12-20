@@ -84,7 +84,6 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
     let v_g_coeff_1 = _mm256_set1_epi16(transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
-    let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
     while cx + 32 < width {
         let y_values0 = _mm256_subs_epu8(
@@ -182,6 +181,8 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_
         let b_values1 = avx2_pack_u16(b_low1, b_high1);
 
         let dst_shift = cx * channels;
+
+        let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
         _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
             rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),

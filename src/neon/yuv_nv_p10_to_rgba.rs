@@ -30,7 +30,9 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::neon_store_half_rgb8;
+use crate::neon::neon_simd_support::{
+    neon_store_half_rgb8, vfrommsb_u16, vfrommsbq_u16, vpackuq_n_shift16,
+};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
@@ -43,6 +45,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const PRECISION: i32,
+    const BIT_DEPTH: usize,
 >(
     y_ld_ptr: &[u16],
     uv_ld_ptr: &[u16],
@@ -96,7 +99,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = vshrq_n_u16::<6>(y_vl);
+            y_vl = vfrommsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
         let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(y_vl, y_corr));
@@ -118,8 +121,8 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                     v_vl = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v_vl)));
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vl = vshr_n_u16::<6>(u_vl);
-                    v_vl = vshr_n_u16::<6>(v_vl);
+                    u_vl = vfrommsb_u16::<BIT_DEPTH>(u_vl);
+                    v_vl = vfrommsb_u16::<BIT_DEPTH>(v_vl);
                 }
                 let u_values_c = vsub_s16(vreinterpret_s16_u16(u_vl), vget_low_s16(uv_corr_q));
                 let v_values_c = vsub_s16(vreinterpret_s16_u16(v_vl), vget_low_s16(uv_corr_q));
@@ -144,8 +147,8 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
                     v_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v_vl)));
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vl = vshrq_n_u16::<6>(u_vl);
-                    v_vl = vshrq_n_u16::<6>(v_vl);
+                    u_vl = vfrommsbq_u16::<BIT_DEPTH>(u_vl);
+                    v_vl = vfrommsbq_u16::<BIT_DEPTH>(v_vl);
                 }
                 let u_values_c = vsubq_s16(vreinterpretq_s16_u16(u_vl), uv_corr_q);
                 let v_values_c = vsubq_s16(vreinterpretq_s16_u16(v_vl), uv_corr_q);
@@ -176,9 +179,9 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
             v_weights,
         ));
 
-        let r_values = vqrshrun_n_s16::<2>(vcombine_s16(r_low, r_high));
-        let g_values = vqrshrun_n_s16::<2>(vcombine_s16(g_low, g_high));
-        let b_values = vqrshrun_n_s16::<2>(vcombine_s16(b_low, b_high));
+        let r_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(r_low, r_high));
+        let g_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(g_low, g_high));
+        let b_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(b_low, b_high));
 
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
             dst_ptr.add(cx * channels),

@@ -56,26 +56,29 @@ fn yuv_nv_p10_to_image_impl<
     let uv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
+    const BIT_DEPTH: usize = 10;
+
     image.check_constraints(chroma_subsampling)?;
 
     const PRECISION: i32 = 13;
 
-    let chroma_range = get_yuv_range(10, range);
+    let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p10 = (1u32 << 10u32) - 1u32;
-    let i_transform =
-        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 10u32, range, matrix) {
-            stored
-        } else {
-            let transform = get_inverse_transform(
-                max_range_p10,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform.to_integers(PRECISION as u32)
-        };
+    let max_range_p10 = (1u32 << BIT_DEPTH as u32) - 1u32;
+    let i_transform = if let Some(stored) =
+        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, range, matrix)
+    {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            max_range_p10,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(PRECISION as u32)
+    };
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
@@ -96,6 +99,7 @@ fn yuv_nv_p10_to_image_impl<
                 ENDIANNESS,
                 BYTES_POSITION,
                 PRECISION,
+                BIT_DEPTH,
             >(
                 _y_src,
                 _uv_src,
@@ -110,7 +114,7 @@ fn yuv_nv_p10_to_image_impl<
         _offset
     };
 
-    let msb_shift = 16 - 10;
+    let msb_shift = 16 - BIT_DEPTH as i32;
     let width = image.width;
     const V_R_SHR: i32 = PRECISION + 2;
 

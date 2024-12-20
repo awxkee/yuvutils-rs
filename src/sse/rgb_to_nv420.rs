@@ -80,7 +80,6 @@ unsafe fn sse_rgba_to_nv_row_impl420<const ORIGIN_CHANNELS: u8, const UV_ORDER: 
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
-    let i_bias_y = _mm_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm_set1_epi16(range.range_y as i16 + range.bias_y as i16);
     let i_cap_uv = _mm_set1_epi16(range.bias_y as i16 + range.range_uv as i16);
 
@@ -214,7 +213,7 @@ unsafe fn sse_rgba_to_nv_row_impl420<const ORIGIN_CHANNELS: u8, const UV_ORDER: 
                 ),
                 i_cap_uv,
             ),
-            i_bias_y,
+            y_bias,
         );
 
         let crk = _mm_max_epi16(
@@ -228,7 +227,7 @@ unsafe fn sse_rgba_to_nv_row_impl420<const ORIGIN_CHANNELS: u8, const UV_ORDER: 
                 ),
                 i_cap_uv,
             ),
-            i_bias_y,
+            y_bias,
         );
 
         let cb = _mm_packus_epi16(cbk, cbk);

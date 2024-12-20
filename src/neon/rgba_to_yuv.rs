@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::neon_vld_rgb_for_yuv;
+use crate::neon::neon_simd_support::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -188,6 +188,93 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         }
 
         cx += 16;
+    }
+
+    while cx + 8 < width {
+        let (r_values_u8, g_values_u8, b_values_u8) =
+            neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
+
+        let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values_u8));
+        let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values_u8));
+        let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(b_values_u8));
+
+        let mut y_low = vqrdmlahq_laneq_s16::<0>(y_bias, r_low, v_weights);
+        y_low = vqrdmlahq_laneq_s16::<1>(y_low, g_low, v_weights);
+        y_low = vqrdmlahq_laneq_s16::<2>(y_low, b_low, v_weights);
+
+        let y_low = vminq_u16(vreinterpretq_u16_s16(y_low), i_cap_y);
+
+        vst1_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), vmovn_u16(y_low));
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let mut cb_low = vqrdmlahq_laneq_s16::<3>(uv_bias, r_low, v_weights);
+            cb_low = vqrdmlahq_laneq_s16::<4>(cb_low, g_low, v_weights);
+            cb_low = vqrdmlahq_laneq_s16::<5>(cb_low, b_low, v_weights);
+
+            let cb_low = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(cb_low, i_bias_y)), i_cap_uv);
+
+            let mut cr_low = vqrdmlahq_laneq_s16::<6>(uv_bias, r_low, v_weights);
+            cr_low = vqrdmlahq_laneq_s16::<7>(cr_low, g_low, v_weights);
+            cr_low = vqrdmlahq_laneq_s16::<0>(cr_low, b_low, v_cr_b);
+
+            let cr_low = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(cr_low, i_bias_y)), i_cap_uv);
+
+            vst1_u8(
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
+                vmovn_u16(cb_low),
+            );
+            vst1_u8(
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
+                vmovn_u16(cr_low),
+            );
+
+            ux += 8;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(vpaddl_u8(
+                r_values_u8,
+            ))));
+            let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(vpaddl_u8(
+                g_values_u8,
+            ))));
+            let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(vpaddl_u8(
+                b_values_u8,
+            ))));
+
+            let mut cbl = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
+            cbl = vqrdmlah_laneq_s16::<4>(cbl, g1, v_weights);
+            cbl = vqrdmlah_laneq_s16::<5>(cbl, b1, v_weights);
+
+            let cb = vmovn_u16(vcombine_u16(
+                vmin_u16(
+                    vreinterpret_u16_s16(vmax_s16(cbl, vget_low_s16(i_bias_y))),
+                    vget_low_u16(i_cap_uv),
+                ),
+                vdup_n_u16(0),
+            ));
+
+            let mut crl = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);
+            crl = vqrdmlah_laneq_s16::<7>(crl, g1, v_weights);
+            crl = vqrdmlah_laneq_s16::<0>(crl, b1, v_cr_b);
+
+            let cr = vmovn_u16(vcombine_u16(
+                vmin_u16(
+                    vreinterpret_u16_s16(vmax_s16(crl, vget_low_s16(i_bias_y))),
+                    vget_low_u16(i_cap_uv),
+                ),
+                vdup_n_u16(0),
+            ));
+
+            (u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
+                .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cb)));
+            (v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
+                .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cr)));
+
+            ux += 4;
+        }
+
+        cx += 8;
     }
 
     ProcessedOffset { cx, ux }

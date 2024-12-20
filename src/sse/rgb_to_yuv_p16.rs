@@ -126,7 +126,6 @@ unsafe fn sse_rgba_to_yuv_impl<
 
     let zeros = _mm_setzero_si128();
 
-    let i_bias_y = _mm_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
     let i_cap_uv = _mm_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
 
@@ -188,7 +187,7 @@ unsafe fn sse_rgba_to_yuv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cr_r));
@@ -207,7 +206,7 @@ unsafe fn sse_rgba_to_yuv_impl<
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -244,7 +243,7 @@ unsafe fn sse_rgba_to_yuv_impl<
                     _mm_packus_epi32(_mm_srai_epi32::<PRECISION>(cb_h), _mm_setzero_si128()),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_values, v_cr_r));
@@ -256,7 +255,7 @@ unsafe fn sse_rgba_to_yuv_impl<
                     _mm_packus_epi32(_mm_srai_epi32::<PRECISION>(cr_h), _mm_setzero_si128()),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {

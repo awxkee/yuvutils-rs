@@ -44,6 +44,8 @@ mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
 mod yuv_p16_to_rgb16;
 mod yuv_p16_to_rgb16_alpha;
+mod yuv_p16_to_rgb8;
+mod yuv_p16_to_rgb8_alpha;
 mod yuv_to_rgba;
 mod yuv_to_rgba420;
 mod yuv_to_rgba_alpha;
@@ -51,6 +53,8 @@ mod yuv_to_yuv2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+#[cfg(feature = "nightly_avx512")]
+pub(crate) use avx2_utils::_mm256_interleave_epi8;
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::avx2_rgba_to_nv;
 pub(crate) use rgb_to_nv420::avx2_rgba_to_nv420;
@@ -66,6 +70,8 @@ pub(crate) use yuv_nv_to_rgba::avx2_yuv_nv_to_rgba_row;
 pub(crate) use yuv_nv_to_rgba420::avx2_yuv_nv_to_rgba_row420;
 pub(crate) use yuv_p16_to_rgb16::avx_yuv_p16_to_rgba_row;
 pub(crate) use yuv_p16_to_rgb16_alpha::avx_yuv_p16_to_rgba_alpha_row;
+pub(crate) use yuv_p16_to_rgb8::avx_yuv_p16_to_rgba8_row;
+pub(crate) use yuv_p16_to_rgb8_alpha::avx_yuv_p16_to_rgba8_alpha_row;
 pub(crate) use yuv_to_rgba::avx2_yuv_to_rgba_row;
 pub(crate) use yuv_to_rgba420::avx2_yuv_to_rgba_row420;
 pub(crate) use yuv_to_rgba_alpha::avx2_yuv_to_rgba_alpha;

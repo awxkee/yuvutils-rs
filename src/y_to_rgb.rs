@@ -98,6 +98,21 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     ))]
     let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_dispatch = if use_vbmi {
+        avx512_y_to_rgb_row::<DESTINATION_CHANNELS, true>
+    } else {
+        avx512_y_to_rgb_row::<DESTINATION_CHANNELS, false>
+    };
+
     let y_plane = image.y_plane;
     let y_stride = image.y_stride;
 
@@ -123,20 +138,16 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 any(target_arch = "x86", target_arch = "x86_64"),
                 feature = "nightly_avx512"
             ))]
-            unsafe {
-                if use_avx512 {
-                    let processed = avx512_y_to_rgb_row::<DESTINATION_CHANNELS>(
-                        &chroma_range,
-                        &inverse_transform,
-                        y_plane,
-                        rgba,
-                        _cx,
-                        0,
-                        0,
-                        image.width as usize,
-                    );
-                    _cx = processed;
-                }
+            if use_avx512 {
+                let processed = avx512_dispatch(
+                    &chroma_range,
+                    &inverse_transform,
+                    y_plane,
+                    rgba,
+                    _cx,
+                    image.width as usize,
+                );
+                _cx = processed;
             }
 
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

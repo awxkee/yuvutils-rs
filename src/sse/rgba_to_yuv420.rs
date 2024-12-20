@@ -28,7 +28,10 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_load_deinterleave_rgb_for_yuv, sse_pairwise_wide_avg};
+use crate::sse::{
+    _mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv,
+    sse_pairwise_avg_epi16_epi8,
+};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -83,7 +86,6 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
-    let i_bias_y = _mm_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm_set1_epi16(range.range_y as i16 + range.bias_y as i16);
     let i_cap_uv = _mm_set1_epi16(range.bias_y as i16 + range.range_uv as i16);
 
@@ -152,38 +154,32 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
         let b1_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(b_values1));
         let b1_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values1, zeros));
 
-        let y1_l = _mm_max_epi16(
-            _mm_min_epi16(
+        let y1_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
                 _mm_add_epi16(
-                    y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(
-                            _mm_mulhrs_epi16(r1_low, v_yr),
-                            _mm_mulhrs_epi16(g1_low, v_yg),
-                        ),
-                        _mm_mulhrs_epi16(b1_low, v_yb),
+                        _mm_mulhrs_epi16(r1_low, v_yr),
+                        _mm_mulhrs_epi16(g1_low, v_yg),
                     ),
+                    _mm_mulhrs_epi16(b1_low, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
-        let y1_h = _mm_max_epi16(
-            _mm_min_epi16(
+        let y1_h = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
                 _mm_add_epi16(
-                    y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(
-                            _mm_mulhrs_epi16(r1_high, v_yr),
-                            _mm_mulhrs_epi16(g1_high, v_yg),
-                        ),
-                        _mm_mulhrs_epi16(b1_high, v_yb),
+                        _mm_mulhrs_epi16(r1_high, v_yr),
+                        _mm_mulhrs_epi16(g1_high, v_yg),
                     ),
+                    _mm_mulhrs_epi16(b1_high, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
         let y0_yuv = _mm_packus_epi16(y0_l, y0_h);
@@ -198,18 +194,9 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
             y1_yuv,
         );
 
-        let r1 = _mm_slli_epi16::<V_SCALE>(_mm_avg_epu16(
-            sse_pairwise_wide_avg(r_values0),
-            sse_pairwise_wide_avg(r_values1),
-        ));
-        let g1 = _mm_slli_epi16::<V_SCALE>(_mm_avg_epu16(
-            sse_pairwise_wide_avg(g_values0),
-            sse_pairwise_wide_avg(g_values1),
-        ));
-        let b1 = _mm_slli_epi16::<V_SCALE>(_mm_avg_epu16(
-            sse_pairwise_wide_avg(b_values0),
-            sse_pairwise_wide_avg(b_values1),
-        ));
+        let r1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(r_values0, r_values1));
+        let g1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(g_values0, g_values1));
+        let b1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(b_values0, b_values1));
 
         let cbk = _mm_max_epi16(
             _mm_min_epi16(
@@ -222,7 +209,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
                 ),
                 i_cap_uv,
             ),
-            i_bias_y,
+            y_bias,
         );
 
         let crk = _mm_max_epi16(
@@ -236,7 +223,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
                 ),
                 i_cap_uv,
             ),
-            i_bias_y,
+            y_bias,
         );
 
         let cb = _mm_packus_epi16(cbk, cbk);
@@ -244,8 +231,110 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
 
         std::ptr::copy_nonoverlapping(&cb as *const _ as *const u8, u_ptr.add(uv_x), 8);
         std::ptr::copy_nonoverlapping(&cr as *const _ as *const u8, v_ptr.add(uv_x), 8);
+
         uv_x += 8;
         cx += 16;
+    }
+
+    while cx + 8 < width {
+        let px = cx * channels;
+        let row_start0 = rgba0.get_unchecked(px..).as_ptr();
+        let (r_values0, g_values0, b_values0) =
+            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start0);
+        let row_start1 = rgba1.get_unchecked(px..).as_ptr();
+        let (r_values1, g_values1, b_values1) =
+            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start1);
+
+        let r0_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(r_values0));
+        let g0_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(g_values0));
+        let b0_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(b_values0));
+
+        let y0_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(
+                        _mm_mulhrs_epi16(r0_low, v_yr),
+                        _mm_mulhrs_epi16(g0_low, v_yg),
+                    ),
+                    _mm_mulhrs_epi16(b0_low, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
+        let r1_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(r_values1));
+        let g1_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(g_values1));
+        let b1_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(b_values1));
+
+        let y1_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(
+                        _mm_mulhrs_epi16(r1_low, v_yr),
+                        _mm_mulhrs_epi16(g1_low, v_yg),
+                    ),
+                    _mm_mulhrs_epi16(b1_low, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
+        let y0_yuv = _mm_packus_epi16(y0_l, _mm_setzero_si128());
+        let y1_yuv = _mm_packus_epi16(y1_l, _mm_setzero_si128());
+
+        std::ptr::copy_nonoverlapping(
+            &y0_yuv as *const _ as *const u8,
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
+            8,
+        );
+        std::ptr::copy_nonoverlapping(
+            &y1_yuv as *const _ as *const u8,
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
+            8,
+        );
+
+        let r1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(r_values0, r_values1));
+        let g1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(g_values0, g_values1));
+        let b1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(b_values0, b_values1));
+
+        let cbk = _mm_max_epi16(
+            _mm_min_epi16(
+                _mm_add_epi16(
+                    uv_bias,
+                    _mm_add_epi16(
+                        _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
+                        _mm_mulhrs_epi16(b1, v_cb_b),
+                    ),
+                ),
+                i_cap_uv,
+            ),
+            y_bias,
+        );
+
+        let crk = _mm_max_epi16(
+            _mm_min_epi16(
+                _mm_add_epi16(
+                    uv_bias,
+                    _mm_add_epi16(
+                        _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
+                        _mm_mulhrs_epi16(b1, v_cr_b),
+                    ),
+                ),
+                i_cap_uv,
+            ),
+            y_bias,
+        );
+
+        let cb = _mm_packus_epi16(cbk, cbk);
+        let cr = _mm_packus_epi16(crk, crk);
+
+        (u_ptr.add(uv_x) as *mut i32).write_unaligned(_mm_extract_epi32::<0>(cb));
+        (v_ptr.add(uv_x) as *mut i32).write_unaligned(_mm_extract_epi32::<0>(cr));
+
+        uv_x += 4;
+        cx += 8;
     }
 
     ProcessedOffset { cx, ux: uv_x }

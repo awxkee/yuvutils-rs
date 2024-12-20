@@ -29,7 +29,7 @@
 
 use crate::avx512bw::avx512_rgb_to_yuv::avx512_rgb_to_ycgco;
 use crate::avx512bw::avx512_utils::{
-    avx512_deinterleave_rgb, avx512_deinterleave_rgba, avx512_pack_u16, avx512_pairwise_widen_avg,
+    avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_widen_avg,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
@@ -38,7 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "avx512bw")]
+#[target_feature(enable = "avx512bw", enable = "avx512f")]
 pub(crate) unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     y_plane: *mut u8,
@@ -84,47 +84,10 @@ pub(crate) unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SA
     let v_range_reduction_uv = _mm512_set1_epi32(range_reduction_uv);
 
     while cx + 64 < width {
-        let (r_values, g_values, b_values);
-
         let px = cx * channels;
 
-        match source_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let source_ptr = rgba_ptr.add(px);
-                let row_1 = _mm512_loadu_si512(source_ptr as *const i32);
-                let row_2 = _mm512_loadu_si512(source_ptr.add(64) as *const i32);
-                let row_3 = _mm512_loadu_si512(source_ptr.add(128) as *const i32);
-
-                let (it1, it2, it3) = avx512_deinterleave_rgb(row_1, row_2, row_3);
-                if source_channels == YuvSourceChannels::Rgb {
-                    r_values = it1;
-                    g_values = it2;
-                    b_values = it3;
-                } else {
-                    r_values = it3;
-                    g_values = it2;
-                    b_values = it1;
-                }
-            }
-            YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-                let source_ptr = rgba_ptr.add(px);
-                let row_1 = _mm512_loadu_si512(source_ptr as *const i32);
-                let row_2 = _mm512_loadu_si512(source_ptr.add(64) as *const i32);
-                let row_3 = _mm512_loadu_si512(source_ptr.add(128) as *const i32);
-                let row_4 = _mm512_loadu_si512(source_ptr.add(192) as *const i32);
-
-                let (it1, it2, it3, _) = avx512_deinterleave_rgba(row_1, row_2, row_3, row_4);
-                if source_channels == YuvSourceChannels::Rgba {
-                    r_values = it1;
-                    g_values = it2;
-                    b_values = it3;
-                } else {
-                    r_values = it3;
-                    g_values = it2;
-                    b_values = it1;
-                }
-            }
-        }
+        let (r_values, g_values, b_values) =
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, false>(rgba_ptr.add(px));
 
         let r_low = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values));
         let r_high = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(r_values));

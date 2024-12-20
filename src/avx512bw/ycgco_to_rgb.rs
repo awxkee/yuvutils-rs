@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8, shuffle};
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8, shuffle};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -182,34 +182,13 @@ pub(crate) unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, con
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-        }
+        avx512_store_u8::<DESTINATION_CHANNELS, false>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 64;
 

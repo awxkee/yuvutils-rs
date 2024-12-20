@@ -118,7 +118,6 @@ unsafe fn avx_rgba_to_yuv_impl<
 
     let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
 
-    let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm256_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
     let i_cap_uv = _mm256_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
 
@@ -211,7 +210,7 @@ unsafe fn avx_rgba_to_yuv_impl<
                 avx2_pack_u32(_mm256_srai_epi32::<PRECISION>(cb_h), _mm256_setzero_si256()),
                 i_cap_uv,
             ),
-            i_bias_y,
+            y_bias,
         );
 
         let mut cr_h = _mm256_add_epi32(uv_bias, _mm256_madd_epi16(r_values, v_cr_r));
@@ -223,7 +222,7 @@ unsafe fn avx_rgba_to_yuv_impl<
                 avx2_pack_u32(_mm256_srai_epi32::<PRECISION>(cr_h), _mm256_setzero_si256()),
                 i_cap_uv,
             ),
-            i_bias_y,
+            y_bias,
         );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {

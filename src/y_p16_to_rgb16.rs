@@ -37,10 +37,11 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 // Chroma subsampling always assumed as 400
-fn yuv400_p16_to_rgbx<
+fn yuv400_p16_to_rgbx_impl<
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
 >(
     image: &YuvGrayImage<u16>,
     rgba16: &mut [u16],
@@ -96,9 +97,15 @@ fn yuv400_p16_to_rgbx<
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_wide_handler = if is_rdm_available && bit_depth <= 12 {
-        neon_y_p16_to_rgba16_rdm::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION>
+        neon_y_p16_to_rgba16_rdm::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION, BIT_DEPTH>
     } else {
-        neon_y_p16_to_rgba16_row::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION>
+        neon_y_p16_to_rgba16_row::<
+            DESTINATION_CHANNELS,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >
     };
 
     match range {
@@ -117,7 +124,6 @@ fn yuv400_p16_to_rgbx<
                             &chroma_range,
                             &i_transform,
                             0,
-                            bit_depth as usize,
                         );
                         _cx = offset.cx;
                     }
@@ -157,6 +163,41 @@ fn yuv400_p16_to_rgbx<
     }
 
     Ok(())
+}
+
+fn yuv400_p16_to_rgbx<
+    const DESTINATION_CHANNELS: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+>(
+    image: &YuvGrayImage<u16>,
+    rgba16: &mut [u16],
+    rgba_stride: u32,
+    bit_depth: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) -> Result<(), YuvError> {
+    if bit_depth == 10 {
+        yuv400_p16_to_rgbx_impl::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION, 10>(
+            image,
+            rgba16,
+            rgba_stride,
+            bit_depth,
+            range,
+            matrix,
+        )
+    } else if bit_depth == 12 {
+        yuv400_p16_to_rgbx_impl::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION, 12>(
+            image,
+            rgba16,
+            rgba_stride,
+            bit_depth,
+            range,
+            matrix,
+        )
+    } else {
+        unimplemented!("Only 10 and 12 bit-depth implemented")
+    }
 }
 
 /// Convert YUV 400 planar format to RGB 8+-bit format.

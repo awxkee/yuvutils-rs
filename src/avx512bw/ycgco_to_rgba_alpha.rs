@@ -83,7 +83,6 @@ pub(crate) unsafe fn avx512_ycgco_to_rgba_alpha<
     let uv_corr = _mm512_set1_epi16(bias_uv as i16);
     let y_reduction = _mm512_set1_epi16(range_reduction_y as i16);
     let uv_reduction = _mm512_set1_epi16(range_reduction_uv as i16);
-    let v_alpha = _mm512_set1_epi16(-128);
     let v_min_zeros = _mm512_setzero_si512();
     let rounding_const = _mm512_set1_epi16(1 << 5);
 
@@ -208,34 +207,13 @@ pub(crate) unsafe fn avx512_ycgco_to_rgba_alpha<
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-        }
+        avx512_store_u8::<DESTINATION_CHANNELS, false>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            a_values,
+        );
 
         cx += 64;
 

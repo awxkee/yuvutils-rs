@@ -37,7 +37,11 @@ use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 
-pub(crate) fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) fn avx512_yuv_to_rgba_alpha<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const HAS_VBMI: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -51,24 +55,102 @@ pub(crate) fn avx512_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, const SAM
     use_premultiply: bool,
 ) -> ProcessedOffset {
     unsafe {
-        avx512_yuv_to_rgba_alpha_impl::<DESTINATION_CHANNELS, SAMPLING>(
-            range,
-            transform,
-            y_plane,
-            u_plane,
-            v_plane,
-            a_plane,
-            rgba,
-            start_cx,
-            start_ux,
-            width,
-            use_premultiply,
-        )
+        if HAS_VBMI {
+            avx512_yuv_to_rgba_alpha_bmi_impl::<DESTINATION_CHANNELS, SAMPLING>(
+                range,
+                transform,
+                y_plane,
+                u_plane,
+                v_plane,
+                a_plane,
+                rgba,
+                start_cx,
+                start_ux,
+                width,
+                use_premultiply,
+            )
+        } else {
+            avx512_yuv_to_rgba_alpha_def_impl::<DESTINATION_CHANNELS, SAMPLING>(
+                range,
+                transform,
+                y_plane,
+                u_plane,
+                v_plane,
+                a_plane,
+                rgba,
+                start_cx,
+                start_ux,
+                width,
+                use_premultiply,
+            )
+        }
     }
 }
 
-#[target_feature(enable = "avx512bw")]
-unsafe fn avx512_yuv_to_rgba_alpha_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+#[target_feature(enable = "avx512bw", enable = "avx512f")]
+unsafe fn avx512_yuv_to_rgba_alpha_def_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    u_plane: &[u8],
+    v_plane: &[u8],
+    a_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+    use_premultiply: bool,
+) -> ProcessedOffset {
+    avx512_yuv_to_rgba_alpha_impl::<DESTINATION_CHANNELS, SAMPLING, false>(
+        range,
+        transform,
+        y_plane,
+        u_plane,
+        v_plane,
+        a_plane,
+        rgba,
+        start_cx,
+        start_ux,
+        width,
+        use_premultiply,
+    )
+}
+
+#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
+unsafe fn avx512_yuv_to_rgba_alpha_bmi_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    u_plane: &[u8],
+    v_plane: &[u8],
+    a_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+    use_premultiply: bool,
+) -> ProcessedOffset {
+    avx512_yuv_to_rgba_alpha_impl::<DESTINATION_CHANNELS, SAMPLING, true>(
+        range,
+        transform,
+        y_plane,
+        u_plane,
+        v_plane,
+        a_plane,
+        rgba,
+        start_cx,
+        start_ux,
+        width,
+        use_premultiply,
+    )
+}
+
+#[inline(always)]
+unsafe fn avx512_yuv_to_rgba_alpha_impl<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const HAS_VBMI: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -197,34 +279,13 @@ unsafe fn avx512_yuv_to_rgba_alpha_impl<const DESTINATION_CHANNELS: u8, const SA
 
         let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, r_values, g_values, b_values);
-            }
-            YuvSourceChannels::Bgr => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, b_values, g_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    g_values,
-                    b_values,
-                    a_values,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    b_values,
-                    g_values,
-                    r_values,
-                    a_values,
-                );
-            }
-        }
+        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            g_values,
+            b_values,
+            a_values,
+        );
 
         cx += 64;
 
