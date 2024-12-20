@@ -511,6 +511,56 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_load_deinterleave_half_rgb_for_yuv<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (__m256i, __m256i, __m256i) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+
+    let (r_values, g_values, b_values);
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm256_loadu_si256(ptr as *const __m256i);
+            let row_2 = _mm_loadu_si128(ptr.add(32) as *const __m128i);
+
+            let (it1, it2, it3) =
+                avx2_deinterleave_rgb(row_1, _mm256_castsi128_si256(row_2), _mm256_setzero_si256());
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm256_loadu_si256(ptr as *const __m256i);
+            let row_2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+
+            let (it1, it2, it3, _) = _mm256_deinterleave_rgba_epi8(
+                row_1,
+                row_2,
+                _mm256_setzero_si256(),
+                _mm256_setzero_si256(),
+            );
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+    }
+
+    (r_values, g_values, b_values)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_store_interleave_rgb16_for_yuv<const ORIGINS: u8>(
     ptr: *mut u16,
     r: __m256i,
