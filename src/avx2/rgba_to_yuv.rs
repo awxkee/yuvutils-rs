@@ -228,9 +228,9 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = avx_pairwise_avg_epi16_epi8(r_values);
-            let g1 = avx_pairwise_avg_epi16_epi8(g_values);
-            let b1 = avx_pairwise_avg_epi16_epi8(b_values);
+            let r1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(r_values));
+            let g1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(g_values));
+            let b1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(b_values));
             let cb = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_add_epi16(
