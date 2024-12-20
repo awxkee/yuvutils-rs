@@ -44,44 +44,77 @@ pub(crate) unsafe fn avx512_pack_u16(lo: __m512i, hi: __m512i) -> __m512i {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_interleave_rgb(
+pub(crate) unsafe fn avx512_interleave_rgb<const HAS_VBMI: bool>(
     a: __m512i,
     b: __m512i,
     c: __m512i,
 ) -> (__m512i, __m512i, __m512i) {
-    let g1g0 = _mm512_shuffle_epi8(
-        b,
-        _mm512_set4_epi32(0x0e0f0c0d, 0x0a0b0809, 0x06070405, 0x02030001),
-    );
-    let b0g0 = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, a, g1g0);
-    let r0b1 = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, c, a);
-    let g1r1 = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, g1g0, c);
+    if HAS_VBMI {
+        let mask0 = _v512_set_epu8(
+            127, 84, 20, 126, 83, 19, 125, 82, 18, 124, 81, 17, 123, 80, 16, 122, 79, 15, 121, 78,
+            14, 120, 77, 13, 119, 76, 12, 118, 75, 11, 117, 74, 10, 116, 73, 9, 115, 72, 8, 114,
+            71, 7, 113, 70, 6, 112, 69, 5, 111, 68, 4, 110, 67, 3, 109, 66, 2, 108, 65, 1, 107, 64,
+            0, 106,
+        );
+        let mask1 = _v512_set_epu8(
+            21, 42, 105, 20, 41, 104, 19, 40, 103, 18, 39, 102, 17, 38, 101, 16, 37, 100, 15, 36,
+            99, 14, 35, 98, 13, 34, 97, 12, 33, 96, 11, 32, 95, 10, 31, 94, 9, 30, 93, 8, 29, 92,
+            7, 28, 91, 6, 27, 90, 5, 26, 89, 4, 25, 88, 3, 24, 87, 2, 23, 86, 1, 22, 85, 0,
+        );
+        let mask2 = _v512_set_epu8(
+            106, 127, 63, 105, 126, 62, 104, 125, 61, 103, 124, 60, 102, 123, 59, 101, 122, 58,
+            100, 121, 57, 99, 120, 56, 98, 119, 55, 97, 118, 54, 96, 117, 53, 95, 116, 52, 94, 115,
+            51, 93, 114, 50, 92, 113, 49, 91, 112, 48, 90, 111, 47, 89, 110, 46, 88, 109, 45, 87,
+            108, 44, 86, 107, 43, 85,
+        );
+        let r2g0r0 = _mm512_permutex2var_epi8(b, mask0, c);
+        let b0r1b1 = _mm512_permutex2var_epi8(a, mask1, c);
+        let g1b2g2 = _mm512_permutex2var_epi8(a, mask2, b);
 
-    let mask0 = _v512_set_epu16(
-        42, 10, 31, 41, 9, 30, 40, 8, 29, 39, 7, 28, 38, 6, 27, 37, 5, 26, 36, 4, 25, 35, 3, 24,
-        34, 2, 23, 33, 1, 22, 32, 0,
-    );
-    let mask1 = _v512_set_epu16(
-        21, 52, 41, 20, 51, 40, 19, 50, 39, 18, 49, 38, 17, 48, 37, 16, 47, 36, 15, 46, 35, 14, 45,
-        34, 13, 44, 33, 12, 43, 32, 11, 42,
-    );
-    let mask2 = _v512_set_epu16(
-        63, 31, 20, 62, 30, 19, 61, 29, 18, 60, 28, 17, 59, 27, 16, 58, 26, 15, 57, 25, 14, 56, 24,
-        13, 55, 23, 12, 54, 22, 11, 53, 21,
-    );
-    let b0g0b2 = _mm512_permutex2var_epi16(b0g0, mask0, r0b1);
-    let r1b1r0 = _mm512_permutex2var_epi16(b0g0, mask1, g1r1);
-    let g2r2g1 = _mm512_permutex2var_epi16(r0b1, mask2, g1r1);
+        let bgr0 = _mm512_mask_blend_epi8(0x9249249249249249, r2g0r0, b0r1b1);
+        let bgr1 = _mm512_mask_blend_epi8(0x9249249249249249, b0r1b1, g1b2g2);
+        let bgr2 = _mm512_mask_blend_epi8(0x9249249249249249, g1b2g2, r2g0r0);
+        (bgr0, bgr1, bgr2)
+    } else {
+        let g1g0 = _mm512_shuffle_epi8(
+            b,
+            _mm512_set4_epi32(0x0e0f0c0d, 0x0a0b0809, 0x06070405, 0x02030001),
+        );
+        let b0g0 = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, a, g1g0);
+        let r0b1 = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, c, a);
+        let g1r1 = _mm512_mask_blend_epi8(0xAAAAAAAAAAAAAAAA, g1g0, c);
 
-    let bgr0 = _mm512_mask_blend_epi16(0x24924924, b0g0b2, r1b1r0);
-    let bgr1 = _mm512_mask_blend_epi16(0x24924924, r1b1r0, g2r2g1);
-    let bgr2 = _mm512_mask_blend_epi16(0x24924924, g2r2g1, b0g0b2);
-    (bgr0, bgr1, bgr2)
+        let mask0 = _v512_set_epu16(
+            42, 10, 31, 41, 9, 30, 40, 8, 29, 39, 7, 28, 38, 6, 27, 37, 5, 26, 36, 4, 25, 35, 3,
+            24, 34, 2, 23, 33, 1, 22, 32, 0,
+        );
+        let mask1 = _v512_set_epu16(
+            21, 52, 41, 20, 51, 40, 19, 50, 39, 18, 49, 38, 17, 48, 37, 16, 47, 36, 15, 46, 35, 14,
+            45, 34, 13, 44, 33, 12, 43, 32, 11, 42,
+        );
+        let mask2 = _v512_set_epu16(
+            63, 31, 20, 62, 30, 19, 61, 29, 18, 60, 28, 17, 59, 27, 16, 58, 26, 15, 57, 25, 14, 56,
+            24, 13, 55, 23, 12, 54, 22, 11, 53, 21,
+        );
+        let b0g0b2 = _mm512_permutex2var_epi16(b0g0, mask0, r0b1);
+        let r1b1r0 = _mm512_permutex2var_epi16(b0g0, mask1, g1r1);
+        let g2r2g1 = _mm512_permutex2var_epi16(r0b1, mask2, g1r1);
+
+        let bgr0 = _mm512_mask_blend_epi16(0x24924924, b0g0b2, r1b1r0);
+        let bgr1 = _mm512_mask_blend_epi16(0x24924924, r1b1r0, g2r2g1);
+        let bgr2 = _mm512_mask_blend_epi16(0x24924924, g2r2g1, b0g0b2);
+        (bgr0, bgr1, bgr2)
+    }
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_rgb_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m512i) {
-    let (rgb0, rgb1, rgb2) = avx512_interleave_rgb(a, b, c);
+pub(crate) unsafe fn avx512_rgb_u8<const HAS_VBMI: bool>(
+    dst: *mut u8,
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+) {
+    let (rgb0, rgb1, rgb2) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
     _mm512_storeu_si512(dst as *mut i32, rgb0);
     _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
     _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
@@ -221,10 +254,10 @@ pub(crate) unsafe fn avx512_store_u8<const DN: u8, const HAS_VBMI: bool>(
     let destination_channels: YuvSourceChannels = DN.into();
     match destination_channels {
         YuvSourceChannels::Rgb => {
-            avx512_rgb_u8(dst, r, g, b);
+            avx512_rgb_u8::<HAS_VBMI>(dst, r, g, b);
         }
         YuvSourceChannels::Bgr => {
-            avx512_rgb_u8(dst, b, g, r);
+            avx512_rgb_u8::<HAS_VBMI>(dst, b, g, r);
         }
         YuvSourceChannels::Rgba => {
             avx512_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
