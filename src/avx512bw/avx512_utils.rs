@@ -347,20 +347,17 @@ pub(crate) unsafe fn avx512_load_rgb_u8<const CN: u8>(
 
 #[inline(always)]
 pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8(a: __m512i, b: __m512i) -> __m512i {
-    let a0 = _mm512_slli_epi16::<1>(_mm512_add_epi16(
-        _mm512_maddubs_epi16(a, _mm512_set1_epi8(1)),
+    let v = _mm512_avg_epu8(a, b);
+    let v1 = _mm512_srli_epi16::<1>(_mm512_add_epi16(
+        _mm512_maddubs_epi16(v, _mm512_set1_epi8(1)),
         _mm512_set1_epi16(1),
     ));
-    let b0 = _mm512_slli_epi16::<1>(_mm512_add_epi16(
-        _mm512_maddubs_epi16(b, _mm512_set1_epi8(1)),
-        _mm512_set1_epi16(1),
-    ));
-    _mm512_avg_epu16(a0, b0)
+    v1
 }
 
 #[inline(always)]
 pub(crate) unsafe fn avx512_pairwise_avg_epi8(a: __m512i) -> __m512i {
-    _mm512_slli_epi16::<1>(_mm512_add_epi16(
+    _mm512_srli_epi16::<1>(_mm512_add_epi16(
         _mm512_maddubs_epi16(a, _mm512_set1_epi8(1)),
         _mm512_set1_epi16(1),
     ))
