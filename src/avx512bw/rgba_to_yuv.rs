@@ -82,12 +82,12 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
     let mut uv_x = start_ux;
 
     const V_SCALE: u32 = 2;
+
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
-    let i_bias_y = _mm512_set1_epi16(range.bias_y as i16);
-    let i_cap_y = _mm512_set1_epi16(range.range_y as i16 + range.bias_y as i16);
-    let i_cap_uv = _mm512_set1_epi16(range.bias_y as i16 + range.range_uv as i16);
+    let cap_y = range.range_y as i16 + range.bias_y as i16;
+    let cap_uv = range.bias_y as i16 + range.range_uv as i16;
 
     let y_bias = _mm512_set1_epi16(bias_y);
     let uv_bias = _mm512_set1_epi16(bias_uv);
@@ -123,6 +123,8 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
             _mm512_extracti64x4_epi64::<1>(b_values),
         ));
 
+        let i_cap_y = _mm512_set1_epi16(cap_y);
+
         let y_l = _mm512_min_epi16(
             _mm512_add_epi16(
                 y_bias,
@@ -154,6 +156,8 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
         let y_yuv = avx512_pack_u16(y_l, y_h);
         _mm512_storeu_si512(y_ptr.add(cx) as *mut i32, y_yuv);
 
+        let i_cap_uv = _mm512_set1_epi16(cap_uv);
+
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm512_max_epi16(
                 _mm512_min_epi16(
@@ -169,7 +173,7 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr_l = _mm512_max_epi16(
                 _mm512_min_epi16(
@@ -185,7 +189,7 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cb_h = _mm512_max_epi16(
                 _mm512_min_epi16(
@@ -201,7 +205,7 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
             let cr_h = _mm512_max_epi16(
                 _mm512_min_epi16(
@@ -217,7 +221,7 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let cb = avx512_pack_u16(cb_l, cb_h);
@@ -247,7 +251,7 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let crk = _mm512_max_epi16(
@@ -264,7 +268,7 @@ unsafe fn avx512_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>
                     ),
                     i_cap_uv,
                 ),
-                i_bias_y,
+                y_bias,
             );
 
             let cb = avx512_pack_u16(cbk, cbk);

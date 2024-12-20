@@ -79,8 +79,6 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8>(
     let u_ptr = u_plane.as_ptr();
     let v_ptr = v_plane.as_ptr();
 
-    let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
@@ -91,6 +89,8 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8>(
     const SCALE: u32 = 2;
 
     while cx + 64 < width {
+        let y_corr = _mm512_set1_epi8(range.bias_y as i8);
+        let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
         let y_values0 = _mm512_subs_epu8(
             _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const i32),
             y_corr,

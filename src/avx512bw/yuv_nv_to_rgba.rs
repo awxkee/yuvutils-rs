@@ -136,8 +136,6 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
 
     const SCALE: u32 = 2;
 
-    let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
@@ -146,6 +144,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
     while cx + 32 < width {
+        let y_corr = _mm512_set1_epi8(range.bias_y as i8);
+        let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
         let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
