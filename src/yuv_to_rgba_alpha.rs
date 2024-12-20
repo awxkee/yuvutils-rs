@@ -102,6 +102,11 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         feature = "nightly_avx512"
     ))]
     let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -109,6 +114,15 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         neon_yuv_to_rgba_alpha_rdm::<DESTINATION_CHANNELS, SAMPLING>
     } else {
         neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+    };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_dispatch = if use_vbmi {
+        avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, true>
+    } else {
+        avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, false>
     };
 
     let process_wide_row =
@@ -120,7 +134,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 #[cfg(feature = "nightly_avx512")]
                 {
                     if use_avx512 {
-                        let processed = avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
+                        let processed = avx512_dispatch(
                             &chroma_range,
                             &inverse_transform,
                             _y_plane,

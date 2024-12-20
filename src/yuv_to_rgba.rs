@@ -130,6 +130,15 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     } else {
         avx512_yuv_to_rgba::<DESTINATION_CHANNELS, SAMPLING, false>
     };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_double_wide_row = if use_vbmi {
+        avx512_yuv_to_rgba420::<DESTINATION_CHANNELS, true>
+    } else {
+        avx512_yuv_to_rgba420::<DESTINATION_CHANNELS, false>
+    };
 
     let process_wide_row = |_y_plane: &[u8], _u_plane: &[u8], _v_plane: &[u8], _rgba: &mut [u8]| {
         let mut _cx = 0usize;
@@ -255,7 +264,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             {
                 #[cfg(feature = "nightly_avx512")]
                 if use_avx512 {
-                    let processed = avx512_yuv_to_rgba420::<DESTINATION_CHANNELS>(
+                    let processed = avx512_double_wide_row(
                         &chroma_range,
                         &inverse_transform,
                         _y_plane0,

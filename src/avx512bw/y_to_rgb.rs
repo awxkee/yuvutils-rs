@@ -27,22 +27,69 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_rgb_u8, avx512_rgba_u8};
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[target_feature(enable = "avx512bw")]
-pub(crate) unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
+pub(crate) fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8, const HAS_VBMI: bool>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
     rgba: &mut [u8],
     start_cx: usize,
-    y_offset: usize,
-    rgba_offset: usize,
+    width: usize,
+) -> usize {
+    unsafe {
+        if HAS_VBMI {
+            avx512_y_to_rgb_bmi_row::<DESTINATION_CHANNELS>(
+                range, transform, y_plane, rgba, start_cx, width,
+            )
+        } else {
+            avx512_y_to_rgb_def_row::<DESTINATION_CHANNELS>(
+                range, transform, y_plane, rgba, start_cx, width,
+            )
+        }
+    }
+}
+
+#[target_feature(enable = "avx512bw", enable = "avx512f")]
+unsafe fn avx512_y_to_rgb_def_row<const DESTINATION_CHANNELS: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
+        range, transform, y_plane, rgba, start_cx, width,
+    )
+}
+
+#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
+unsafe fn avx512_y_to_rgb_bmi_row<const DESTINATION_CHANNELS: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
+        range, transform, y_plane, rgba, start_cx, width,
+    )
+}
+
+#[inline(always)]
+unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBMI: bool>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
     width: usize,
 ) -> usize {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -59,7 +106,7 @@ pub(crate) unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
 
     while cx + 64 < width {
         let y_values = _mm512_subs_epi8(
-            _mm512_slli_epi16::<SCALE>(_mm512_loadu_si512(y_ptr.add(y_offset + cx) as *const i32)),
+            _mm512_slli_epi16::<SCALE>(_mm512_loadu_si512(y_ptr.add(cx) as *const i32)),
             y_corr,
         );
 
@@ -79,32 +126,15 @@ pub(crate) unsafe fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
 
         let r_values = avx512_pack_u16(r_low, r_high);
 
-        let dst_shift = rgba_offset + cx * channels;
+        let dst_shift = cx * channels;
 
-        match destination_channels {
-            YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-                let ptr = rgba_ptr.add(dst_shift);
-                avx512_rgb_u8(ptr, r_values, r_values, r_values);
-            }
-            YuvSourceChannels::Rgba => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    r_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-            YuvSourceChannels::Bgra => {
-                avx512_rgba_u8(
-                    rgba_ptr.add(dst_shift),
-                    r_values,
-                    r_values,
-                    r_values,
-                    v_alpha,
-                );
-            }
-        }
+        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+            rgba_ptr.add(dst_shift),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
 
         cx += 64;
     }

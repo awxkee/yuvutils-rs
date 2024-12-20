@@ -28,7 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx2_unzip_epi8, avx2_zip_epi8, avx512_pack_u16, avx512_store_u8,
+    avx2_unzip_epi8, avx512_pack_u16, avx512_store_u8, avx512_zip_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
@@ -54,13 +54,57 @@ pub(crate) fn avx512_yuv_nv_to_rgba420<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx512_yuv_nv_to_rgba_impl420::<UV_ORDER, DESTINATION_CHANNELS, HAS_VBMI>(
-            range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux, width,
-        )
+        if HAS_VBMI {
+            avx512_yuv_nv_to_rgba_bmi_impl420::<UV_ORDER, DESTINATION_CHANNELS>(
+                range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux,
+                width,
+            )
+        } else {
+            avx512_yuv_nv_to_rgba_def_impl420::<UV_ORDER, DESTINATION_CHANNELS>(
+                range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux,
+                width,
+            )
+        }
     }
 }
 
+#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
+unsafe fn avx512_yuv_nv_to_rgba_bmi_impl420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane0: &[u8],
+    y_plane1: &[u8],
+    uv_plane: &[u8],
+    rgba0: &mut [u8],
+    rgba1: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_yuv_nv_to_rgba_impl420::<UV_ORDER, DESTINATION_CHANNELS, true>(
+        range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux, width,
+    )
+}
+
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
+unsafe fn avx512_yuv_nv_to_rgba_def_impl420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane0: &[u8],
+    y_plane1: &[u8],
+    uv_plane: &[u8],
+    rgba0: &mut [u8],
+    rgba1: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_yuv_nv_to_rgba_impl420::<UV_ORDER, DESTINATION_CHANNELS, false>(
+        range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux, width,
+    )
+}
+
+#[inline(always)]
 unsafe fn avx512_yuv_nv_to_rgba_impl420<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
@@ -111,8 +155,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
 
         let (u_values0, v_values0) = avx2_unzip_epi8::<HAS_VBMI>(uv_values, _mm512_setzero_si512());
 
-        let (u_values, _) = avx2_zip_epi8::<HAS_VBMI>(u_values0, u_values0);
-        let (v_values, _) = avx2_zip_epi8::<HAS_VBMI>(v_values0, v_values0);
+        let (u_values, _) = avx512_zip_epi8::<HAS_VBMI>(u_values0, u_values0);
+        let (v_values, _) = avx512_zip_epi8::<HAS_VBMI>(v_values0, v_values0);
 
         match order {
             YuvNVOrder::UV => {
@@ -197,7 +241,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
 
         let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
-        avx512_store_u8::<DESTINATION_CHANNELS>(
+        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
             rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values0,
             g_values0,
@@ -205,7 +249,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
             v_alpha,
         );
 
-        avx512_store_u8::<DESTINATION_CHANNELS>(
+        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
             rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values1,
             g_values1,

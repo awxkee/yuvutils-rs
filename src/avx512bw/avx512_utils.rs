@@ -88,31 +88,28 @@ pub(crate) unsafe fn avx512_rgb_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m5
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_zip(a: __m512i, b: __m512i) -> (__m512i, __m512i) {
-    let low = _mm512_unpacklo_epi8(a, b);
-    let high = _mm512_unpackhi_epi8(a, b);
-    let ab0 = _mm512_permutex2var_epi64(low, _mm512_set_epi64(11, 10, 3, 2, 9, 8, 1, 0), high);
-    let ab1 = _mm512_permutex2var_epi64(low, _mm512_set_epi64(15, 14, 7, 6, 13, 12, 5, 4), high);
-    (ab0, ab1)
-}
-
-#[inline(always)]
-pub(crate) unsafe fn avx512_interleave_rgba(
+pub(crate) unsafe fn avx512_interleave_rgba<const HAS_VBMI: bool>(
     a: __m512i,
     b: __m512i,
     c: __m512i,
     d: __m512i,
 ) -> (__m512i, __m512i, __m512i, __m512i) {
-    let (br01, br23) = avx512_zip(a, c);
-    let (ga01, ga23) = avx512_zip(b, d);
-    let (bgra0, bgra1) = avx512_zip(br01, ga01);
-    let (bgra2, bgra3) = avx512_zip(br23, ga23);
+    let (br01, br23) = avx512_zip_epi8::<HAS_VBMI>(a, c);
+    let (ga01, ga23) = avx512_zip_epi8::<HAS_VBMI>(b, d);
+    let (bgra0, bgra1) = avx512_zip_epi8::<HAS_VBMI>(br01, ga01);
+    let (bgra2, bgra3) = avx512_zip_epi8::<HAS_VBMI>(br23, ga23);
     (bgra0, bgra1, bgra2, bgra3)
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_rgba_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m512i, d: __m512i) {
-    let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba(a, b, c, d);
+pub(crate) unsafe fn avx512_rgba_u8<const HAS_VBMI: bool>(
+    dst: *mut u8,
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+    d: __m512i,
+) {
+    let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
     _mm512_storeu_si512(dst as *mut i32, rgb0);
     _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
     _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
@@ -121,11 +118,11 @@ pub(crate) unsafe fn avx512_rgba_u8(dst: *mut u8, a: __m512i, b: __m512i, c: __m
 
 #[inline(always)]
 pub(crate) unsafe fn avx512_div_by255(v: __m512i) -> __m512i {
-    let rounding = _mm512_set1_epi16(1 << 7);
-    let x = _mm512_adds_epi16(v, rounding);
-    let multiplier = _mm512_set1_epi16(-32640);
-    let r = _mm512_mulhi_epu16(x, multiplier);
-    _mm512_srli_epi16::<7>(r)
+    let addition = _mm512_set1_epi16(127);
+    _mm512_srli_epi16::<8>(_mm512_add_epi16(
+        _mm512_add_epi16(v, addition),
+        _mm512_srli_epi16::<8>(v),
+    ))
 }
 
 #[inline(always)]
@@ -214,7 +211,7 @@ pub(crate) unsafe fn avx2_zip(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_store_u8<const DN: u8>(
+pub(crate) unsafe fn avx512_store_u8<const DN: u8, const HAS_VBMI: bool>(
     dst: *mut u8,
     r: __m512i,
     g: __m512i,
@@ -230,10 +227,10 @@ pub(crate) unsafe fn avx512_store_u8<const DN: u8>(
             avx512_rgb_u8(dst, b, g, r);
         }
         YuvSourceChannels::Rgba => {
-            avx512_rgba_u8(dst, r, g, b, a);
+            avx512_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
         }
         YuvSourceChannels::Bgra => {
-            avx512_rgba_u8(dst, b, g, r, a);
+            avx512_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
         }
     }
 }
@@ -272,7 +269,7 @@ pub(crate) unsafe fn avx2_unzip_epi8<const HAS_VBMI: bool>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx2_zip_epi8<const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_zip_epi8<const HAS_VBMI: bool>(
     a: __m512i,
     b: __m512i,
 ) -> (__m512i, __m512i) {
