@@ -672,9 +672,8 @@ pub(crate) unsafe fn sse_pairwise_avg_epi8(a: __m128i) -> __m128i {
 #[inline(always)]
 pub(crate) unsafe fn sse_pairwise_avg_epi16_epi8(a: __m128i, b: __m128i) -> __m128i {
     let v = _mm_avg_epu8(a, b);
-    let v1 = _mm_srli_epi16::<1>(_mm_add_epi16(
+    _mm_srli_epi16::<1>(_mm_add_epi16(
         _mm_maddubs_epi16(v, _mm_set1_epi8(1)),
         _mm_set1_epi16(1),
-    ));
-    v1
+    ))
 }

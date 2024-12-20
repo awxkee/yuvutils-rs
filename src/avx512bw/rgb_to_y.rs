@@ -34,7 +34,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8>(
+pub(crate) fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bool>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -43,14 +43,48 @@ pub(crate) fn avx512_row_rgb_to_y<const ORIGIN_CHANNELS: u8>(
     width: usize,
 ) -> usize {
     unsafe {
-        avx512_row_rgb_to_y_impl::<ORIGIN_CHANNELS>(
-            transform, range, y_plane, rgba, start_cx, width,
-        )
+        if HAS_VBMI {
+            avx512_row_rgb_to_y_bmi_impl::<ORIGIN_CHANNELS>(
+                transform, range, y_plane, rgba, start_cx, width,
+            )
+        } else {
+            avx512_row_rgb_to_y_def_impl::<ORIGIN_CHANNELS>(
+                transform, range, y_plane, rgba, start_cx, width,
+            )
+        }
     }
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
+unsafe fn avx512_row_rgb_to_y_def_impl<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: &mut [u8],
+    rgba: &[u8],
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    avx512_row_rgb_to_y_impl::<ORIGIN_CHANNELS, false>(
+        transform, range, y_plane, rgba, start_cx, width,
+    )
+}
+
+#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
+unsafe fn avx512_row_rgb_to_y_bmi_impl<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: &mut [u8],
+    rgba: &[u8],
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    avx512_row_rgb_to_y_impl::<ORIGIN_CHANNELS, true>(
+        transform, range, y_plane, rgba, start_cx, width,
+    )
+}
+
+#[inline(always)]
+unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bool>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -79,7 +113,7 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8>(
         let px = cx * channels;
 
         let (r_values, g_values, b_values) =
-            avx512_load_rgb_u8::<ORIGIN_CHANNELS, false>(rgba_ptr.add(px));
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
 
         let r_low =
             _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));

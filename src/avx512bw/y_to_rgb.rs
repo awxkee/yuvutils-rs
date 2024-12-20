@@ -78,7 +78,7 @@ unsafe fn avx512_y_to_rgb_bmi_row<const DESTINATION_CHANNELS: u8>(
     start_cx: usize,
     width: usize,
 ) -> usize {
-    avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
+    avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, true>(
         range, transform, y_plane, rgba, start_cx, width,
     )
 }
