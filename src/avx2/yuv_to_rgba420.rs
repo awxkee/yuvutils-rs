@@ -158,6 +158,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
         let r_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
         let b_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
         let g_low1 = _mm256_sub_epi16(y_low1, g_coeff_lo);
+
         let r_values0 = avx2_pack_u16(r_low0, r_high0);
         let g_values0 = avx2_pack_u16(g_low0, g_high0);
         let b_values0 = avx2_pack_u16(b_low0, b_high0);

@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::neon_vld_rgb16_for_yuv;
+use crate::neon::neon_simd_support::{neon_vld_rgb16_for_yuv, vtomsb_u16, vtomsbq_u16};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -85,8 +85,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = vdupq_n_s16(16 - BIT_DEPTH as i16);
-
     let i_bias_y = vdupq_n_u16(range.bias_y as u16);
     let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
@@ -117,7 +115,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
         );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = vshlq_u16(y_vl, v_shift_count);
+            y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -188,8 +186,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_vl = vshlq_u16(cb_vl, v_shift_count);
-                cr_vl = vshlq_u16(cr_vl, v_shift_count);
+                cb_vl = vtomsbq_u16::<BIT_DEPTH>(cb_vl);
+                cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -225,8 +223,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_s = vshl_u16(cb_s, vget_low_s16(v_shift_count));
-                cr_s = vshl_u16(cr_s, vget_low_s16(v_shift_count));
+                cb_s = vtomsb_u16::<BIT_DEPTH>(cb_s);
+                cr_s = vtomsb_u16::<BIT_DEPTH>(cr_s);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -303,8 +301,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = vdupq_n_s16(16 - BIT_DEPTH as i16);
-
     while cx + 8 < width {
         let src_ptr = rgba.get_unchecked(cx * channels..);
         let (mut r_values, mut g_values, mut b_values) =
@@ -322,7 +318,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
         let mut y_vl = vreinterpretq_u16_s16(vminq_s16(y_values, i_cap_y));
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = vshlq_u16(y_vl, v_shift_count);
+            y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -347,8 +343,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             let mut cr_vl = vreinterpretq_u16_s16(vminq_s16(vmaxq_s16(cr_h, i_bias_y), i_cap_uv));
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_vl = vshlq_u16(cb_vl, v_shift_count);
-                cr_vl = vshlq_u16(cr_vl, v_shift_count);
+                cb_vl = vtomsbq_u16::<BIT_DEPTH>(cb_vl);
+                cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -386,8 +382,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             ));
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb = vshl_u16(cb, vget_low_s16(v_shift_count));
-                cr = vshl_u16(cr, vget_low_s16(v_shift_count));
+                cb = vtomsb_u16::<BIT_DEPTH>(cb);
+                cr = vtomsb_u16::<BIT_DEPTH>(cr);
             }
 
             if endianness == YuvEndianness::BigEndian {

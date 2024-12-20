@@ -38,6 +38,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_rdm<
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
 >(
     y_ld_ptr: &[u16],
     rgba: &mut [u16],
@@ -45,7 +46,6 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_rdm<
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     start_cx: usize,
-    bit_depth: usize,
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -53,8 +53,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_rdm<
 
     let y_corr = vdupq_n_u16(range.bias_y as u16);
     let v_min_values = vdupq_n_s16(0i16);
-    let v_alpha = vdupq_n_u16((1 << bit_depth) - 1);
-    let v_msb_shift = vdupq_n_s16(bit_depth as i16 - 16);
+    let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
 
     let mut cx = start_cx;
 
@@ -62,9 +61,8 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_rdm<
 
     while cx + 8 < width as usize {
         let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
-            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
-                v_msb_shift,
             )),
             y_corr,
         ));
@@ -95,6 +93,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const PRECISION: i32,
+    const BIT_DEPTH: usize,
 >(
     y_ld_ptr: &[u16],
     rgba: &mut [u16],
@@ -102,7 +101,6 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     start_cx: usize,
-    bit_depth: usize,
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -110,17 +108,15 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
 
     let y_corr = vdupq_n_u16(range.bias_y as u16);
     let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
-    let v_alpha = vdupq_n_u16((1 << bit_depth) - 1);
-    let v_max_values = vdupq_n_s32((1 << bit_depth) - 1);
-    let v_msb_shift = vdupq_n_s16(bit_depth as i16 - 16);
+    let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
+    let v_max_values = vdupq_n_s32((1 << BIT_DEPTH) - 1);
 
     let mut cx = start_cx;
 
     while cx + 8 < width as usize {
         let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
-            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
-                v_msb_shift,
             )),
             y_corr,
         ));

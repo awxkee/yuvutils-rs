@@ -33,7 +33,14 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::avx2::avx_yuv_p16_to_rgba8_row;
+use crate::built_coefficients::get_built_inverse_transform;
+#[allow(dead_code, unused_imports)]
+use crate::internals::ProcessedOffset;
 use crate::numerics::to_ne;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::sse::sse_yuv_p16_to_rgba8_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
@@ -67,28 +74,38 @@ fn yuv_p16_to_image_ant<
     image.check_constraints(chroma_subsampling)?;
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
 
-    let range = get_yuv_range(BIT_DEPTH as u32, range);
+    let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p10 = (1u32 << BIT_DEPTH as u32) - 1;
-    const PRECISION: i32 = 12;
-    let transform = get_inverse_transform(
-        max_range_p10,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
-    );
-    let i_transform = transform.to_integers(PRECISION as u32);
+    const PRECISION: i32 = 13;
+    let i_transform = if let Some(stored) =
+        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, range, matrix)
+    {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            BIT_DEPTH as u32,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(PRECISION as u32)
+    };
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     #[inline(always)]
     /// Saturating rounding shift right against bit depth
@@ -102,6 +119,55 @@ fn yuv_p16_to_image_ant<
     let process_wide_row =
         |_y_plane: &[u16], _u_plane: &[u16], _v_plane: &[u16], _rgba: &mut [u8]| {
             let mut _cx = 0usize;
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                let mut _v_offset = ProcessedOffset { cx: 0, ux: 0 };
+                unsafe {
+                    if use_avx {
+                        let offset = avx_yuv_p16_to_rgba8_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            BIT_DEPTH,
+                            PRECISION,
+                        >(
+                            _y_plane,
+                            _u_plane,
+                            _v_plane,
+                            _rgba,
+                            image.width,
+                            &chroma_range,
+                            &i_transform,
+                            _v_offset.cx,
+                            _v_offset.ux,
+                        );
+                        _v_offset = offset;
+                    }
+                    if use_sse {
+                        let offset = sse_yuv_p16_to_rgba8_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            BIT_DEPTH,
+                            PRECISION,
+                        >(
+                            _y_plane,
+                            _u_plane,
+                            _v_plane,
+                            _rgba,
+                            image.width,
+                            &chroma_range,
+                            &i_transform,
+                            _v_offset.cx,
+                            _v_offset.ux,
+                        );
+                        _v_offset = offset;
+                    }
+                }
+                _cx = _v_offset.cx;
+            }
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 unsafe {
@@ -119,7 +185,7 @@ fn yuv_p16_to_image_ant<
                         _rgba,
                         0,
                         image.width,
-                        &range,
+                        &chroma_range,
                         &i_transform,
                         0,
                         0,

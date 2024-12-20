@@ -30,8 +30,12 @@ mod transpose;
 mod utils;
 mod y_to_rgb;
 mod yuv_nv_to_rgba;
+mod yuv_nv_to_rgba420;
 mod yuv_to_rgba;
+mod yuv_to_rgba420;
 
-pub use y_to_rgb::wasm_y_to_rgb_row;
-pub use yuv_nv_to_rgba::wasm_yuv_nv_to_rgba_row;
-pub use yuv_to_rgba::wasm_yuv_to_rgba_row;
+pub(crate) use y_to_rgb::wasm_y_to_rgb_row;
+pub(crate) use yuv_nv_to_rgba::wasm_yuv_nv_to_rgba_row;
+pub(super) use yuv_nv_to_rgba420::wasm_yuv_nv_to_rgba_row420;
+pub(crate) use yuv_to_rgba::wasm_yuv_to_rgba_row;
+pub(super) use yuv_to_rgba420::wasm_yuv_to_rgba_row420;

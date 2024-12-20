@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-yuvutils-rs = { path = "..", features = [] }
+yuvutils-rs = { path = "..", features = ["nightly_avx512"] }
 image = "0.25.5"
-yuv-sys = "0.3.6"
+yuv-sys = "0.3.7"
+
+[features]
+nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
 
 [dev-dependencies]
 criterion = "0.5.1"

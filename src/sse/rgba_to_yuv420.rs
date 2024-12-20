@@ -152,38 +152,32 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8>(
         let b1_low = _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(b_values1));
         let b1_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values1, zeros));
 
-        let y1_l = _mm_max_epi16(
-            _mm_min_epi16(
+        let y1_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
                 _mm_add_epi16(
-                    y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(
-                            _mm_mulhrs_epi16(r1_low, v_yr),
-                            _mm_mulhrs_epi16(g1_low, v_yg),
-                        ),
-                        _mm_mulhrs_epi16(b1_low, v_yb),
+                        _mm_mulhrs_epi16(r1_low, v_yr),
+                        _mm_mulhrs_epi16(g1_low, v_yg),
                     ),
+                    _mm_mulhrs_epi16(b1_low, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
-        let y1_h = _mm_max_epi16(
-            _mm_min_epi16(
+        let y1_h = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
                 _mm_add_epi16(
-                    y_bias,
                     _mm_add_epi16(
-                        _mm_add_epi16(
-                            _mm_mulhrs_epi16(r1_high, v_yr),
-                            _mm_mulhrs_epi16(g1_high, v_yg),
-                        ),
-                        _mm_mulhrs_epi16(b1_high, v_yb),
+                        _mm_mulhrs_epi16(r1_high, v_yr),
+                        _mm_mulhrs_epi16(g1_high, v_yg),
                     ),
+                    _mm_mulhrs_epi16(b1_high, v_yb),
                 ),
-                i_cap_y,
             ),
-            i_bias_y,
+            i_cap_y,
         );
 
         let y0_yuv = _mm_packus_epi16(y0_l, y0_h);

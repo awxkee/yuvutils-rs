@@ -28,7 +28,9 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{neon_store_half_rgb8, vld_s16_endian, vldq_s16_endian};
+use crate::neon::neon_simd_support::{
+    neon_store_half_rgb8, vld_s16_endian, vldq_s16_endian, vpackq_n_shift16,
+};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -75,17 +77,14 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
     let v_alpha = vdup_n_u8(255u8);
-    let v_msb_shift = vdupq_n_s16(BIT_DEPTH as i16 - 16);
-    let v_store_shift = vdupq_n_s16(8 - (BIT_DEPTH as i16));
 
     let mut cx = start_cx;
     let mut ux = start_ux;
 
     while cx + 8 < width as usize {
         let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
-            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
-                v_msb_shift,
             )),
             y_corr,
         ));
@@ -96,13 +95,11 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
         let v_low: int16x4_t;
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut u_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+            let mut u_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 u_ld_ptr.get_unchecked(ux..).as_ptr(),
-                v_msb_shift,
             );
-            let mut v_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+            let mut v_values_l = vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 v_ld_ptr.get_unchecked(ux..).as_ptr(),
-                v_msb_shift,
             );
 
             u_values_l = vsubq_s16(u_values_l, uv_corr);
@@ -113,13 +110,11 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
             v_high = vget_high_s16(v_values_l);
             v_low = vget_low_s16(v_values_l);
         } else {
-            let mut u_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+            let mut u_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 u_ld_ptr.get_unchecked(ux..).as_ptr(),
-                vget_low_s16(v_msb_shift),
             );
-            let mut v_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION>(
+            let mut v_values_l = vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 v_ld_ptr.get_unchecked(ux..).as_ptr(),
-                vget_low_s16(v_msb_shift),
             );
             u_values_l = vsub_s16(u_values_l, vget_low_s16(uv_corr));
             v_values_l = vsub_s16(v_values_l, vget_low_s16(uv_corr));
@@ -151,9 +146,9 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
             v_weights,
         ));
 
-        let r_values = vqmovn_u16(vqshlq_u16(vcombine_u16(r_low, r_high), v_store_shift));
-        let g_values = vqmovn_u16(vqshlq_u16(vcombine_u16(g_low, g_high), v_store_shift));
-        let b_values = vqmovn_u16(vqshlq_u16(vcombine_u16(b_low, b_high), v_store_shift));
+        let r_values = vpackq_n_shift16::<BIT_DEPTH>(vcombine_u16(r_low, r_high));
+        let g_values = vpackq_n_shift16::<BIT_DEPTH>(vcombine_u16(g_low, g_high));
+        let b_values = vpackq_n_shift16::<BIT_DEPTH>(vcombine_u16(b_low, b_high));
 
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
             dst_ptr.add(dst_offset + cx * channels),

@@ -34,7 +34,7 @@ use std::arch::x86::*;
 #[cfg(feature = "nightly_avx512")]
 use std::arch::x86_64::*;
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn _v512_set_epu32(
     a15: i64,
     a14: i64,
@@ -65,9 +65,7 @@ pub(crate) unsafe fn _v512_set_epu32(
     )
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
-#[allow(dead_code)]
 pub(crate) unsafe fn _v512_set_epu16(
     a31: i64,
     a30: i64,
@@ -122,7 +120,7 @@ pub(crate) unsafe fn _v512_set_epu16(
     )
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) unsafe fn _v512_set_epu8(
     a63: i64,
     a62: i64,
