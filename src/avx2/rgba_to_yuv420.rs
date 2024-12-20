@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx2_pairwise_wide_avg,
+    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx2_pairwise_avg_epi16_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -210,18 +210,15 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8>(
             y1_yuv,
         );
 
-        let r_uv = _mm256_slli_epi16::<V_SCALE>(_mm256_avg_epu16(
-            avx2_pairwise_wide_avg(r_values0),
-            avx2_pairwise_wide_avg(r_values1),
-        ));
-        let g_uv = _mm256_slli_epi16::<V_SCALE>(_mm256_avg_epu16(
-            avx2_pairwise_wide_avg(g_values0),
-            avx2_pairwise_wide_avg(g_values1),
-        ));
-        let b_uv = _mm256_slli_epi16::<V_SCALE>(_mm256_avg_epu16(
-            avx2_pairwise_wide_avg(b_values0),
-            avx2_pairwise_wide_avg(b_values1),
-        ));
+        let r_uv = _mm256_slli_epi16::<V_SCALE>(avx2_pairwise_avg_epi16_epi8(_mm256_avg_epu16(
+            r_values0, r_values1,
+        )));
+        let g_uv = _mm256_slli_epi16::<V_SCALE>(avx2_pairwise_avg_epi16_epi8(_mm256_avg_epu16(
+            g_values0, g_values1,
+        )));
+        let b_uv = _mm256_slli_epi16::<V_SCALE>(avx2_pairwise_avg_epi16_epi8(_mm256_avg_epu16(
+            b_values0, b_values1,
+        )));
 
         let cb = _mm256_max_epi16(
             _mm256_min_epi16(

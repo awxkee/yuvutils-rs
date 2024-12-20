@@ -29,6 +29,7 @@
 
 use crate::avx2::avx2_utils::{
     _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16,
+    avx_pairwise_avg_epi16_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -228,9 +229,9 @@ unsafe fn avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = avx_pairwise_avg_epi16(r_low, r_high);
-            let g1 = avx_pairwise_avg_epi16(g_low, g_high);
-            let b1 = avx_pairwise_avg_epi16(b_low, b_high);
+            let r1 = avx_pairwise_avg_epi16_epi8(r_values);
+            let g1 = avx_pairwise_avg_epi16_epi8(g_values);
+            let b1 = avx_pairwise_avg_epi16_epi8(b_values);
             let cb = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_add_epi16(

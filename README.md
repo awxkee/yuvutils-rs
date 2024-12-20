@@ -90,12 +90,12 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 
 | Conversion             | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) |
 |------------------------|:----------:|:--------------:|:----------:|:-------------:|
-| utils RGB->YUV 4:2:0   |   3.16ms   |     5.54ms     |  16.28ms   |    8.93ms     |
-| libyuv RGB->YUV 4:2:0  |   3.58ms   |    34.30ms     |  17.64ms   |    12.83ms    |
-| utils RGBA->YUV 4:2:0  |   4.04ms   |     5.78ms     |  12.63ms   |    10.27ms    |
+| utils RGB->YUV 4:2:0   |   3.16ms   |     5.54ms     |  16.28ms   |    8.90ms     |
+| libyuv RGB->YUV 4:2:0  |   3.58ms   |    34.30ms     |  17.64ms   |    12.78ms    |
+| utils RGBA->YUV 4:2:0  |   4.04ms   |     5.78ms     |  12.63ms   |    10.43ms    |
 | libyuv RGBA->YUV 4:2:0 |   4.87ms   |    25.29ms     |  11.27ms   |    10.73ms    |
-| utils RGBA->YUV 4:2:2  |   4.34ms   |     7.35ms     |  24.02ms   |    18.53ms    |
-| libyuv RGBA->YUV 4:2:2 |   5.90ms   |    37.65ms     |  19.43ms   |    17.94ms    |
+| utils RGBA->YUV 4:2:2  |   4.34ms   |     7.35ms     |  24.02ms   |    18.46ms    |
+| libyuv RGBA->YUV 4:2:2 |   5.90ms   |    37.65ms     |  19.43ms   |    18.07ms    |
 | utils RGBA->YUV 4:4:4  |   4.49ms   |     8.97ms     |  29.18ms   |    22.08ms    |
 
 ### Decoding 8-bit
