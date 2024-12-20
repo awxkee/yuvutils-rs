@@ -140,14 +140,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     };
 
     #[allow(unused_variables)]
-    let process_wide_row = |y_plane: &mut [u8],
-                            u_plane: &mut [u8],
-                            v_plane: &mut [u8],
-                            rgba: &[u8],
-                            cx,
-                            ux,
-                            compute_uv_row| {
-        let mut _offset = ProcessedOffset { ux: cx, cx: ux };
+    let process_wide_row = |_y_plane: &mut [u8],
+                            _u_plane: &mut [u8],
+                            _v_plane: &mut [u8],
+                            _rgba: &[u8],
+                            _cx,
+                            _ux,
+                            _compute_uv_row| {
+        let mut _offset = ProcessedOffset { ux: _cx, cx: _ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             #[cfg(feature = "nightly_avx512")]
@@ -156,10 +156,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     let processed_offset = avx512_row_dispatch(
                         &transform,
                         &chroma_range,
-                        y_plane,
-                        u_plane,
-                        v_plane,
-                        rgba,
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _rgba,
                         _offset.cx,
                         _offset.ux,
                         image.width as usize,
@@ -172,10 +172,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &chroma_range,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
                     _offset.cx,
                     _offset.ux,
                     image.width as usize,
@@ -187,10 +187,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
                     &transform,
                     &chroma_range,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
                     _offset.cx,
                     _offset.ux,
                     image.width as usize,
@@ -204,10 +204,10 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let offset = neon_wide_row_handler(
                 &transform,
                 &chroma_range,
-                y_plane,
-                u_plane,
-                v_plane,
-                rgba,
+                _y_plane,
+                _u_plane,
+                _v_plane,
+                _rgba,
                 _offset.cx,
                 _offset.ux,
                 image.width as usize,
