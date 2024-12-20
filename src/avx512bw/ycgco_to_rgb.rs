@@ -27,9 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{
-    avx512_pack_u16, avx512_store_u8, shuffle,
-};
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8, shuffle};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
