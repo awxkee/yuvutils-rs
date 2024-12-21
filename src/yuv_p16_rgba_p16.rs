@@ -28,6 +28,11 @@
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx_yuv_p16_to_rgba_row;
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
+use crate::avx512bw::avx512_yuv_p16_to_rgba16_row;
 use crate::built_coefficients::get_built_inverse_transform;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
@@ -119,6 +124,11 @@ fn yuv_p16_to_image_p16_ant<
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
 
     let bias_y = chroma_range.bias_y as i32;
     let bias_uv = chroma_range.bias_uv as i32;
@@ -148,6 +158,30 @@ fn yuv_p16_to_image_p16_ant<
             {
                 let mut v_offset = ProcessedOffset { cx: 0, ux: 0 };
                 unsafe {
+                    #[cfg(feature = "nightly_avx512")]
+                    if use_avx512 && BIT_DEPTH <= 12 {
+                        let offset = avx512_yuv_p16_to_rgba16_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            BIT_DEPTH,
+                            PRECISION,
+                        >(
+                            _y_plane,
+                            _u_plane,
+                            _v_plane,
+                            _rgba,
+                            image.width,
+                            &chroma_range,
+                            &i_transform,
+                            v_offset.cx,
+                            v_offset.ux,
+                        );
+                        v_offset = offset;
+                        _cx = v_offset.cx;
+                    }
+
                     if use_avx && BIT_DEPTH <= 12 {
                         let offset = avx_yuv_p16_to_rgba_row::<
                             DESTINATION_CHANNELS,

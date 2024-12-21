@@ -30,6 +30,6 @@
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub(crate) struct ProcessedOffset {
-    pub cx: usize,
-    pub ux: usize,
+    pub(crate) cx: usize,
+    pub(crate) ux: usize,
 }
