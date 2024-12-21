@@ -101,20 +101,17 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
-    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420_p16(
+    rgb_to_yuv420(
         &mut planar_image,
-        &bytes_16,
+        &src_bytes,
         rgba_stride as u32,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::BigEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -266,15 +263,12 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv420_p16_to_rgb16(
+    yuv420_to_rgb(
         &fixed_planar,
-        &mut bytes_16,
+        &mut rgba,
         rgba_stride as u32,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::BigEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
@@ -340,7 +334,7 @@ fn main() {
 
     // /    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
 
-    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
         "converted_sharp15.jpg",
