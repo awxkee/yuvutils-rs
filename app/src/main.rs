@@ -106,7 +106,7 @@ fn main() {
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv422_p16(
+    rgb_to_yuv420_p16(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
@@ -266,7 +266,7 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv422_p16_to_rgb16(
+    yuv420_p16_to_rgb16(
         &fixed_planar,
         &mut bytes_16,
         rgba_stride as u32,
