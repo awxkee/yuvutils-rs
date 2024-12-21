@@ -113,7 +113,7 @@ fn main() {
         10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::BigEndian,
+        YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
@@ -273,7 +273,7 @@ fn main() {
         10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::BigEndian,
+        YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
