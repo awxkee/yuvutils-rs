@@ -27,7 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::avx2::avx2_utils::{
-    _mm256_havg_epi16_epi32, _mm256_load_deinterleave_rgb16_for_yuv, avx2_pack_u32, avx_avg_epi16,
+    _mm256_havg_epi16_epi32, _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16,
+    avx2_pack_u32, avx_avg_epi16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -126,8 +127,6 @@ unsafe fn avx_rgba_to_yuv_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
-
     let i_bias_y = _mm256_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm256_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
     let i_cap_uv = _mm256_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
@@ -161,7 +160,7 @@ unsafe fn avx_rgba_to_yuv_impl<
         );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm256_sll_epi16(y_vl, v_shift_count);
+            y_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -213,8 +212,8 @@ unsafe fn avx_rgba_to_yuv_impl<
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_vl = _mm256_sll_epi16(cb_vl, v_shift_count);
-                cr_vl = _mm256_sll_epi16(cr_vl, v_shift_count);
+                cb_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_vl);
+                cr_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -262,8 +261,8 @@ unsafe fn avx_rgba_to_yuv_impl<
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_s = _mm256_sll_epi16(cb_s, v_shift_count);
-                cr_s = _mm256_sll_epi16(cr_s, v_shift_count);
+                cb_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_s);
+                cr_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_s);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -376,8 +375,6 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
-
     let i_cap_y = _mm256_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
     let i_cap_uv = _mm256_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
 
@@ -399,7 +396,7 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
         let mut y_vl = _mm256_min_epu16(y_h, i_cap_y);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm256_sll_epi16(y_vl, v_shift_count);
+            y_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -425,8 +422,8 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
             let mut cr_vl = _mm256_max_epu16(_mm256_min_epu16(cr_h, i_cap_uv), y_bias);
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_vl = _mm256_sll_epi16(cb_vl, v_shift_count);
-                cr_vl = _mm256_sll_epi16(cr_vl, v_shift_count);
+                cb_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_vl);
+                cr_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -462,8 +459,8 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
             let mut cr_s = _mm256_max_epu16(_mm256_min_epu16(cr_h, i_cap_uv), y_bias);
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_s = _mm256_sll_epi16(cb_s, v_shift_count);
-                cr_s = _mm256_sll_epi16(cr_s, v_shift_count);
+                cb_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_s);
+                cr_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_s);
             }
 
             if endianness == YuvEndianness::BigEndian {

@@ -331,12 +331,10 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+// Horizontal avg in epi16
 pub(crate) unsafe fn avx_avg_epi16(a: __m256i) -> __m256i {
-    let sums = _mm256_madd_epi16(a, _mm256_set1_epi16(1));
-    let shifted = _mm256_srli_epi32::<1>(_mm256_add_epi32(sums, _mm256_set1_epi32(1)));
-    let a = _mm256_packus_epi32(shifted, shifted);
-    const MASK: i32 = shuffle(3, 1, 2, 0);
-    _mm256_permute4x64_epi64::<MASK>(a)
+    let sums = _mm256_hadd_epi16(a, a);
+    _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
 }
 
 #[inline(always)]
@@ -800,6 +798,19 @@ pub(crate) unsafe fn _mm256_from_msb_epi16<const BIT_DEPTH: usize>(a: __m256i) -
         _mm256_srli_epi16::<4>(a)
     } else if BIT_DEPTH == 14 {
         _mm256_srli_epi16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_to_msb_epi16<const BIT_DEPTH: usize>(a: __m256i) -> __m256i {
+    if BIT_DEPTH == 10 {
+        _mm256_slli_epi16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm256_slli_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm256_slli_epi16::<2>(a)
     } else {
         a
     }
