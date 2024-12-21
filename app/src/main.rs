@@ -113,7 +113,7 @@ fn main() {
         10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
+        YuvEndianness::BigEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
@@ -266,14 +266,14 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv422_p16_to_rgb(
+    yuv422_p16_to_rgb16(
         &fixed_planar,
-        &mut rgba,
+        &mut bytes_16,
         rgba_stride as u32,
         10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
+        YuvEndianness::BigEndian,
         YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
@@ -340,7 +340,7 @@ fn main() {
 
     // /    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
 
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
         "converted_sharp15.jpg",
