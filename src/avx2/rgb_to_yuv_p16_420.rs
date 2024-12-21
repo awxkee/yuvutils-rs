@@ -177,9 +177,7 @@ unsafe fn avx_rgba_to_yuv_impl<
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y0_vl = _mm256_sll_epi16(y0_vl, v_shift_count);
-            y0_vl = _mm256_permute2x128_si256::<0x01>(y0_vl, y0_vl);
             y1_vl = _mm256_sll_epi16(y1_vl, v_shift_count);
-            y1_vl = _mm256_permute2x128_si256::<0x01>(y1_vl, y1_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -227,9 +225,7 @@ unsafe fn avx_rgba_to_yuv_impl<
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             cb_s = _mm256_sll_epi16(cb_s, v_shift_count);
-            cb_s = _mm256_permute2x128_si256::<0x01>(cb_s, cb_s);
             cr_s = _mm256_sll_epi16(cr_s, v_shift_count);
-            cr_s = _mm256_permute2x128_si256::<0x01>(cr_s, cr_s);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -370,9 +366,7 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y0_vl = _mm256_sll_epi16(y0_vl, v_shift_count);
-            y0_vl = _mm256_permute2x128_si256::<0x01>(y0_vl, y0_vl);
             y1_vl = _mm256_sll_epi16(y1_vl, v_shift_count);
-            y1_vl = _mm256_permute2x128_si256::<0x01>(y1_vl, y1_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -408,9 +402,7 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             cb_s = _mm256_sll_epi16(cb_s, v_shift_count);
-            cb_s = _mm256_permute2x128_si256::<0x01>(cb_s, cb_s);
             cr_s = _mm256_sll_epi16(cr_s, v_shift_count);
-            cr_s = _mm256_permute2x128_si256::<0x01>(cr_s, cr_s);
         }
 
         if endianness == YuvEndianness::BigEndian {

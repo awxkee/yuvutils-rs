@@ -162,7 +162,6 @@ unsafe fn avx_rgba_to_yuv_impl<
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm256_sll_epi16(y_vl, v_shift_count);
-            y_vl = _mm256_permute2x128_si256::<0x01>(y_vl, y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -215,9 +214,7 @@ unsafe fn avx_rgba_to_yuv_impl<
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_vl = _mm256_sll_epi16(cb_vl, v_shift_count);
-                cb_vl = _mm256_permute2x128_si256::<0x01>(cb_vl, cb_vl);
                 cr_vl = _mm256_sll_epi16(cr_vl, v_shift_count);
-                cr_vl = _mm256_permute2x128_si256::<0x01>(cr_vl, cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -266,9 +263,7 @@ unsafe fn avx_rgba_to_yuv_impl<
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_s = _mm256_sll_epi16(cb_s, v_shift_count);
-                cb_s = _mm256_permute2x128_si256::<0x01>(cb_s, cb_s);
                 cr_s = _mm256_sll_epi16(cr_s, v_shift_count);
-                cr_s = _mm256_permute2x128_si256::<0x01>(cr_s, cr_s);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -405,7 +400,6 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm256_sll_epi16(y_vl, v_shift_count);
-            y_vl = _mm256_permute2x128_si256::<0x01>(y_vl, y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -432,9 +426,7 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_vl = _mm256_sll_epi16(cb_vl, v_shift_count);
-                cb_vl = _mm256_permute2x128_si256::<0x01>(cb_vl, cb_vl);
                 cr_vl = _mm256_sll_epi16(cr_vl, v_shift_count);
-                cr_vl = _mm256_permute2x128_si256::<0x01>(cr_vl, cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -471,9 +463,7 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_s = _mm256_sll_epi16(cb_s, v_shift_count);
-                cb_s = _mm256_permute2x128_si256::<0x01>(cb_s, cb_s);
                 cr_s = _mm256_sll_epi16(cr_s, v_shift_count);
-                cr_s = _mm256_permute2x128_si256::<0x01>(cr_s, cr_s);
             }
 
             if endianness == YuvEndianness::BigEndian {
