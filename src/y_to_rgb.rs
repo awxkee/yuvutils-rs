@@ -26,6 +26,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::avx2::avx2_y_to_rgba_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -38,6 +40,8 @@ use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_y_to_rgb_row, neon_y_to_rgb_row_rdm};
 use crate::numerics::qrshr;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use crate::sse::sse_y_to_rgba_row;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_y_to_rgb_row;
 use crate::yuv_error::check_rgba_destination;
@@ -92,6 +96,11 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     let bias_y = chroma_range.bias_y as i32;
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
@@ -140,6 +149,30 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             ))]
             if use_avx512 {
                 let processed = avx512_dispatch(
+                    &chroma_range,
+                    &inverse_transform,
+                    y_plane,
+                    rgba,
+                    _cx,
+                    image.width as usize,
+                );
+                _cx = processed;
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if use_avx {
+                let processed = avx2_y_to_rgba_row::<DESTINATION_CHANNELS>(
+                    &chroma_range,
+                    &inverse_transform,
+                    y_plane,
+                    rgba,
+                    _cx,
+                    image.width as usize,
+                );
+                _cx = processed;
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if use_sse {
+                let processed = sse_y_to_rgba_row::<DESTINATION_CHANNELS>(
                     &chroma_range,
                     &inverse_transform,
                     y_plane,

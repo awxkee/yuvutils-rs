@@ -27,14 +27,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8};
+use crate::sse::{_mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8, const HAS_VBMI: bool>(
+pub(crate) fn sse_y_to_rgba_row<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -43,48 +43,14 @@ pub(crate) fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8, const HAS_VBMI
     width: usize,
 ) -> usize {
     unsafe {
-        if HAS_VBMI {
-            avx512_y_to_rgb_bmi_row::<DESTINATION_CHANNELS>(
-                range, transform, y_plane, rgba, start_cx, width,
-            )
-        } else {
-            avx512_y_to_rgb_def_row::<DESTINATION_CHANNELS>(
-                range, transform, y_plane, rgba, start_cx, width,
-            )
-        }
+        sse_y_to_rgba_row_impl::<DESTINATION_CHANNELS>(
+            range, transform, y_plane, rgba, start_cx, width,
+        )
     }
 }
 
-#[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_y_to_rgb_def_row<const DESTINATION_CHANNELS: u8>(
-    range: &YuvChromaRange,
-    transform: &CbCrInverseTransform<i32>,
-    y_plane: &[u8],
-    rgba: &mut [u8],
-    start_cx: usize,
-    width: usize,
-) -> usize {
-    avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
-        range, transform, y_plane, rgba, start_cx, width,
-    )
-}
-
-#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
-unsafe fn avx512_y_to_rgb_bmi_row<const DESTINATION_CHANNELS: u8>(
-    range: &YuvChromaRange,
-    transform: &CbCrInverseTransform<i32>,
-    y_plane: &[u8],
-    rgba: &mut [u8],
-    start_cx: usize,
-    width: usize,
-) -> usize {
-    avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, true>(
-        range, transform, y_plane, rgba, start_cx, width,
-    )
-}
-
-#[inline(always)]
-unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBMI: bool>(
+#[target_feature(enable = "sse4.1")]
+unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -96,47 +62,70 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
     let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;
+
     let y_ptr = y_plane.as_ptr();
     let rgba_ptr = rgba.as_mut_ptr();
 
-    let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
-    let v_alpha = _mm512_set1_epi8(255u8 as i8);
-    const SCALE: u32 = 2;
+    const SCALE: i32 = 2;
 
-    while cx + 64 < width {
-        let y_values = _mm512_slli_epi16::<SCALE>(_mm512_subs_epi8(
-            _mm512_loadu_si512(y_ptr.add(cx) as *const i32),
-            y_corr,
-        ));
+    let y_corr = _mm_set1_epi8(range.bias_y as i8);
+    let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
 
-        let y_high = _mm512_mulhrs_epi16(
-            _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(y_values)),
+    let zeros = _mm_setzero_si128();
+
+    while cx + 16 < width {
+        let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
+
+        let v_high = _mm_mulhrs_epi16(
+            _mm_slli_epi16::<SCALE>(_mm_unpackhi_epi8(y_values, zeros)),
             v_luma_coeff,
         );
 
-        let r_high = y_high;
-
-        let y_low = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values))),
+        let v_low = _mm_mulhrs_epi16(
+            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values)),
             v_luma_coeff,
         );
 
-        let r_low = y_low;
-
-        let r_values = avx512_pack_u16(r_low, r_high);
+        let v_values = _mm_packus_epi16(v_low, v_high);
 
         let dst_shift = cx * channels;
 
-        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+        let v_alpha = _mm_set1_epi8(255u8 as i8);
+
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
             rgba_ptr.add(dst_shift),
-            r_values,
-            r_values,
-            r_values,
+            v_values,
+            v_values,
+            v_values,
             v_alpha,
         );
 
-        cx += 64;
+        cx += 16;
+    }
+
+    while cx + 8 < width {
+        let y_values = _mm_subs_epi8(_mm_loadu_si64(y_ptr.add(cx)), y_corr);
+
+        let v_low = _mm_mulhrs_epi16(
+            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values)),
+            v_luma_coeff,
+        );
+
+        let v_values = _mm_packus_epi16(v_low, zeros);
+
+        let dst_shift = cx * channels;
+
+        let v_alpha = _mm_set1_epi8(255u8 as i8);
+
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            v_values,
+            v_values,
+            v_values,
+            v_alpha,
+        );
+
+        cx += 8;
     }
 
     cx
