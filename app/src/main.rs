@@ -56,7 +56,7 @@ fn main() {
         .decode()
         .unwrap();
 
-    let img = DynamicImage::ImageRgb8(img.to_rgb8());
+    let img = DynamicImage::ImageRgba8(img.to_rgba8());
 
     let dimensions = img.dimensions();
 
