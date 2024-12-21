@@ -179,8 +179,8 @@ pub(crate) unsafe fn avx512_put_rgb_u8<const HAS_VBMI: bool>(
 pub(crate) unsafe fn avx512_put_rgb16(dst: *mut u16, a: __m512i, b: __m512i, c: __m512i) {
     let (rgb0, rgb1, rgb2) = avx512_interleave_rgb16(a, b, c);
     _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
+    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
 }
 
 #[inline(always)]
@@ -285,9 +285,9 @@ pub(crate) unsafe fn avx512_put_rgba16(
 ) {
     let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba16(a, b, c, d);
     _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
-    _mm512_storeu_si512(dst.add(128 + 64) as *mut i32, rgb3);
+    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
+    _mm512_storeu_si512(dst.add(96) as *mut i32, rgb3);
 }
 
 #[inline(always)]

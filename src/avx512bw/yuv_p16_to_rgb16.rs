@@ -217,6 +217,7 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
         );
 
         cx += 32;
+
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 ux += 16;
