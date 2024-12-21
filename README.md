@@ -137,9 +137,9 @@ cargo +nightly bench --bench yuv16 --manifest-path ./app/Cargo.toml --features n
 | libyuv RGB10->YUV10 4:2:0  |     x      |        x        |     x      |       x       |
 | utils RGBA10->YUV10 4:2:0  |  674.12µs  |    807.89µs     |   3.66ms   |    1.64ms     |
 | libyuv RGBA10->YUV10 4:2:0 |     x      |        x        |     x      |       x       |
-| utils RGBA10->YUV10 4:2:2  |  838.82µs  |    1.1179ms     |   6.33ms   |    2.06ms     |
+| utils RGBA10->YUV10 4:2:2  |  838.82µs  |    1.1179ms     |   6.33ms   |    1.83ms     |
 | libyuv RGBA10->YUV10 4:2:2 |     x      |        x        |     x      |       x       |
-| utils RGBA10->YUV10 4:4:4  | 659.93 µs  |    1.1773ms     |   5.22ms   |    2.16ms     |
+| utils RGBA10->YUV10 4:4:4  | 659.93 µs  |    1.1773ms     |   5.22ms   |    2.03ms     |
 
 ### Decoding 10-bit
 
