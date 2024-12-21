@@ -30,15 +30,15 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use std::alloc::Layout;
 use yuv_sys::{
-    rs_ABGRToI420, rs_ABGRToJ422, rs_I420ToABGR, rs_I420ToRGB24, rs_I422ToABGR, rs_I444ToABGR,
-    rs_NV21ToABGR, rs_RGB24ToI420,
+    rs_ABGRToI420, rs_ABGRToJ422, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24, rs_I422ToABGR,
+    rs_I444ToABGR, rs_NV21ToABGR, rs_RGB24ToI420,
 };
 use yuvutils_rs::{
-    gbr_to_rgba, rgb_to_gbr, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12,
-    rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, yuv420_to_rgb, yuv420_to_rgba,
-    yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb,
-    yuv_nv16_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
+    rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
+    yuv400_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgb,
+    yuv_nv12_to_rgba, yuv_nv16_to_rgb, yuv_nv16_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling,
+    YuvGrayImage, YuvGrayImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -63,7 +63,18 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut bi_planar_image422 =
         YuvBiPlanarImageMut::<u8>::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv422);
 
+    let mut gray_image = YuvGrayImageMut::<u8>::alloc(dimensions.0, dimensions.1);
+
     rgb_to_gbr(&mut gbr_image, &src_bytes, stride as u32, YuvRange::Limited).unwrap();
+
+    rgb_to_yuv400(
+        &mut gray_image,
+        &src_bytes,
+        stride as u32,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
 
     rgb_to_yuv420(
         &mut planar_image,
@@ -100,6 +111,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let rgba_image = img.to_rgba8();
     let fixed_gbr = gbr_image.to_fixed();
+
+    let fixed_gray = gray_image.to_fixed();
 
     c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
@@ -493,6 +506,34 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 as i32 * 4i32,
                 fixed_planar444.width as i32,
                 fixed_planar444.height as i32,
+            );
+        })
+    });
+
+    c.bench_function("yuvutils YUV400 -> RGBA", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv400_to_rgba(
+                &fixed_gray,
+                &mut rgb_bytes,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("libyuv YUV 4:0:0 -> RGBA", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| unsafe {
+            rs_I400ToARGB(
+                fixed_planar.y_plane.as_ptr(),
+                fixed_planar.y_stride as i32,
+                rgb_bytes.as_mut_ptr(),
+                dimensions.0 as i32 * 4i32,
+                fixed_planar.width as i32,
+                fixed_planar.height as i32,
             );
         })
     });

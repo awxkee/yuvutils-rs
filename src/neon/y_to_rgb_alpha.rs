@@ -27,7 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::{neon_store_rgb8, vmullq_laneq_s16, xvld1q_u8_x2};
+use crate::neon::neon_simd_support::{
+    neon_store_half_rgb8, neon_store_rgb8, vmullq_laneq_s16, xvld1q_u8_x2,
+};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -146,6 +148,31 @@ pub(crate) unsafe fn neon_y_to_rgb_row_alpha_rdm<const DESTINATION_CHANNELS: u8>
         );
 
         cx += 16;
+    }
+
+    while cx + 8 < width {
+        let y_values = vqsub_u8(vld1_u8(y_ptr.add(cx)), vget_low_u8(y_corr));
+
+        let y_low = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(y_values)),
+            transform.y_coef as i16,
+        );
+
+        let r_vl = vqmovun_s16(y_low);
+
+        let dst_shift = cx * channels;
+
+        let a_vals = vld1_u8(a_plane.get_unchecked(cx..).as_ptr());
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_vl,
+            r_vl,
+            r_vl,
+            a_vals,
+        );
+
+        cx += 8;
     }
 
     cx
@@ -285,6 +312,31 @@ pub(crate) unsafe fn neon_y_to_rgb_alpha_row<
         );
 
         cx += 16;
+    }
+
+    while cx + 8 < width {
+        let y_values = vqsub_u8(vld1_u8(y_ptr.add(cx)), vget_low_u8(y_corr));
+
+        let y_low = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_u8(y_values)), v_luma_coeff);
+
+        let r_vl = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_low.0),
+            vrshrn_n_s32::<PRECISION>(y_low.1),
+        ));
+
+        let dst_shift = cx * channels;
+
+        let a_vals = vld1_u8(a_plane.get_unchecked(cx..).as_ptr());
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            rgba_ptr.add(dst_shift),
+            r_vl,
+            r_vl,
+            r_vl,
+            a_vals,
+        );
+
+        cx += 8;
     }
 
     cx
