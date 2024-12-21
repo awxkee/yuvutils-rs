@@ -331,10 +331,11 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 }
 
 #[inline(always)]
-// Horizontal avg in epi16
+// Horizontal avg in epi32
 pub(crate) unsafe fn avx_avg_epi16(a: __m256i) -> __m256i {
-    let sums = _mm256_hadd_epi16(a, a);
-    _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
+    let sums = _mm256_madd_epi16(a, _mm256_set1_epi16(1));
+    let p = _mm256_srli_epi32::<1>(_mm256_add_epi32(sums, _mm256_set1_epi32(1)));
+    avx2_pack_u32(p, p)
 }
 
 #[inline(always)]
