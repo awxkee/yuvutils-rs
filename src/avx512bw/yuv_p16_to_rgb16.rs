@@ -115,7 +115,6 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
     let v_luma_coeff = _mm512_set1_epi16(y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(cb_coef as i16);
-    let zeros = _mm512_setzero_si512();
     let v_g_coeff_1 = _mm512_set1_epi16(-(g_coef_1 as i16));
     let v_g_coeff_2 = _mm512_set1_epi16(-(g_coef_2 as i16));
 
@@ -203,6 +202,8 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
         );
 
         let v_max_colors = _mm512_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
+
+        let zeros = _mm512_setzero_si512();
 
         let r_values = _mm512_min_epu16(_mm512_max_epi16(r_vals, zeros), v_max_colors);
         let g_values = _mm512_min_epu16(_mm512_max_epi16(g_vals, zeros), v_max_colors);
