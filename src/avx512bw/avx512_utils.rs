@@ -78,7 +78,7 @@ pub(crate) unsafe fn avx512_interleave_rgb16(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_deinterleave_rgb16<const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_deinterleave_rgb16(
     a: __m512i,
     b: __m512i,
     c: __m512i,
