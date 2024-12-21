@@ -336,137 +336,137 @@ unsafe fn avx512_rgba_to_yuv_impl<
         cx += 64;
     }
 
-    // while cx + 32 < width {
-    //     let px = cx * channels;
-    //
-    //     let (r_values, g_values, b_values) =
-    //         avx512_load_half_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
-    //
-    //     let r_low =
-    //         _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));
-    //     let g_low =
-    //         _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values)));
-    //     let b_low =
-    //         _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values)));
-    //
-    //     let i_cap_y = _mm512_set1_epi16(cap_y);
-    //
-    //     let y_l = _mm512_min_epi16(
-    //         _mm512_add_epi16(
-    //             y_bias,
-    //             _mm512_add_epi16(
-    //                 _mm512_add_epi16(
-    //                     _mm512_mulhrs_epi16(r_low, v_yr),
-    //                     _mm512_mulhrs_epi16(g_low, v_yg),
-    //                 ),
-    //                 _mm512_mulhrs_epi16(b_low, v_yb),
-    //             ),
-    //         ),
-    //         i_cap_y,
-    //     );
-    //
-    //     let y_yuv = avx512_pack_u16(y_l, _mm512_setzero_si512());
-    //     _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, _mm512_castsi512_si256(y_yuv));
-    //
-    //     let i_cap_uv = _mm512_set1_epi16(cap_uv);
-    //
-    //     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-    //         let cb_l = _mm512_max_epi16(
-    //             _mm512_min_epi16(
-    //                 _mm512_add_epi16(
-    //                     uv_bias,
-    //                     _mm512_add_epi16(
-    //                         _mm512_add_epi16(
-    //                             _mm512_mulhrs_epi16(r_low, v_cb_r),
-    //                             _mm512_mulhrs_epi16(g_low, v_cb_g),
-    //                         ),
-    //                         _mm512_mulhrs_epi16(b_low, v_cb_b),
-    //                     ),
-    //                 ),
-    //                 i_cap_uv,
-    //             ),
-    //             y_bias,
-    //         );
-    //         let cr_l = _mm512_max_epi16(
-    //             _mm512_min_epi16(
-    //                 _mm512_add_epi16(
-    //                     uv_bias,
-    //                     _mm512_add_epi16(
-    //                         _mm512_add_epi16(
-    //                             _mm512_mulhrs_epi16(r_low, v_cr_r),
-    //                             _mm512_mulhrs_epi16(g_low, v_cr_g),
-    //                         ),
-    //                         _mm512_mulhrs_epi16(b_low, v_cr_b),
-    //                     ),
-    //                 ),
-    //                 i_cap_uv,
-    //             ),
-    //             y_bias,
-    //         );
-    //
-    //         let cb = avx512_pack_u16(cb_l, _mm512_setzero_si512());
-    //         let cr = avx512_pack_u16(cr_l, _mm512_setzero_si512());
-    //
-    //         _mm256_storeu_si256(u_ptr.add(uv_x) as *mut __m256i, _mm512_castsi512_si256(cb));
-    //         _mm256_storeu_si256(v_ptr.add(uv_x) as *mut __m256i, _mm512_castsi512_si256(cr));
-    //         uv_x += 32;
-    //     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
-    //         || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
-    //     {
-    //         let r1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(r_values));
-    //         let g1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(g_values));
-    //         let b1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(b_values));
-    //
-    //         let cbk = _mm512_max_epi16(
-    //             _mm512_min_epi16(
-    //                 _mm512_add_epi16(
-    //                     uv_bias,
-    //                     _mm512_add_epi16(
-    //                         _mm512_add_epi16(
-    //                             _mm512_mulhrs_epi16(r1, v_cb_r),
-    //                             _mm512_mulhrs_epi16(g1, v_cb_g),
-    //                         ),
-    //                         _mm512_mulhrs_epi16(b1, v_cb_b),
-    //                     ),
-    //                 ),
-    //                 i_cap_uv,
-    //             ),
-    //             y_bias,
-    //         );
-    //
-    //         let crk = _mm512_max_epi16(
-    //             _mm512_min_epi16(
-    //                 _mm512_add_epi16(
-    //                     uv_bias,
-    //                     _mm512_add_epi16(
-    //                         _mm512_add_epi16(
-    //                             _mm512_mulhrs_epi16(r1, v_cr_r),
-    //                             _mm512_mulhrs_epi16(g1, v_cr_g),
-    //                         ),
-    //                         _mm512_mulhrs_epi16(b1, v_cr_b),
-    //                     ),
-    //                 ),
-    //                 i_cap_uv,
-    //             ),
-    //             y_bias,
-    //         );
-    //
-    //         let cb = avx512_pack_u16(cbk, cbk);
-    //         let cr = avx512_pack_u16(crk, crk);
-    //
-    //         _mm_storeu_si128(
-    //             u_ptr.add(uv_x) as *mut _ as *mut __m128i,
-    //             _mm512_castsi512_si128(cb),
-    //         );
-    //         _mm_storeu_si128(
-    //             v_ptr.add(uv_x) as *mut _ as *mut __m128i,
-    //             _mm512_castsi512_si128(cr),
-    //         );
-    //         uv_x += 16;
-    //     }
-    //
-    //     cx += 32;
-    // }
+    while cx + 32 < width {
+        let px = cx * channels;
+
+        let (r_values, g_values, b_values) =
+            avx512_load_half_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
+
+        let r_low =
+            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));
+        let g_low =
+            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values)));
+        let b_low =
+            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values)));
+
+        let i_cap_y = _mm512_set1_epi16(cap_y);
+
+        let y_l = _mm512_min_epi16(
+            _mm512_add_epi16(
+                y_bias,
+                _mm512_add_epi16(
+                    _mm512_add_epi16(
+                        _mm512_mulhrs_epi16(r_low, v_yr),
+                        _mm512_mulhrs_epi16(g_low, v_yg),
+                    ),
+                    _mm512_mulhrs_epi16(b_low, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
+        let y_yuv = avx512_pack_u16(y_l, _mm512_setzero_si512());
+        _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, _mm512_castsi512_si256(y_yuv));
+
+        let i_cap_uv = _mm512_set1_epi16(cap_uv);
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let cb_l = _mm512_max_epi16(
+                _mm512_min_epi16(
+                    _mm512_add_epi16(
+                        uv_bias,
+                        _mm512_add_epi16(
+                            _mm512_add_epi16(
+                                _mm512_mulhrs_epi16(r_low, v_cb_r),
+                                _mm512_mulhrs_epi16(g_low, v_cb_g),
+                            ),
+                            _mm512_mulhrs_epi16(b_low, v_cb_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+            let cr_l = _mm512_max_epi16(
+                _mm512_min_epi16(
+                    _mm512_add_epi16(
+                        uv_bias,
+                        _mm512_add_epi16(
+                            _mm512_add_epi16(
+                                _mm512_mulhrs_epi16(r_low, v_cr_r),
+                                _mm512_mulhrs_epi16(g_low, v_cr_g),
+                            ),
+                            _mm512_mulhrs_epi16(b_low, v_cr_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+
+            let cb = avx512_pack_u16(cb_l, _mm512_setzero_si512());
+            let cr = avx512_pack_u16(cr_l, _mm512_setzero_si512());
+
+            _mm256_storeu_si256(u_ptr.add(uv_x) as *mut __m256i, _mm512_castsi512_si256(cb));
+            _mm256_storeu_si256(v_ptr.add(uv_x) as *mut __m256i, _mm512_castsi512_si256(cr));
+            uv_x += 32;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+        {
+            let r1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(r_values));
+            let g1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(g_values));
+            let b1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(b_values));
+
+            let cbk = _mm512_max_epi16(
+                _mm512_min_epi16(
+                    _mm512_add_epi16(
+                        uv_bias,
+                        _mm512_add_epi16(
+                            _mm512_add_epi16(
+                                _mm512_mulhrs_epi16(r1, v_cb_r),
+                                _mm512_mulhrs_epi16(g1, v_cb_g),
+                            ),
+                            _mm512_mulhrs_epi16(b1, v_cb_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+
+            let crk = _mm512_max_epi16(
+                _mm512_min_epi16(
+                    _mm512_add_epi16(
+                        uv_bias,
+                        _mm512_add_epi16(
+                            _mm512_add_epi16(
+                                _mm512_mulhrs_epi16(r1, v_cr_r),
+                                _mm512_mulhrs_epi16(g1, v_cr_g),
+                            ),
+                            _mm512_mulhrs_epi16(b1, v_cr_b),
+                        ),
+                    ),
+                    i_cap_uv,
+                ),
+                y_bias,
+            );
+
+            let cb = avx512_pack_u16(cbk, cbk);
+            let cr = avx512_pack_u16(crk, crk);
+
+            _mm_storeu_si128(
+                u_ptr.add(uv_x) as *mut _ as *mut __m128i,
+                _mm512_castsi512_si128(cb),
+            );
+            _mm_storeu_si128(
+                v_ptr.add(uv_x) as *mut _ as *mut __m128i,
+                _mm512_castsi512_si128(cr),
+            );
+            uv_x += 16;
+        }
+
+        cx += 32;
+    }
 
     ProcessedOffset { cx, ux: uv_x }
 }
