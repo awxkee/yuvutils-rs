@@ -51,12 +51,14 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
+    let num: u64 = 0xb6db6db6db6db6db;
+    println!("{:b}", num); // Print in binary format
     let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
         .unwrap();
 
-    let img = DynamicImage::ImageRgba8(img.to_rgba8());
+    let img = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let dimensions = img.dimensions();
 
@@ -96,7 +98,7 @@ fn main() {
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgba_to_yuv422(
+    rgb_to_yuv422(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
@@ -253,9 +255,7 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    rgba.resize(width as usize * height as usize * 4, 0);
-
-    yuv422_to_rgba(
+    yuv422_to_rgb(
         &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
@@ -329,7 +329,7 @@ fn main() {
     // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
-        "converted_sharp15.png",
+        "converted_sharp15.jpg",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,
