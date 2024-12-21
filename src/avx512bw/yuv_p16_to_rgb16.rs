@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::{_mm256_from_msb_epi16, _mm256_interleave_epi16};
-use crate::avx512bw::avx512_setr::{_v512_set_epu8, _v512_setr_epu8};
+use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
     _mm512_from_msb_epi16, avx512_create, avx512_store_rgba16_for_yuv,
 };
@@ -122,7 +122,7 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let big_endian_shuffle_flag = _v512_set_epu8(
+    let big_endian_shuffle_flag = _v512_setr_epu8(
         1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22, 25,
         24, 27, 26, 29, 28, 31, 30, 33, 32, 35, 34, 37, 36, 39, 38, 41, 40, 43, 42, 45, 44, 47, 46,
         49, 48, 51, 50, 53, 52, 55, 54, 57, 56, 59, 58, 61, 60, 63, 62,
