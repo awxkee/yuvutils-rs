@@ -112,6 +112,8 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 | libyuv YUV 4:2:2->RGBA |  734.25µs  |    579.24µs    |  1.8965ms  |   888.94µs    | 
 | utils YUV 4:4:4->RGBA  |  510.94µs  |    410.01µs    |  2.3391ms  |   914.94µs    | 
 | libyuv YUV 4:4:4->RGBA |  596.55µs  |    525.90µs    |  1.9150ms  |   835.67µs    | 
+| utils YUV 4:0:0->RGBA  |  220.67µs  |    260.69µs    |     -      |       -       | 
+| libyuv YUV 4:0:0->RGBA |  522.71µs  |    1.8204ms    |     -      |       -       | 
 
 YUV 16 bit-depth conversion
 
