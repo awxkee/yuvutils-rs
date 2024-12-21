@@ -158,29 +158,29 @@ fn yuv_p16_to_image_p16_ant<
             {
                 let mut v_offset = ProcessedOffset { cx: 0, ux: 0 };
                 unsafe {
-                    #[cfg(feature = "nightly_avx512")]
-                    if use_avx512 && BIT_DEPTH <= 12 {
-                        let offset = avx512_yuv_p16_to_rgba16_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            BIT_DEPTH,
-                            PRECISION,
-                        >(
-                            _y_plane,
-                            _u_plane,
-                            _v_plane,
-                            _rgba,
-                            image.width,
-                            &chroma_range,
-                            &i_transform,
-                            v_offset.cx,
-                            v_offset.ux,
-                        );
-                        v_offset = offset;
-                        _cx = v_offset.cx;
-                    }
+                    // #[cfg(feature = "nightly_avx512")]
+                    // if use_avx512 && BIT_DEPTH <= 12 {
+                    //     let offset = avx512_yuv_p16_to_rgba16_row::<
+                    //         DESTINATION_CHANNELS,
+                    //         SAMPLING,
+                    //         ENDIANNESS,
+                    //         BYTES_POSITION,
+                    //         BIT_DEPTH,
+                    //         PRECISION,
+                    //     >(
+                    //         _y_plane,
+                    //         _u_plane,
+                    //         _v_plane,
+                    //         _rgba,
+                    //         image.width,
+                    //         &chroma_range,
+                    //         &i_transform,
+                    //         v_offset.cx,
+                    //         v_offset.ux,
+                    //     );
+                    //     v_offset = offset;
+                    //     _cx = v_offset.cx;
+                    // }
 
                     if use_avx && BIT_DEPTH <= 12 {
                         let offset = avx_yuv_p16_to_rgba_row::<
