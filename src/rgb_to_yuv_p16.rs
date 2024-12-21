@@ -227,27 +227,27 @@ fn rgbx_to_yuv_ant<
         let mut _offset = ProcessedOffset { ux: _cx, cx: _ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            // #[cfg(feature = "nightly_avx512")]
-            // if use_avx512 && BIT_DEPTH <= 12 {
-            //     _offset = avx512_rgba_to_yuv_p16_lp::<
-            //         ORIGIN_CHANNELS,
-            //         SAMPLING,
-            //         ENDIANNESS,
-            //         BYTES_POSITION,
-            //         PRECISION,
-            //         BIT_DEPTH,
-            //     >(
-            //         &transform,
-            //         &range,
-            //         _y_plane,
-            //         _u_plane,
-            //         _v_plane,
-            //         rgba,
-            //         _offset.cx,
-            //         _offset.ux,
-            //         image.width as usize,
-            //     );
-            // }
+            #[cfg(feature = "nightly_avx512")]
+            if use_avx512 && BIT_DEPTH <= 12 {
+                _offset = avx512_rgba_to_yuv_p16_lp::<
+                    ORIGIN_CHANNELS,
+                    SAMPLING,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    PRECISION,
+                    BIT_DEPTH,
+                >(
+                    &transform,
+                    &range,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    rgba,
+                    _offset.cx,
+                    _offset.ux,
+                    image.width as usize,
+                );
+            }
             if use_avx {
                 _offset = avx_dispatch(
                     &transform,

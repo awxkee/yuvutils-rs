@@ -226,6 +226,7 @@ unsafe fn avx_rgba_to_yuv_impl_lp<
                 v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
                 _mm512_castsi512_si256(cr_s),
             );
+
             ux += 16;
         }
 
