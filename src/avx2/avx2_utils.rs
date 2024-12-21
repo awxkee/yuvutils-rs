@@ -340,9 +340,7 @@ pub(crate) unsafe fn avx_avg_epi16(a: __m256i) -> __m256i {
 #[inline(always)]
 pub(crate) unsafe fn avx_pairwise_avg_epi16(a: __m256i, b: __m256i) -> __m256i {
     let sums = _mm256_hadd_epi16(a, b);
-    let product = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
-    const MASK: i32 = shuffle(3, 1, 2, 0);
-    _mm256_permute4x64_epi64::<MASK>(product)
+    _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
 }
 
 #[inline(always)]

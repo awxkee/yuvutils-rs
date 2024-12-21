@@ -145,7 +145,7 @@ cargo +nightly bench --bench yuv16 --manifest-path ./app/Cargo.toml --features n
 
 |                           | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) |
 |---------------------------|:----------:|:--------------:|:----------:|:-------------:|
-| utils YUV10 4:2:0->RGB10  |  640.34µs  |    674.92µs    |   2.91ms   |    1.53ms     |
+| utils YUV10 4:2:0->RGB10  |  640.34µs  |    674.92µs    |   2.91ms   |    1.23ms     |
 | libyuv YUV10 4:2:0->RGB10 |     x      |       x        |     x      |       x       |
 | utils YUV10 4:2:0->RGBA10 |  814.86µs  |    687.52µs    |   3.92ms   |    1.59ms     |
 | utils YUV10 4:2:0->RGBA8  |  812.53µs  |    692.53µs    |   2.27ms   |   900.10µs    |
