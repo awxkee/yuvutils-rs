@@ -150,23 +150,23 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let mut _offset = ProcessedOffset { ux: _cx, cx: _ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            // #[cfg(feature = "nightly_avx512")]
-            // {
-            //     if use_avx512 {
-            //         let processed_offset = avx512_row_dispatch(
-            //             &transform,
-            //             &chroma_range,
-            //             _y_plane,
-            //             _u_plane,
-            //             _v_plane,
-            //             _rgba,
-            //             _offset.cx,
-            //             _offset.ux,
-            //             image.width as usize,
-            //         );
-            //         _offset = processed_offset;
-            //     }
-            // }
+            #[cfg(feature = "nightly_avx512")]
+            {
+                if use_avx512 {
+                    let processed_offset = avx512_row_dispatch(
+                        &transform,
+                        &chroma_range,
+                        _y_plane,
+                        _u_plane,
+                        _v_plane,
+                        _rgba,
+                        _offset.cx,
+                        _offset.ux,
+                        image.width as usize,
+                    );
+                    _offset = processed_offset;
+                }
+            }
 
             if use_avx {
                 let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
@@ -243,25 +243,25 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            #[cfg(feature = "nightly_avx512")]
-            {
-                if use_avx512 {
-                    let processed_offset = avx512_double_wide_row_handler(
-                        &transform,
-                        &chroma_range,
-                        _y_plane0,
-                        _y_plane1,
-                        _u_plane,
-                        _v_plane,
-                        _rgba0,
-                        _rgba1,
-                        _offset.cx,
-                        _offset.ux,
-                        image.width as usize,
-                    );
-                    _offset = processed_offset;
-                }
-            }
+            // #[cfg(feature = "nightly_avx512")]
+            // {
+            //     if use_avx512 {
+            //         let processed_offset = avx512_double_wide_row_handler(
+            //             &transform,
+            //             &chroma_range,
+            //             _y_plane0,
+            //             _y_plane1,
+            //             _u_plane,
+            //             _v_plane,
+            //             _rgba0,
+            //             _rgba1,
+            //             _offset.cx,
+            //             _offset.ux,
+            //             image.width as usize,
+            //         );
+            //         _offset = processed_offset;
+            //     }
+            // }
             if use_avx {
                 let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS>(
                     &transform,
