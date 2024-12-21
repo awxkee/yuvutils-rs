@@ -390,6 +390,7 @@ fn rgbx_to_yuv_ant<
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "nightly_avx512")]
             if use_avx512 && BIT_DEPTH <= 12 {
                 _offset = avx512_rgba_to_yuv_p16_lp420::<
                     ORIGIN_CHANNELS,
