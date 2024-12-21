@@ -147,6 +147,8 @@ fn yuv_p16_to_image_ant<
         >
     };
 
+    println!("Has VBMI {}", use_vbmi);
+
     #[inline(always)]
     /// Saturating rounding shift right against bit depth
     fn qrshr<const BIT_DEPTH: usize>(val: i32) -> i32 {

@@ -34,7 +34,17 @@ use std::io::Read;
 use std::thread::available_parallelism;
 use std::time::Instant;
 use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24, rs_RGB24ToI420};
-use yuvutils_rs::{gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16, rgb_to_yuv_nv24, yuv400_to_rgb, yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb, yuv444_p16_to_rgb, yuv444_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv24_to_rgb, yuyv422_to_rgb, yuyv422_to_yuv420, BufferStoreMut, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{
+    gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16,
+    rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16,
+    rgb_to_yuv_nv16, rgb_to_yuv_nv24, yuv400_to_rgb, yuv420_p16_to_rgb, yuv420_p16_to_rgb16,
+    yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb,
+    yuv444_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16,
+    yuv_nv16_to_rgb, yuv_nv24_to_rgb, yuyv422_to_rgb, yuyv422_to_yuv420, BufferStoreMut,
+    SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
+    YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange,
+    YuvStandardMatrix,
+};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -91,12 +101,12 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv444_p16(
+    rgb_to_yuv422_p16(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
@@ -256,7 +266,7 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv444_p16_to_rgb(
+    yuv422_p16_to_rgb(
         &fixed_planar,
         &mut rgba,
         rgba_stride as u32,

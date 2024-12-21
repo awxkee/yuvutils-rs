@@ -221,10 +221,12 @@ unsafe fn avx_yuv_p16_to_rgba_row8_impl<
         let mut y_vl0 = _mm512_loadu_si512(y_plane.get_unchecked(cx..).as_ptr() as *const i32);
         let mut y_vl1 =
             _mm512_loadu_si512(y_plane.get_unchecked((cx + 32)..).as_ptr() as *const i32);
+
         if endianness == YuvEndianness::BigEndian {
             y_vl0 = _mm512_shuffle_epi8(y_vl0, big_endian_shuffle_flag);
             y_vl1 = _mm512_shuffle_epi8(y_vl1, big_endian_shuffle_flag);
         }
+
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl0 = _mm512_from_msb_epi16::<BIT_DEPTH>(y_vl0);
             y_vl1 = _mm512_from_msb_epi16::<BIT_DEPTH>(y_vl1);
