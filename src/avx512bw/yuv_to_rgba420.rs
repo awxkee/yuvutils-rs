@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::_mm256_interleave_epi8;
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8};
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_rgba_for_yuv_u8};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -227,7 +227,7 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
 
         let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
-        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
             rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values0,
             g_values0,
@@ -235,7 +235,7 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
             v_alpha,
         );
 
-        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
             rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values1,
             g_values1,

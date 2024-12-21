@@ -108,7 +108,7 @@ pub(crate) unsafe fn avx512_interleave_rgb<const HAS_VBMI: bool>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_rgb_u8<const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_put_rgb_u8<const HAS_VBMI: bool>(
     dst: *mut u8,
     a: __m512i,
     b: __m512i,
@@ -118,6 +118,18 @@ pub(crate) unsafe fn avx512_rgb_u8<const HAS_VBMI: bool>(
     _mm512_storeu_si512(dst as *mut i32, rgb0);
     _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
     _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_put_half_rgb_u8<const HAS_VBMI: bool>(
+    dst: *mut u8,
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+) {
+    let (rgb0, rgb1, _) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
+    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm256_storeu_si256(dst.add(64) as *mut __m256i, _mm512_castsi512_si256(rgb1));
 }
 
 #[inline(always)]
@@ -135,7 +147,7 @@ pub(crate) unsafe fn avx512_interleave_rgba<const HAS_VBMI: bool>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_rgba_u8<const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_put_rgba_u8<const HAS_VBMI: bool>(
     dst: *mut u8,
     a: __m512i,
     b: __m512i,
@@ -147,6 +159,19 @@ pub(crate) unsafe fn avx512_rgba_u8<const HAS_VBMI: bool>(
     _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
     _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
     _mm512_storeu_si512(dst.add(128 + 64) as *mut i32, rgb3);
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_put_half_rgba_u8<const HAS_VBMI: bool>(
+    dst: *mut u8,
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+    d: __m512i,
+) {
+    let (rgb0, rgb1, _, _) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
+    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
 }
 
 #[inline(always)]
@@ -307,7 +332,7 @@ pub(crate) unsafe fn avx2_zip(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_store_u8<const DN: u8, const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_store_rgba_for_yuv_u8<const DN: u8, const HAS_VBMI: bool>(
     dst: *mut u8,
     r: __m512i,
     g: __m512i,
@@ -317,16 +342,41 @@ pub(crate) unsafe fn avx512_store_u8<const DN: u8, const HAS_VBMI: bool>(
     let destination_channels: YuvSourceChannels = DN.into();
     match destination_channels {
         YuvSourceChannels::Rgb => {
-            avx512_rgb_u8::<HAS_VBMI>(dst, r, g, b);
+            avx512_put_rgb_u8::<HAS_VBMI>(dst, r, g, b);
         }
         YuvSourceChannels::Bgr => {
-            avx512_rgb_u8::<HAS_VBMI>(dst, b, g, r);
+            avx512_put_rgb_u8::<HAS_VBMI>(dst, b, g, r);
         }
         YuvSourceChannels::Rgba => {
-            avx512_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
+            avx512_put_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
         }
         YuvSourceChannels::Bgra => {
-            avx512_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
+            avx512_put_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_store_half_rgba_for_yuv_u8<const DN: u8, const HAS_VBMI: bool>(
+    dst: *mut u8,
+    r: __m512i,
+    g: __m512i,
+    b: __m512i,
+    a: __m512i,
+) {
+    let destination_channels: YuvSourceChannels = DN.into();
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            avx512_put_half_rgb_u8::<HAS_VBMI>(dst, r, g, b);
+        }
+        YuvSourceChannels::Bgr => {
+            avx512_put_half_rgb_u8::<HAS_VBMI>(dst, b, g, r);
+        }
+        YuvSourceChannels::Rgba => {
+            avx512_put_half_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
+        }
+        YuvSourceChannels::Bgra => {
+            avx512_put_half_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
         }
     }
 }
@@ -504,4 +554,37 @@ pub(crate) unsafe fn avx512_pairwise_avg_epi8(a: __m512i) -> __m512i {
         _mm512_maddubs_epi16(a, _mm512_set1_epi8(1)),
         _mm512_set1_epi16(1),
     ))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_from_msb_epi16<const BIT_DEPTH: usize>(a: __m512i) -> __m512i {
+    if BIT_DEPTH == 10 {
+        _mm512_srli_epi16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm512_srli_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm512_srli_epi16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_store_shr_epi16_epi8<const BIT_DEPTH: usize>(a: __m512i) -> __m512i {
+    if BIT_DEPTH == 10 {
+        _mm512_srai_epi16::<2>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm512_srai_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm512_srai_epi16::<6>(a)
+    } else if BIT_DEPTH == 16 {
+        _mm512_srai_epi16::<8>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_create(lo: __m256i, hi: __m256i) -> __m512i {
+    _mm512_inserti64x4::<1>(_mm512_castsi256_si512(lo), hi)
 }

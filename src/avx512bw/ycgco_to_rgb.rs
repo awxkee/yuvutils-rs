@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_u8, shuffle};
+use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_rgba_for_yuv_u8, shuffle};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -182,7 +182,7 @@ pub(crate) unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, con
 
         let dst_shift = cx * channels;
 
-        avx512_store_u8::<DESTINATION_CHANNELS, false>(
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, false>(
             rgba_ptr.add(dst_shift),
             r_values,
             g_values,
