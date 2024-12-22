@@ -28,7 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_unzip_epi8, avx512_pack_u16, avx512_store_rgba_for_yuv_u8, avx512_zip_epi8,
+    avx512_pack_u16, avx512_store_rgba_for_yuv_u8, avx512_unzip_epi8, avx512_zip_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
