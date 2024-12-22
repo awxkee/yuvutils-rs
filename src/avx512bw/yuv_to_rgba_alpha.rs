@@ -279,7 +279,7 @@ unsafe fn avx512_yuv_to_rgba_alpha_impl<
 
         let dst_shift = cx * channels;
 
-        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
             rgba_ptr.add(dst_shift),
             r_values,
             g_values,

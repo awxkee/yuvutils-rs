@@ -30,6 +30,11 @@
 use crate::avx2::{
     avx_rgba_to_yuv_p16, avx_rgba_to_yuv_p16_420, avx_rgba_to_yuv_p16_lp, avx_rgba_to_yuv_p16_lp420,
 };
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
+use crate::avx512bw::{avx512_rgba_to_yuv_p16_lp, avx512_rgba_to_yuv_p16_lp420};
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{
@@ -116,6 +121,11 @@ fn rgbx_to_yuv_ant<
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -217,6 +227,27 @@ fn rgbx_to_yuv_ant<
         let mut _offset = ProcessedOffset { ux: _cx, cx: _ux };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "nightly_avx512")]
+            if use_avx512 && BIT_DEPTH <= 12 {
+                _offset = avx512_rgba_to_yuv_p16_lp::<
+                    ORIGIN_CHANNELS,
+                    SAMPLING,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    PRECISION,
+                    BIT_DEPTH,
+                >(
+                    &transform,
+                    &range,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    rgba,
+                    _offset.cx,
+                    _offset.ux,
+                    image.width as usize,
+                );
+            }
             if use_avx {
                 _offset = avx_dispatch(
                     &transform,
@@ -359,6 +390,28 @@ fn rgbx_to_yuv_ant<
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "nightly_avx512")]
+            if use_avx512 && BIT_DEPTH <= 12 {
+                _offset = avx512_rgba_to_yuv_p16_lp420::<
+                    ORIGIN_CHANNELS,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    PRECISION,
+                    BIT_DEPTH,
+                >(
+                    &transform,
+                    &range,
+                    _y_plane0,
+                    _y_plane1,
+                    _u_plane,
+                    _v_plane,
+                    _rgba0,
+                    _rgba1,
+                    _offset.cx,
+                    _offset.ux,
+                    image.width as usize,
+                );
+            }
             if use_avx {
                 _offset = avx_dispatch_420(
                     &transform,

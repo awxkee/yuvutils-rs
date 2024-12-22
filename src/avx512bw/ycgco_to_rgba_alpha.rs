@@ -207,7 +207,7 @@ pub(crate) unsafe fn avx512_ycgco_to_rgba_alpha<
 
         let dst_shift = cx * channels;
 
-        avx512_store_u8::<DESTINATION_CHANNELS, false>(
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, false>(
             rgba_ptr.add(dst_shift),
             r_values,
             g_values,

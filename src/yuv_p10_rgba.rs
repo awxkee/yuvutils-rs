@@ -35,6 +35,11 @@ use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx_yuv_p16_to_rgba8_row;
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
+use crate::avx512bw::avx512_yuv_p16_to_rgba8_row;
 use crate::built_coefficients::get_built_inverse_transform;
 #[allow(dead_code, unused_imports)]
 use crate::internals::ProcessedOffset;
@@ -106,6 +111,41 @@ fn yuv_p16_to_image_ant<
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_wide_row_handler = if use_vbmi {
+        avx512_yuv_p16_to_rgba8_row::<
+            DESTINATION_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            BIT_DEPTH,
+            PRECISION,
+            true,
+        >
+    } else {
+        avx512_yuv_p16_to_rgba8_row::<
+            DESTINATION_CHANNELS,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            BIT_DEPTH,
+            PRECISION,
+            false,
+        >
+    };
 
     #[inline(always)]
     /// Saturating rounding shift right against bit depth
@@ -123,6 +163,21 @@ fn yuv_p16_to_image_ant<
             {
                 let mut _v_offset = ProcessedOffset { cx: 0, ux: 0 };
                 unsafe {
+                    #[cfg(feature = "nightly_avx512")]
+                    if use_avx512 {
+                        let offset = avx512_wide_row_handler(
+                            _y_plane,
+                            _u_plane,
+                            _v_plane,
+                            _rgba,
+                            image.width,
+                            &chroma_range,
+                            &i_transform,
+                            _v_offset.cx,
+                            _v_offset.ux,
+                        );
+                        _v_offset = offset;
+                    }
                     if use_avx {
                         let offset = avx_yuv_p16_to_rgba8_row::<
                             DESTINATION_CHANNELS,

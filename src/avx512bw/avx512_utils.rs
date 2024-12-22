@@ -44,6 +44,67 @@ pub(crate) unsafe fn avx512_pack_u16(lo: __m512i, hi: __m512i) -> __m512i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn avx512_pack_u32(lo: __m512i, hi: __m512i) -> __m512i {
+    let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
+    _mm512_permutexvar_epi64(mask, _mm512_packus_epi32(lo, hi))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_interleave_rgb16(
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+) -> (__m512i, __m512i, __m512i) {
+    let mask0 = _v512_set_epu16(
+        42, 10, 31, 41, 9, 30, 40, 8, 29, 39, 7, 28, 38, 6, 27, 37, 5, 26, 36, 4, 25, 35, 3, 24,
+        34, 2, 23, 33, 1, 22, 32, 0,
+    );
+    let mask1 = _v512_set_epu16(
+        21, 52, 41, 20, 51, 40, 19, 50, 39, 18, 49, 38, 17, 48, 37, 16, 47, 36, 15, 46, 35, 14, 45,
+        34, 13, 44, 33, 12, 43, 32, 11, 42,
+    );
+    let mask2 = _v512_set_epu16(
+        63, 31, 20, 62, 30, 19, 61, 29, 18, 60, 28, 17, 59, 27, 16, 58, 26, 15, 57, 25, 14, 56, 24,
+        13, 55, 23, 12, 54, 22, 11, 53, 21,
+    );
+    let b0g0b2 = _mm512_permutex2var_epi16(a, mask0, b);
+    let r1b1r0 = _mm512_permutex2var_epi16(a, mask1, c);
+    let g2r2g1 = _mm512_permutex2var_epi16(b, mask2, c);
+
+    let bgr0 = _mm512_mask_blend_epi16(0x24924924, b0g0b2, r1b1r0);
+    let bgr1 = _mm512_mask_blend_epi16(0x24924924, r1b1r0, g2r2g1);
+    let bgr2 = _mm512_mask_blend_epi16(0x24924924, g2r2g1, b0g0b2);
+    (bgr0, bgr1, bgr2)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_deinterleave_rgb16(
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+) -> (__m512i, __m512i, __m512i) {
+    let mask0 = _v512_set_epu16(
+        61, 58, 55, 52, 49, 46, 43, 40, 37, 34, 63, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30, 27,
+        24, 21, 18, 15, 12, 9, 6, 3, 0,
+    );
+    let b01g1 = _mm512_permutex2var_epi16(a, mask0, b);
+    let r12b2 = _mm512_permutex2var_epi16(b, mask0, c);
+    let g20r0 = _mm512_permutex2var_epi16(c, mask0, a);
+
+    let a0 = _mm512_mask_blend_epi32(0xf800, b01g1, r12b2);
+    let b0 = _mm512_permutex2var_epi16(
+        b,
+        _v512_set_epu16(
+            42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 29, 26, 23, 20, 17, 14, 11, 8, 5, 2, 53,
+            52, 51, 50, 49, 48, 47, 46, 45, 44, 43,
+        ),
+        g20r0,
+    );
+    let c0 = _mm512_alignr_epi32::<11>(r12b2, g20r0);
+    (a0, b0, c0)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn avx512_interleave_rgb<const HAS_VBMI: bool>(
     a: __m512i,
     b: __m512i,
@@ -108,7 +169,7 @@ pub(crate) unsafe fn avx512_interleave_rgb<const HAS_VBMI: bool>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_rgb_u8<const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_put_rgb_u8<const HAS_VBMI: bool>(
     dst: *mut u8,
     a: __m512i,
     b: __m512i,
@@ -118,6 +179,68 @@ pub(crate) unsafe fn avx512_rgb_u8<const HAS_VBMI: bool>(
     _mm512_storeu_si512(dst as *mut i32, rgb0);
     _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
     _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_put_rgb16(dst: *mut u16, a: __m512i, b: __m512i, c: __m512i) {
+    let (rgb0, rgb1, rgb2) = avx512_interleave_rgb16(a, b, c);
+    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_put_half_rgb_u8<const HAS_VBMI: bool>(
+    dst: *mut u8,
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+) {
+    let (rgb0, rgb1, _) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
+    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm256_storeu_si256(dst.add(64) as *mut __m256i, _mm512_castsi512_si256(rgb1));
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_interleave_rgba16(
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+    d: __m512i,
+) -> (__m512i, __m512i, __m512i, __m512i) {
+    let (br01, br23) = avx512_zip_epi16(a, c);
+    let (ga01, ga23) = avx512_zip_epi16(b, d);
+    let (bgra0, bgra1) = avx512_zip_epi16(br01, ga01);
+    let (bgra2, bgra3) = avx512_zip_epi16(br23, ga23);
+    (bgra0, bgra1, bgra2, bgra3)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_deinterleave_rgba16(
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+    d: __m512i,
+) -> (__m512i, __m512i, __m512i, __m512i) {
+    let mask0 = _v512_set_epu16(
+        62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 18,
+        16, 14, 12, 10, 8, 6, 4, 2, 0,
+    );
+    let mask1 = _v512_set_epu16(
+        63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 33, 31, 29, 27, 25, 23, 21, 19,
+        17, 15, 13, 11, 9, 7, 5, 3, 1,
+    );
+
+    let br01 = _mm512_permutex2var_epi16(a, mask0, b);
+    let ga01 = _mm512_permutex2var_epi16(a, mask1, b);
+    let br23 = _mm512_permutex2var_epi16(c, mask0, d);
+    let ga23 = _mm512_permutex2var_epi16(c, mask1, d);
+
+    let a0 = _mm512_permutex2var_epi16(br01, mask0, br23);
+    let c0 = _mm512_permutex2var_epi16(br01, mask1, br23);
+    let b0 = _mm512_permutex2var_epi16(ga01, mask0, ga23);
+    let d0 = _mm512_permutex2var_epi16(ga01, mask1, ga23);
+    (a0, b0, c0, d0)
 }
 
 #[inline(always)]
@@ -135,7 +258,7 @@ pub(crate) unsafe fn avx512_interleave_rgba<const HAS_VBMI: bool>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_rgba_u8<const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_put_rgba_u8<const HAS_VBMI: bool>(
     dst: *mut u8,
     a: __m512i,
     b: __m512i,
@@ -147,6 +270,34 @@ pub(crate) unsafe fn avx512_rgba_u8<const HAS_VBMI: bool>(
     _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
     _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
     _mm512_storeu_si512(dst.add(128 + 64) as *mut i32, rgb3);
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_put_half_rgba_u8<const HAS_VBMI: bool>(
+    dst: *mut u8,
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+    d: __m512i,
+) {
+    let (rgb0, rgb1, _, _) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
+    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_put_rgba16(
+    dst: *mut u16,
+    a: __m512i,
+    b: __m512i,
+    c: __m512i,
+    d: __m512i,
+) {
+    let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba16(a, b, c, d);
+    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
+    _mm512_storeu_si512(dst.add(96) as *mut i32, rgb3);
 }
 
 #[inline(always)]
@@ -172,19 +323,19 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
             b0g0b1,
             _v512_set_epu8(
                 125, 122, 119, 116, 113, 110, 107, 104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 74,
-                71, 68, 65, 63, 61, 60, 58, 57, 55, 54, 52, 51, 49, 48, 46, 45, 43, 42, 40, 39, 37,
-                36, 34, 33, 31, 30, 28, 27, 25, 24, 23, 21, 20, 18, 17, 15, 14, 12, 11, 9, 8, 6, 5,
-                3, 2, 0,
+                71, 68, 65, 62, 59, 56, 53, 50, 47, 44, 41, 38, 35, 32, 29, 26, 23, 20, 17, 14, 11,
+                8, 5, 2, 63, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30, 27, 24, 21, 18, 15, 12, 9,
+                6, 3, 0,
             ),
             bgr2,
         );
         let b = _mm512_permutex2var_epi8(
             g1r1g2,
             _v512_set_epu8(
-                63, 61, 60, 58, 57, 55, 54, 52, 51, 49, 48, 46, 45, 43, 42, 40, 39, 37, 36, 34, 33,
-                31, 30, 28, 27, 25, 24, 23, 21, 20, 18, 17, 15, 14, 12, 11, 9, 8, 6, 5, 3, 2, 0,
-                126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 90, 87, 84, 81, 78, 75,
-                72, 69, 66,
+                62, 59, 56, 53, 50, 47, 44, 41, 38, 35, 32, 29, 26, 23, 20, 17, 14, 11, 8, 5, 2,
+                63, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30, 27, 24, 21, 18, 15, 12, 9, 6, 3, 0,
+                125, 122, 119, 116, 113, 110, 107, 104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 74,
+                71, 68, 65,
             ),
             bgr0,
         );
@@ -307,7 +458,7 @@ pub(crate) unsafe fn avx2_zip(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_store_u8<const DN: u8, const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_store_rgba_for_yuv_u8<const DN: u8, const HAS_VBMI: bool>(
     dst: *mut u8,
     r: __m512i,
     g: __m512i,
@@ -317,22 +468,72 @@ pub(crate) unsafe fn avx512_store_u8<const DN: u8, const HAS_VBMI: bool>(
     let destination_channels: YuvSourceChannels = DN.into();
     match destination_channels {
         YuvSourceChannels::Rgb => {
-            avx512_rgb_u8::<HAS_VBMI>(dst, r, g, b);
+            avx512_put_rgb_u8::<HAS_VBMI>(dst, r, g, b);
         }
         YuvSourceChannels::Bgr => {
-            avx512_rgb_u8::<HAS_VBMI>(dst, b, g, r);
+            avx512_put_rgb_u8::<HAS_VBMI>(dst, b, g, r);
         }
         YuvSourceChannels::Rgba => {
-            avx512_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
+            avx512_put_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
         }
         YuvSourceChannels::Bgra => {
-            avx512_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
+            avx512_put_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
         }
     }
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx2_unzip_epi8<const HAS_VBMI: bool>(
+pub(crate) unsafe fn avx512_store_half_rgba_for_yuv_u8<const DN: u8, const HAS_VBMI: bool>(
+    dst: *mut u8,
+    r: __m512i,
+    g: __m512i,
+    b: __m512i,
+    a: __m512i,
+) {
+    let destination_channels: YuvSourceChannels = DN.into();
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            avx512_put_half_rgb_u8::<HAS_VBMI>(dst, r, g, b);
+        }
+        YuvSourceChannels::Bgr => {
+            avx512_put_half_rgb_u8::<HAS_VBMI>(dst, b, g, r);
+        }
+        YuvSourceChannels::Rgba => {
+            avx512_put_half_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
+        }
+        YuvSourceChannels::Bgra => {
+            avx512_put_half_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_store_rgba16_for_yuv<const DN: u8>(
+    dst: *mut u16,
+    r: __m512i,
+    g: __m512i,
+    b: __m512i,
+    a: __m512i,
+) {
+    let destination_channels: YuvSourceChannels = DN.into();
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            avx512_put_rgb16(dst, r, g, b);
+        }
+        YuvSourceChannels::Bgr => {
+            avx512_put_rgb16(dst, b, g, r);
+        }
+        YuvSourceChannels::Rgba => {
+            avx512_put_rgba16(dst, r, g, b, a);
+        }
+        YuvSourceChannels::Bgra => {
+            avx512_put_rgba16(dst, b, g, r, a);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_unzip_epi8<const HAS_VBMI: bool>(
     a: __m512i,
     b: __m512i,
 ) -> (__m512i, __m512i) {
@@ -362,6 +563,21 @@ pub(crate) unsafe fn avx2_unzip_epi8<const HAS_VBMI: bool>(
         let b0 = _mm512_permutex2var_epi64(a0b0, mask2, a1b1);
         (a0, b0)
     }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_zip_epi16(a: __m512i, b: __m512i) -> (__m512i, __m512i) {
+    let mask0 = _v512_set_epu16(
+        47, 15, 46, 14, 45, 13, 44, 12, 43, 11, 42, 10, 41, 9, 40, 8, 39, 7, 38, 6, 37, 5, 36, 4,
+        35, 3, 34, 2, 33, 1, 32, 0,
+    );
+    let ab0 = _mm512_permutex2var_epi16(a, mask0, b);
+    let mask1 = _v512_set_epu16(
+        63, 31, 62, 30, 61, 29, 60, 28, 59, 27, 58, 26, 57, 25, 56, 24, 55, 23, 54, 22, 53, 21, 52,
+        20, 51, 19, 50, 18, 49, 17, 48, 16,
+    );
+    let ab1 = _mm512_permutex2var_epi16(a, mask1, b);
+    (ab0, ab1)
 }
 
 #[inline(always)]
@@ -491,11 +707,10 @@ pub(crate) unsafe fn avx512_load_half_rgb_u8<const CN: u8, const HAS_VBMI: bool>
 #[inline(always)]
 pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8(a: __m512i, b: __m512i) -> __m512i {
     let v = _mm512_avg_epu8(a, b);
-    let v1 = _mm512_srli_epi16::<1>(_mm512_add_epi16(
+    _mm512_srli_epi16::<1>(_mm512_add_epi16(
         _mm512_maddubs_epi16(v, _mm512_set1_epi8(1)),
         _mm512_set1_epi16(1),
-    ));
-    v1
+    ))
 }
 
 #[inline(always)]
@@ -504,4 +719,139 @@ pub(crate) unsafe fn avx512_pairwise_avg_epi8(a: __m512i) -> __m512i {
         _mm512_maddubs_epi16(a, _mm512_set1_epi8(1)),
         _mm512_set1_epi16(1),
     ))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_from_msb_epi16<const BIT_DEPTH: usize>(a: __m512i) -> __m512i {
+    if BIT_DEPTH == 10 {
+        _mm512_srli_epi16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm512_srli_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm512_srli_epi16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_store_shr_epi16_epi8<const BIT_DEPTH: usize>(a: __m512i) -> __m512i {
+    if BIT_DEPTH == 10 {
+        _mm512_srai_epi16::<2>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm512_srai_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm512_srai_epi16::<6>(a)
+    } else if BIT_DEPTH == 16 {
+        _mm512_srai_epi16::<8>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_create(lo: __m256i, hi: __m256i) -> __m512i {
+    _mm512_inserti64x4::<1>(_mm512_castsi256_si512(lo), hi)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
+    ptr: *const u16,
+) -> (__m512i, __m512i, __m512i) {
+    let r_values;
+    let g_values;
+    let b_values;
+
+    let source_channels: YuvSourceChannels = CHANS.into();
+
+    let row0 = _mm512_loadu_si512(ptr as *const i32);
+    let row1 = _mm512_loadu_si512(ptr.add(32) as *const i32);
+    let row2 = _mm512_loadu_si512(ptr.add(64) as *const i32);
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = avx512_deinterleave_rgb16(row0, row1, row2);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = rgb_values.0;
+                g_values = rgb_values.1;
+                b_values = rgb_values.2;
+            } else {
+                r_values = rgb_values.2;
+                g_values = rgb_values.1;
+                b_values = rgb_values.0;
+            }
+        }
+        YuvSourceChannels::Rgba => {
+            let row3 = _mm512_loadu_si512(ptr.add(96) as *const i32);
+            let rgb_values = avx512_deinterleave_rgba16(row0, row1, row2, row3);
+            r_values = rgb_values.0;
+            g_values = rgb_values.1;
+            b_values = rgb_values.2;
+        }
+        YuvSourceChannels::Bgra => {
+            let row3 = _mm512_loadu_si512(ptr.add(96) as *const i32);
+            let rgb_values = avx512_deinterleave_rgba16(row0, row1, row2, row3);
+            r_values = rgb_values.2;
+            g_values = rgb_values.1;
+            b_values = rgb_values.0;
+        }
+    }
+    (r_values, g_values, b_values)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_to_msb_epi16<const BIT_DEPTH: usize>(a: __m512i) -> __m512i {
+    if BIT_DEPTH == 10 {
+        _mm512_slli_epi16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm512_slli_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm512_slli_epi16::<2>(a)
+    } else {
+        a
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn avx512_avg_epi16(a: __m512i) -> __m512i {
+    let sums = _mm512_madd_epi16(a, _mm512_set1_epi16(1));
+    let l0 = _mm512_srli_epi32::<1>(_mm512_add_epi32(sums, _mm512_set1_epi32(1)));
+    avx512_pack_u32(l0, l0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_rgb8_deinterleaving() {
+        unsafe {
+            let mut rgb_store = vec![0u8; 64 * 3];
+            let has_avx512vbmi = std::is_x86_feature_detected!("avx512vbmi");
+            let has_avx512bw = std::is_x86_feature_detected!("avx512bw");
+            if !has_avx512bw {
+                println!("Launched test on a platform that does not support it");
+                return;
+            }
+            for (_, chunk) in rgb_store.chunks_exact_mut(3).enumerate() {
+                chunk[0] = 1;
+                chunk[1] = 2;
+                chunk[2] = 3;
+            }
+            let deinterleaving = if has_avx512vbmi {
+                avx512_load_rgb_u8::<{ YuvSourceChannels::Rgb as u8 }, true>(rgb_store.as_ptr())
+            } else {
+                avx512_load_rgb_u8::<{ YuvSourceChannels::Rgb as u8 }, false>(rgb_store.as_ptr())
+            };
+            let mut r_lane = vec![0u8; 64];
+            let mut g_lane = vec![0u8; 64];
+            let mut b_lane = vec![0u8; 64];
+            _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut i32, deinterleaving.0);
+            _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut i32, deinterleaving.1);
+            _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut i32, deinterleaving.2);
+            assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
+            assert!(g_lane.iter().all(|&x| x == 2), "G lane was {:?}", g_lane);
+            assert!(b_lane.iter().all(|&x| x == 3), "B lane was {:?}", b_lane);
+        }
+    }
 }

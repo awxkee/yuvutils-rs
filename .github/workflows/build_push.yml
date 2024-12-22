@@ -29,6 +29,30 @@ jobs:
       - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --features "nightly_avx512" --target x86_64-unknown-linux-gnu
       - run: RUSTFLAGS="-C target-feature=+simd128" cargo build --target wasm32-unknown-unknown
 
+  clippy_x86:
+    name: Clippy x86 Stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo clippy
+
+  clippy_x86_nightly:
+    name: Clippy x86 Nightly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: rustup component add clippy
+      - run: cargo clippy --features nightly_avx512
+
+  clippy_arm:
+    name: Clippy ARM
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo clippy
 
   tests:
     name: Testing

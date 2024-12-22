@@ -28,7 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx2_unzip_epi8, avx512_pack_u16, avx512_store_u8, avx512_zip_epi8,
+    avx512_pack_u16, avx512_store_rgba_for_yuv_u8, avx512_unzip_epi8, avx512_zip_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -154,7 +154,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
                 let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const i32);
 
                 let (u_values0, v_values0) =
-                    avx2_unzip_epi8::<HAS_VBMI>(uv_values, _mm512_setzero_si512());
+                    avx512_unzip_epi8::<HAS_VBMI>(uv_values, _mm512_setzero_si512());
 
                 let (u_values, _) = avx512_zip_epi8::<HAS_VBMI>(u_values0, u_values0);
                 let (v_values, _) = avx512_zip_epi8::<HAS_VBMI>(v_values0, v_values0);
@@ -180,7 +180,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
                 let uv_values_l = _mm512_loadu_si512(v_str as *const i32);
                 let uv_values_h = _mm512_loadu_si512(v_str.add(64) as *const i32);
 
-                let (full_u, full_v) = avx2_unzip_epi8::<HAS_VBMI>(uv_values_l, uv_values_h);
+                let (full_u, full_v) = avx512_unzip_epi8::<HAS_VBMI>(uv_values_l, uv_values_h);
 
                 match order {
                     YuvNVOrder::UV => {
@@ -247,7 +247,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
 
         let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
-        avx512_store_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
             rgba_ptr.add(dst_shift),
             r_values,
             g_values,
