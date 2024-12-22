@@ -317,7 +317,7 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
 ) -> (__m512i, __m512i, __m512i) {
     if HAS_VBMI {
         let b0g0b1 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr1, bgr0);
-        let g1r1g2 = _mm512_mask_blend_epi8(0x7777777777777777, bgr2, bgr1);
+        let g1r1g2 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr2, bgr1);
         let r2b2r0 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr0, bgr2);
         let a = _mm512_permutex2var_epi8(
             b0g0b1,
@@ -849,9 +849,19 @@ mod tests {
             _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut i32, deinterleaving.0);
             _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut i32, deinterleaving.1);
             _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut i32, deinterleaving.2);
-            println!("R lane was {:?}", r_lane);
-            println!("G lane was {:?}", g_lane);
-            println!("B lane was {:?}", b_lane);
+            println!("R lane:");
+            for (i, lane) in r_lane.chunks_exact(8).enumerate() {
+                for (k, item) in r_lane.iter().enumerate() {
+                    print!("{}: {}", i * 8 + k, item);
+                }
+            }
+            println!("\n");
+            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
+                println!("G lane {i} was {:?}", lane);
+            }
+            for (i, lane) in b_lane.chunks_exact(8).enumerate() {
+                println!("B lane {i} was {:?}", lane);
+            }
             assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
             assert!(g_lane.iter().all(|&x| x == 1), "G lane was {:?}", g_lane);
             assert!(b_lane.iter().all(|&x| x == 1), "B lane was {:?}", b_lane);
