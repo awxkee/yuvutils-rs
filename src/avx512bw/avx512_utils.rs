@@ -851,7 +851,7 @@ mod tests {
             _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut i32, deinterleaving.2);
             println!("R lane:");
             for (i, lane) in r_lane.chunks_exact(8).enumerate() {
-                for (k, item) in lane.iter().enumerate() {
+                for (k, &item) in lane.iter().enumerate() {
                     print!("{}: {}", i * 8 + k, item);
                 }
             }
