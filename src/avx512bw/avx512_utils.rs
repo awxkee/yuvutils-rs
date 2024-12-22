@@ -320,7 +320,7 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
         let g1r1g2 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr2, bgr1);
 
         let mut lane:[ u8; 64] = [0; 64];
-        _mm512_storeu_si512(lane.as_mut_ptr() as *mut i32, g1r1g2)
+        _mm512_storeu_si512(lane.as_mut_ptr() as *mut i32, g1r1g2);
         for (i, lane) in lane.chunks_exact(8).enumerate() {
             for (k, item) in lane.iter().enumerate() {
                 println!("lane {} was {:?}", i * 8 + k, item);
