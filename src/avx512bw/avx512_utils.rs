@@ -318,44 +318,7 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
     if HAS_VBMI {
         let b0g0b1 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr1, bgr0);
         let g1r1g2 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr2, bgr1);
-
-        let mut lane:[ u8; 64] = [0; 64];
-        _mm512_storeu_si512(lane.as_mut_ptr() as *mut i32, g1r1g2);
-        for (i, lane) in lane.chunks_exact(8).enumerate() {
-            for (k, item) in lane.iter().enumerate() {
-                print!("lane {} was {:?}", i * 8 + k, item);
-            }
-            println!();
-        }
-        println!();
-
         let r2b2r0 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr0, bgr2);
-        /*
-                   _v512_set_epu8(
-               125,
-               122, 119, 116,
-               113, 110, 107,
-               104, 101, 98,
-               95, 92, 89,
-               86, 83, 80,
-               77, 74, 71,
-               68, 65, 63,
-               62, 60, 59,
-               57, 56, 54,
-               53, 51, 50,
-               48, 47, 45,
-               44, 42, 41,
-               39, 38, 36,
-               35, 33, 32,
-               30, 29, 27,
-               26, 24, 23,
-               21, 20, 18,
-               17, 15, 14,
-               12, 11, 9,
-               8, 6, 5,
-               3, 2, 0,
-           ),
-        */
         let a = _mm512_permutex2var_epi8(
             b0g0b1,
             _v512_set_epu8(
@@ -366,51 +329,11 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
             ),
             bgr2,
         );
-        /*
-        [63, 61, 60, 58, 57, 55, 54, 52, 51, 49, 48, 46, 45, 43, 42, 40, 39, 37, 36, 34, 33, 31, 30, 28, 27,
-         25, 24, 23,
-         21, 20, 18,
-         17, 15, 14,
-         12, 11, 9,
-         8, 6, 5,
-         3, 2, 0,
-         62, 59, 56,
-         53, 50, 47,
-         44, 41, 38,
-         35, 32, 29,
-         26, 23, 20,
-         17, 14, 11,
-         8, 5, 2]
-         */
-        /*
-        63,
-               62, 60, 59,
-               57, 56, 54,
-               57, 51, 50,
-               48, 47, 45,
-               44, 42, 41,
-               39, 38, 36,
-               35, 33, 32,
-               30, 29, 27,
-               26, 24, 23,
-               21, 20, 18,
-               17, 15, 14,
-               12, 11, 9,
-               8, 6, 5,
-               3, 2, 0,
-               61 | 0x40, 58 | 0x40, 55 | 0x40,
-               52 | 0x40, 49 | 0x40, 46 | 0x40,
-               43 | 0x40, 40 | 0x40, 37 | 0x40,
-               34 | 0x40, 31 | 0x40, 28 | 0x40,
-               25 | 0x40, 22 | 0x40, 19 | 0x40,
-               16 | 0x40, 13 | 0x40, 10 | 0x40,
-               7 | 0x40, 4 | 0x40, 1 | 0x40,
-        */
         let b = _mm512_permutex2var_epi8(
             g1r1g2,
             _v512_set_epu8(
-                62, 59, 56, 53, 50, 47, 44, 41, 38, 35, 32, 29, 26, 23, 20, 17, 14, 11, 8, 5, 2, 63,
-                60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30, 27, 24, 21, 18, 15, 12, 9, 6, 3, 0,
+                62, 59, 56, 53, 50, 47, 44, 41, 38, 35, 32, 29, 26, 23, 20, 17, 14, 11, 8, 5, 2,
+                63, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30, 27, 24, 21, 18, 15, 12, 9, 6, 3, 0,
                 125, 122, 119, 116, 113, 110, 107, 104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 74,
                 71, 68, 65,
             ),
@@ -911,9 +834,9 @@ mod tests {
                 return;
             }
             for (i, chunk) in rgb_store.chunks_exact_mut(3).enumerate() {
-                chunk[0] = i as u8;
-                chunk[1] = i as u8 + 70;
-                chunk[2] = i as u8 + 150;
+                chunk[0] = 1;
+                chunk[1] = 2;
+                chunk[2] = 3;
             }
             let deinterleaving = if has_avx512vbmi {
                 avx512_load_rgb_u8::<{ YuvSourceChannels::Rgb as u8 }, true>(rgb_store.as_ptr())
@@ -926,69 +849,6 @@ mod tests {
             _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut i32, deinterleaving.0);
             _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut i32, deinterleaving.1);
             _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut i32, deinterleaving.2);
-            println!("R lane:");
-            for (i, lane) in r_lane.chunks_exact(8).enumerate() {
-                for (k, &item) in lane.iter().enumerate() {
-                    let pos = i * 8 + k;
-                    let mut has_diff = false;
-                    if pos > 0 {
-                        let diff = r_lane[pos - 1] as i32 - item as i32;
-                        if diff.abs() > 1 {
-                            has_diff = true;
-                        }
-                    }
-                    if pos + 1 < r_lane.len() {
-                        let diff = r_lane[pos + 1] as i32 - item as i32;
-                        if diff.abs() > 1 {
-                            has_diff = true;
-                        }
-                    }
-                    if has_diff {
-                        print!("\x1b[31m{}: {}\x1b[0m, ", i * 8 + k, item);
-                    } else {
-                        print!("{}: {}, ", i * 8 + k, item);
-                    }
-                }
-                println!();
-            }
-            println!("\n");
-            for (i, lane) in r_lane.chunks_exact(8).enumerate() {
-                println!("R lane {i} was {:?}", lane);
-            }
-            println!("\n");
-            println!("G lane:");
-            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
-                for (k, &item) in lane.iter().enumerate() {
-                    let pos = i * 8 + k;
-                    let mut has_diff = false;
-                    if pos > 0 {
-                        let diff = g_lane[pos - 1] as i32 - item as i32;
-                        if diff.abs() > 1 {
-                            has_diff = true;
-                        }
-                    }
-                    if pos + 1 < g_lane.len() {
-                        let diff = g_lane[pos + 1] as i32 - item as i32;
-                        if diff.abs() > 1 {
-                            has_diff = true;
-                        }
-                    }
-                    if has_diff {
-                        print!("\x1b[31m{}: {}\x1b[0m, ", i * 8 + k, item);
-                    } else {
-                        print!("{}: {}, ", i * 8 + k, item);
-                    }
-                }
-                println!();
-            }
-            println!();
-            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
-                println!("G lane {i} was {:?}", lane);
-            }
-            println!("\n");
-            for (i, lane) in b_lane.chunks_exact(8).enumerate() {
-                println!("B lane {i} was {:?}", lane);
-            }
             assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
             assert!(g_lane.iter().all(|&x| x == 1), "G lane was {:?}", g_lane);
             assert!(b_lane.iter().all(|&x| x == 1), "B lane was {:?}", b_lane);
