@@ -319,9 +319,8 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
         let b0g0b1 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr1, bgr0);
         let g1r1g2 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr2, bgr1);
         let r2b2r0 = _mm512_mask_blend_epi8(0xb6db6db6db6db6db, bgr0, bgr2);
-        let a = _mm512_permutex2var_epi8(
-            b0g0b1,
-            _v512_set_epu8(
+        /*
+                    _v512_set_epu8(
                 125,
                 122, 119, 116,
                 113, 110, 107,
@@ -344,6 +343,12 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
                 12, 11, 9,
                 8, 6, 5,
                 3, 2, 0,
+            ),
+         */
+        let a = _mm512_permutex2var_epi8(
+            b0g0b1,
+            _v512_set_epu8(
+                0, 33, 2, 35, 3, 36, 5, 38, 6, 39, 8, 41, 9, 42, 11, 44, 12, 45, 14, 47, 15, 48, 17, 50, 18, 51, 20, 53, 21, 54, 23, 56, 24, 57, 26, 59, 27, 60, 29, 62, 30, 63, 32, 65, 68, 71, 74, 77, 80, 83, 86, 89, 92, 95, 98, 101, 104, 107, 110, 113, 116, 119, 122, 125
             ),
             bgr2,
         );
