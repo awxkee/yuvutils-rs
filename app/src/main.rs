@@ -52,7 +52,13 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 
 fn main() {
     let num: u64 = 0x7777777777777777;
-    println!("{:b}", num); // Print in binary format
+    println!("{:b}", 102); // Print in binary format
+    let mut vc = [63u8, 61, 60, 58, 57, 55, 54, 52, 51, 49, 48, 46, 45, 43, 42, 40, 39, 37, 36, 34, 33,
+        31, 30, 28, 27, 25, 24, 23, 21, 20, 18, 17, 15, 14, 12, 11, 9, 8, 6, 5, 3, 2, 0,
+        126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 90, 87, 84, 81, 78, 75,
+        72, 69, 66];
+    let vj = vc.iter().map(|&x| if x & 0x40 != 0 { x & 0xBF } else { x} ).collect::<Vec<_>>();
+    println!("{:?}", vj);
     let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
