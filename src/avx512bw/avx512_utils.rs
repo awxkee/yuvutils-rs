@@ -908,7 +908,12 @@ mod tests {
             }
             println!("\n");
 
-            println!("R lane:");
+            for (i, lane) in r_lane.chunks_exact(8).enumerate() {
+                println!("R lane {i} was {:?}", lane);
+            }
+            println!("\n");
+
+            println!("G lane:");
             for (i, lane) in g_lane.chunks_exact(8).enumerate() {
                 for (k, &item) in lane.iter().enumerate() {
                     let pos = i * 8 + k;
@@ -932,6 +937,109 @@ mod tests {
                     }
                 }
                 println!();
+            }
+            println!("\n");
+
+            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
+                println!("G lane {i} was {:?}", lane);
+            }
+            println!("\n");
+
+            assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
+            assert!(g_lane.iter().all(|&x| x == 2), "G lane was {:?}", g_lane);
+        }
+    }
+
+    #[test]
+    fn check_unzip_avx512vbmi() {
+        unsafe {
+            let mut rgb_store0 = vec![0u8; 64];
+            let mut rgb_store1 = vec![0u8; 64];
+            let has_avx512vbmi = std::is_x86_feature_detected!("avx512vbmi");
+            let has_avx512bw = std::is_x86_feature_detected!("avx512bw");
+            if !has_avx512bw {
+                println!("Launched test on a platform that does not support it");
+                return;
+            }
+            for (i, chunk) in rgb_store0.chunks_exact_mut(1).enumerate() {
+                chunk[0] = i as u8;
+            }
+            for (i, chunk) in rgb_store1.chunks_exact_mut(1).enumerate() {
+                chunk[1] = i as u8 + 70;
+            }
+            let v0 = _mm512_loadu_si512(rgb_store0.as_ptr() as *const i32);
+            let v1 = _mm512_loadu_si512(rgb_store1.as_ptr() as *const i32);
+            let deinterleaving = if has_avx512vbmi {
+                avx512_zip_epi8::<true>(v0, v1)
+            } else {
+                avx512_zip_epi8::<false>(v0, v1)
+            };
+            let mut r_lane = vec![0u8; 64];
+            let mut g_lane = vec![0u8; 64];
+            _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut i32, deinterleaving.0);
+            _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut i32, deinterleaving.1);
+
+            println!("R lane:");
+            for (i, lane) in r_lane.chunks_exact(8).enumerate() {
+                for (k, &item) in lane.iter().enumerate() {
+                    let pos = i * 8 + k;
+                    let mut has_diff = false;
+                    if pos > 0 {
+                        let diff = r_lane[pos - 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if pos + 1 < r_lane.len() {
+                        let diff = r_lane[pos + 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if has_diff {
+                        print!("\x1b[31m{}: {}\x1b[0m, ", i * 8 + k, item);
+                    } else {
+                        print!("{}: {}, ", i * 8 + k, item);
+                    }
+                }
+                println!();
+            }
+            println!("\n");
+
+            for (i, lane) in r_lane.chunks_exact(8).enumerate() {
+                println!("R lane {i} was {:?}", lane);
+            }
+            println!("\n");
+
+            println!("G lane:");
+            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
+                for (k, &item) in lane.iter().enumerate() {
+                    let pos = i * 8 + k;
+                    let mut has_diff = false;
+                    if pos > 0 {
+                        let diff = g_lane[pos - 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if pos + 1 < g_lane.len() {
+                        let diff = g_lane[pos + 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if has_diff {
+                        print!("\x1b[31m{}: {}\x1b[0m, ", i * 8 + k, item);
+                    } else {
+                        print!("{}: {}, ", i * 8 + k, item);
+                    }
+                }
+                println!();
+            }
+            println!("\n");
+
+            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
+                println!("G lane {i} was {:?}", lane);
             }
             println!("\n");
 
