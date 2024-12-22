@@ -918,7 +918,25 @@ mod tests {
             println!("R lane:");
             for (i, lane) in r_lane.chunks_exact(8).enumerate() {
                 for (k, &item) in lane.iter().enumerate() {
-                    print!("{}: {}, ", i * 8 + k, item);
+                    let pos = i * 8 + k;
+                    let mut has_diff = false;
+                    if pos > 0 {
+                        let diff = r_lane[pos - 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if pos + 1 < r_lane.len() {
+                        let diff = r_lane[pos + 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if has_diff {
+                        print!("\x1b[31m{}: {}\x1b[0m, ", i * 8 + k, item);
+                    } else {
+                        print!("{}: {}, ", i * 8 + k, item);
+                    }
                 }
                 println!();
             }
@@ -930,7 +948,25 @@ mod tests {
             println!("G lane:");
             for (i, lane) in g_lane.chunks_exact(8).enumerate() {
                 for (k, &item) in lane.iter().enumerate() {
-                    print!("{}: {}, ", i * 8 + k, item);
+                    let pos = i * 8 + k;
+                    let mut has_diff = false;
+                    if pos > 0 {
+                        let diff = g_lane[pos - 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if pos + 1 < g_lane.len() {
+                        let diff = g_lane[pos + 1] as i32 - item as i32;
+                        if diff.abs() > 1 {
+                            has_diff = true;
+                        }
+                    }
+                    if has_diff {
+                        print!("\x1b[31m{}: {}\x1b[0m, ", i * 8 + k, item);
+                    } else {
+                        print!("{}: {}, ", i * 8 + k, item);
+                    }
                 }
                 println!();
             }
