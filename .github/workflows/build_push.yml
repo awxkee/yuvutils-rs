@@ -38,11 +38,12 @@ jobs:
       - run: cargo clippy
 
   clippy_x86_nightly:
-    name: Clippy x86 Stable
+    name: Clippy x86 Nightly
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
+      - run: rustup component add clippy
       - run: cargo clippy --features nightly_avx512
 
   clippy_arm:
