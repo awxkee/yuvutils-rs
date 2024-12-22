@@ -322,8 +322,14 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
         let a = _mm512_permutex2var_epi8(
             b0g0b1,
             _v512_set_epu8(
-                125, 122, 119, 116, 113, 110, 107, 104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 74,
-                71, 68, 65, 63,
+                125,
+                122, 119, 116,
+                113, 110, 107,
+                104, 101, 98,
+                95, 92, 89,
+                86, 83, 80,
+                77, 74, 71,
+                68, 65, 63,
                 62, 60, 59,
                 57, 56, 54,
                 53, 51, 50,
@@ -903,7 +909,7 @@ mod tests {
                 println!();
             }
             println!("\n");
-            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
+            for (i, lane) in r_lane.chunks_exact(8).enumerate() {
                 println!("R lane {i} was {:?}", lane);
             }
             println!("\n");
@@ -912,6 +918,7 @@ mod tests {
                 for (k, &item) in lane.iter().enumerate() {
                     print!("{}: {}, ", i * 8 + k, item);
                 }
+                println!();
             }
             println!();
             for (i, lane) in g_lane.chunks_exact(8).enumerate() {
