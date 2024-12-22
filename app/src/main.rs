@@ -81,7 +81,7 @@ fn main() {
     vqtbl.reverse();
     let mut rs: [i32; 64] = [0i32; 64];
     for (i, &item) in vc.iter().enumerate() {
-        rs[i] = vqtbl[item];
+        rs[item] = vqtbl[i];
     }
     let vj = vc.iter().map(|&x| if x & 0x40 != 0 { x & 0xBF } else { x} ).collect::<Vec<_>>();
     rs.reverse();
