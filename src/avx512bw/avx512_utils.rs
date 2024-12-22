@@ -951,7 +951,7 @@ mod tests {
     }
 
     #[test]
-    fn check_unzip_avx512vbmi() {
+    fn check_zip_avx512vbmi() {
         unsafe {
             let mut rgb_store0 = vec![0u8; 64];
             let mut rgb_store1 = vec![0u8; 64];
