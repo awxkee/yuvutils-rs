@@ -869,8 +869,19 @@ mod tests {
             }
             println!("\n");
             for (i, lane) in g_lane.chunks_exact(8).enumerate() {
+                println!("R lane {i} was {:?}", lane);
+            }
+            println!("\n");
+            println!("G lane:");
+            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
+                for (k, &item) in lane.iter().enumerate() {
+                    print!("{}: {}, ", i * 8 + k, item);
+                }
+            }
+            for (i, lane) in g_lane.chunks_exact(8).enumerate() {
                 println!("G lane {i} was {:?}", lane);
             }
+            println!("\n");
             for (i, lane) in b_lane.chunks_exact(8).enumerate() {
                 println!("B lane {i} was {:?}", lane);
             }
