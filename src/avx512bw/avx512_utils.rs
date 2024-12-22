@@ -835,8 +835,8 @@ mod tests {
             }
             for chunk in rgb_store.chunks_exact_mut(3) {
                 chunk[0] = 1;
-                chunk[2] = 2;
-                chunk[3] = 3;
+                chunk[1] = 2;
+                chunk[2] = 3;
             }
             let deinterleaving = if has_avx512vbmi {
                 avx512_load_rgb_u8::<{ YuvSourceChannels::Rgb as u8 }, true>(rgb_store.as_ptr())
