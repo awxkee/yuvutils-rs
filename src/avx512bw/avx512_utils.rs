@@ -849,6 +849,9 @@ mod tests {
             _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut i32, deinterleaving.0);
             _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut i32, deinterleaving.1);
             _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut i32, deinterleaving.2);
+            println!("R lane was {:?}", r_lane);
+            println!("G lane was {:?}", r_lane);
+            println!("B lane was {:?}", r_lane);
             assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
             assert!(g_lane.iter().all(|&x| x == 1), "G lane was {:?}", g_lane);
             assert!(b_lane.iter().all(|&x| x == 1), "B lane was {:?}", b_lane);
