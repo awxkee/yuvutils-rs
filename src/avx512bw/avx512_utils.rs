@@ -361,7 +361,7 @@ pub(crate) unsafe fn avx512_deinterleave_rgb<const HAS_VBMI: bool>(
             g1r1g2,
             _v512_set_epu8(
                 63,
-                61, 60, 59,
+                62, 60, 59,
                 57, 56, 54,
                 57, 51, 50,
                 48, 47, 45,
