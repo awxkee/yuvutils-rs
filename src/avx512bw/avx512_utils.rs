@@ -921,9 +921,9 @@ mod tests {
             for (i, lane) in b_lane.chunks_exact(8).enumerate() {
                 println!("B lane {i} was {:?}", lane);
             }
-            // assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
-            // assert!(g_lane.iter().all(|&x| x == 1), "G lane was {:?}", g_lane);
-            // assert!(b_lane.iter().all(|&x| x == 1), "B lane was {:?}", b_lane);
+            assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
+            assert!(g_lane.iter().all(|&x| x == 1), "G lane was {:?}", g_lane);
+            assert!(b_lane.iter().all(|&x| x == 1), "B lane was {:?}", b_lane);
         }
     }
 }
