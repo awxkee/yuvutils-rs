@@ -51,7 +51,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let num: u64 = 0xb6db6db6db6db6db;
+    let num: u64 = 0x7777777777777777;
     println!("{:b}", num); // Print in binary format
     let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
