@@ -84,6 +84,7 @@ fn main() {
         rs[i] = vqtbl[item];
     }
     let vj = vc.iter().map(|&x| if x & 0x40 != 0 { x & 0xBF } else { x} ).collect::<Vec<_>>();
+    rs.reverse();
     println!("{:?}", rs);
     let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
