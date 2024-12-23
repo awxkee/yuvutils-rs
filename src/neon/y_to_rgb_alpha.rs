@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::{
+use crate::neon::utils::{
     neon_store_half_rgb8, neon_store_rgb8, vmullq_laneq_s16, xvld1q_u8_x2,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};

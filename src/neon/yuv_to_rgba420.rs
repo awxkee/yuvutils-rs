@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{
+use crate::neon::utils::{
     neon_store_half_rgb8, neon_store_rgb8, vaddn_dot, vdotl_laneq_s16, vmullq_laneq_s16,
     vweight_laneq_x2,
 };

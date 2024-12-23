@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv};
+use crate::neon::utils::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 

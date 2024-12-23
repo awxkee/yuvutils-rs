@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::neon_premultiply_alpha;
+use crate::neon::utils::neon_premultiply_alpha;
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 use std::arch::aarch64::*;
 

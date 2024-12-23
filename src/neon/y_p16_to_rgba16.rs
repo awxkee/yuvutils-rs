@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{neon_store_rgb16, vldq_s16_endian};
+use crate::neon::utils::{neon_store_rgb16, vldq_s16_endian};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 
 pub(crate) unsafe fn neon_y_p16_to_rgba16_row<

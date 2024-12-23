@@ -28,7 +28,7 @@
  */
 use crate::avx2::avx2_utils::{
     _mm256_affine_transform, _mm256_affine_v_dot, _mm256_havg_epi16_epi32, _mm256_interleave_epi16,
-    _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16, avx2_pack_u32,
+    _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};

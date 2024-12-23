@@ -28,7 +28,7 @@
  */
 #![deny(unreachable_code, unreachable_pub)]
 mod gbr_to_rgb;
-mod neon_simd_support;
+mod utils;
 mod neon_ycgco;
 mod rgb_to_y;
 mod rgb_to_ycgco;

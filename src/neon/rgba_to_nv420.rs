@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{neon_vld_rgb_for_yuv, vdotl_laneq_u16_x3};
+use crate::neon::utils::{neon_vld_rgb_for_yuv, vdotl_laneq_u16_x3};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 
 #[target_feature(enable = "rdm")]
