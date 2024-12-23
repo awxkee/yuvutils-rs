@@ -1541,19 +1541,19 @@ mod tests {
             let diff_b = (b as i32 - ob as i32).abs();
 
             assert!(
-                diff_r <= 21,
+                diff_r <= 12,
                 "Original RGB {:?}, Round-tripped RGB {:?}",
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 21,
+                diff_g <= 12,
                 "Original RGB {:?}, Round-tripped RGB {:?}",
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 21,
+                diff_b <= 12,
                 "Original RGB {:?}, Round-tripped RGB {:?}",
                 [or, og, ob],
                 [r, g, b]
@@ -1660,21 +1660,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 35,
+                diff_r <= 12,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 35,
+                diff_g <= 12,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 35,
+                diff_b <= 12,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],
@@ -1810,21 +1810,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 320,
+                diff_r <= 230,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 320,
+                diff_g <= 230,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 320,
+                diff_b <= 230,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],

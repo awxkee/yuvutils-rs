@@ -39,7 +39,6 @@ use crate::yuv_support::{
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::ops::Shl;
 
 pub(crate) fn sse_rgba_to_yuv_row<
     const ORIGIN_CHANNELS: u8,
@@ -102,7 +101,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<
     let y_bias = _mm_set1_epi16(bias_y);
     let uv_bias = _mm_set1_epi16(bias_uv);
     let y_base = _mm_set1_epi32(bias_y as i32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
-    let v_yr_yg = _mm_set1_epi32(transform.yg.shl(16) | transform.yr);
+    let v_yr_yg = _mm_set1_epi32(transform.interleaved_yr_yg());
     let v_yb = _mm_set1_epi16(transform.yb as i16);
     let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
     let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);

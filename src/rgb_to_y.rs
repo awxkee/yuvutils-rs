@@ -88,9 +88,6 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    let i_bias_y = chroma_range.bias_y as i32;
-    let i_cap_y = chroma_range.range_y as i32 + i_bias_y;
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -197,7 +194,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             let g = rgba[source_channels.get_g_channel_offset()] as i32;
             let b = rgba[source_channels.get_b_channel_offset()] as i32;
             let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
-            *y_dst = y.min(i_cap_y) as u8;
+            *y_dst = y as u8;
         }
     });
 

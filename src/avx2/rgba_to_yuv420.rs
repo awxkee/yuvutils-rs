@@ -37,7 +37,6 @@ use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::ops::Shl;
 
 pub(crate) fn avx2_rgba_to_yuv420<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     transform: &CbCrForwardTransform<i32>,
@@ -93,7 +92,7 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const PRECISION: i
     let uv_bias = _mm256_set1_epi16(bias_uv);
     let y_base = _mm256_set1_epi32(bias_y as i32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
 
-    let v_yr_yg = _mm256_set1_epi32(transform.yg.shl(16) | transform.yr);
+    let v_yr_yg = _mm256_set1_epi32(transform.interleaved_yr_yg());
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
     let v_cb_r = _mm256_set1_epi16(transform.cb_r as i16);
     let v_cb_g = _mm256_set1_epi16(transform.cb_g as i16);

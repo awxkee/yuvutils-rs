@@ -29,6 +29,7 @@
 mod support;
 
 use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageReader};
+use std::arch::x86_64::*;
 use std::fs::File;
 use std::io::Read;
 use std::thread::available_parallelism;
@@ -36,14 +37,14 @@ use std::time::Instant;
 use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24, rs_RGB24ToI420};
 use yuvutils_rs::{
     gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16,
-    rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16,
-    rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba_to_yuv422, yuv400_to_rgb, yuv420_p16_to_rgb,
-    yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb, yuv422_p16_to_rgb16,
-    yuv422_to_rgb, yuv422_to_rgba, yuv444_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16,
-    yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv24_to_rgb, yuyv422_to_rgb,
-    yuyv422_to_yuv420, BufferStoreMut, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking,
-    YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12,
+    rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba_to_yuv422, yuv400_to_rgb,
+    yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb,
+    yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16, yuv444_to_rgb,
+    yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb,
+    yuv_nv24_to_rgb, yuyv422_to_rgb, yuyv422_to_yuv420, BufferStoreMut, SharpYuvGammaTransfer,
+    YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut,
+    YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -61,6 +62,41 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
+    unsafe {
+        let w0 = -2765;
+        let w1 = -822;
+        let arr: [i16; 8] = [-822, -2765, -822, -2765, -822, -2765, -822, -2765];
+        let w0_as_u16 = w0 as u16;
+        let w1_as_u16 = w1 as u16;
+
+        // Pack into a `u32`
+        let packed_coeffs = ((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32);
+        let v_yb = _mm_set1_epi32(3588);
+        // Set the packed value across all lanes of a __m128i register
+        let coefficients = _mm_set1_epi32(packed_coeffs as i32);
+
+        // Example of adding to another __m128i register
+        let data0 = _mm_setr_epi16(364, 324, 0, 0, 0, 0, 0, 0);
+        let result0 = _mm_madd_epi16(coefficients, data0);
+        let mut rs = vec![0u32; 4];
+        _mm_storeu_si128(rs.as_mut_ptr() as *mut __m128i, result0);
+        println!("Result {:?}", rs);
+
+        // Example of adding to another __m128i register
+        let data0 = _mm_setr_epi16(288, 0, 0, 0, 0, 0, 0, 0);
+        let result1 = _mm_madd_epi16(data0, v_yb);
+        let mut rs = vec![0u32; 4];
+        _mm_storeu_si128(rs.as_mut_ptr() as *mut __m128i, result1);
+        println!("Result {:?}", rs);
+
+        let result1 = _mm_srli_epi32::<13>(_mm_add_epi32(
+            _mm_add_epi32(result0, result1),
+            _mm_set1_epi32(4198399),
+        ));
+        let mut rs = vec![0u32; 4];
+        _mm_storeu_si128(rs.as_mut_ptr() as *mut __m128i, result1);
+        println!("Result {:?}", rs);
+    }
     let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
@@ -101,17 +137,20 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
 
-    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420(
+    rgb_to_yuv444_p16(
         &mut planar_image,
-        &src_bytes,
+        &bytes_16,
         rgba_stride as u32,
-        YuvRange::Full,
+        10,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt709,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -263,12 +302,15 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv420_to_rgb(
+    yuv444_p16_to_rgb16(
         &fixed_planar,
-        &mut rgba,
+        &mut bytes_16,
         rgba_stride as u32,
-        YuvRange::Full,
+        10,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt709,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
@@ -334,7 +376,7 @@ fn main() {
 
     // /    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
 
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
         "converted_sharp15.png",

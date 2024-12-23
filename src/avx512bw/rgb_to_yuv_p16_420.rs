@@ -38,7 +38,6 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::ops::Shl;
 
 pub(crate) fn avx512_rgba_to_yuv_p16_420<
     const ORIGIN_CHANNELS: u8,
@@ -101,11 +100,11 @@ unsafe fn avx512_rgba_to_yuv_impl<
 
     let y_bias = _mm512_set1_epi32(bias_y);
     let uv_bias = _mm512_set1_epi32(bias_uv);
-    let v_yr_yg = _mm512_set1_epi32(transform.yg.shl(16) | transform.yr);
+    let v_yr_yg = _mm512_set1_epi32(transform.interleaved_yr_yg());
     let v_yb = _mm512_set1_epi16(transform.yb as i16);
-    let v_cbr_cbg = _mm512_set1_epi32(transform.cb_g.shl(16) | transform.cb_r);
+    let v_cbr_cbg = _mm512_set1_epi32(transform.interleaved_cbr_cbg());
     let v_cb_b = _mm512_set1_epi16(transform.cb_b as i16);
-    let v_crr_vcrg = _mm512_set1_epi32(transform.cr_g.shl(16) | transform.cr_r);
+    let v_crr_vcrg = _mm512_set1_epi32(transform.interleaved_crr_crg());
     let v_cr_b = _mm512_set1_epi16(transform.cr_b as i16);
 
     let big_endian_shuffle_flag = _v512_setr_epu8(

@@ -39,7 +39,6 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::ops::Shl;
 
 pub(crate) fn sse_rgba_to_yuv_p16<
     const ORIGIN_CHANNELS: u8,
@@ -110,12 +109,12 @@ unsafe fn sse_rgba_to_yuv_impl<
 
     let y_bias = _mm_set1_epi32(bias_y);
     let uv_bias = _mm_set1_epi32(bias_uv);
-    let v_yr_yg = _mm_set1_epi32(transform.yg.shl(16) | transform.yr);
-    let v_yb = _mm_set1_epi16(transform.yb as i16);
-    let v_cbr_cbg = _mm_set1_epi32(transform.cb_g.shl(16) | transform.cb_r);
-    let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
-    let v_crr_vcrg = _mm_set1_epi32(transform.cr_g.shl(16) | transform.cr_r);
-    let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
+    let v_yr_yg = _mm_set1_epi32(transform.interleaved_yr_yg());
+    let v_yb = _mm_set1_epi32(transform.yb);
+    let v_cbr_cbg = _mm_set1_epi32(transform.interleaved_cbr_cbg());
+    let v_cb_b = _mm_set1_epi32(transform.cb_b);
+    let v_crr_vcrg = _mm_set1_epi32(transform.interleaved_crr_crg());
+    let v_cr_b = _mm_set1_epi32(transform.cr_b);
 
     let big_endian_shuffle_flag =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);

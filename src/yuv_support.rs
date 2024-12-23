@@ -106,6 +106,29 @@ pub struct CbCrForwardTransform<T> {
     pub cr_b: T,
 }
 
+impl CbCrForwardTransform<i32> {
+    #[inline]
+    pub(crate) const fn interleaved_yr_yg(&self) -> i32 {
+        let w0_as_u16 = self.yg as u16;
+        let w1_as_u16 = self.yr as u16;
+        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+    }
+
+    #[inline]
+    pub(crate) const fn interleaved_cbr_cbg(&self) -> i32 {
+        let w0_as_u16 = self.cb_g as u16;
+        let w1_as_u16 = self.cb_r as u16;
+        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+    }
+
+    #[inline]
+    pub(crate) const fn interleaved_crr_crg(&self) -> i32 {
+        let w0_as_u16 = self.cr_g as u16;
+        let w1_as_u16 = self.cr_r as u16;
+        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+    }
+}
+
 pub trait ToIntegerTransform {
     fn to_integers(&self, precision: u32) -> CbCrForwardTransform<i32>;
 }
