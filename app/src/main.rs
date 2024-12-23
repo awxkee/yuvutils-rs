@@ -29,7 +29,7 @@
 mod support;
 
 use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageReader};
-use std::arch::x86_64::*;
+use std::cmp::max;
 use std::fs::File;
 use std::io::Read;
 use std::thread::available_parallelism;
@@ -62,41 +62,6 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    unsafe {
-        let w0 = -2765;
-        let w1 = -822;
-        let arr: [i16; 8] = [-822, -2765, -822, -2765, -822, -2765, -822, -2765];
-        let w0_as_u16 = w0 as u16;
-        let w1_as_u16 = w1 as u16;
-
-        // Pack into a `u32`
-        let packed_coeffs = ((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32);
-        let v_yb = _mm_set1_epi32(3588);
-        // Set the packed value across all lanes of a __m128i register
-        let coefficients = _mm_set1_epi32(packed_coeffs as i32);
-
-        // Example of adding to another __m128i register
-        let data0 = _mm_setr_epi16(364, 324, 0, 0, 0, 0, 0, 0);
-        let result0 = _mm_madd_epi16(coefficients, data0);
-        let mut rs = vec![0u32; 4];
-        _mm_storeu_si128(rs.as_mut_ptr() as *mut __m128i, result0);
-        println!("Result {:?}", rs);
-
-        // Example of adding to another __m128i register
-        let data0 = _mm_setr_epi16(288, 0, 0, 0, 0, 0, 0, 0);
-        let result1 = _mm_madd_epi16(data0, v_yb);
-        let mut rs = vec![0u32; 4];
-        _mm_storeu_si128(rs.as_mut_ptr() as *mut __m128i, result1);
-        println!("Result {:?}", rs);
-
-        let result1 = _mm_srli_epi32::<13>(_mm_add_epi32(
-            _mm_add_epi32(result0, result1),
-            _mm_set1_epi32(4198399),
-        ));
-        let mut rs = vec![0u32; 4];
-        _mm_storeu_si128(rs.as_mut_ptr() as *mut __m128i, result1);
-        println!("Result {:?}", rs);
-    }
     let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
@@ -142,7 +107,7 @@ fn main() {
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv444_p16(
+    rgb_to_yuv422_p16(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
@@ -302,7 +267,7 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv444_p16_to_rgb16(
+    yuv422_p16_to_rgb16(
         &fixed_planar,
         &mut bytes_16,
         rgba_stride as u32,

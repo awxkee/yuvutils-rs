@@ -356,43 +356,43 @@ fn rgbx_to_yuv_ant<
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            #[cfg(feature = "nightly_avx512")]
-            if use_avx512 && BIT_DEPTH <= 12 {
-                _offset = avx512_rgba_to_yuv_p16_420::<
-                    ORIGIN_CHANNELS,
-                    ENDIANNESS,
-                    BYTES_POSITION,
-                    PRECISION,
-                    BIT_DEPTH,
-                >(
-                    &transform,
-                    &range,
-                    _y_plane0,
-                    _y_plane1,
-                    _u_plane,
-                    _v_plane,
-                    _rgba0,
-                    _rgba1,
-                    _offset.cx,
-                    _offset.ux,
-                    image.width as usize,
-                );
-            }
-            if use_avx {
-                _offset = avx_dispatch_420(
-                    &transform,
-                    &range,
-                    _y_plane0,
-                    _y_plane1,
-                    _u_plane,
-                    _v_plane,
-                    _rgba0,
-                    _rgba1,
-                    _offset.cx,
-                    _offset.ux,
-                    image.width as usize,
-                );
-            }
+            // #[cfg(feature = "nightly_avx512")]
+            // if use_avx512 && BIT_DEPTH <= 12 {
+            //     _offset = avx512_rgba_to_yuv_p16_420::<
+            //         ORIGIN_CHANNELS,
+            //         ENDIANNESS,
+            //         BYTES_POSITION,
+            //         PRECISION,
+            //         BIT_DEPTH,
+            //     >(
+            //         &transform,
+            //         &range,
+            //         _y_plane0,
+            //         _y_plane1,
+            //         _u_plane,
+            //         _v_plane,
+            //         _rgba0,
+            //         _rgba1,
+            //         _offset.cx,
+            //         _offset.ux,
+            //         image.width as usize,
+            //     );
+            // }
+            // if use_avx {
+            //     _offset = avx_dispatch_420(
+            //         &transform,
+            //         &range,
+            //         _y_plane0,
+            //         _y_plane1,
+            //         _u_plane,
+            //         _v_plane,
+            //         _rgba0,
+            //         _rgba1,
+            //         _offset.cx,
+            //         _offset.ux,
+            //         image.width as usize,
+            //     );
+            // }
             if use_sse {
                 _offset = sse_dispatch_420(
                     &transform,

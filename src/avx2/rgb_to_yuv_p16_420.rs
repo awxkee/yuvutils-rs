@@ -99,11 +99,11 @@ unsafe fn avx_rgba_to_yuv_impl<
 
     let y_bias = _mm256_set1_epi32(bias_y);
     let uv_bias = _mm256_set1_epi32(bias_uv);
-    let v_yr_yg = _mm256_set1_epi32(transform.interleaved_yr_yg());
+    let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
-    let v_cbr_cbg = _mm256_set1_epi32(transform.interleaved_cbr_cbg());
+    let v_cbr_cbg = _mm256_set1_epi32(transform._interleaved_cbr_cbg());
     let v_cb_b = _mm256_set1_epi16(transform.cb_b as i16);
-    let v_crr_vcrg = _mm256_set1_epi32(transform.interleaved_crr_crg());
+    let v_crr_vcrg = _mm256_set1_epi32(transform._interleaved_crr_crg());
     let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
     let big_endian_shuffle_flag = _mm256_setr_epi8(
@@ -160,7 +160,7 @@ unsafe fn avx_rgba_to_yuv_impl<
         let g_values = _mm256_havg_epi16_epi32(_mm256_avg_epu16(g_values0, g_values1));
         let b_values = _mm256_havg_epi16_epi32(_mm256_avg_epu16(b_values0, b_values1));
 
-        let r_g_values = avx2_pack_u32(r_values, g_values);
+        let r_g_values = _mm256_or_si256(r_values, _mm256_slli_epi32::<16>(g_values));
 
         let mut cb_s =
             _mm256_affine_transform::<PRECISION>(uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b);

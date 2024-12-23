@@ -110,11 +110,11 @@ unsafe fn avx_rgba_to_yuv_impl<
 
     let y_bias = _mm512_set1_epi32(bias_y);
     let uv_bias = _mm512_set1_epi32(bias_uv);
-    let v_yr_yg = _mm512_set1_epi32(transform.interleaved_yr_yg());
+    let v_yr_yg = _mm512_set1_epi32(transform._interleaved_yr_yg());
     let v_yb = _mm512_set1_epi16(transform.yb as i16);
-    let v_cbr_cbg = _mm512_set1_epi32(transform.interleaved_cbr_cbg());
+    let v_cbr_cbg = _mm512_set1_epi32(transform._interleaved_cbr_cbg());
     let v_cb_b = _mm512_set1_epi16(transform.cb_b as i16);
-    let v_crr_vcrg = _mm512_set1_epi32(transform.interleaved_crr_crg());
+    let v_crr_vcrg = _mm512_set1_epi32(transform._interleaved_crr_crg());
     let v_cr_b = _mm512_set1_epi16(transform.cr_b as i16);
 
     let big_endian_shuffle_flag = _v512_setr_epu8(
@@ -183,7 +183,7 @@ unsafe fn avx_rgba_to_yuv_impl<
             let g_values = _mm512_havg_epi16_epi32(g_values);
             let b_values = _mm512_havg_epi16_epi32(b_values);
 
-            let r_g_values = avx512_pack_u32(r_values, g_values);
+            let r_g_values = _mm512_or_si512(r_values, _mm512_slli_epi32::<16>(g_values));
 
             let mut cb_s =
                 _mm512_affine_transform::<PREC>(uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b);

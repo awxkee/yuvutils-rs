@@ -72,7 +72,7 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
     let bias_y = range.bias_y as i16;
 
     let y_base = _mm256_set1_epi32(bias_y as i32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
-    let v_yr_yg = _mm256_set1_epi32(transform.interleaved_yr_yg());
+    let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
     while cx + 32 < width {

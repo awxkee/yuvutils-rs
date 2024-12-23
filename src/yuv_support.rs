@@ -71,6 +71,28 @@ impl CbCrInverseTransform<f32> {
             g_coeff_2: g_coef_2,
         }
     }
+
+    /// Integral transformation adds an error not less than 1%
+    pub fn to_mixed_integers(
+        self,
+        luma_precision: u32,
+        chroma_precision: u32,
+    ) -> CbCrInverseTransform<i32> {
+        let y_precision_scale: i32 = 1i32 << (luma_precision as i32);
+        let c_precision_scale: i32 = 1i32 << (chroma_precision as i32);
+        let cr_coef = (self.cr_coef * c_precision_scale as f32).round() as i32;
+        let cb_coef = (self.cb_coef * c_precision_scale as f32).round() as i32;
+        let y_coef = (self.y_coef * y_precision_scale as f32).round() as i32;
+        let g_coef_1 = (self.g_coeff_1 * c_precision_scale as f32).round() as i32;
+        let g_coef_2 = (self.g_coeff_2 * c_precision_scale as f32).round() as i32;
+        CbCrInverseTransform::<i32> {
+            y_coef,
+            cr_coef,
+            cb_coef,
+            g_coeff_1: g_coef_1,
+            g_coeff_2: g_coef_2,
+        }
+    }
 }
 
 /// Transformation RGB to YUV with coefficients as specified in [ITU-R](https://www.itu.int/rec/T-REC-H.273/en)
@@ -108,21 +130,21 @@ pub struct CbCrForwardTransform<T> {
 
 impl CbCrForwardTransform<i32> {
     #[inline]
-    pub(crate) const fn interleaved_yr_yg(&self) -> i32 {
+    pub(crate) const fn _interleaved_yr_yg(&self) -> i32 {
         let w0_as_u16 = self.yg as u16;
         let w1_as_u16 = self.yr as u16;
         (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
     }
 
     #[inline]
-    pub(crate) const fn interleaved_cbr_cbg(&self) -> i32 {
+    pub(crate) const fn _interleaved_cbr_cbg(&self) -> i32 {
         let w0_as_u16 = self.cb_g as u16;
         let w1_as_u16 = self.cb_r as u16;
         (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
     }
 
     #[inline]
-    pub(crate) const fn interleaved_crr_crg(&self) -> i32 {
+    pub(crate) const fn _interleaved_crr_crg(&self) -> i32 {
         let w0_as_u16 = self.cr_g as u16;
         let w1_as_u16 = self.cr_r as u16;
         (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
