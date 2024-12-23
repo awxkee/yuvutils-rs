@@ -61,91 +61,6 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let num: u64 = 0x7777777777777777;
-    println!("{:b}", 102); // Print in binary format
-    let mut vc = [
-        70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
-        113, 92, 114, 93, 115, 94, 116, 95, 117, 96, 118, 97, 119, 98, 120, 99, 121, 100, 122, 101,
-        123, 102, 124, 103, 125, 104, 126, 105, 127, 106, 128, 107, 129, 108, 110, 109, 131, 110,
-        132, 111, 133, 112,
-    ];
-    let mut vqtbl = [
-        63,
-        62,
-        60,
-        59,
-        57,
-        56,
-        54,
-        57,
-        51,
-        50,
-        48,
-        47,
-        45,
-        44,
-        42,
-        41,
-        39,
-        38,
-        36,
-        35,
-        33,
-        32,
-        30,
-        29,
-        27,
-        26,
-        24,
-        23,
-        21,
-        20,
-        18,
-        17,
-        15,
-        14,
-        12,
-        11,
-        9,
-        8,
-        6,
-        5,
-        3,
-        2,
-        0,
-        61 | 0x40,
-        58 | 0x40,
-        55 | 0x40,
-        52 | 0x40,
-        49 | 0x40,
-        46 | 0x40,
-        43 | 0x40,
-        40 | 0x40,
-        37 | 0x40,
-        34 | 0x40,
-        31 | 0x40,
-        28 | 0x40,
-        25 | 0x40,
-        22 | 0x40,
-        19 | 0x40,
-        16 | 0x40,
-        13 | 0x40,
-        10 | 0x40,
-        7 | 0x40,
-        4 | 0x40,
-        1 | 0x40,
-    ];
-    vqtbl.reverse();
-    let mut rs: [i32; 64] = [0i32; 64];
-    for (i, &item) in vc.iter().enumerate() {
-        rs[item - 70] = vqtbl[i];
-    }
-    let vj = vc
-        .iter()
-        .map(|&x| if x & 0x40 != 0 { x & 0xBF } else { x })
-        .collect::<Vec<_>>();
-    rs.reverse();
-    println!("{:?}", rs);
     let mut img = ImageReader::open("./assets/main_test.jpg")
         .unwrap()
         .decode()
@@ -186,12 +101,12 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv422(
+    rgb_to_yuv420(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
@@ -348,7 +263,7 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv422_to_rgb(
+    yuv420_to_rgb(
         &fixed_planar,
         &mut rgba,
         rgba_stride as u32,

@@ -66,8 +66,10 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
     let a_ptr = a_plane.as_ptr();
     let rgba_ptr = rgba.as_mut_ptr();
 
+    const SCALE: i32 = 2;
+
     let y_corr = vdupq_n_u8(range.bias_y as u8);
-    let uv_corr = vdupq_n_s16(range.bias_uv as i16);
+    let uv_corr = vdupq_n_s16((range.bias_uv as i16) << SCALE);
 
     let weights_arr: [i16; 8] = [
         transform.y_coef as i16,
@@ -81,8 +83,6 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
     ];
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
-
-    const SCALE: i32 = 2;
 
     while cx + 32 < width {
         let mut y_set = xvld1q_u8_x2(y_ptr.add(cx));
@@ -115,27 +115,27 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
             }
         }
 
-        let u_high0 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(u_high_u8))),
+        let u_high0 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(vget_low_u8(u_high_u8))),
             uv_corr,
-        ));
-        let v_high0 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(v_high_u8))),
+        );
+        let v_high0 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(vget_low_u8(v_high_u8))),
             uv_corr,
-        ));
+        );
         let y_high0 = vqrdmulhq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(vget_low_u8(y_set.1))),
             v_weights,
         );
 
-        let u_high1 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_high_u8(u_high_u8)),
+        let u_high1 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(u_high_u8)),
             uv_corr,
-        ));
-        let v_high1 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_high_u8(v_high_u8)),
+        );
+        let v_high1 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(v_high_u8)),
             uv_corr,
-        ));
+        );
         let y_high1 = vqrdmulhq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(y_set.1)),
             v_weights,
@@ -163,27 +163,27 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
             ),
         ));
 
-        let u_low0 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(u_low_u8))),
+        let u_low0 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(vget_low_u8(u_low_u8))),
             uv_corr,
-        ));
-        let v_low0 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(v_low_u8))),
+        );
+        let v_low0 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(vget_low_u8(v_low_u8))),
             uv_corr,
-        ));
+        );
         let y_low0 = vqrdmulhq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(vget_low_u8(y_set.0))),
             v_weights,
         );
 
-        let u_low1 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_high_u8(u_low_u8)),
+        let u_low1 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(u_low_u8)),
             uv_corr,
-        ));
-        let v_low1 = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_high_u8(v_low_u8)),
+        );
+        let v_low1 = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(v_low_u8)),
             uv_corr,
-        ));
+        );
         let y_low1 = vqrdmulhq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(y_set.0)),
             v_weights,
@@ -291,14 +291,14 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
             }
         }
 
-        let u_high = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(u_high_u8)),
+        let u_high = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(u_high_u8)),
             uv_corr,
-        ));
-        let v_high = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(v_high_u8)),
+        );
+        let v_high = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_high_u8)),
             uv_corr,
-        ));
+        );
         let y_high = vqrdmulhq_laneq_s16::<0>(
             vreinterpretq_s16_u16(vshll_high_n_u8::<SCALE>(y_values)),
             v_weights,
@@ -315,14 +315,14 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
             ),
         ));
 
-        let u_low = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(u_low_u8)),
+        let u_low = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(u_low_u8)),
             uv_corr,
-        ));
-        let v_low = vshlq_n_s16::<SCALE>(vsubq_s16(
-            vreinterpretq_s16_u16(vmovl_u8(v_low_u8)),
+        );
+        let v_low = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_low_u8)),
             uv_corr,
-        ));
+        );
         let y_v_shl = vshll_n_u8::<SCALE>(vget_low_u8(y_values));
         let y_low = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl), v_weights);
 

@@ -355,6 +355,8 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
+    const SCALE: i32 = 2;
+
     let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
 
@@ -376,8 +378,6 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
 
     let mut cx = start_cx;
     let mut ux = start_ux;
-
-    const SCALE: i32 = 2;
 
     while cx + 16 < width as usize {
         let y_values0: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(

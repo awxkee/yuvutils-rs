@@ -114,7 +114,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             let mut _offset: ProcessedOffset = ProcessedOffset { cx: 0, ux: 0 };
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             if use_avx2 {
-                let offset = avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                let offset = avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
                     _y_plane,
                     _uv_plane,
                     _rgba,
@@ -129,7 +129,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             if use_sse {
-                let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
+                let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
                     _y_plane,
                     _uv_plane,
                     _rgba,
@@ -154,7 +154,6 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     &transform,
                     _offset.cx,
                     _offset.ux,
-                    _compute_uv_row,
                 );
                 _offset = offset
             }
@@ -247,7 +246,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             if use_avx2 {
-                let offset = avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER>(
+                let offset = avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
                     _y_plane0,
                     _y_plane1,
                     _uv_plane,
@@ -262,7 +261,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 _offset = offset;
             }
             if use_sse {
-                let offset = sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER>(
+                let offset = sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
                     _y_plane0,
                     _y_plane1,
                     _uv_plane,

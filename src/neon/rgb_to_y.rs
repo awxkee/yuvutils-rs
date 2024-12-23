@@ -56,8 +56,6 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISIO
     ];
     let v_weights = vld1_s16(weights_arr.as_ptr());
 
-    let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
-
     let mut cx = start_cx;
 
     while cx + 16 < width {
@@ -80,13 +78,10 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISIO
         y_h_low = vmlal_lane_s16::<1>(y_h_low, g_h_low, v_weights);
         y_h_low = vmlal_lane_s16::<2>(y_h_low, b_h_low, v_weights);
 
-        let y_high = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_h_low),
-                vshrn_n_s32::<PRECISION>(y_h_high),
-            )),
-            i_cap_y,
-        );
+        let y_high = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_h_low),
+            vshrn_n_s32::<PRECISION>(y_h_high),
+        ));
 
         let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));
@@ -104,13 +99,10 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISIO
         y_l_low = vmlal_lane_s16::<1>(y_l_low, g_l_low, v_weights);
         y_l_low = vmlal_lane_s16::<2>(y_l_low, b_l_low, v_weights);
 
-        let y_low = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_l_low),
-                vshrn_n_s32::<PRECISION>(y_l_high),
-            )),
-            i_cap_y,
-        );
+        let y_low = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_l_low),
+            vshrn_n_s32::<PRECISION>(y_l_high),
+        ));
 
         let y = vcombine_u8(vmovn_u16(y_low), vmovn_u16(y_high));
         vst1q_u8(y_ptr.add(cx), y);
@@ -138,13 +130,10 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISIO
         y_l_low = vmlal_lane_s16::<1>(y_l_low, g_l_low, v_weights);
         y_l_low = vmlal_lane_s16::<2>(y_l_low, b_l_low, v_weights);
 
-        let y_low = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_l_low),
-                vshrn_n_s32::<PRECISION>(y_l_high),
-            )),
-            i_cap_y,
-        );
+        let y_low = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_l_low),
+            vshrn_n_s32::<PRECISION>(y_l_high),
+        ));
 
         vst1_u8(y_ptr.add(cx), vmovn_u16(y_low));
 

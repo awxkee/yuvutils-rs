@@ -169,7 +169,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_avx {
-                let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
+                let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane,
@@ -184,7 +184,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_sse {
-                let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
+                let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane,
@@ -263,7 +263,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 }
             }
             if use_avx {
-                let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS>(
+                let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane0,
@@ -280,7 +280,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_sse {
-                let processed_offset = sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS>(
+                let processed_offset = sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane0,

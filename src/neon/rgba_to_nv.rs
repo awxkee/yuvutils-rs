@@ -50,7 +50,6 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    compute_nv_row: bool,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
@@ -157,7 +156,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             }
 
             ux += 32;
-        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_nv_row)
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
             let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
@@ -221,7 +220,6 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
     transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    compute_nv_row: bool,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
@@ -258,12 +256,12 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
     let mut ux = start_ux;
 
     while cx + 16 < width as usize {
-        let (r_values_u8, g_values_u8, b_values_u8) =
+        let (r_values0, g_values0, b_values0) =
             neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
 
-        let r_high = vreinterpretq_s16_u16(vmovl_high_u8(r_values_u8));
-        let g_high = vreinterpretq_s16_u16(vmovl_high_u8(g_values_u8));
-        let b_high = vreinterpretq_s16_u16(vmovl_high_u8(b_values_u8));
+        let r_high = vreinterpretq_s16_u16(vmovl_high_u8(r_values0));
+        let g_high = vreinterpretq_s16_u16(vmovl_high_u8(g_values0));
+        let b_high = vreinterpretq_s16_u16(vmovl_high_u8(b_values0));
 
         let y_high = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
             vreinterpretq_u32_s32(y_bias),
@@ -273,9 +271,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
             vreinterpretq_u16_s16(v_weights),
         );
 
-        let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
-        let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));
-        let b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values_u8)));
+        let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values0)));
+        let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values0)));
+        let b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values0)));
 
         let y_low = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
             vreinterpretq_u32_s32(y_bias),
@@ -379,12 +377,12 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
             }
 
             ux += 32;
-        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420 && compute_nv_row)
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let r1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(r_values_u8)));
-            let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(g_values_u8)));
-            let b1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(b_values_u8)));
+            let r1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(r_values0)));
+            let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(g_values0)));
+            let b1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vpaddlq_u8(b_values0)));
 
             let mut cb_h = vmlal_high_laneq_s16::<3>(uv_bias, r1, v_weights);
             cb_h = vmlal_high_laneq_s16::<4>(cb_h, g1, v_weights);

@@ -317,7 +317,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
     let rgba_ptr = rgba.as_ptr();
 
     let i_bias_y = vdupq_n_s16(range.bias_y as i16);
-    let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
     let y_bias = vdupq_n_s32(bias_y);
@@ -371,13 +370,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
         y_l_low = vmlal_laneq_s16::<1>(y_l_low, g_l_low, v_weights);
         y_l_low = vmlal_laneq_s16::<2>(y_l_low, b_l_low, v_weights);
 
-        let y_low = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_l_low),
-                vshrn_n_s32::<PRECISION>(y_l_high),
-            )),
-            i_cap_y,
-        );
+        let y_low = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_l_low),
+            vshrn_n_s32::<PRECISION>(y_l_high),
+        ));
 
         let y = vcombine_u8(vmovn_u16(y_low), vmovn_u16(y_high));
         vst1q_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y);

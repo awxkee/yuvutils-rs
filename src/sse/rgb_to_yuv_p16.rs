@@ -27,7 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_havg_epi16_epi32, _mm_load_deinterleave_rgb16_for_yuv, sse_avg_epi16};
+use crate::sse::{
+    _mm_affine_transform, _mm_affine_v_dot, _mm_havg_epi16_epi32, _mm_interleave_epi16,
+    _mm_load_deinterleave_rgb16_for_yuv, _mm_to_msb_epi16, sse_avg_epi16,
+};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -36,6 +39,7 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::ops::Shl;
 
 pub(crate) fn sse_rgba_to_yuv_p16<
     const ORIGIN_CHANNELS: u8,
@@ -106,14 +110,11 @@ unsafe fn sse_rgba_to_yuv_impl<
 
     let y_bias = _mm_set1_epi32(bias_y);
     let uv_bias = _mm_set1_epi32(bias_uv);
-    let v_yr = _mm_set1_epi16(transform.yr as i16);
-    let v_yg = _mm_set1_epi16(transform.yg as i16);
+    let v_yr_yg = _mm_set1_epi32(transform.yg.shl(16) | transform.yr);
     let v_yb = _mm_set1_epi16(transform.yb as i16);
-    let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
-    let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
+    let v_cbr_cbg = _mm_set1_epi32(transform.cb_g.shl(16) | transform.cb_r);
     let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
-    let v_cr_r = _mm_set1_epi16(transform.cr_r as i16);
-    let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
+    let v_crr_vcrg = _mm_set1_epi32(transform.cr_g.shl(16) | transform.cr_r);
     let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
     let big_endian_shuffle_flag =
@@ -122,43 +123,22 @@ unsafe fn sse_rgba_to_yuv_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
-
     let zeros = _mm_setzero_si128();
-
-    let i_cap_y = _mm_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
-    let i_cap_uv = _mm_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
 
     while cx + 8 < width {
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
-        let r_hi = _mm_unpackhi_epi16(r_values, zeros);
-        let g_hi = _mm_unpackhi_epi16(g_values, zeros);
+        let (r_g_lo, r_g_hi) = _mm_interleave_epi16(r_values, g_values);
         let b_hi = _mm_unpackhi_epi16(b_values, zeros);
-        let r_lo = _mm_unpacklo_epi16(r_values, zeros);
-        let g_lo = _mm_unpacklo_epi16(g_values, zeros);
         let b_lo = _mm_unpacklo_epi16(b_values, zeros);
 
-        let mut y_h = _mm_add_epi32(y_bias, _mm_madd_epi16(r_hi, v_yr));
-        y_h = _mm_add_epi32(y_h, _mm_madd_epi16(g_hi, v_yg));
-        y_h = _mm_add_epi32(y_h, _mm_madd_epi16(b_hi, v_yb));
-
-        let mut y_l = _mm_add_epi32(y_bias, _mm_madd_epi16(r_lo, v_yr));
-        y_l = _mm_add_epi32(y_l, _mm_madd_epi16(g_lo, v_yg));
-        y_l = _mm_add_epi32(y_l, _mm_madd_epi16(b_lo, v_yb));
-
-        let mut y_vl = _mm_min_epu16(
-            _mm_packus_epi32(
-                _mm_srai_epi32::<PRECISION>(y_l),
-                _mm_srai_epi32::<PRECISION>(y_h),
-            ),
-            i_cap_y,
-        );
+        let mut y_vl =
+            _mm_affine_v_dot::<PRECISION>(y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm_sll_epi16(y_vl, v_shift_count);
+            y_vl = _mm_to_msb_epi16::<BIT_DEPTH>(y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -171,47 +151,17 @@ unsafe fn sse_rgba_to_yuv_impl<
         );
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut cb_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cb_r));
-            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(g_hi, v_cb_g));
-            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(b_hi, v_cb_b));
-
-            let mut cb_l = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_lo, v_cb_r));
-            cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(g_lo, v_cb_g));
-            cb_l = _mm_add_epi32(cb_l, _mm_madd_epi16(b_lo, v_cb_b));
-
-            let mut cb_vl = _mm_max_epu16(
-                _mm_min_epu16(
-                    _mm_packus_epi32(
-                        _mm_srai_epi32::<PRECISION>(cb_l),
-                        _mm_srai_epi32::<PRECISION>(cb_h),
-                    ),
-                    i_cap_uv,
-                ),
-                y_bias,
+            let mut cb_vl = _mm_affine_v_dot::<PRECISION>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
             );
 
-            let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_hi, v_cr_r));
-            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(g_hi, v_cr_g));
-            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(b_hi, v_cr_b));
-
-            let mut cr_l = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_lo, v_cr_r));
-            cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(g_lo, v_cr_g));
-            cr_l = _mm_add_epi32(cr_l, _mm_madd_epi16(b_lo, v_cr_b));
-
-            let mut cr_vl = _mm_max_epu16(
-                _mm_min_epu16(
-                    _mm_packus_epi32(
-                        _mm_srai_epi32::<PRECISION>(cr_l),
-                        _mm_srai_epi32::<PRECISION>(cr_h),
-                    ),
-                    i_cap_uv,
-                ),
-                y_bias,
+            let mut cr_vl = _mm_affine_v_dot::<PRECISION>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_vl = _mm_sll_epi16(cb_vl, v_shift_count);
-                cr_vl = _mm_sll_epi16(cr_vl, v_shift_count);
+                cb_vl = _mm_to_msb_epi16::<BIT_DEPTH>(cb_vl);
+                cr_vl = _mm_to_msb_epi16::<BIT_DEPTH>(cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -234,33 +184,18 @@ unsafe fn sse_rgba_to_yuv_impl<
             let g_values = _mm_havg_epi16_epi32(g_values);
             let b_values = _mm_havg_epi16_epi32(b_values);
 
-            let mut cb_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_values, v_cb_r));
-            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(g_values, v_cb_g));
-            cb_h = _mm_add_epi32(cb_h, _mm_madd_epi16(b_values, v_cb_b));
+            let r_g_values = _mm_packus_epi32(r_values, g_values);
 
-            let mut cb_s = _mm_max_epu16(
-                _mm_min_epu16(
-                    _mm_packus_epi32(_mm_srai_epi32::<PRECISION>(cb_h), _mm_setzero_si128()),
-                    i_cap_uv,
-                ),
-                y_bias,
-            );
+            let mut cb_s =
+                _mm_affine_transform::<PRECISION>(uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b);
 
-            let mut cr_h = _mm_add_epi32(uv_bias, _mm_madd_epi16(r_values, v_cr_r));
-            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(g_values, v_cr_g));
-            cr_h = _mm_add_epi32(cr_h, _mm_madd_epi16(b_values, v_cr_b));
-
-            let mut cr_s = _mm_max_epu16(
-                _mm_min_epu16(
-                    _mm_packus_epi32(_mm_srai_epi32::<PRECISION>(cr_h), _mm_setzero_si128()),
-                    i_cap_uv,
-                ),
-                y_bias,
+            let mut cr_s = _mm_affine_transform::<PRECISION>(
+                uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b,
             );
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_s = _mm_sll_epi16(cb_s, v_shift_count);
-                cr_s = _mm_sll_epi16(cr_s, v_shift_count);
+                cb_s = _mm_to_msb_epi16::<BIT_DEPTH>(cb_s);
+                cr_s = _mm_to_msb_epi16::<BIT_DEPTH>(cr_s);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -373,8 +308,6 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_shift_count = _mm_set1_epi64x(16 - BIT_DEPTH as i64);
-
     let i_bias_y = _mm_set1_epi16(range.bias_y as i16);
     let i_cap_y = _mm_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
     let i_cap_uv = _mm_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
@@ -397,7 +330,7 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
         let mut y_vl = _mm_min_epu16(y_h, i_cap_y);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl = _mm_sll_epi16(y_vl, v_shift_count);
+            y_vl = _mm_to_msb_epi16::<BIT_DEPTH>(y_vl);
         }
 
         if endianness == YuvEndianness::BigEndian {
@@ -423,8 +356,8 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
             let mut cr_vl = _mm_max_epu16(_mm_min_epu16(cr_h, i_cap_uv), i_bias_y);
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_vl = _mm_sll_epi16(cb_vl, v_shift_count);
-                cr_vl = _mm_sll_epi16(cr_vl, v_shift_count);
+                cb_vl = _mm_to_msb_epi16::<BIT_DEPTH>(cb_vl);
+                cr_vl = _mm_to_msb_epi16::<BIT_DEPTH>(cr_vl);
             }
 
             if endianness == YuvEndianness::BigEndian {
@@ -460,8 +393,8 @@ unsafe fn sse_rgba_to_yuv_impl_lp<
             let mut cr_s = _mm_max_epu16(_mm_min_epu16(cr_h, i_cap_uv), i_bias_y);
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                cb_s = _mm_sll_epi16(cb_s, v_shift_count);
-                cr_s = _mm_sll_epi16(cr_s, v_shift_count);
+                cb_s = _mm_to_msb_epi16::<BIT_DEPTH>(cb_s);
+                cr_s = _mm_to_msb_epi16::<BIT_DEPTH>(cr_s);
             }
 
             if endianness == YuvEndianness::BigEndian {

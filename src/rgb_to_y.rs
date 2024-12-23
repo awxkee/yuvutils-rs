@@ -153,7 +153,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 _cx = processed_offset;
             }
             if use_avx {
-                let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS>(
+                let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     y_plane,
@@ -164,7 +164,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 _cx = processed_offset;
             }
             if use_sse {
-                let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS>(
+                let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     y_plane,

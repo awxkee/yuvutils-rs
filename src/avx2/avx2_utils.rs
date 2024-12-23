@@ -829,3 +829,35 @@ pub(crate) unsafe fn _mm256_store_shr_epi16_epi8<const BIT_DEPTH: usize>(a: __m2
         a
     }
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_affine_dot<const PRECISION: i32>(
+    base: __m256i,
+    r: __m256i,
+    g: __m256i,
+    b: __m256i,
+    w0: __m256i,
+    w1: __m256i,
+) -> __m256i {
+    let r_intl_g_lo = _mm256_interleave_epi16(r, g);
+
+    let y_l_l = _mm256_add_epi32(
+        base,
+        _mm256_add_epi32(
+            _mm256_madd_epi16(r_intl_g_lo.0, w0),
+            _mm256_madd_epi16(_mm256_cvtepi16_epi32(_mm256_castsi256_si128(b)), w1),
+        ),
+    );
+
+    let y_l_h = _mm256_add_epi32(
+        base,
+        _mm256_add_epi32(
+            _mm256_madd_epi16(r_intl_g_lo.1, w0),
+            _mm256_madd_epi16(_mm256_cvtepi16_epi32(_mm256_extracti128_si256::<1>(b)), w1),
+        ),
+    );
+    avx2_pack_u32(
+        _mm256_srli_epi32::<PRECISION>(y_l_l),
+        _mm256_srli_epi32::<PRECISION>(y_l_h),
+    )
+}

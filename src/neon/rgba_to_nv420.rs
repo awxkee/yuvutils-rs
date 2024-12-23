@@ -120,9 +120,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
             vreinterpretq_u16_s16(v_weights),
         );
 
-        let y0 = vcombine_u8(vqmovn_u16(y0_low), vqmovn_u16(y0_high));
+        let y0 = vcombine_u8(vmovn_u16(y0_low), vmovn_u16(y0_high));
         vst1q_u8(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0);
-        let y1 = vcombine_u8(vqmovn_u16(y1_low), vqmovn_u16(y1_high));
+        let y1 = vcombine_u8(vmovn_u16(y1_low), vmovn_u16(y1_high));
         vst1q_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1);
 
         let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vhaddq_u16(
@@ -200,7 +200,6 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
     let uv_ptr = uv_plane.as_mut_ptr();
 
     let i_bias_y = vdupq_n_s16(range.bias_y as i16);
-    let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
     let y_bias = vdupq_n_s32(bias_y);
@@ -244,13 +243,10 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         y_h_low = vmlal_laneq_s16::<1>(y_h_low, vget_low_s16(g_high0), v_weights);
         y_h_low = vmlal_laneq_s16::<2>(y_h_low, vget_low_s16(b_high0), v_weights);
 
-        let y_high0 = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_h_low),
-                vshrn_n_s32::<PRECISION>(y_h_high),
-            )),
-            i_cap_y,
-        );
+        let y_high0 = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_h_low),
+            vshrn_n_s32::<PRECISION>(y_h_high),
+        ));
 
         let mut y_h_high = vmlal_high_laneq_s16::<0>(y_bias, r_high1, v_weights);
         y_h_high = vmlal_high_laneq_s16::<1>(y_h_high, g_high1, v_weights);
@@ -260,13 +256,10 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         y_h_low = vmlal_laneq_s16::<1>(y_h_low, vget_low_s16(g_high1), v_weights);
         y_h_low = vmlal_laneq_s16::<2>(y_h_low, vget_low_s16(b_high1), v_weights);
 
-        let y_high1 = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_h_low),
-                vshrn_n_s32::<PRECISION>(y_h_high),
-            )),
-            i_cap_y,
-        );
+        let y_high1 = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_h_low),
+            vshrn_n_s32::<PRECISION>(y_h_high),
+        ));
 
         let r_low0 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_0)));
         let g_low0 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_0)));
@@ -284,13 +277,10 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         y_l_low = vmlal_laneq_s16::<1>(y_l_low, vget_low_s16(g_low0), v_weights);
         y_l_low = vmlal_laneq_s16::<2>(y_l_low, vget_low_s16(b_low0), v_weights);
 
-        let y_low0 = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_l_low),
-                vshrn_n_s32::<PRECISION>(y_l_high),
-            )),
-            i_cap_y,
-        );
+        let y_low0 = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_l_low),
+            vshrn_n_s32::<PRECISION>(y_l_high),
+        ));
 
         let mut y_l_high = vmlal_high_laneq_s16::<0>(y_bias, r_low1, v_weights);
         y_l_high = vmlal_high_laneq_s16::<1>(y_l_high, g_low1, v_weights);
@@ -300,13 +290,10 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         y_l_low = vmlal_laneq_s16::<1>(y_l_low, vget_low_s16(g_low1), v_weights);
         y_l_low = vmlal_laneq_s16::<2>(y_l_low, vget_low_s16(b_low1), v_weights);
 
-        let y_low1 = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_l_low),
-                vshrn_n_s32::<PRECISION>(y_l_high),
-            )),
-            i_cap_y,
-        );
+        let y_low1 = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_l_low),
+            vshrn_n_s32::<PRECISION>(y_l_high),
+        ));
 
         let y0 = vcombine_u8(vmovn_u16(y_low0), vmovn_u16(y_high0));
         vst1q_u8(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0);
