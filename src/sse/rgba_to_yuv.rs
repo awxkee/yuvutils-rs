@@ -266,9 +266,9 @@ unsafe fn sse_rgba_to_yuv_row_impl<
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_lo16 = _mm_cvtepu8_epi16(r_values);
-        let g_lo16 = _mm_cvtepu8_epi16(g_values);
-        let b_lo16 = _mm_cvtepu8_epi16(b_values);
+        let r_lo16 = _mm_unpacklo_epi8(r_values, zeros);
+        let g_lo16 = _mm_unpacklo_epi8(g_values, zeros);
+        let b_lo16 = _mm_unpacklo_epi8(b_values, zeros);
 
         let y_l = _mm_affine_dot::<PRECISION>(y_base, r_lo16, g_lo16, b_lo16, v_yr_yg, v_yb);
 

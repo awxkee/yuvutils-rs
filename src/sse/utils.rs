@@ -246,13 +246,6 @@ pub(crate) unsafe fn sse_div_by255(v: __m128i) -> __m128i {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn sse_avg_epi16(a: __m128i) -> __m128i {
-    let sums = _mm_madd_epi16(a, _mm_set1_epi16(1));
-    let shifted = _mm_srli_epi32::<1>(_mm_add_epi32(sums, _mm_set1_epi32(1)));
-    _mm_packus_epi32(shifted, shifted)
-}
-
-#[inline(always)]
 pub(crate) unsafe fn _mm_havg_epi16_epi32(a: __m128i) -> __m128i {
     let sums = _mm_madd_epi16(a, _mm_set1_epi16(1));
     _mm_srli_epi32::<1>(_mm_add_epi32(sums, _mm_set1_epi32(1)))
@@ -693,13 +686,6 @@ pub(crate) unsafe fn sse_pairwise_avg_epi16_epi8(a: __m128i, b: __m128i) -> __m1
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm_interleave_rgba_epi8(a: __m128i, b: __m128i) -> (__m128i, __m128i) {
-    let lo = _mm_unpacklo_epi8(a, b);
-    let hi = _mm_unpackhi_epi8(a, b);
-    (lo, hi)
-}
-
-#[inline(always)]
 pub(crate) unsafe fn _mm_affine_dot<const PRECISION: i32>(
     slope: __m128i,
     r: __m128i,
@@ -708,7 +694,7 @@ pub(crate) unsafe fn _mm_affine_dot<const PRECISION: i32>(
     w0: __m128i,
     w1: __m128i,
 ) -> __m128i {
-    let r_intl_g_lo = _mm_interleave_rgba_epi8(r, g);
+    let r_intl_g_lo = _mm_interleave_epi16(r, g);
 
     let zeros = _mm_setzero_si128();
 

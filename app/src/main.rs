@@ -111,7 +111,7 @@ fn main() {
         &src_bytes,
         rgba_stride as u32,
         YuvRange::Full,
-        YuvStandardMatrix::Bt601,
+        YuvStandardMatrix::Bt709,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -268,7 +268,7 @@ fn main() {
         &mut rgba,
         rgba_stride as u32,
         YuvRange::Full,
-        YuvStandardMatrix::Bt601,
+        YuvStandardMatrix::Bt709,
     )
     .unwrap();
 
@@ -337,7 +337,7 @@ fn main() {
     // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
-        "converted_sharp15.jpg",
+        "converted_sharp15.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

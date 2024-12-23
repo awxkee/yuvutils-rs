@@ -28,7 +28,8 @@
  */
 use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
-    _mm512_load_deinterleave_rgb16_for_yuv, _mm512_to_msb_epi16, avx512_avg_epi16,
+    _mm512_affine_transform, _mm512_affine_v_dot, _mm512_havg_epi16_epi32,
+    _mm512_load_deinterleave_rgb16_for_yuv, _mm512_to_msb_epi16, avx512_pack_u32, avx512_zip_epi16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -37,9 +38,9 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::ops::Shl;
 
-// Slightly lower precision option, suitable only for bit-depth <= 12
-pub(crate) fn avx512_rgba_to_yuv_p16_lp420<
+pub(crate) fn avx512_rgba_to_yuv_p16_420<
     const ORIGIN_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
@@ -59,13 +60,7 @@ pub(crate) fn avx512_rgba_to_yuv_p16_lp420<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx512_rgba_to_yuv_impl_lp::<
-            ORIGIN_CHANNELS,
-            ENDIANNESS,
-            BYTES_POSITION,
-            PRECISION,
-            BIT_DEPTH,
-        >(
+        avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH>(
             transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
             start_ux, width,
         )
@@ -73,7 +68,7 @@ pub(crate) fn avx512_rgba_to_yuv_p16_lp420<
 }
 
 #[target_feature(enable = "avx512bw")]
-unsafe fn avx512_rgba_to_yuv_impl_lp<
+unsafe fn avx512_rgba_to_yuv_impl<
     const ORIGIN_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
@@ -97,22 +92,20 @@ unsafe fn avx512_rgba_to_yuv_impl_lp<
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
-    let bias_y = range.bias_y as i16;
-    let bias_uv = range.bias_uv as i16;
+    let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
+    let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
+    let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
     let u_ptr = u_plane;
     let v_ptr = v_plane;
 
-    let y_bias = _mm512_set1_epi16(bias_y);
-    let uv_bias = _mm512_set1_epi16(bias_uv);
-    let v_yr = _mm512_set1_epi16(transform.yr as i16);
-    let v_yg = _mm512_set1_epi16(transform.yg as i16);
+    let y_bias = _mm512_set1_epi32(bias_y);
+    let uv_bias = _mm512_set1_epi32(bias_uv);
+    let v_yr_yg = _mm512_set1_epi32(transform.yg.shl(16) | transform.yr);
     let v_yb = _mm512_set1_epi16(transform.yb as i16);
-    let v_cb_r = _mm512_set1_epi16(transform.cb_r as i16);
-    let v_cb_g = _mm512_set1_epi16(transform.cb_g as i16);
+    let v_cbr_cbg = _mm512_set1_epi32(transform.cb_g.shl(16) | transform.cb_r);
     let v_cb_b = _mm512_set1_epi16(transform.cb_b as i16);
-    let v_cr_r = _mm512_set1_epi16(transform.cr_r as i16);
-    let v_cr_g = _mm512_set1_epi16(transform.cr_g as i16);
+    let v_crr_vcrg = _mm512_set1_epi32(transform.cr_g.shl(16) | transform.cr_r);
     let v_cr_b = _mm512_set1_epi16(transform.cr_b as i16);
 
     let big_endian_shuffle_flag = _v512_setr_epu8(
@@ -124,38 +117,29 @@ unsafe fn avx512_rgba_to_yuv_impl_lp<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let i_cap_y = _mm512_set1_epi16((range.range_y as u16 + range.bias_y as u16) as i16);
-    let i_cap_uv = _mm512_set1_epi16((range.bias_y as u16 + range.range_uv as u16) as i16);
-
-    const SCALE: u32 = 2;
+    const PREC: u32 = 13;
 
     while cx + 32 < width {
         let src_ptr0 = rgba0.get_unchecked(cx * channels..);
-        let (mut r_values0, mut g_values0, mut b_values0) =
+        let (r_values0, g_values0, b_values0) =
             _mm512_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr0.as_ptr());
         let src_ptr1 = rgba1.get_unchecked(cx * channels..);
-        let (mut r_values1, mut g_values1, mut b_values1) =
+        let (r_values1, g_values1, b_values1) =
             _mm512_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr1.as_ptr());
 
-        r_values0 = _mm512_slli_epi16::<SCALE>(r_values0);
-        g_values0 = _mm512_slli_epi16::<SCALE>(g_values0);
-        b_values0 = _mm512_slli_epi16::<SCALE>(b_values0);
+        let (r_g_lo0, r_g_hi0) = avx512_zip_epi16(r_values0, g_values0);
+        let b_hi0 = _mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64::<1>(b_values0));
+        let b_lo0 = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(b_values0));
 
-        r_values1 = _mm512_slli_epi16::<SCALE>(r_values1);
-        g_values1 = _mm512_slli_epi16::<SCALE>(g_values1);
-        b_values1 = _mm512_slli_epi16::<SCALE>(b_values1);
+        let mut y0_vl =
+            _mm512_affine_v_dot::<PREC>(y_bias, r_g_lo0, r_g_hi0, b_lo0, b_hi0, v_yr_yg, v_yb);
 
-        let mut y0_h = _mm512_add_epi16(y_bias, _mm512_mulhrs_epi16(r_values0, v_yr));
-        y0_h = _mm512_add_epi16(y0_h, _mm512_mulhrs_epi16(g_values0, v_yg));
-        y0_h = _mm512_add_epi16(y0_h, _mm512_mulhrs_epi16(b_values0, v_yb));
+        let (r_g_lo1, r_g_hi1) = avx512_zip_epi16(r_values1, g_values1);
+        let b_hi1 = _mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64::<1>(b_values1));
+        let b_lo1 = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(b_values1));
 
-        let mut y0_vl = _mm512_min_epu16(y0_h, i_cap_y);
-
-        let mut y1_h = _mm512_add_epi16(y_bias, _mm512_mulhrs_epi16(r_values1, v_yr));
-        y1_h = _mm512_add_epi16(y1_h, _mm512_mulhrs_epi16(g_values1, v_yg));
-        y1_h = _mm512_add_epi16(y1_h, _mm512_mulhrs_epi16(b_values1, v_yb));
-
-        let mut y1_vl = _mm512_min_epu16(y1_h, i_cap_y);
+        let mut y1_vl =
+            _mm512_affine_v_dot::<PREC>(y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y0_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(y0_vl);
@@ -177,21 +161,17 @@ unsafe fn avx512_rgba_to_yuv_impl_lp<
             y1_vl,
         );
 
-        let r_values = avx512_avg_epi16(_mm512_avg_epu16(r_values0, r_values1));
-        let g_values = avx512_avg_epi16(_mm512_avg_epu16(g_values0, g_values1));
-        let b_values = avx512_avg_epi16(_mm512_avg_epu16(b_values0, b_values1));
+        let r_values = _mm512_havg_epi16_epi32(_mm512_avg_epu16(r_values0, r_values1));
+        let g_values = _mm512_havg_epi16_epi32(_mm512_avg_epu16(g_values0, g_values1));
+        let b_values = _mm512_havg_epi16_epi32(_mm512_avg_epu16(b_values0, b_values1));
 
-        let mut cb_h = _mm512_add_epi16(uv_bias, _mm512_mulhrs_epi16(r_values, v_cb_r));
-        cb_h = _mm512_add_epi16(cb_h, _mm512_mulhrs_epi16(g_values, v_cb_g));
-        cb_h = _mm512_add_epi16(cb_h, _mm512_mulhrs_epi16(b_values, v_cb_b));
+        let r_g_values = avx512_pack_u32(r_values, g_values);
 
-        let mut cb_s = _mm512_max_epu16(_mm512_min_epu16(cb_h, i_cap_uv), y_bias);
+        let mut cb_s =
+            _mm512_affine_transform::<PREC>(uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b);
 
-        let mut cr_h = _mm512_add_epi16(uv_bias, _mm512_mulhrs_epi16(r_values, v_cr_r));
-        cr_h = _mm512_add_epi16(cr_h, _mm512_mulhrs_epi16(g_values, v_cr_g));
-        cr_h = _mm512_add_epi16(cr_h, _mm512_mulhrs_epi16(b_values, v_cr_b));
-
-        let mut cr_s = _mm512_max_epu16(_mm512_min_epu16(cr_h, i_cap_uv), y_bias);
+        let mut cr_s =
+            _mm512_affine_transform::<PREC>(uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             cb_s = _mm512_to_msb_epi16::<BIT_DEPTH>(cb_s);

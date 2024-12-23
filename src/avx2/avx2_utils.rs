@@ -331,14 +331,6 @@ pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
 }
 
 #[inline(always)]
-// Horizontal avg in epi32
-pub(crate) unsafe fn avx_avg_epi16(a: __m256i) -> __m256i {
-    let sums = _mm256_madd_epi16(a, _mm256_set1_epi16(1));
-    let p = _mm256_srli_epi32::<1>(_mm256_add_epi32(sums, _mm256_set1_epi32(1)));
-    avx2_pack_u32(p, p)
-}
-
-#[inline(always)]
 pub(crate) unsafe fn avx_pairwise_avg_epi16(a: __m256i, b: __m256i) -> __m256i {
     let sums = _mm256_hadd_epi16(a, b);
     _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
@@ -855,6 +847,45 @@ pub(crate) unsafe fn _mm256_affine_dot<const PRECISION: i32>(
             _mm256_madd_epi16(r_intl_g_lo.1, w0),
             _mm256_madd_epi16(_mm256_cvtepi16_epi32(_mm256_extracti128_si256::<1>(b)), w1),
         ),
+    );
+    avx2_pack_u32(
+        _mm256_srli_epi32::<PRECISION>(y_l_l),
+        _mm256_srli_epi32::<PRECISION>(y_l_h),
+    )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_affine_transform<const PRECISION: i32>(
+    slope: __m256i,
+    v0: __m256i,
+    v1: __m256i,
+    w0: __m256i,
+    w1: __m256i,
+) -> __m256i {
+    let j = _mm256_srli_epi32::<PRECISION>(_mm256_add_epi32(
+        slope,
+        _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(v1, w1)),
+    ));
+    avx2_pack_u32(j, j)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_affine_v_dot<const PRECISION: i32>(
+    slope: __m256i,
+    v0: __m256i,
+    v1: __m256i,
+    b0: __m256i,
+    b1: __m256i,
+    w0: __m256i,
+    w1: __m256i,
+) -> __m256i {
+    let y_l_l = _mm256_add_epi32(
+        slope,
+        _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
+    );
+    let y_l_h = _mm256_add_epi32(
+        slope,
+        _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
     );
     avx2_pack_u32(
         _mm256_srli_epi32::<PRECISION>(y_l_l),

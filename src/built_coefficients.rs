@@ -328,8 +328,7 @@ pub(crate) fn get_built_forward_transform(
                 YuvRange::Limited => Some(FORWARD_BT470_LIMITED_8_13PREC),
             };
         }
-    }
-    if bit_depth == 10 {
+    } else if bit_depth == 10 {
         if matrix == YuvStandardMatrix::Bt601 {
             return match range {
                 YuvRange::Limited => Some(FORWARD_BT601_LIMITED_10_13PREC),
@@ -346,8 +345,7 @@ pub(crate) fn get_built_forward_transform(
                 YuvRange::Full => Some(FORWARD_BT2020_FULL_10_13PREC),
             };
         }
-    }
-    if bit_depth == 12 {
+    } else if bit_depth == 12 {
         if matrix == YuvStandardMatrix::Bt601 {
             return match range {
                 YuvRange::Limited => Some(FORWARD_BT601_LIMITED_12_13PREC),
