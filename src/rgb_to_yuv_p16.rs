@@ -162,15 +162,7 @@ fn rgbx_to_yuv_ant<
     };
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let sse_dispatch = if BIT_DEPTH <= 12 {
-        // sse_rgba_to_yuv_p16_lp::<
-        //     ORIGIN_CHANNELS,
-        //     SAMPLING,
-        //     ENDIANNESS,
-        //     BYTES_POSITION,
-        //     PRECISION,
-        //     BIT_DEPTH,
-        // >
-        sse_rgba_to_yuv_p16::<
+        sse_rgba_to_yuv_p16_lp::<
             ORIGIN_CHANNELS,
             SAMPLING,
             ENDIANNESS,
