@@ -191,11 +191,11 @@ fn main() {
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv16(
-        &mut bi_planar_image,
+    rgb_to_yuv422(
+        &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::Limited,
+        YuvRange::Full,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
@@ -348,11 +348,11 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv_nv16_to_rgb(
-        &fixed_biplanar,
+    yuv422_to_rgb(
+        &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
-        YuvRange::Limited,
+        YuvRange::Full,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();

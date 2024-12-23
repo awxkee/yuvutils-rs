@@ -438,3 +438,41 @@ pub(crate) fn get_built_inverse_transform(
     }
     None
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     fn sqrdml(l: i32, p: i32) -> i32 {
+//         ((l << 2) * p + (1 << 14)) >> 15
+//     }
+//
+//     #[test]
+//     fn check_forward_y_convergence() {
+//         let r = 255;
+//         let g = 255;
+//         let b = 255;
+//         let weights_full = [
+//             FORWARD_BT601_FULL_8_13PREC,
+//             FORWARD_BT709_FULL_8_13PREC,
+//             FORWARD_BT2020_FULL_8_13PREC,
+//         ];
+//         for weights in weights_full {
+//             let default_mul = (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12)) >> 13;
+//             assert_eq!(default_mul, 255, "Failed on weights {:?}", weights);
+//         }
+//
+//         let weights_limited = [
+//             FORWARD_BT601_LIMITED_8_13PREC,
+//             FORWARD_BT709_LIMITED_8_13PREC,
+//             FORWARD_BT2020_LIMITED_8_13PREC,
+//         ];
+//
+//         for weights in weights_limited {
+//             let default_mul =
+//                 (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12) + 16 * (1 << 13))
+//                     >> 13;
+//             assert_eq!(default_mul, 235, "Failed on weights {:?}", weights);
+//         }
+//     }
+// }

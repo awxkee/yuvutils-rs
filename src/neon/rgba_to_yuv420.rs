@@ -28,7 +28,9 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv};
+use crate::neon::neon_simd_support::{
+    neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv, vdotl_laneq_u16_x3,
+};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
@@ -60,6 +62,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
     let y_bias = vdupq_n_s16(bias_y);
+    let y_base = vdupq_n_u32(bias_y as u32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
     let uv_bias = vdupq_n_s16(bias_uv);
 
     let weights_arr: [i16; 8] = [
@@ -84,45 +87,37 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         let (r_values1, g_values1, b_values1) =
             neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba1.get_unchecked(cx * channels..).as_ptr());
 
-        let r0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(r_values0));
-        let g0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(g_values0));
-        let b0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(b_values0));
+        let y0_high = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
+            y_base,
+            vmovl_high_u8(r_values0),
+            vmovl_high_u8(g_values0),
+            vmovl_high_u8(b_values0),
+            vreinterpretq_u16_s16(v_weights),
+        );
 
-        let r1hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(r_values1));
-        let g1hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(g_values1));
-        let b1hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(b_values1));
+        let y0_low = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
+            y_base,
+            vmovl_u8(vget_low_u8(r_values0)),
+            vmovl_u8(vget_low_u8(g_values0)),
+            vmovl_u8(vget_low_u8(b_values0)),
+            vreinterpretq_u16_s16(v_weights),
+        );
 
-        let mut y0_high = vqrdmlahq_laneq_s16::<0>(y_bias, r0hi, v_weights);
-        y0_high = vqrdmlahq_laneq_s16::<1>(y0_high, g0hi, v_weights);
-        y0_high = vqrdmlahq_laneq_s16::<2>(y0_high, b0hi, v_weights);
+        let y1_low = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
+            y_base,
+            vmovl_u8(vget_low_u8(r_values1)),
+            vmovl_u8(vget_low_u8(g_values1)),
+            vmovl_u8(vget_low_u8(b_values1)),
+            vreinterpretq_u16_s16(v_weights),
+        );
 
-        let y0_high = vminq_u16(vreinterpretq_u16_s16(y0_high), i_cap_y);
-
-        let mut y1_high = vqrdmlahq_laneq_s16::<0>(y_bias, r1hi, v_weights);
-        y1_high = vqrdmlahq_laneq_s16::<1>(y1_high, g1hi, v_weights);
-        y1_high = vqrdmlahq_laneq_s16::<2>(y1_high, b1hi, v_weights);
-
-        let y1_high = vminq_u16(vreinterpretq_u16_s16(y1_high), i_cap_y);
-
-        let r0_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values0)));
-        let g0_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values0)));
-        let b0_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(b_values0)));
-
-        let r1_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values1)));
-        let g1_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values1)));
-        let b1_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(b_values1)));
-
-        let mut y0_low = vqrdmlahq_laneq_s16::<0>(y_bias, r0_low, v_weights);
-        y0_low = vqrdmlahq_laneq_s16::<1>(y0_low, g0_low, v_weights);
-        y0_low = vqrdmlahq_laneq_s16::<2>(y0_low, b0_low, v_weights);
-
-        let y0_low = vminq_u16(vreinterpretq_u16_s16(y0_low), i_cap_y);
-
-        let mut y1_low = vqrdmlahq_laneq_s16::<0>(y_bias, r1_low, v_weights);
-        y1_low = vqrdmlahq_laneq_s16::<1>(y1_low, g1_low, v_weights);
-        y1_low = vqrdmlahq_laneq_s16::<2>(y1_low, b1_low, v_weights);
-
-        let y1_low = vminq_u16(vreinterpretq_u16_s16(y1_low), i_cap_y);
+        let y1_high = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
+            y_base,
+            vmovl_high_u8(r_values1),
+            vmovl_high_u8(g_values1),
+            vmovl_high_u8(b_values1),
+            vreinterpretq_u16_s16(v_weights),
+        );
 
         let y0 = vcombine_u8(vmovn_u16(y0_low), vmovn_u16(y0_high));
         vst1q_u8(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0);

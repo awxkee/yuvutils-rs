@@ -369,7 +369,7 @@ fn main() {
     let bit_depth = 12;
     let transform = get_forward_coeffs(kr_kb.kr, kr_kb.kb, bit_depth, range);
     println!("Precise {:?};", transform);
-    let integral = get_forward_coeffs_integral(kr_kb.kr, kr_kb.kb, bit_depth, range, 13);
+    let integral = get_forward_coeffs_integral(kr_kb.kr, kr_kb.kb, bit_depth, range, 14);
     println!("Integral {:?};", integral);
 
     let inverse = get_inverse_transform(kr_kb.kr, kr_kb.kb, bit_depth, range);

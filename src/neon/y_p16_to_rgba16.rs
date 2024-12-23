@@ -33,61 +33,6 @@ use crate::internals::ProcessedOffset;
 use crate::neon::neon_simd_support::{neon_store_rgb16, vldq_s16_endian};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 
-#[target_feature(enable = "rdm")]
-pub(crate) unsafe fn neon_y_p16_to_rgba16_rdm<
-    const DESTINATION_CHANNELS: u8,
-    const ENDIANNESS: u8,
-    const BYTES_POSITION: u8,
-    const BIT_DEPTH: usize,
->(
-    y_ld_ptr: &[u16],
-    rgba: &mut [u16],
-    width: u32,
-    range: &YuvChromaRange,
-    transform: &CbCrInverseTransform<i32>,
-    start_cx: usize,
-) -> ProcessedOffset {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
-    let dst_ptr = rgba;
-
-    let y_corr = vdupq_n_u16(range.bias_y as u16);
-    let v_min_values = vdupq_n_s16(0i16);
-    let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
-
-    let mut cx = start_cx;
-
-    const V_SCALE: i32 = 2;
-
-    while cx + 8 < width as usize {
-        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
-            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_ld_ptr.get_unchecked(cx..).as_ptr(),
-            )),
-            y_corr,
-        ));
-
-        let y_high = vqrdmulhq_n_s16(vshlq_n_s16::<V_SCALE>(y_values), transform.y_coef as i16);
-
-        let r_values = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(y_high, v_min_values)),
-            v_alpha,
-        );
-
-        neon_store_rgb16::<DESTINATION_CHANNELS>(
-            dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
-            r_values,
-            r_values,
-            r_values,
-            v_alpha,
-        );
-
-        cx += 8;
-    }
-
-    ProcessedOffset { cx, ux: 0 }
-}
-
 pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,

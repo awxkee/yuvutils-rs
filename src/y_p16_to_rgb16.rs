@@ -28,7 +28,7 @@
  */
 use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_y_p16_to_rgba16_rdm, neon_y_p16_to_rgba16_row};
+use crate::neon::neon_y_p16_to_rgba16_row;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvGrayImage};
 #[cfg(feature = "rayon")]
@@ -92,21 +92,14 @@ fn yuv400_p16_to_rgbx_impl<
             .chunks_exact_mut(rgba_stride as usize)
             .zip(image.y_plane.chunks_exact(image.y_stride as usize));
     }
-
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_handler = if is_rdm_available && bit_depth <= 12 {
-        neon_y_p16_to_rgba16_rdm::<DESTINATION_CHANNELS, ENDIANNESS, BYTES_POSITION, BIT_DEPTH>
-    } else {
-        neon_y_p16_to_rgba16_row::<
-            DESTINATION_CHANNELS,
-            ENDIANNESS,
-            BYTES_POSITION,
-            PRECISION,
-            BIT_DEPTH,
-        >
-    };
+    let neon_wide_handler = neon_y_p16_to_rgba16_row::<
+        DESTINATION_CHANNELS,
+        ENDIANNESS,
+        BYTES_POSITION,
+        PRECISION,
+        BIT_DEPTH,
+    >;
 
     match range {
         YuvRange::Limited => {
