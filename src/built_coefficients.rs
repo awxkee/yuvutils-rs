@@ -337,7 +337,7 @@ pub(crate) fn get_built_forward_transform(
             };
         } else if matrix == YuvStandardMatrix::Bt709 {
             return match range {
-                YuvRange::Limited => Some(FORWARD_BT709_LIMITED_12_13PREC),
+                YuvRange::Limited => Some(FORWARD_BT709_LIMITED_10_13PREC),
                 YuvRange::Full => Some(FORWARD_BT709_FULL_10_13PREC),
             };
         } else if matrix == YuvStandardMatrix::Bt2020 {
