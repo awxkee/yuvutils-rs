@@ -29,8 +29,8 @@
 
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::{
-    neon_store_half_rgb8, neon_store_rgb8, vaddn_dot, vdotl_laneq_s16, vmullq_laneq_s16,
-    vweight_laneq_x2,
+    neon_store_half_rgb8, neon_store_rgb8, vaddn_dot, vdotl_laneq_s16, vexpand8_to_10,
+    vexpand_high_8_to_10, vmullq_laneq_s16, vweight_laneq_x2,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
@@ -99,8 +99,8 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
             vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_high_u8)),
             uv_corr,
         );
-        let y_v_shl0 = vshll_high_n_u8::<SCALE>(y_values0);
-        let y_v_shl1 = vshll_high_n_u8::<SCALE>(y_values1);
+        let y_v_shl0 = vexpand_high_8_to_10(y_values0);
+        let y_v_shl1 = vexpand_high_8_to_10(y_values1);
         let y_high0 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl0), v_weights);
         let y_high1 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl1), v_weights);
 
@@ -126,8 +126,8 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
             vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_low_u8)),
             uv_corr,
         );
-        let y_v_shl0 = vshll_n_u8::<SCALE>(vget_low_u8(y_values0));
-        let y_v_shl1 = vshll_n_u8::<SCALE>(vget_low_u8(y_values1));
+        let y_v_shl0 = vexpand8_to_10(vget_low_u8(y_values0));
+        let y_v_shl1 = vexpand8_to_10(vget_low_u8(y_values1));
         let y_low0 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl0), v_weights);
         let y_low1 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl1), v_weights);
 
@@ -191,8 +191,8 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>
             vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_low_u8)),
             uv_corr,
         );
-        let y_v_shl0 = vshll_n_u8::<SCALE>(y_values0);
-        let y_v_shl1 = vshll_n_u8::<SCALE>(y_values1);
+        let y_v_shl0 = vexpand8_to_10(y_values0);
+        let y_v_shl1 = vexpand8_to_10(y_values1);
         let y_low0 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl0), v_weights);
         let y_low1 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl1), v_weights);
 

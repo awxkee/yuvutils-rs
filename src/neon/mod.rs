@@ -28,7 +28,6 @@
  */
 #![deny(unreachable_code, unreachable_pub)]
 mod gbr_to_rgb;
-mod utils;
 mod neon_ycgco;
 mod rgb_to_y;
 mod rgb_to_ycgco;
@@ -38,6 +37,7 @@ mod rgba_to_nv;
 mod rgba_to_nv420;
 mod rgba_to_yuv;
 mod rgba_to_yuv420;
+mod utils;
 mod y_p16_to_rgba16;
 mod y_to_rgb;
 mod y_to_rgb_alpha;

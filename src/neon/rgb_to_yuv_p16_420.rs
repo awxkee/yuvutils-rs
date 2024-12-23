@@ -27,9 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{
-    neon_vld_rgb16_for_yuv, vdotl_laneq_u16_x3, vtomsb_u16, vtomsbq_u16,
-};
+use crate::neon::utils::{neon_vld_rgb16_for_yuv, vdotl_laneq_u16_x3, vtomsb_u16, vtomsbq_u16};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;

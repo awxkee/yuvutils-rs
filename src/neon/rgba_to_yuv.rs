@@ -28,9 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{
-    neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv, vdotl_laneq_s16_x3,
-};
+use crate::neon::utils::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv, vdotl_laneq_s16_x3};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
