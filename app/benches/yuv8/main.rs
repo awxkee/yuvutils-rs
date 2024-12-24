@@ -37,9 +37,8 @@ use yuvutils_rs::{
     gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
     rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
     yuv400_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgba, yuv_nv16_to_rgb, yuv_nv16_to_rgba, ConversionQuality, YuvBiPlanarImageMut,
-    YuvChromaSubsampling, YuvGrayImage, YuvGrayImageMut, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    yuv_nv12_to_rgba, yuv_nv16_to_rgb, yuv_nv16_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling,
+    YuvGrayImage, YuvGrayImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -364,7 +363,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 3u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                ConversionQuality::Good,
             )
             .unwrap();
         })
@@ -397,7 +395,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 4u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                ConversionQuality::Good,
             )
             .unwrap();
         })
@@ -444,7 +441,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 4u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                ConversionQuality::Good,
             )
             .unwrap();
         })
@@ -491,7 +487,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 4u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                ConversionQuality::Good,
             )
             .unwrap();
         })

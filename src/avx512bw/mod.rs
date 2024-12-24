@@ -39,8 +39,6 @@ mod rgba_to_yuv420;
 mod y_to_rgb;
 mod ycgco_to_rgb;
 mod ycgco_to_rgba_alpha;
-mod yuv2rgba420_fast;
-mod yuv2rgba_fast;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
 mod yuv_p16_to_rgb16;
