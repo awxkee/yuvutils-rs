@@ -121,8 +121,6 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
 
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
-    const V_SCALE: i32 = 2;
-
     let vy_coeff = _mm256_set1_epi16(y_coeff as i16);
     let vy_bias = _mm256_set1_epi8(y_bias as i8);
 
