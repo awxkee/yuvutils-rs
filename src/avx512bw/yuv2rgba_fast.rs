@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
+ * Copyright (c) Radzivon Bartoshyk, 12/2024. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -172,12 +172,12 @@ unsafe fn avx512_yuv_to_rgba_fast_impl<
                 let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
                 let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
 
-                (u_low0, u_high0) = avx512_zip_epi8::<HAS_VBMI>(u_values, uv_corr);
-                (v_low0, v_high0) = avx512_zip_epi8::<HAS_VBMI>(v_values, uv_corr);
+                (u_low0, u_high0) = avx512_zip_epi8::<false>(u_values, uv_corr);
+                (v_low0, v_high0) = avx512_zip_epi8::<false>(v_values, uv_corr);
             }
         }
 
-        let (y_lo, y_hi) = avx512_zip_epi8::<HAS_VBMI>(y_values, y_values);
+        let (y_lo, y_hi) = avx512_zip_epi8::<false>(y_values, y_values);
 
         let y_high = _mm512_mulhi_epu16(y_hi, v_luma_coeff);
 
