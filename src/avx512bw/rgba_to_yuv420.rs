@@ -28,7 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8,
+    _mm512_affine_dot, avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -133,13 +133,14 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
-    let cap_y = range.range_y as i16 + range.bias_y as i16;
     let cap_uv = range.bias_y as i16 + range.range_uv as i16;
 
+    const PREC: u32 = 13;
+
     let y_bias = _mm512_set1_epi16(bias_y);
+    let y_base = _mm512_set1_epi32(bias_y as i32 * (1 << PREC) + (1 << (PREC - 1)) - 1);
     let uv_bias = _mm512_set1_epi16(bias_uv);
-    let v_yr = _mm512_set1_epi16(transform.yr as i16);
-    let v_yg = _mm512_set1_epi16(transform.yg as i16);
+    let v_yr_yg = _mm512_set1_epi32(transform._interleaved_yr_yg());
     let v_yb = _mm512_set1_epi16(transform.yb as i16);
     let v_cb_r = _mm512_set1_epi16(transform.cb_r as i16);
     let v_cb_g = _mm512_set1_epi16(transform.cb_g as i16);
@@ -157,101 +158,31 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
         let (r_values1, g_values1, b_values1) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba1.get_unchecked(px..).as_ptr());
 
-        let r_low0 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values0)));
-        let r_high0 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(r_values0),
-        ));
-        let g_low0 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values0)));
-        let g_high0 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(g_values0),
-        ));
-        let b_low0 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values0)));
-        let b_high0 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(b_values0),
-        ));
+        let r0_lo16 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values0));
+        let r0_hi16 = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(r_values0));
+        let g0_lo16 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values0));
+        let g0_hi16 = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(g_values0));
+        let b0_lo16 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values0));
+        let b0_hi16 = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(b_values0));
 
-        let r_low1 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values1)));
-        let r_high1 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(r_values1),
-        ));
-        let g_low1 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values1)));
-        let g_high1 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(g_values1),
-        ));
-        let b_low1 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values1)));
-        let b_high1 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(b_values1),
-        ));
+        let y_l0 = _mm512_affine_dot::<PREC>(y_base, r0_lo16, g0_lo16, b0_lo16, v_yr_yg, v_yb);
+        let y_h0 = _mm512_affine_dot::<PREC>(y_base, r0_hi16, g0_hi16, b0_hi16, v_yr_yg, v_yb);
 
-        let i_cap_y = _mm512_set1_epi16(cap_y);
-
-        let y_l0 = _mm512_min_epi16(
-            _mm512_add_epi16(
-                y_bias,
-                _mm512_add_epi16(
-                    _mm512_add_epi16(
-                        _mm512_mulhrs_epi16(r_low0, v_yr),
-                        _mm512_mulhrs_epi16(g_low0, v_yg),
-                    ),
-                    _mm512_mulhrs_epi16(b_low0, v_yb),
-                ),
-            ),
-            i_cap_y,
-        );
-
-        let y_l1 = _mm512_min_epi16(
-            _mm512_add_epi16(
-                y_bias,
-                _mm512_add_epi16(
-                    _mm512_add_epi16(
-                        _mm512_mulhrs_epi16(r_low1, v_yr),
-                        _mm512_mulhrs_epi16(g_low1, v_yg),
-                    ),
-                    _mm512_mulhrs_epi16(b_low1, v_yb),
-                ),
-            ),
-            i_cap_y,
-        );
-
-        let y_h0 = _mm512_min_epi16(
-            _mm512_add_epi16(
-                y_bias,
-                _mm512_add_epi16(
-                    _mm512_add_epi16(
-                        _mm512_mulhrs_epi16(r_high0, v_yr),
-                        _mm512_mulhrs_epi16(g_high0, v_yg),
-                    ),
-                    _mm512_mulhrs_epi16(b_high0, v_yb),
-                ),
-            ),
-            i_cap_y,
-        );
-
-        let y_h1 = _mm512_min_epi16(
-            _mm512_add_epi16(
-                y_bias,
-                _mm512_add_epi16(
-                    _mm512_add_epi16(
-                        _mm512_mulhrs_epi16(r_high1, v_yr),
-                        _mm512_mulhrs_epi16(g_high1, v_yg),
-                    ),
-                    _mm512_mulhrs_epi16(b_high1, v_yb),
-                ),
-            ),
-            i_cap_y,
-        );
+        let r1_lo16 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values1));
+        let r1_hi16 = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(r_values1));
+        let g1_lo16 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values1));
+        let g1_hi16 = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(g_values1));
+        let b1_lo16 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values1));
+        let b1_hi16 = _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(b_values1));
 
         let y_yuv0 = avx512_pack_u16(y_l0, y_h0);
         _mm512_storeu_si512(
             y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
             y_yuv0,
         );
+
+        let y_l1 = _mm512_affine_dot::<PREC>(y_base, r1_lo16, g1_lo16, b1_lo16, v_yr_yg, v_yb);
+        let y_h1 = _mm512_affine_dot::<PREC>(y_base, r1_hi16, g1_hi16, b1_hi16, v_yr_yg, v_yb);
 
         let y_yuv1 = avx512_pack_u16(y_l1, y_h1);
         _mm512_storeu_si512(

@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{
+use crate::neon::utils::{
     neon_store_half_rgb8, vfrommsbq_u16, vld_s16_endian, vldq_s16_endian, vpackq_n_shift16,
 };
 use crate::yuv_support::{

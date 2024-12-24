@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::neon::neon_simd_support::vmullnq_s16;
+use crate::neon::utils::vmullnq_s16;
 use crate::yuv_support::YuvSourceChannels;
 use std::arch::aarch64::*;
 

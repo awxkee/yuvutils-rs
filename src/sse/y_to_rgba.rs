@@ -27,7 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::sse::{_mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv};
+use crate::sse::{
+    _mm_expand8_hi_to_10, _mm_expand8_lo_to_10, _mm_store_interleave_half_rgb_for_yuv,
+    _mm_store_interleave_rgb_for_yuv,
+};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -66,8 +69,6 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     let y_ptr = y_plane.as_ptr();
     let rgba_ptr = rgba.as_mut_ptr();
 
-    const SCALE: i32 = 2;
-
     let y_corr = _mm_set1_epi8(range.bias_y as i8);
     let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
 
@@ -76,15 +77,8 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     while cx + 16 < width {
         let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
 
-        let v_high = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_unpackhi_epi8(y_values, zeros)),
-            v_luma_coeff,
-        );
-
-        let v_low = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values)),
-            v_luma_coeff,
-        );
+        let v_high = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values), v_luma_coeff);
+        let v_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
 
         let v_values = _mm_packus_epi16(v_low, v_high);
 
@@ -106,10 +100,7 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     while cx + 8 < width {
         let y_values = _mm_subs_epi8(_mm_loadu_si64(y_ptr.add(cx)), y_corr);
 
-        let v_low = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values)),
-            v_luma_coeff,
-        );
+        let v_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
 
         let v_values = _mm_packus_epi16(v_low, zeros);
 

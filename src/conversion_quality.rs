@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
+ * Copyright (c) Radzivon Bartoshyk, 12/2024. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -26,18 +26,23 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::ConversionQuality::{Fastest, Good};
 
-#[allow(dead_code)]
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub(crate) struct ProcessedOffset {
-    pub(crate) cx: usize,
-    pub(crate) ux: usize,
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
+pub enum ConversionQuality {
+    /// The fastest conversion with a cost of precision
+    Fastest,
+    /// Fast conversion with good precision
+    #[default]
+    Good,
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-pub(crate) fn interleaved_epi8(lo: i8, hi: i8) -> i16 {
-    let w0 = hi as u16;
-    let w1 = lo as u16;
-    (w0 << 8 | w1) as i16
+impl From<usize> for ConversionQuality {
+    fn from(quality: usize) -> Self {
+        match quality {
+            0 => Fastest,
+            1 => Good,
+            _ => unimplemented!("Conversion quality {} is not implemented yet", quality),
+        }
+    }
 }

@@ -33,7 +33,6 @@ use crate::avx2::{avx2_rgba_to_yuv, avx2_rgba_to_yuv420};
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::{avx512_rgba_to_yuv, avx512_rgba_to_yuv420};
-use crate::built_coefficients::get_built_forward_transform;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -71,26 +70,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let max_range_p8 = (1u32 << 8u32) - 1u32;
 
     let transform =
-        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
-            stored_t
-        } else {
-            let transform_precise = get_forward_transform(
-                max_range_p8,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform_precise.to_integers(PRECISION as u32)
-        };
+        search_forward_transform(PRECISION, range, matrix, chroma_range, kr_kb, max_range_p8);
 
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
-
-    let i_bias_y = chroma_range.bias_y as i32;
-    let i_cap_y = chroma_range.range_y as i32 + i_bias_y;
-    let i_cap_uv = i_bias_y + chroma_range.range_uv as i32;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -169,7 +153,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_avx {
-                let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>(
+                let processed_offset = avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane,
@@ -184,7 +168,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_sse {
-                let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING>(
+                let processed_offset = sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane,
@@ -263,7 +247,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 }
             }
             if use_avx {
-                let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS>(
+                let processed_offset = avx2_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane0,
@@ -280,7 +264,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_sse {
-                let processed_offset = sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS>(
+                let processed_offset = sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     _y_plane0,
@@ -320,7 +304,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b0 = src0[src_chans.get_b_channel_offset()] as i32;
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0.min(i_cap_y) as u8;
+            y_dst[0] = y_0 as u8;
 
             let src1 = &rgba[channels..channels * 2];
 
@@ -329,7 +313,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b1 = src1[src_chans.get_b_channel_offset()] as i32;
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = y_1.min(i_cap_y) as u8;
+            y_dst[1] = y_1 as u8;
 
             let r = (r0 + r1 + 1) >> 1;
             let g = (g0 + g1 + 1) >> 1;
@@ -339,8 +323,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 >> PRECISION;
             let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
                 >> PRECISION;
-            *u_dst = cb.max(i_bias_y).min(i_cap_uv) as u8;
-            *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
+            *u_dst = cb as u8;
+            *v_dst = cr as u8;
         }
 
         if image.width & 1 != 0 {
@@ -355,14 +339,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y_last = y_0.min(i_cap_y) as u8;
+            *y_last = y_0 as u8;
 
             let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
                 >> PRECISION;
             let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                 >> PRECISION;
-            *u_last = cb.max(i_bias_y).min(i_cap_uv) as u8;
-            *v_last = cr.max(i_bias_y).min(i_cap_uv) as u8;
+            *u_last = cb as u8;
+            *v_last = cr as u8;
         }
     };
 
@@ -392,7 +376,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b00 = src00[src_chans.get_b_channel_offset()] as i32;
             let y_00 = (r00 * transform.yr + g00 * transform.yg + b00 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst0[0] = y_00.min(i_cap_y) as u8;
+            y_dst0[0] = y_00 as u8;
 
             let src1 = &rgba0[channels..channels * 2];
 
@@ -401,7 +385,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b01 = src1[src_chans.get_b_channel_offset()] as i32;
             let y_01 = (r01 * transform.yr + g01 * transform.yg + b01 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst0[1] = y_01.min(i_cap_y) as u8;
+            y_dst0[1] = y_01 as u8;
 
             let src10 = &rgba1[0..channels];
 
@@ -410,7 +394,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b10 = src10[src_chans.get_b_channel_offset()] as i32;
             let y_10 = (r10 * transform.yr + g10 * transform.yg + b10 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst1[0] = y_10.min(i_cap_y) as u8;
+            y_dst1[0] = y_10 as u8;
 
             let src11 = &rgba1[channels..channels * 2];
 
@@ -419,7 +403,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let b11 = src11[src_chans.get_b_channel_offset()] as i32;
             let y_11 = (r11 * transform.yr + g11 * transform.yg + b11 * transform.yb + bias_y)
                 >> PRECISION;
-            y_dst1[1] = y_11.min(i_cap_y) as u8;
+            y_dst1[1] = y_11 as u8;
 
             let ruv = (r00 + r01 + r10 + r11 + 2) >> 2;
             let guv = (g00 + g01 + g10 + g11 + 2) >> 2;
@@ -429,8 +413,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 >> PRECISION;
             let cr = (ruv * transform.cr_r + guv * transform.cr_g + buv * transform.cr_b + bias_uv)
                 >> PRECISION;
-            *u_dst = cb.max(i_bias_y).min(i_cap_uv) as u8;
-            *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
+            *u_dst = cb as u8;
+            *v_dst = cr as u8;
         }
 
         if image.width & 1 != 0 {
@@ -451,11 +435,11 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
             let y_0 =
                 (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y0_last = y_0.min(i_cap_y) as u8;
+            *y0_last = y_0 as u8;
 
             let y_1 =
                 (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            *y1_last = y_1.min(i_cap_y) as u8;
+            *y1_last = y_1 as u8;
 
             let r0 = (r0 + r1) >> 1;
             let g0 = (g0 + g1) >> 1;
@@ -465,8 +449,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 >> PRECISION;
             let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                 >> PRECISION;
-            *u_last = cb.max(i_bias_y).min(i_cap_uv) as u8;
-            *v_last = cr.max(i_bias_y).min(i_cap_uv) as u8;
+            *u_last = cb as u8;
+            *v_last = cr as u8;
         }
     };
 
@@ -512,7 +496,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
                 let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                     >> PRECISION;
-                *y_dst = y_0.min(i_cap_y) as u8;
+                *y_dst = y_0 as u8;
 
                 let cb =
                     (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
@@ -520,8 +504,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let cr =
                     (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
                         >> PRECISION;
-                *u_dst = cb.max(i_bias_y).min(i_cap_uv) as u8;
-                *v_dst = cr.max(i_bias_y).min(i_cap_uv) as u8;
+                *u_dst = cb as u8;
+                *v_dst = cr as u8;
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {

@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv};
+use crate::neon::utils::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv, vdotl_laneq_s16_x3};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -64,10 +64,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
     let rgba_ptr = rgba.as_ptr();
 
     let i_bias_y = vdupq_n_s16(range.bias_y as i16);
-    let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
-    let y_bias = vdupq_n_s16(bias_y);
+    let y_bias0 = vdupq_n_s32(bias_y as i32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
     let uv_bias = vdupq_n_s16(bias_uv);
 
     let weights_arr: [i16; 8] = [
@@ -87,33 +86,37 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
     let mut ux = start_ux;
 
     while cx + 16 < width {
-        let (r_values_u8, g_values_u8, b_values_u8) =
+        let (r_values0, g_values0, b_values0) =
             neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
 
-        let r0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(r_values_u8));
-        let g0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(g_values_u8));
-        let b0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(b_values_u8));
+        let y_high = vreinterpretq_u16_s16(vdotl_laneq_s16_x3::<PRECISION, 0, 1, 2>(
+            y_bias0,
+            vreinterpretq_s16_u16(vmovl_high_u8(r_values0)),
+            vreinterpretq_s16_u16(vmovl_high_u8(g_values0)),
+            vreinterpretq_s16_u16(vmovl_high_u8(b_values0)),
+            v_weights,
+        ));
 
-        let mut y_high = vqrdmlahq_laneq_s16::<0>(y_bias, r0hi, v_weights);
-        y_high = vqrdmlahq_laneq_s16::<1>(y_high, g0hi, v_weights);
-        y_high = vqrdmlahq_laneq_s16::<2>(y_high, b0hi, v_weights);
-
-        let y_high = vminq_u16(vreinterpretq_u16_s16(y_high), i_cap_y);
-
-        let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values_u8)));
-        let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values_u8)));
-        let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(b_values_u8)));
-
-        let mut y_low = vqrdmlahq_laneq_s16::<0>(y_bias, r_low, v_weights);
-        y_low = vqrdmlahq_laneq_s16::<1>(y_low, g_low, v_weights);
-        y_low = vqrdmlahq_laneq_s16::<2>(y_low, b_low, v_weights);
-
-        let y_low = vminq_u16(vreinterpretq_u16_s16(y_low), i_cap_y);
+        let y_low = vreinterpretq_u16_s16(vdotl_laneq_s16_x3::<PRECISION, 0, 1, 2>(
+            y_bias0,
+            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values0))),
+            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values0))),
+            vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values0))),
+            v_weights,
+        ));
 
         let y = vcombine_u8(vmovn_u16(y_low), vmovn_u16(y_high));
         vst1q_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let r0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(r_values0));
+            let g0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(g_values0));
+            let b0hi = vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(b_values0));
+
+            let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values0)));
+            let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values0)));
+            let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(b_values0)));
+
             let mut cb_high = vqrdmlahq_laneq_s16::<3>(uv_bias, r0hi, v_weights);
             cb_high = vqrdmlahq_laneq_s16::<4>(cb_high, g0hi, v_weights);
             cb_high = vqrdmlahq_laneq_s16::<5>(cb_high, b0hi, v_weights);
@@ -154,13 +157,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
             let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
-                r_values_u8,
+                r_values0,
             ))));
             let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
-                g_values_u8,
+                g_values0,
             ))));
             let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
-                b_values_u8,
+                b_values0,
             ))));
 
             let mut cbl = vqrdmlahq_laneq_s16::<3>(uv_bias, r1, v_weights);
@@ -191,22 +194,24 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
     }
 
     while cx + 8 < width {
-        let (r_values_u8, g_values_u8, b_values_u8) =
+        let (r_values0, g_values0, b_values0) =
             neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
 
-        let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values_u8));
-        let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values_u8));
-        let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(b_values_u8));
-
-        let mut y_low = vqrdmlahq_laneq_s16::<0>(y_bias, r_low, v_weights);
-        y_low = vqrdmlahq_laneq_s16::<1>(y_low, g_low, v_weights);
-        y_low = vqrdmlahq_laneq_s16::<2>(y_low, b_low, v_weights);
-
-        let y_low = vminq_u16(vreinterpretq_u16_s16(y_low), i_cap_y);
+        let y_low = vreinterpretq_u16_s16(vdotl_laneq_s16_x3::<PRECISION, 0, 1, 2>(
+            y_bias0,
+            vreinterpretq_s16_u16(vmovl_u8(r_values0)),
+            vreinterpretq_s16_u16(vmovl_u8(g_values0)),
+            vreinterpretq_s16_u16(vmovl_u8(b_values0)),
+            v_weights,
+        ));
 
         vst1_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), vmovn_u16(y_low));
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values0));
+            let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values0));
+            let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(b_values0));
+
             let mut cb_low = vqrdmlahq_laneq_s16::<3>(uv_bias, r_low, v_weights);
             cb_low = vqrdmlahq_laneq_s16::<4>(cb_low, g_low, v_weights);
             cb_low = vqrdmlahq_laneq_s16::<5>(cb_low, b_low, v_weights);
@@ -233,13 +238,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
             let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(vpaddl_u8(
-                r_values_u8,
+                r_values0,
             ))));
             let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(vpaddl_u8(
-                g_values_u8,
+                g_values0,
             ))));
             let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(vpaddl_u8(
-                b_values_u8,
+                b_values0,
             ))));
 
             let mut cbl = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
@@ -310,7 +315,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
     let rgba_ptr = rgba.as_ptr();
 
     let i_bias_y = vdupq_n_s16(range.bias_y as i16);
-    let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
     let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
     let y_bias = vdupq_n_s32(bias_y);
@@ -344,21 +348,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
         let g_h_low = vget_low_s16(g_high);
         let b_h_low = vget_low_s16(b_high);
 
-        let mut y_h_high = vmlal_high_laneq_s16::<0>(y_bias, r_high, v_weights);
-        y_h_high = vmlal_high_laneq_s16::<1>(y_h_high, g_high, v_weights);
-        y_h_high = vmlal_high_laneq_s16::<2>(y_h_high, b_high, v_weights);
-
-        let mut y_h_low = vmlal_laneq_s16::<0>(y_bias, r_h_low, v_weights);
-        y_h_low = vmlal_laneq_s16::<1>(y_h_low, g_h_low, v_weights);
-        y_h_low = vmlal_laneq_s16::<2>(y_h_low, b_h_low, v_weights);
-
-        let y_high = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_h_low),
-                vshrn_n_s32::<PRECISION>(y_h_high),
-            )),
-            i_cap_y,
-        );
+        let y_high = vreinterpretq_u16_s16(vdotl_laneq_s16_x3::<PRECISION, 0, 1, 2>(
+            y_bias, r_high, g_high, b_high, v_weights,
+        ));
 
         let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));
@@ -376,13 +368,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
         y_l_low = vmlal_laneq_s16::<1>(y_l_low, g_l_low, v_weights);
         y_l_low = vmlal_laneq_s16::<2>(y_l_low, b_l_low, v_weights);
 
-        let y_low = vminq_u16(
-            vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(y_l_low),
-                vshrn_n_s32::<PRECISION>(y_l_high),
-            )),
-            i_cap_y,
-        );
+        let y_low = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_l_low),
+            vshrn_n_s32::<PRECISION>(y_l_high),
+        ));
 
         let y = vcombine_u8(vmovn_u16(y_low), vmovn_u16(y_high));
         vst1q_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y);

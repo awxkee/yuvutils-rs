@@ -27,8 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::neon::neon_simd_support::{
-    neon_store_half_rgb8, neon_store_rgb8, vmullq_laneq_s16, xvld1q_u8_x2,
+use crate::neon::utils::{
+    neon_store_half_rgb8, neon_store_rgb8, vexpand8_to_10, vexpand_high_8_to_10, vmullq_laneq_s16,
+    xvld1q_u8_x2,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
@@ -57,20 +58,18 @@ pub(crate) unsafe fn neon_y_to_rgb_row_alpha_rdm<const DESTINATION_CHANNELS: u8>
 
     let mut cx = start_cx;
 
-    const V_SCALE: i32 = 2;
-
     while cx + 32 < width {
         let y_vals = xvld1q_u8_x2(y_ptr.add(cx));
         let y_values0 = vqsubq_u8(y_vals.0, y_corr);
         let y_values1 = vqsubq_u8(y_vals.1, y_corr);
 
         let y_high0 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values0)),
+            vreinterpretq_s16_u16(vexpand_high_8_to_10(y_values0)),
             transform.y_coef as i16,
         );
 
         let y_high1 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values1)),
+            vreinterpretq_s16_u16(vexpand_high_8_to_10(y_values1)),
             transform.y_coef as i16,
         );
 
@@ -78,12 +77,12 @@ pub(crate) unsafe fn neon_y_to_rgb_row_alpha_rdm<const DESTINATION_CHANNELS: u8>
         let r_high1 = vqmovun_s16(y_high1);
 
         let y_low0 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(y_values0))),
+            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values0))),
             transform.y_coef as i16,
         );
 
         let y_low1 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(y_values1))),
+            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values1))),
             transform.y_coef as i16,
         );
 
@@ -120,14 +119,14 @@ pub(crate) unsafe fn neon_y_to_rgb_row_alpha_rdm<const DESTINATION_CHANNELS: u8>
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let y_high = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values)),
+            vreinterpretq_s16_u16(vexpand_high_8_to_10(y_values)),
             transform.y_coef as i16,
         );
 
         let r_high = vqmovun_s16(y_high);
 
         let y_low = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(y_values))),
+            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values))),
             transform.y_coef as i16,
         );
 
@@ -154,7 +153,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row_alpha_rdm<const DESTINATION_CHANNELS: u8>
         let y_values = vqsub_u8(vld1_u8(y_ptr.add(cx)), vget_low_u8(y_corr));
 
         let y_low = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(y_values)),
+            vreinterpretq_s16_u16(vexpand8_to_10(y_values)),
             transform.y_coef as i16,
         );
 

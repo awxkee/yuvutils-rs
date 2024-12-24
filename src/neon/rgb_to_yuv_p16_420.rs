@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{neon_vld_rgb16_for_yuv, vtomsb_u16, vtomsbq_u16};
+use crate::neon::utils::{neon_vld_rgb16_for_yuv, vdotl_laneq_u16_x3, vtomsb_u16, vtomsbq_u16};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
@@ -57,13 +57,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
     let channels = source_channels.get_channels_count();
 
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
-    let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
+    let bias_y = range.bias_y * (1 << PRECISION) + rounding_const_bias as u32;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
     let u_ptr = u_plane.as_mut_ptr();
     let v_ptr = v_plane.as_mut_ptr();
 
-    let y_bias = vdupq_n_s32(bias_y);
+    let y_bias = vdupq_n_u32(bias_y);
     let uv_bias = vdupq_n_s32(bias_uv);
 
     let weights_arr: [i16; 8] = [
@@ -83,7 +83,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
     let mut ux = start_ux;
 
     let i_bias_y = vdup_n_u16(range.bias_y as u16);
-    let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
     let i_cap_uv = vdup_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
     while cx + 8 < width {
@@ -95,62 +94,20 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
         let (r_values1, g_values1, b_values1) =
             neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr1.as_ptr());
 
-        let mut y0_h =
-            vmlal_high_laneq_s16::<0>(y_bias, vreinterpretq_s16_u16(r_values0), v_weights);
-        y0_h = vmlal_high_laneq_s16::<1>(y0_h, vreinterpretq_s16_u16(g_values0), v_weights);
-        y0_h = vmlal_high_laneq_s16::<2>(y0_h, vreinterpretq_s16_u16(b_values0), v_weights);
-
-        let mut y0_l = vmlal_laneq_s16::<0>(
+        let mut y0_vl = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
             y_bias,
-            vreinterpret_s16_u16(vget_low_u16(r_values0)),
-            v_weights,
-        );
-        y0_l = vmlal_laneq_s16::<1>(
-            y0_l,
-            vreinterpret_s16_u16(vget_low_u16(g_values0)),
-            v_weights,
-        );
-        y0_l = vmlal_laneq_s16::<2>(
-            y0_l,
-            vreinterpret_s16_u16(vget_low_u16(b_values0)),
-            v_weights,
+            r_values0,
+            g_values0,
+            b_values0,
+            vreinterpretq_u16_s16(v_weights),
         );
 
-        let mut y0_vl = vminq_u16(
-            vcombine_u16(
-                vqshrun_n_s32::<PRECISION>(y0_l),
-                vqshrun_n_s32::<PRECISION>(y0_h),
-            ),
-            i_cap_y,
-        );
-
-        let mut y1_h =
-            vmlal_high_laneq_s16::<0>(y_bias, vreinterpretq_s16_u16(r_values1), v_weights);
-        y1_h = vmlal_high_laneq_s16::<1>(y1_h, vreinterpretq_s16_u16(g_values1), v_weights);
-        y1_h = vmlal_high_laneq_s16::<2>(y1_h, vreinterpretq_s16_u16(b_values1), v_weights);
-
-        let mut y1_l = vmlal_laneq_s16::<0>(
+        let mut y1_vl = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
             y_bias,
-            vreinterpret_s16_u16(vget_low_u16(r_values1)),
-            v_weights,
-        );
-        y1_l = vmlal_laneq_s16::<1>(
-            y1_l,
-            vreinterpret_s16_u16(vget_low_u16(g_values1)),
-            v_weights,
-        );
-        y1_l = vmlal_laneq_s16::<2>(
-            y1_l,
-            vreinterpret_s16_u16(vget_low_u16(b_values1)),
-            v_weights,
-        );
-
-        let mut y1_vl = vminq_u16(
-            vcombine_u16(
-                vqshrun_n_s32::<PRECISION>(y1_l),
-                vqshrun_n_s32::<PRECISION>(y1_h),
-            ),
-            i_cap_y,
+            r_values1,
+            g_values1,
+            b_values1,
+            vreinterpretq_u16_s16(v_weights),
         );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -239,7 +196,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
     let u_ptr = u_plane.as_mut_ptr();
     let v_ptr = v_plane.as_mut_ptr();
 
-    let y_bias = vdupq_n_s16(bias_y);
     let uv_bias = vdupq_n_s16(bias_uv);
 
     const SCALE: i32 = 2;
@@ -258,8 +214,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
     let v_cr_b = vdupq_n_s16(transform.cr_b as i16);
 
     let i_bias_y = vdupq_n_s16(range.bias_y as i16);
-    let i_cap_y = vdupq_n_s16(range.range_y as i16 + range.bias_y as i16);
     let i_cap_uv = vdupq_n_s16(range.bias_y as i16 + range.range_uv as i16);
+    let y_bias0 = vdupq_n_u32(bias_y as u32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -273,6 +229,22 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
         let (mut r_values1, mut g_values1, mut b_values1) =
             neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr1.as_ptr());
 
+        let mut y0_vl = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
+            y_bias0,
+            r_values0,
+            g_values0,
+            b_values0,
+            vreinterpretq_u16_s16(v_weights),
+        );
+
+        let mut y1_vl = vdotl_laneq_u16_x3::<PRECISION, 0, 1, 2>(
+            y_bias0,
+            r_values1,
+            g_values1,
+            b_values1,
+            vreinterpretq_u16_s16(v_weights),
+        );
+
         r_values0 = vshlq_n_u16::<SCALE>(r_values0);
         g_values0 = vshlq_n_u16::<SCALE>(g_values0);
         b_values0 = vshlq_n_u16::<SCALE>(b_values0);
@@ -280,23 +252,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
         r_values1 = vshlq_n_u16::<SCALE>(r_values1);
         g_values1 = vshlq_n_u16::<SCALE>(g_values1);
         b_values1 = vshlq_n_u16::<SCALE>(b_values1);
-
-        let mut y0_values =
-            vqrdmlahq_laneq_s16::<0>(y_bias, vreinterpretq_s16_u16(r_values0), v_weights);
-        y0_values =
-            vqrdmlahq_laneq_s16::<1>(y0_values, vreinterpretq_s16_u16(g_values0), v_weights);
-        y0_values =
-            vqrdmlahq_laneq_s16::<2>(y0_values, vreinterpretq_s16_u16(b_values0), v_weights);
-
-        let mut y1_values =
-            vqrdmlahq_laneq_s16::<0>(y_bias, vreinterpretq_s16_u16(r_values1), v_weights);
-        y1_values =
-            vqrdmlahq_laneq_s16::<1>(y1_values, vreinterpretq_s16_u16(g_values1), v_weights);
-        y1_values =
-            vqrdmlahq_laneq_s16::<2>(y1_values, vreinterpretq_s16_u16(b_values1), v_weights);
-
-        let mut y0_vl = vreinterpretq_u16_s16(vminq_s16(y0_values, i_cap_y));
-        let mut y1_vl = vreinterpretq_u16_s16(vminq_s16(y1_values, i_cap_y));
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y0_vl = vtomsbq_u16::<BIT_DEPTH>(y0_vl);

@@ -53,6 +53,54 @@ static FORWARD_BT601_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTr
     cr_b: -585,
 };
 
+static FORWARD_BT601_LIMITED_10_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 2097,
+    yg: 4118,
+    yb: 800,
+    cb_r: -1211,
+    cb_g: -2377,
+    cb_b: 3588,
+    cr_r: 3588,
+    cr_g: -3004,
+    cr_b: -583,
+};
+
+static FORWARD_BT601_LIMITED_12_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 2096,
+    yg: 4115,
+    yb: 799,
+    cb_r: -1210,
+    cb_g: -2375,
+    cb_b: 3585,
+    cr_r: 3585,
+    cr_g: -3002,
+    cr_b: -583,
+};
+
+static FORWARD_BT601_FULL_10_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 2449,
+    yg: 4809,
+    yb: 934,
+    cb_r: -1382,
+    cb_g: -2714,
+    cb_b: 4096,
+    cr_r: 4096,
+    cr_g: -3430,
+    cr_b: -666,
+};
+
+static FORWARD_BT601_FULL_12_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 2449,
+    yg: 4809,
+    yb: 934,
+    cb_r: -1382,
+    cb_g: -2714,
+    cb_b: 4096,
+    cr_r: 4096,
+    cr_g: -3430,
+    cr_b: -666,
+};
+
 static FORWARD_BT709_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
     yr: 1496,
     yg: 5032,
@@ -65,7 +113,54 @@ static FORWARD_BT709_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTr
     cr_b: -330,
 };
 
+static FORWARD_BT709_LIMITED_10_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 1491,
+    yg: 5017,
+    yb: 506,
+    cb_r: -822,
+    cb_g: -2765,
+    cb_b: 3588,
+    cr_r: 3588,
+    cr_g: -3259,
+    cr_b: -329,
+};
+
+static FORWARD_BT709_LIMITED_12_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 1490,
+    yg: 5013,
+    yb: 506,
+    cb_r: -821,
+    cb_g: -2763,
+    cb_b: 3585,
+    cr_r: 3585,
+    cr_g: -3256,
+    cr_b: -329,
+};
 static FORWARD_BT709_FULL_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 1742,
+    yg: 5859,
+    yb: 591,
+    cb_r: -939,
+    cb_g: -3157,
+    cb_b: 4096,
+    cr_r: 4096,
+    cr_g: -3720,
+    cr_b: -376,
+};
+
+static FORWARD_BT709_FULL_10_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 1742,
+    yg: 5859,
+    yb: 591,
+    cb_r: -939,
+    cb_g: -3157,
+    cb_b: 4096,
+    cr_r: 4096,
+    cr_g: -3720,
+    cr_b: -376,
+};
+
+static FORWARD_BT709_FULL_12_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
     yr: 1742,
     yg: 5859,
     yb: 591,
@@ -89,7 +184,55 @@ static FORWARD_BT2020_LIMITED_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardT
     cr_b: -289,
 };
 
+static FORWARD_BT2020_LIMITED_10_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 1843,
+    yg: 4756,
+    yb: 416,
+    cb_r: -1002,
+    cb_g: -2586,
+    cb_b: 3588,
+    cr_r: 3588,
+    cr_g: -3299,
+    cr_b: -289,
+};
+
+static FORWARD_BT2020_LIMITED_12_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 1841,
+    yg: 4753,
+    yb: 416,
+    cb_r: -1001,
+    cb_g: -2584,
+    cb_b: 3585,
+    cr_r: 3585,
+    cr_g: -3297,
+    cr_b: -288,
+};
+
 static FORWARD_BT2020_FULL_8_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 2152,
+    yg: 5554,
+    yb: 486,
+    cb_r: -1144,
+    cb_g: -2952,
+    cb_b: 4096,
+    cr_r: 4096,
+    cr_g: -3767,
+    cr_b: -329,
+};
+
+static FORWARD_BT2020_FULL_10_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
+    yr: 2152,
+    yg: 5554,
+    yb: 486,
+    cb_r: -1144,
+    cb_g: -2952,
+    cb_b: 4096,
+    cr_r: 4096,
+    cr_g: -3767,
+    cr_b: -329,
+};
+
+static FORWARD_BT2020_FULL_12_13PREC: CbCrForwardTransform<i32> = CbCrForwardTransform {
     yr: 2152,
     yg: 5554,
     yb: 486,
@@ -183,6 +326,40 @@ pub(crate) fn get_built_forward_transform(
             return match range {
                 YuvRange::Full => Some(FORWARD_BT470_FULL_8_13PREC),
                 YuvRange::Limited => Some(FORWARD_BT470_LIMITED_8_13PREC),
+            };
+        }
+    } else if bit_depth == 10 {
+        if matrix == YuvStandardMatrix::Bt601 {
+            return match range {
+                YuvRange::Limited => Some(FORWARD_BT601_LIMITED_10_13PREC),
+                YuvRange::Full => Some(FORWARD_BT601_FULL_10_13PREC),
+            };
+        } else if matrix == YuvStandardMatrix::Bt709 {
+            return match range {
+                YuvRange::Limited => Some(FORWARD_BT709_LIMITED_10_13PREC),
+                YuvRange::Full => Some(FORWARD_BT709_FULL_10_13PREC),
+            };
+        } else if matrix == YuvStandardMatrix::Bt2020 {
+            return match range {
+                YuvRange::Limited => Some(FORWARD_BT2020_LIMITED_10_13PREC),
+                YuvRange::Full => Some(FORWARD_BT2020_FULL_10_13PREC),
+            };
+        }
+    } else if bit_depth == 12 {
+        if matrix == YuvStandardMatrix::Bt601 {
+            return match range {
+                YuvRange::Limited => Some(FORWARD_BT601_LIMITED_12_13PREC),
+                YuvRange::Full => Some(FORWARD_BT601_FULL_12_13PREC),
+            };
+        } else if matrix == YuvStandardMatrix::Bt709 {
+            return match range {
+                YuvRange::Limited => Some(FORWARD_BT709_LIMITED_12_13PREC),
+                YuvRange::Full => Some(FORWARD_BT709_FULL_12_13PREC),
+            };
+        } else if matrix == YuvStandardMatrix::Bt2020 {
+            return match range {
+                YuvRange::Limited => Some(FORWARD_BT2020_LIMITED_12_13PREC),
+                YuvRange::Full => Some(FORWARD_BT2020_FULL_12_13PREC),
             };
         }
     }
@@ -437,4 +614,108 @@ pub(crate) fn get_built_inverse_transform(
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_forward_convergence() {
+        let r = 255;
+        let g = 255;
+        let b = 255;
+        let weights_full = [
+            FORWARD_BT601_FULL_8_13PREC,
+            FORWARD_BT709_FULL_8_13PREC,
+            FORWARD_BT2020_FULL_8_13PREC,
+        ];
+
+        for weights in weights_full {
+            let default_mul = (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12)) >> 13;
+            assert_eq!(default_mul, 255, "Failed on weights {:?}", weights);
+        }
+
+        let weights_full_10 = [
+            FORWARD_BT601_FULL_10_13PREC,
+            FORWARD_BT709_FULL_10_13PREC,
+            FORWARD_BT2020_FULL_10_13PREC,
+        ];
+
+        for weights in weights_full_10 {
+            let r = 1023;
+            let g = 1023;
+            let b = 1023;
+            let default_mul = (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12)) >> 13;
+            assert_eq!(default_mul, 1023, "Failed on weights {:?}", weights);
+        }
+
+        for weights in weights_full {
+            let default_mul = (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12)) >> 13;
+            assert_eq!(default_mul, 255, "Failed on weights {:?}", weights);
+        }
+
+        let weights_limited = [
+            FORWARD_BT601_LIMITED_8_13PREC,
+            FORWARD_BT709_LIMITED_8_13PREC,
+            FORWARD_BT2020_LIMITED_8_13PREC,
+        ];
+
+        for weights in weights_limited {
+            let default_mul =
+                (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12) + 16 * (1 << 13))
+                    >> 13;
+            assert_eq!(default_mul, 235, "Failed on weights {:?}", weights);
+        }
+
+        for weights in weights_full {
+            let r = 0;
+            let g = 0;
+            let b = 255;
+            let default_mul = (r * weights.cb_r
+                + g * weights.cb_g
+                + b * weights.cb_b
+                + 128 * (1 << 13)
+                + (1 << 12)
+                - 1)
+                >> 13;
+            assert_eq!(default_mul, 255, "Failed on weights {:?}", weights);
+
+            let r = 255;
+            let g = 255;
+            let b = 0;
+            let default_mul = (r * weights.cb_r
+                + g * weights.cb_g
+                + b * weights.cb_b
+                + 128 * (1 << 13)
+                + (1 << 12)
+                - 1)
+                >> 13;
+            assert_eq!(default_mul, 0, "Failed on weights {:?}", weights);
+
+            let r = 0;
+            let g = 255;
+            let b = 255;
+            let default_mul = (r * weights.cr_r
+                + g * weights.cr_g
+                + b * weights.cr_b
+                + 128 * (1 << 13)
+                + (1 << 12)
+                - 1)
+                >> 13;
+            assert_eq!(default_mul, 0, "Failed on weights {:?}", weights);
+
+            let r = 255;
+            let g = 0;
+            let b = 0;
+            let default_mul = (r * weights.cr_r
+                + g * weights.cr_g
+                + b * weights.cr_b
+                + 128 * (1 << 13)
+                + (1 << 12)
+                - 1)
+                >> 13;
+            assert_eq!(default_mul, 255, "Failed on weights {:?}", weights);
+        }
+    }
 }

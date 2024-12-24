@@ -134,23 +134,16 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
             }
         }
 
+        let y0_10 = _mm256_expand8_to_10(y_values0);
+        let y1_10 = _mm256_expand8_to_10(y_values1);
+
         let u_high0 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_high0, uv_corr));
         let v_high0 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_high0, uv_corr));
-        let y_high0 = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(
-                y_values0,
-            ))),
-            v_luma_coeff,
-        );
+        let y_high0 = _mm256_mulhrs_epi16(y0_10.1, v_luma_coeff);
 
         let u_high1 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_high1, uv_corr));
         let v_high1 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_high1, uv_corr));
-        let y_high1 = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(
-                y_values1,
-            ))),
-            v_luma_coeff,
-        );
+        let y_high1 = _mm256_mulhrs_epi16(y1_10.1, v_luma_coeff);
 
         let r_high0 = _mm256_add_epi16(y_high0, _mm256_mulhrs_epi16(v_high0, v_cr_coeff));
         let b_high0 = _mm256_add_epi16(y_high0, _mm256_mulhrs_epi16(u_high0, v_cb_coeff));
@@ -174,17 +167,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         let u_low0 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_low0, uv_corr));
         let v_low0 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_low0, uv_corr));
-        let y_low0 = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values0))),
-            v_luma_coeff,
-        );
+        let y_low0 = _mm256_mulhrs_epi16(y0_10.0, v_luma_coeff);
 
         let u_low1 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_low1, uv_corr));
         let v_low1 = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_low1, uv_corr));
-        let y_low1 = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values1))),
-            v_luma_coeff,
-        );
+        let y_low1 = _mm256_mulhrs_epi16(y1_10.0, v_luma_coeff);
 
         let r_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(v_low0, v_cr_coeff));
         let b_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(u_low0, v_cb_coeff));
@@ -272,14 +259,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
             }
         }
 
+        let y0_10 = _mm256_expand8_to_10(y_values);
+
         let u_high = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_high_u16, uv_corr));
         let v_high = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_high_u16, uv_corr));
-        let y_high = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(
-                y_values,
-            ))),
-            v_luma_coeff,
-        );
+        let y_high = _mm256_mulhrs_epi16(y0_10.1, v_luma_coeff);
 
         let r_high = _mm256_add_epi16(y_high, _mm256_mulhrs_epi16(v_high, v_cr_coeff));
         let b_high = _mm256_add_epi16(y_high, _mm256_mulhrs_epi16(u_high, v_cb_coeff));
@@ -293,10 +277,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         let u_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_low_u16, uv_corr));
         let v_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_low_u16, uv_corr));
-        let y_low = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values))),
-            v_luma_coeff,
-        );
+        let y_low = _mm256_mulhrs_epi16(y0_10.0, v_luma_coeff);
 
         let r_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
         let b_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
@@ -360,12 +341,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
             }
         }
 
+        let y0_10 = _mm256_expand8_to_10(y_values);
+
         let u_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(u_low_u16, uv_corr));
         let v_low = _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(v_low_u16, uv_corr));
-        let y_low = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values))),
-            v_luma_coeff,
-        );
+        let y_low = _mm256_mulhrs_epi16(y0_10.0, v_luma_coeff);
 
         let r_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
         let b_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(u_low, v_cb_coeff));

@@ -29,8 +29,8 @@
 
 use crate::internals::ProcessedOffset;
 use crate::sse::{
-    _mm_deinterleave_x2_epi8, _mm_store_interleave_half_rgb_for_yuv,
-    _mm_store_interleave_rgb_for_yuv,
+    _mm_deinterleave_x2_epi8, _mm_expand8_hi_to_10, _mm_expand8_lo_to_10,
+    _mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv,
 };
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
@@ -155,10 +155,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
         let u_high = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_high_u16, uv_corr));
         let v_high = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_high_u16, uv_corr));
-        let y_high = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_unpackhi_epi8(y_values, zeros)),
-            v_luma_coeff,
-        );
+        let y_high = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values), v_luma_coeff);
 
         let r_high = _mm_add_epi16(y_high, _mm_mulhrs_epi16(v_high, v_cr_coeff));
         let b_high = _mm_add_epi16(y_high, _mm_mulhrs_epi16(u_high, v_cb_coeff));
@@ -172,10 +169,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
         let u_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_low_u16, uv_corr));
         let v_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_low_u16, uv_corr));
-        let y_low = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values)),
-            v_luma_coeff,
-        );
+        let y_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
 
         let r_low = _mm_add_epi16(y_low, _mm_mulhrs_epi16(v_low, v_cr_coeff));
         let b_low = _mm_add_epi16(y_low, _mm_mulhrs_epi16(u_low, v_cb_coeff));
@@ -259,10 +253,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
         let u_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_low_u16, uv_corr));
         let v_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_low_u16, uv_corr));
-        let y_low = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values)),
-            v_luma_coeff,
-        );
+        let y_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
 
         let r_low = _mm_add_epi16(y_low, _mm_mulhrs_epi16(v_low, v_cr_coeff));
         let b_low = _mm_add_epi16(y_low, _mm_mulhrs_epi16(u_low, v_cb_coeff));
