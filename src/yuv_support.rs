@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::{get_built_forward_transform, get_built_inverse_transform};
 
 #[derive(Debug, Copy, Clone)]
 pub struct CbCrInverseTransform<T> {
@@ -642,5 +643,48 @@ impl From<usize> for Rgb30ByteOrder {
                 unimplemented!("Rgb30ByteOrder is not implemented for value {}", value)
             }
         }
+    }
+}
+
+pub(crate) fn search_forward_transform(
+    precision: i32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    chroma_range: YuvChromaRange,
+    kr_kb: YuvBias,
+    max_range_p8: u32,
+) -> CbCrForwardTransform<i32> {
+    if let Some(stored_t) = get_built_forward_transform(precision as u32, 8, range, matrix) {
+        stored_t
+    } else {
+        let transform_precise = get_forward_transform(
+            max_range_p8,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform_precise.to_integers(precision as u32)
+    }
+}
+
+pub(crate) fn search_inverse_transform(
+    precision: i32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    chroma_range: YuvChromaRange,
+    kr_kb: YuvBias,
+) -> CbCrInverseTransform<i32> {
+    if let Some(stored) = get_built_inverse_transform(precision as u32, 8, range, matrix) {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            255,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform.to_integers(precision as u32)
     }
 }

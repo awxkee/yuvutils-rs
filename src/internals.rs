@@ -33,3 +33,11 @@ pub(crate) struct ProcessedOffset {
     pub(crate) cx: usize,
     pub(crate) ux: usize,
 }
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline(always)]
+pub(crate) fn interleaved_epi8(lo: i8, hi: i8) -> i16 {
+    let w0 = hi as u16;
+    let w1 = lo as u16;
+    (w0 << 8 | w1) as i16
+}

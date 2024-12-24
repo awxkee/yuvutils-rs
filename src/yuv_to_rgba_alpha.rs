@@ -33,7 +33,6 @@ use crate::avx2::avx2_yuv_to_rgba_alpha;
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_yuv_to_rgba_alpha;
-use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_yuv_to_rgba_alpha, neon_yuv_to_rgba_alpha_rdm};
 use crate::numerics::{div_by_255, qrshr};
@@ -70,19 +69,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     const PRECISION: i32 = 13;
-    let inverse_transform =
-        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
-            stored
-        } else {
-            let transform = get_inverse_transform(
-                255,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform.to_integers(PRECISION as u32)
-        };
+    let inverse_transform = search_inverse_transform(PRECISION, range, matrix, chroma_range, kr_kb);
 
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;

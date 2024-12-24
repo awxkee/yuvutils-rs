@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::avx2::_mm256_interleave_epi8;
 use crate::avx512bw::avx512_setr::{_v512_set_epu16, _v512_set_epu32, _v512_set_epu8};
 use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
@@ -886,6 +887,12 @@ pub(crate) unsafe fn _mm512_affine_dot<const PRECISION: u32>(
         _mm512_srli_epi32::<PRECISION>(y_l_l),
         _mm512_srli_epi32::<PRECISION>(y_l_h),
     )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_expand8_to_10<const HAS_VBMI: bool>(v: __m512i) -> (__m512i, __m512i) {
+    let (v0, v1) = avx512_zip_epi8::<HAS_VBMI>(v, v);
+    (_mm512_srli_epi16::<6>(v0), _mm512_srli_epi16::<6>(v1))
 }
 
 #[cfg(test)]

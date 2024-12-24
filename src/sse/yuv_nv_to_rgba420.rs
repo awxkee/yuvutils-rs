@@ -29,8 +29,8 @@
 
 use crate::internals::ProcessedOffset;
 use crate::sse::{
-    _mm_deinterleave_x2_epi8, _mm_store_interleave_half_rgb_for_yuv,
-    _mm_store_interleave_rgb_for_yuv,
+    _mm_deinterleave_x2_epi8, _mm_expand8_hi_to_10, _mm_expand8_lo_to_10,
+    _mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -128,14 +128,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let u_high = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_high_u16, uv_corr));
         let v_high = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_high_u16, uv_corr));
-        let y_high0 = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_unpackhi_epi8(y_values0, zeros)),
-            v_luma_coeff,
-        );
-        let y_high1 = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_unpackhi_epi8(y_values1, zeros)),
-            v_luma_coeff,
-        );
+        let y_high0 = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values0), v_luma_coeff);
+        let y_high1 = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values1), v_luma_coeff);
 
         let g_coeff_hi = _mm_add_epi16(
             _mm_mulhrs_epi16(v_high, v_g_coeff_1),
@@ -151,14 +145,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let u_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_low_u16, uv_corr));
         let v_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_low_u16, uv_corr));
-        let y_low0 = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values0)),
-            v_luma_coeff,
-        );
-        let y_low1 = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values1)),
-            v_luma_coeff,
-        );
+        let y_low0 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values0), v_luma_coeff);
+        let y_low1 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values1), v_luma_coeff);
 
         let g_coeff_lo = _mm_add_epi16(
             _mm_mulhrs_epi16(v_low, v_g_coeff_1),
@@ -234,14 +222,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let u_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_low_u16, uv_corr));
         let v_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_low_u16, uv_corr));
-        let y_low0 = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values0)),
-            v_luma_coeff,
-        );
-        let y_low1 = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<SCALE>(_mm_cvtepu8_epi16(y_values1)),
-            v_luma_coeff,
-        );
+        let y_low0 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values0), v_luma_coeff);
+        let y_low1 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values1), v_luma_coeff);
 
         let g_coeff_lo = _mm_add_epi16(
             _mm_mulhrs_epi16(v_low, v_g_coeff_1),

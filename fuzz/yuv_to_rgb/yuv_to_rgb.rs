@@ -32,16 +32,68 @@
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
     yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgb, yuv422_to_rgba, yuv444_to_rgb, yuv444_to_rgba,
-    YuvPlanarImage, YuvRange, YuvStandardMatrix,
+    ConversionQuality, YuvPlanarImage, YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
-    fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4);
-    fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4);
-    fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4);
+    fuzz_yuv_420(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        ConversionQuality::Fastest,
+    );
+    fuzz_yuv_420(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        ConversionQuality::Good,
+    );
+    fuzz_yuv_422(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        ConversionQuality::Fastest,
+    );
+    fuzz_yuv_422(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        ConversionQuality::Good,
+    );
+    fuzz_yuv_444(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        ConversionQuality::Fastest,
+    );
+    fuzz_yuv_444(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        ConversionQuality::Good,
+    );
 });
 
-fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
+fn fuzz_yuv_420(
+    i_width: u8,
+    i_height: u8,
+    y_value: u8,
+    u_value: u8,
+    v_value: u8,
+    conversion_quality: ConversionQuality,
+) {
     if i_height == 0 || i_width == 0 {
         return;
     }
@@ -68,6 +120,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 3,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        conversion_quality,
     )
     .unwrap();
 
@@ -79,11 +132,19 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        conversion_quality,
     )
     .unwrap();
 }
 
-fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
+fn fuzz_yuv_422(
+    i_width: u8,
+    i_height: u8,
+    y_value: u8,
+    u_value: u8,
+    v_value: u8,
+    conversion_quality: ConversionQuality,
+) {
     if i_height == 0 || i_width == 0 {
         return;
     }
@@ -110,6 +171,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 3,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        conversion_quality,
     )
     .unwrap();
 
@@ -121,11 +183,19 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        conversion_quality,
     )
     .unwrap();
 }
 
-fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
+fn fuzz_yuv_444(
+    i_width: u8,
+    i_height: u8,
+    y_value: u8,
+    u_value: u8,
+    v_value: u8,
+    conversion_quality: ConversionQuality,
+) {
     if i_height == 0 || i_width == 0 {
         return;
     }
@@ -152,6 +222,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 3,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        conversion_quality,
     )
     .unwrap();
 
@@ -163,6 +234,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        conversion_quality,
     )
     .unwrap();
 }

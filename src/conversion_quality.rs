@@ -26,12 +26,23 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::ConversionQuality::{Fastest, Good};
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
-pub enum ConversionEffort {
+pub enum ConversionQuality {
     /// The fastest conversion with a cost of precision
     Fastest,
     /// Fast conversion with good precision
     #[default]
     Good,
+}
+
+impl From<usize> for ConversionQuality {
+    fn from(quality: usize) -> Self {
+        match quality {
+            0 => Fastest,
+            1 => Good,
+            _ => unimplemented!("Conversion quality {} is not implemented yet", quality),
+        }
+    }
 }

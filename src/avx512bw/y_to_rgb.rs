@@ -27,7 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_rgba_for_yuv_u8};
+use crate::avx512bw::avx512_utils::{
+    _mm512_expand8_to_10, avx512_pack_u16, avx512_store_rgba_for_yuv_u8,
+};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -110,17 +112,13 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
             y_corr,
         ));
 
-        let y_high = _mm512_mulhrs_epi16(
-            _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(y_values)),
-            v_luma_coeff,
-        );
+        let y10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values);
+
+        let y_high = _mm512_mulhrs_epi16(y10.1, v_luma_coeff);
 
         let r_high = y_high;
 
-        let y_low = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values))),
-            v_luma_coeff,
-        );
+        let y_low = _mm512_mulhrs_epi16(y10.0, v_luma_coeff);
 
         let r_low = y_low;
 

@@ -147,16 +147,13 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
             }
         }
 
+        let y10 = _mm256_expand8_to_10(y_values);
+
         let u_high =
             _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(_mm256_cvtepu8_epi16(u_high_u8), uv_corr));
         let v_high =
             _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(_mm256_cvtepu8_epi16(v_high_u8), uv_corr));
-        let y_high = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(
-                y_values,
-            ))),
-            v_luma_coeff,
-        );
+        let y_high = _mm256_mulhrs_epi16(y10.1, v_luma_coeff);
 
         let r_high = _mm256_add_epi16(y_high, _mm256_mulhrs_epi16(v_high, v_cr_coeff));
         let b_high = _mm256_add_epi16(y_high, _mm256_mulhrs_epi16(u_high, v_cb_coeff));
@@ -172,10 +169,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
             _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(_mm256_cvtepu8_epi16(u_low_u8), uv_corr));
         let v_low =
             _mm256_slli_epi16::<SCALE>(_mm256_sub_epi16(_mm256_cvtepu8_epi16(v_low_u8), uv_corr));
-        let y_low = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values))),
-            v_luma_coeff,
-        );
+        let y_low = _mm256_mulhrs_epi16(y10.0, v_luma_coeff);
 
         let r_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
         let b_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(u_low, v_cb_coeff));

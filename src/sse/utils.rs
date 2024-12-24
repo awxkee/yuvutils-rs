@@ -757,3 +757,13 @@ pub(crate) unsafe fn _mm_affine_transform<const PRECISION: i32>(
     ));
     _mm_packus_epi32(j, j)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_expand8_hi_to_10(v: __m128i) -> __m128i {
+    _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_expand8_lo_to_10(v: __m128i) -> __m128i {
+    _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v))
+}

@@ -42,7 +42,7 @@ mod avx2;
 ))]
 mod avx512bw;
 mod built_coefficients;
-mod conversion_effort;
+mod conversion_quality;
 mod from_identity;
 mod from_identity_alpha;
 mod images;
@@ -441,7 +441,7 @@ pub use yuv_p16_rgba_p16::*;
 pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
 };
-pub use conversion_effort::ConversionEffort;
+pub use conversion_quality::ConversionQuality;
 pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
 pub use yuv_p16_ar30::{
     yuv420_p16_to_ab30, yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ab30,

@@ -892,3 +892,14 @@ pub(crate) unsafe fn _mm256_affine_v_dot<const PRECISION: i32>(
         _mm256_srli_epi32::<PRECISION>(y_l_h),
     )
 }
+
+#[inline(always)]
+pub(crate) unsafe fn avx2_create(lo: __m128i, hi: __m128i) -> __m256i {
+    _mm256_set_m128i(hi, lo)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_expand8_to_10(v: __m256i) -> (__m256i, __m256i) {
+    let (v0, v1) = _mm256_interleave_epi8(v, v);
+    (_mm256_srli_epi16::<6>(v0), _mm256_srli_epi16::<6>(v1))
+}
