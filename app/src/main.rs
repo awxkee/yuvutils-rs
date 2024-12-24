@@ -42,10 +42,9 @@ use yuvutils_rs::{
     yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb,
     yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16, yuv444_to_rgb,
     yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb,
-    yuv_nv24_to_rgb, yuyv422_to_rgb, yuyv422_to_yuv420, BufferStoreMut, ConversionQuality,
-    SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
-    YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    yuv_nv24_to_rgb, yuyv422_to_rgb, yuyv422_to_yuv420, SharpYuvGammaTransfer, YuvBiPlanarImageMut,
+    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut, YuvPackedImage,
+    YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -271,7 +270,6 @@ fn main() {
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
-        ConversionQuality::Fastest,
     )
     .unwrap();
 

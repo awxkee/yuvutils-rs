@@ -26,7 +26,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::avx2::avx2_utils::{_mm256_store_interleave_rgb_for_yuv, avx2_pack_u16};
+use crate::avx2::avx2_utils::{
+    _mm256_expand8_to_10, _mm256_store_interleave_rgb_for_yuv, avx2_pack_u16,
+};
 use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -119,8 +121,6 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
 
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
-    const V_SCALE: i32 = 2;
-
     let vy_coeff = _mm256_set1_epi16(y_coeff as i16);
     let vy_bias = _mm256_set1_epi8(y_bias as i8);
 
@@ -138,37 +138,17 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
             vy_bias,
         );
 
-        let rl_hi = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values0))),
-            vy_coeff,
-        );
-        let gl_hi = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values0))),
-            vy_coeff,
-        );
-        let bl_hi = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values0))),
-            vy_coeff,
-        );
+        let (r_y_lo, r_y_hi) = _mm256_expand8_to_10(r_values0);
+        let (g_y_lo, g_y_hi) = _mm256_expand8_to_10(g_values0);
+        let (b_y_lo, b_y_hi) = _mm256_expand8_to_10(b_values0);
 
-        let rl_lo = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(
-                r_values0,
-            ))),
-            vy_coeff,
-        );
-        let gl_lo = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(
-                g_values0,
-            ))),
-            vy_coeff,
-        );
-        let bl_lo = _mm256_mulhrs_epi16(
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(
-                b_values0,
-            ))),
-            vy_coeff,
-        );
+        let rl_hi = _mm256_mulhrs_epi16(r_y_hi, vy_coeff);
+        let gl_hi = _mm256_mulhrs_epi16(g_y_hi, vy_coeff);
+        let bl_hi = _mm256_mulhrs_epi16(b_y_hi, vy_coeff);
+
+        let rl_lo = _mm256_mulhrs_epi16(r_y_lo, vy_coeff);
+        let gl_lo = _mm256_mulhrs_epi16(g_y_lo, vy_coeff);
+        let bl_lo = _mm256_mulhrs_epi16(b_y_lo, vy_coeff);
 
         let r_values = avx2_pack_u16(rl_lo, rl_hi);
         let g_values = avx2_pack_u16(gl_lo, gl_hi);

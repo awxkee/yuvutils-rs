@@ -512,33 +512,10 @@ pub(crate) unsafe fn vpackuq_n_shift16<const BIT_DEPTH: usize>(a: int16x8_t) -> 
 pub(crate) unsafe fn vexpand8_to_10(a: uint8x8_t) -> uint16x8_t {
     let k = vcombine_u8(a, a);
     vrshrq_n_u16::<6>(vreinterpretq_u16_u8(vzip1q_u8(k, k)))
-    // vshll_n_u8::<2>(a)
 }
 
 /// Expands exactly 8 bit to 10
 #[inline(always)]
 pub(crate) unsafe fn vexpand_high_8_to_10(a: uint8x16_t) -> uint16x8_t {
     vrshrq_n_u16::<6>(vreinterpretq_u16_u8(vzip2q_u8(a, a)))
-    // vshll_high_n_u8::<2>(a)
-}
-
-/// Expands exactly 8 bit to 16
-#[inline(always)]
-pub(crate) unsafe fn vexpand8_to_16(a: uint8x8_t) -> uint16x8_t {
-    let k = vcombine_u8(a, a);
-    vreinterpretq_u16_u8(vzip1q_u8(k, k))
-}
-
-/// Expands exactly 8 bit to 10
-#[inline(always)]
-pub(crate) unsafe fn vexpand_high_8_to_16(a: uint8x16_t) -> uint16x8_t {
-    vreinterpretq_u16_u8(vzip2q_u8(a, a))
-}
-
-/// Expands exactly 8 bit to 10
-#[inline(always)]
-pub(crate) unsafe fn vumulhiq_u16(a: uint16x8_t, b: uint16x8_t) -> int16x8_t {
-    let hi = vmull_high_u16(a, b);
-    let lo = vmull_u16(vget_low_u16(a), vget_low_u16(b));
-    vreinterpretq_s16_u16(vcombine_u16(vshrn_n_u32::<8>(lo), vshrn_n_u32::<8>(hi)))
 }
