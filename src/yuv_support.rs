@@ -686,7 +686,7 @@ pub(crate) fn search_inverse_transform(
             kr_kb.kb,
         );
         if precision == 6 {
-            /// We can't allow infinite contribution to fastest 6 bit approximation
+            // We can't allow infinite contribution to fastest 6 bit approximation
             let mut transform = transform.to_integers(precision as u32);
             transform.cr_coef = transform.cr_coef.min(128);
             transform.cb_coef = transform.cb_coef.min(128);

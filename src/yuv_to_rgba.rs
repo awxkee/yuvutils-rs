@@ -183,38 +183,38 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
         let mut _uv_x = 0usize;
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            // #[cfg(feature = "nightly_avx512")]
-            // if use_avx512 {
-            //     let processed = avx512_wide_row(
-            //         &chroma_range,
-            //         &inverse_transform,
-            //         _y_plane,
-            //         _u_plane,
-            //         _v_plane,
-            //         _rgba,
-            //         _cx,
-            //         _uv_x,
-            //         image.width as usize,
-            //     );
-            //     _cx = processed.cx;
-            //     _uv_x = processed.ux;
-            // }
-            //
-            // if use_avx2 {
-            //     let processed = avx_row_handler(
-            //         &chroma_range,
-            //         &inverse_transform,
-            //         _y_plane,
-            //         _u_plane,
-            //         _v_plane,
-            //         _rgba,
-            //         _cx,
-            //         _uv_x,
-            //         image.width as usize,
-            //     );
-            //     _cx = processed.cx;
-            //     _uv_x = processed.ux;
-            // }
+            #[cfg(feature = "nightly_avx512")]
+            if use_avx512 {
+                let processed = avx512_wide_row(
+                    &chroma_range,
+                    &inverse_transform,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
+            }
+
+            if use_avx2 {
+                let processed = avx_row_handler(
+                    &chroma_range,
+                    &inverse_transform,
+                    _y_plane,
+                    _u_plane,
+                    _v_plane,
+                    _rgba,
+                    _cx,
+                    _uv_x,
+                    image.width as usize,
+                );
+                _cx = processed.cx;
+                _uv_x = processed.ux;
+            }
             if use_sse {
                 let processed = sse_row_handler(
                     &chroma_range,
