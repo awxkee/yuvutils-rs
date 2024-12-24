@@ -316,23 +316,21 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
             {
                 unsafe {
-                    if PRECISION == 13 {
-                        let processed = wasm_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
-                            &chroma_range,
-                            &inverse_transform,
-                            _y_plane0,
-                            _y_plane1,
-                            _u_plane,
-                            _v_plane,
-                            _rgba0,
-                            _rgba1,
-                            _cx,
-                            _uv_x,
-                            image.width as usize,
-                        );
-                        _cx = processed.cx;
-                        _uv_x = processed.ux;
-                    }
+                    let processed = wasm_yuv_to_rgba_row420::<DESTINATION_CHANNELS, SAMPLING>(
+                        &chroma_range,
+                        &inverse_transform,
+                        _y_plane0,
+                        _y_plane1,
+                        _u_plane,
+                        _v_plane,
+                        _rgba0,
+                        _rgba1,
+                        _cx,
+                        _uv_x,
+                        image.width as usize,
+                    );
+                    _cx = processed.cx;
+                    _uv_x = processed.ux;
                 }
             }
 
