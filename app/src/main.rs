@@ -271,7 +271,7 @@ fn main() {
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
-        ConversionQuality::Good,
+        ConversionQuality::Fastest,
     )
     .unwrap();
 
