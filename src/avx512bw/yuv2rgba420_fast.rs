@@ -145,7 +145,6 @@ unsafe fn avx512_yuv_to_rgba_fast_impl420<const DESTINATION_CHANNELS: u8, const 
         transform.g_coeff_2 as i8,
         -transform.g_coeff_2 as i8,
     ));
-    const SCALE: u32 = 2;
 
     while cx + 64 < width {
         let y_corr = _mm512_set1_epi8(range.bias_y as i8);
