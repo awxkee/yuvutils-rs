@@ -176,7 +176,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
         }
 
         let y0_10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values0);
-        let y1_10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values0);
+        let y1_10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values1);
 
         let u_high =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_high), uv_corr));
