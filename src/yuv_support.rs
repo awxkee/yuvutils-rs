@@ -688,10 +688,10 @@ pub(crate) fn search_inverse_transform(
         if precision == 6 {
             // We can't allow infinite contribution to fastest 6 bit approximation
             let mut transform = transform.to_integers(precision as u32);
-            transform.cr_coef = transform.cr_coef.min(128);
-            transform.cb_coef = transform.cb_coef.min(128);
-            transform.g_coeff_1 = transform.g_coeff_1.min(128);
-            transform.g_coeff_2 = transform.g_coeff_2.min(128);
+            transform.cr_coef = transform.cr_coef.min(127);
+            transform.cb_coef = transform.cb_coef.min(127);
+            transform.g_coeff_1 = transform.g_coeff_1.min(127);
+            transform.g_coeff_2 = transform.g_coeff_2.min(127);
             transform
         } else {
             transform.to_integers(precision as u32)
