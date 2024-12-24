@@ -27,7 +27,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::_mm256_interleave_epi8;
 use crate::avx512bw::avx512_setr::{_v512_set_epu16, _v512_set_epu32, _v512_set_epu8};
 use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
