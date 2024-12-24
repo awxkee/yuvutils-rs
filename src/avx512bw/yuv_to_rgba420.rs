@@ -28,7 +28,9 @@
  */
 
 use crate::avx2::_mm256_interleave_epi8;
-use crate::avx512bw::avx512_utils::{avx512_pack_u16, avx512_store_rgba_for_yuv_u8};
+use crate::avx512bw::avx512_utils::{
+    _mm512_expand8_to_10, avx512_pack_u16, avx512_store_rgba_for_yuv_u8,
+};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -146,6 +148,9 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
             y_corr,
         );
 
+        let y0_10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values0);
+        let y1_10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values1);
+
         let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
         let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
 
@@ -162,18 +167,8 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
         let v_high =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_high0), uv_corr));
 
-        let y_high0 = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(
-                y_values0,
-            ))),
-            v_luma_coeff,
-        );
-        let y_high1 = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(
-                y_values1,
-            ))),
-            v_luma_coeff,
-        );
+        let y_high0 = _mm512_mulhrs_epi16(y0_10.1, v_luma_coeff);
+        let y_high1 = _mm512_mulhrs_epi16(y1_10.1, v_luma_coeff);
 
         let g_coeff_hi = _mm512_add_epi16(
             _mm512_mulhrs_epi16(v_high, v_g_coeff_1),
@@ -193,14 +188,8 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
         let v_low =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_low0), uv_corr));
 
-        let y_low0 = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values0))),
-            v_luma_coeff,
-        );
-        let y_low1 = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values1))),
-            v_luma_coeff,
-        );
+        let y_low0 = _mm512_mulhrs_epi16(y0_10.0, v_luma_coeff);
+        let y_low1 = _mm512_mulhrs_epi16(y1_10.0, v_luma_coeff);
 
         let g_coeff_lo = _mm512_add_epi16(
             _mm512_mulhrs_epi16(v_low, v_g_coeff_1),

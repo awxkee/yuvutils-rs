@@ -36,7 +36,7 @@ use crate::avx512bw::avx512_row_rgb_to_y;
 use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvGrayImageMut;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_rgb_to_y_rdm, neon_rgb_to_y_row};
+use crate::neon::neon_rgb_to_y_row;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgb_to_y;
 use crate::yuv_error::check_rgba_destination;
@@ -88,9 +88,6 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    let i_bias_y = chroma_range.bias_y as i32;
-    let i_cap_y = chroma_range.range_y as i32 + i_bias_y;
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -105,8 +102,6 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         feature = "nightly_avx512"
     ))]
     let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
@@ -155,7 +150,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 _cx = processed_offset;
             }
             if use_avx {
-                let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS>(
+                let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     y_plane,
@@ -166,7 +161,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 _cx = processed_offset;
             }
             if use_sse {
-                let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS>(
+                let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
                     y_plane,
@@ -180,25 +175,14 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            if is_rdm_available {
-                _cx = neon_rgb_to_y_rdm::<ORIGIN_CHANNELS>(
-                    &transform,
-                    &chroma_range,
-                    y_plane.as_mut_ptr(),
-                    rgba,
-                    _cx,
-                    gray_image.width as usize,
-                );
-            } else {
-                _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
-                    &transform,
-                    &chroma_range,
-                    y_plane.as_mut_ptr(),
-                    rgba,
-                    _cx,
-                    gray_image.width as usize,
-                );
-            }
+            _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
+                &transform,
+                &chroma_range,
+                y_plane.as_mut_ptr(),
+                rgba,
+                _cx,
+                gray_image.width as usize,
+            );
         }
 
         for (y_dst, rgba) in y_plane
@@ -210,7 +194,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
             let g = rgba[source_channels.get_g_channel_offset()] as i32;
             let b = rgba[source_channels.get_b_channel_offset()] as i32;
             let y = (r * transform.yr + g * transform.yg + b * transform.yb + bias_y) >> PRECISION;
-            *y_dst = y.min(i_cap_y) as u8;
+            *y_dst = y as u8;
         }
     });
 

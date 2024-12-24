@@ -49,8 +49,8 @@ mod yuv_to_rgba_alpha;
 
 pub(crate) use rgb_to_y::avx512_row_rgb_to_y;
 pub(crate) use rgb_to_ycgco::avx512_rgb_to_ycgco_row;
-pub(crate) use rgb_to_yuv_p16::avx512_rgba_to_yuv_p16_lp;
-pub(crate) use rgb_to_yuv_p16_420::avx512_rgba_to_yuv_p16_lp420;
+pub(crate) use rgb_to_yuv_p16::avx512_rgba_to_yuv_p16;
+pub(crate) use rgb_to_yuv_p16_420::avx512_rgba_to_yuv_p16_420;
 pub(crate) use rgba_to_yuv::avx512_rgba_to_yuv;
 pub(crate) use rgba_to_yuv420::avx512_rgba_to_yuv420;
 pub(crate) use y_to_rgb::avx512_y_to_rgb_row;

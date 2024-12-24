@@ -364,9 +364,9 @@ impl YuvStandardMatrix {
 }
 
 fn main() {
-    let kr_kb = YuvStandardMatrix::Bt2020.get_kr_kb();
+    let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
     let range = YuvRange::Full;
-    let bit_depth = 12;
+    let bit_depth = 1102;
     let transform = get_forward_coeffs(kr_kb.kr, kr_kb.kb, bit_depth, range);
     println!("Precise {:?};", transform);
     let integral = get_forward_coeffs_integral(kr_kb.kr, kr_kb.kb, bit_depth, range, 13);

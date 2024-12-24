@@ -28,7 +28,8 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_pack_u16, avx512_store_rgba_for_yuv_u8, avx512_unzip_epi8, avx512_zip_epi8,
+    _mm512_expand8_to_10, avx512_pack_u16, avx512_store_rgba_for_yuv_u8, avx512_unzip_epi8,
+    avx512_zip_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -199,16 +200,13 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
             }
         }
 
+        let y10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values);
+
         let u_high =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_high_u8), uv_corr));
         let v_high =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_high_u8), uv_corr));
-        let y_high = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64::<1>(
-                y_values,
-            ))),
-            v_luma_coeff,
-        );
+        let y_high = _mm512_mulhrs_epi16(y10.1, v_luma_coeff);
 
         let r_high = _mm512_add_epi16(y_high, _mm512_mulhrs_epi16(v_high, v_cr_coeff));
         let b_high = _mm512_add_epi16(y_high, _mm512_mulhrs_epi16(u_high, v_cb_coeff));
@@ -224,10 +222,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_low_u8), uv_corr));
         let v_low =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_low_u8), uv_corr));
-        let y_low = _mm512_mulhrs_epi16(
-            _mm512_slli_epi16::<SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(y_values))),
-            v_luma_coeff,
-        );
+        let y_low = _mm512_mulhrs_epi16(y10.0, v_luma_coeff);
 
         let r_low = _mm512_add_epi16(y_low, _mm512_mulhrs_epi16(v_low, v_cr_coeff));
         let b_low = _mm512_add_epi16(y_low, _mm512_mulhrs_epi16(u_low, v_cb_coeff));

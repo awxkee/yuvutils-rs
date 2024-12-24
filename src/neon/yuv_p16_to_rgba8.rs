@@ -28,9 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::neon_simd_support::{
-    neon_store_half_rgb8, vld_s16_endian, vldq_s16_endian, vpackq_n_shift16,
-};
+use crate::neon::utils::{neon_store_half_rgb8, vld_s16_endian, vldq_s16_endian, vpackq_n_shift16};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };

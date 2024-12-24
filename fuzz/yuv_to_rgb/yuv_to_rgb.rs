@@ -37,7 +37,10 @@ use yuvutils_rs::{
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
     fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4);
+    fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4);
     fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4);
+    fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4);
+    fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4);
     fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4);
 });
 

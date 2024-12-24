@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::neon::neon_simd_support::xvld1q_u8_x2;
+use crate::neon::utils::xvld1q_u8_x2;
 use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;

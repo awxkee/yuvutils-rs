@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::built_coefficients::{get_built_forward_transform, get_built_inverse_transform};
 
 #[derive(Debug, Copy, Clone)]
 pub struct CbCrInverseTransform<T> {
@@ -104,6 +105,29 @@ pub struct CbCrForwardTransform<T> {
     pub cr_r: T,
     pub cr_g: T,
     pub cr_b: T,
+}
+
+impl CbCrForwardTransform<i32> {
+    #[inline]
+    pub(crate) const fn _interleaved_yr_yg(&self) -> i32 {
+        let w0_as_u16 = self.yg as u16;
+        let w1_as_u16 = self.yr as u16;
+        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+    }
+
+    #[inline]
+    pub(crate) const fn _interleaved_cbr_cbg(&self) -> i32 {
+        let w0_as_u16 = self.cb_g as u16;
+        let w1_as_u16 = self.cb_r as u16;
+        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+    }
+
+    #[inline]
+    pub(crate) const fn _interleaved_crr_crg(&self) -> i32 {
+        let w0_as_u16 = self.cr_g as u16;
+        let w1_as_u16 = self.cr_r as u16;
+        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+    }
 }
 
 pub trait ToIntegerTransform {
@@ -618,6 +642,59 @@ impl From<usize> for Rgb30ByteOrder {
             _ => {
                 unimplemented!("Rgb30ByteOrder is not implemented for value {}", value)
             }
+        }
+    }
+}
+
+pub(crate) fn search_forward_transform(
+    precision: i32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    chroma_range: YuvChromaRange,
+    kr_kb: YuvBias,
+    max_range_p8: u32,
+) -> CbCrForwardTransform<i32> {
+    if let Some(stored_t) = get_built_forward_transform(precision as u32, 8, range, matrix) {
+        stored_t
+    } else {
+        let transform_precise = get_forward_transform(
+            max_range_p8,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        transform_precise.to_integers(precision as u32)
+    }
+}
+
+pub(crate) fn search_inverse_transform(
+    precision: i32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    chroma_range: YuvChromaRange,
+    kr_kb: YuvBias,
+) -> CbCrInverseTransform<i32> {
+    if let Some(stored) = get_built_inverse_transform(precision as u32, 8, range, matrix) {
+        stored
+    } else {
+        let transform = get_inverse_transform(
+            255,
+            chroma_range.range_y,
+            chroma_range.range_uv,
+            kr_kb.kr,
+            kr_kb.kb,
+        );
+        if precision == 6 {
+            // We can't allow infinite contribution to fastest 6 bit approximation
+            let mut transform = transform.to_integers(precision as u32);
+            transform.cr_coef = transform.cr_coef.min(127);
+            transform.cb_coef = transform.cb_coef.min(127);
+            transform.g_coeff_1 = transform.g_coeff_1.min(127);
+            transform.g_coeff_2 = transform.g_coeff_2.min(127);
+            transform
+        } else {
+            transform.to_integers(precision as u32)
         }
     }
 }

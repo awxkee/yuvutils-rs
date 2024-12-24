@@ -37,8 +37,8 @@ use yuvutils_rs::{
     gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
     rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
     yuv400_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgba, yuv_nv16_to_rgb, yuv_nv16_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling,
-    YuvGrayImage, YuvGrayImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    yuv_nv12_to_rgba, yuv_nv16_to_rgb, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvGrayImageMut,
+    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -337,7 +337,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    //
     c.bench_function("libyuv YUV NV12 -> RGB", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| unsafe {
