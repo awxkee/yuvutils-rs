@@ -35,7 +35,11 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx2_yuv_nv_to_rgba_row420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
+pub(crate) fn avx2_yuv_nv_to_rgba_row420<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const ALIGNED: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -48,14 +52,18 @@ pub(crate) fn avx2_yuv_nv_to_rgba_row420<const UV_ORDER: u8, const DESTINATION_C
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx2_yuv_nv_to_rgba_row_impl420::<UV_ORDER, DESTINATION_CHANNELS>(
+        avx2_yuv_nv_to_rgba_row_impl420::<UV_ORDER, DESTINATION_CHANNELS, ALIGNED>(
             range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux, width,
         )
     }
 }
 
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
+unsafe fn avx2_yuv_nv_to_rgba_row_impl420<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const ALIGNED: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -67,6 +75,11 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
+    if ALIGNED {
+        debug_assert!(y_plane0.as_ptr() as usize % 32 == 0);
+        debug_assert!(y_plane0.as_ptr() as usize % 32 == 0);
+        debug_assert!(uv_plane.as_ptr() as usize % 32 == 0);
+    }
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -87,17 +100,17 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_
 
     while cx + 32 < width {
         let y_values0 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i),
+            _xx256_load_si256::<ALIGNED>(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i),
             y_corr,
         );
         let y_values1 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i),
+            _xx256_load_si256::<ALIGNED>(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i),
             y_corr,
         );
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
-        let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const __m256i);
+        let uv_values = _xx256_load_si256::<ALIGNED>(uv_ptr.add(uv_x) as *const __m256i);
 
         let u_values = avx2_interleave_even(uv_values);
         let v_values = avx2_interleave_odd(uv_values);

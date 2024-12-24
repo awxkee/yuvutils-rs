@@ -41,6 +41,7 @@ pub(crate) fn avx2_yuv_nv_to_rgba_row<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
+    const ALIGNED: bool,
 >(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -52,7 +53,7 @@ pub(crate) fn avx2_yuv_nv_to_rgba_row<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx2_yuv_nv_to_rgba_row_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
+        avx2_yuv_nv_to_rgba_row_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, ALIGNED>(
             range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
         )
     }
@@ -63,6 +64,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
+    const ALIGNED: bool,
 >(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -73,6 +75,10 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
+    if ALIGNED {
+        debug_assert!(y_plane.as_ptr() as usize % 32 == 0);
+        debug_assert!(uv_plane.as_ptr() as usize % 32 == 0);
+    }
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
@@ -95,14 +101,16 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 32 < width {
-        let y_values =
-            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
+        let y_values = _mm256_subs_epu8(
+            _xx256_load_si256::<ALIGNED>(y_ptr.add(cx) as *const __m256i),
+            y_corr,
+        );
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const __m256i);
+                let uv_values = _xx256_load_si256::<ALIGNED>(uv_ptr.add(uv_x) as *const __m256i);
 
                 let u_values = avx2_interleave_even(uv_values);
                 let v_values = avx2_interleave_odd(uv_values);
@@ -125,8 +133,8 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
             YuvChromaSubsampling::Yuv444 => {
                 let offset = uv_x;
                 let src_ptr = uv_ptr.add(offset);
-                let row0 = _mm256_loadu_si256(src_ptr as *const __m256i);
-                let row1 = _mm256_loadu_si256(src_ptr.add(32) as *const __m256i);
+                let row0 = _xx256_load_si256::<ALIGNED>(src_ptr as *const __m256i);
+                let row1 = _xx256_load_si256::<ALIGNED>(src_ptr.add(32) as *const __m256i);
 
                 let (u, v) = _mm256_deinterleave_x2_epi8(row0, row1);
 

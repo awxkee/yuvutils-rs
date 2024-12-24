@@ -152,9 +152,32 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         }
     };
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let sse_double_row_handler = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS>;
+    let sse_double_row_handler =
+        |_y_slice0: &[u8], _y_slice1: &[u8], _u_slice: &[u8], _v_slice: &[u8]| {
+            let y_aligned0 = is_slice_aligned(_y_slice0, 16);
+            let y_aligned1 = is_slice_aligned(_y_slice1, 16);
+            let u_aligned = is_slice_aligned(_u_slice, 16);
+            let v_aligned = is_slice_aligned(_v_slice, 16);
+            if y_aligned0 && y_aligned1 && u_aligned && v_aligned {
+                sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS, true>
+            } else {
+                sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS, false>
+            }
+        };
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let avx_double_row_handler = avx2_yuv_to_rgba_row420::<DESTINATION_CHANNELS>;
+    let avx_double_row_handler =
+        |_y_slice0: &[u8], _y_slice1: &[u8], _u_slice: &[u8], _v_slice: &[u8]| {
+            let y_aligned0 = is_slice_aligned(_y_slice0, 32);
+            let y_aligned1 = is_slice_aligned(_y_slice1, 32);
+            let u_aligned = is_slice_aligned(_u_slice, 32);
+            let v_aligned = is_slice_aligned(_v_slice, 32);
+            if y_aligned0 && y_aligned1 && u_aligned && v_aligned {
+                avx2_yuv_to_rgba_row420::<DESTINATION_CHANNELS, true>
+            } else {
+                avx2_yuv_to_rgba_row420::<DESTINATION_CHANNELS, false>
+            }
+        };
 
     let process_wide_row = |_y_plane: &[u8], _u_plane: &[u8], _v_plane: &[u8], _rgba: &mut [u8]| {
         let mut _cx = 0usize;
@@ -300,7 +323,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 }
 
                 if use_avx2 {
-                    let processed = avx_double_row_handler(
+                    let handler = avx_double_row_handler(_y_plane0, _y_plane1, _u_plane, _v_plane);
+                    let processed = handler(
                         &chroma_range,
                         &inverse_transform,
                         _y_plane0,
@@ -317,7 +341,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     _uv_x = processed.ux;
                 }
                 if use_sse {
-                    let processed = sse_double_row_handler(
+                    let handler = sse_double_row_handler(_y_plane0, _y_plane1, _u_plane, _v_plane);
+                    let processed = handler(
                         &chroma_range,
                         &inverse_transform,
                         _y_plane0,

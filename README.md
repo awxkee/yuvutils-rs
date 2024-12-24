@@ -101,16 +101,16 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 
 | Conversion             | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) | 
 |------------------------|:----------:|:--------------:|:----------:|:-------------:| 
-| utils YUV NV12->RGBA   |  399.37µs  |    396.58µs    |   1.97ms   |   736.21µs    | 
-| utils YUV NV12->RGB    |  470.35µs  |    421.28µs    |   1.66ms   |   654.37µs    | 
+| utils YUV NV12->RGBA   |  399.37µs  |    393.11µs    |   1.97ms   |   736.21µs    | 
+| utils YUV NV12->RGB    |  470.35µs  |    387.70µs    |   1.66ms   |   654.37µs    | 
 | libyuv YUV NV12->RGB   |  621.11µs  |    5.5533ms    |   1.84ms   |   800.85µs    | 
-| utils YUV 4:2:0->RGB   |  346.13µs  |    405.96µs    |   1.54ms   |   614.19µs    | 
+| utils YUV 4:2:0->RGB   |  346.13µs  |    388.17µs    |   1.54ms   |   614.19µs    | 
 | libyuv YUV 4:2:0->RGB  |  747.18µs  |    5.8231ms    |   2.58ms   |    1.16ms     | 
 | utils YUV 4:2:0->RGBA  |  396.58µs  |    397.43µs    |   1.72ms   |   733.88µs    | 
 | libyuv YUV 4:2:0->RGBA |  710.88µs  |    557.44µs    |   1.81ms   |   870.64µs    | 
-| utils YUV 4:2:2->RGBA  |  471.54µs  |    440.47µs    |   2.22ms   |   824.69µs    | 
+| utils YUV 4:2:2->RGBA  |  471.54µs  |    410.71µs    |   2.22ms   |   824.69µs    | 
 | libyuv YUV 4:2:2->RGBA |  734.25µs  |    579.24µs    |   1.89ms   |   851.24µs    | 
-| utils YUV 4:4:4->RGBA  |  458.71µs  |    410.01µs    |   2.33ms   |   819.17µs    | 
+| utils YUV 4:4:4->RGBA  |  458.71µs  |    369.78µs    |   2.33ms   |   819.17µs    | 
 | libyuv YUV 4:4:4->RGBA |  596.55µs  |    525.90µs    |   1.91ms   |   803.62µs    | 
 | utils YUV 4:0:0->RGBA  |  220.67µs  |    260.69µs    |   1.05ms   |   600.43µs    | 
 | libyuv YUV 4:0:0->RGBA |  522.71µs  |    1.8204ms    |  811.03µs  |   525.56µs    | 

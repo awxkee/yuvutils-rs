@@ -78,6 +78,11 @@ unsafe fn sse_yuv_to_rgba_row_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
+    if ALIGNED {
+        debug_assert!(y_plane.as_ptr() as usize % 16 == 0);
+        debug_assert!(u_plane.as_ptr() as usize % 16 == 0);
+        debug_assert!(v_plane.as_ptr() as usize % 16 == 0);
+    }
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();

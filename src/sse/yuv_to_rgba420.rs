@@ -30,7 +30,7 @@
 use crate::internals::ProcessedOffset;
 use crate::sse::{
     _mm_expand8_hi_to_10, _mm_expand8_lo_to_10, _mm_store_interleave_half_rgb_for_yuv,
-    _mm_store_interleave_rgb_for_yuv,
+    _mm_store_interleave_rgb_for_yuv, _xx_load_si128, _xx_load_si64,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -38,7 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8>(
+pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8, const ALIGNED: bool>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -52,7 +52,7 @@ pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8>(
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS>(
+        sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, ALIGNED>(
             range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
             start_ux, width,
         )
@@ -60,7 +60,7 @@ pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8>(
 }
 
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
+unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8, const ALIGNED: bool>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -73,6 +73,12 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
+    if ALIGNED {
+        debug_assert!(y_plane0.as_ptr() as usize % 16 == 0);
+        debug_assert!(y_plane1.as_ptr() as usize % 16 == 0);
+        debug_assert!(u_plane.as_ptr() as usize % 16 == 0);
+        debug_assert!(v_plane.as_ptr() as usize % 16 == 0);
+    }
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -97,16 +103,16 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
 
     while cx + 16 < width {
         let y_values0 = _mm_subs_epu8(
-            _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i),
+            _xx_load_si128::<ALIGNED>(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i),
             y_corr,
         );
         let y_values1 = _mm_subs_epu8(
-            _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i),
+            _xx_load_si128::<ALIGNED>(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i),
             y_corr,
         );
 
-        let u_values = _mm_shuffle_epi8(_mm_loadu_si64(u_ptr.add(uv_x)), reshuffle);
-        let v_values = _mm_shuffle_epi8(_mm_loadu_si64(v_ptr.add(uv_x)), reshuffle);
+        let u_values = _mm_shuffle_epi8(_xx_load_si64(u_ptr.add(uv_x)), reshuffle);
+        let v_values = _mm_shuffle_epi8(_xx_load_si64(v_ptr.add(uv_x)), reshuffle);
 
         let u_high_u16 = _mm_unpackhi_epi8(u_values, zeros);
         let v_high_u16 = _mm_unpackhi_epi8(v_values, zeros);
@@ -181,14 +187,8 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 8 < width {
-        let y_values0 = _mm_subs_epi8(
-            _mm_loadu_si64(y_plane0.get_unchecked(cx..).as_ptr()),
-            y_corr,
-        );
-        let y_values1 = _mm_subs_epi8(
-            _mm_loadu_si64(y_plane1.get_unchecked(cx..).as_ptr()),
-            y_corr,
-        );
+        let y_values0 = _mm_subs_epi8(_xx_load_si64(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
+        let y_values1 = _mm_subs_epi8(_xx_load_si64(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
 
         let (u_low_u16, v_low_u16);
 

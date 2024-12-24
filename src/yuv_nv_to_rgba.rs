@@ -153,6 +153,17 @@ fn yuv_nv12_to_rgbx<
         avx512_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS, false>
     };
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let avx_row_handler = |_y_slice0: &[u8], _uv_slice: &[u8]| {
+        let y_aligned0 = is_slice_aligned(_y_slice0, 32);
+        let uv_aligned = is_slice_aligned(_uv_slice, 32);
+        if y_aligned0 && uv_aligned {
+            avx2_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, true>
+        } else {
+            avx2_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, false>
+        }
+    };
+
     let width = image.width;
 
     let process_wide_row = |_bgra: &mut [u8], _y_plane: &[u8], _uv_plane: &[u8]| {
@@ -175,17 +186,17 @@ fn yuv_nv12_to_rgbx<
             }
 
             if _use_avx2 {
-                let processed =
-                    avx2_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>(
-                        &chroma_range,
-                        &inverse_transform,
-                        _y_plane,
-                        _uv_plane,
-                        _bgra,
-                        _offset.cx,
-                        _offset.ux,
-                        width as usize,
-                    );
+                let handler = avx_row_handler(_y_plane, _uv_plane);
+                let processed = handler(
+                    &chroma_range,
+                    &inverse_transform,
+                    _y_plane,
+                    _uv_plane,
+                    _bgra,
+                    _offset.cx,
+                    _offset.ux,
+                    width as usize,
+                );
                 _offset = processed;
             }
 
@@ -243,6 +254,18 @@ fn yuv_nv12_to_rgbx<
         _offset
     };
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    let avx_double_row_handler = |_y_slice0: &[u8], _y_slice1: &[u8], _uv_slice: &[u8]| {
+        let y_aligned0 = is_slice_aligned(_y_slice0, 32);
+        let y_aligned1 = is_slice_aligned(_y_slice1, 32);
+        let uv_aligned = is_slice_aligned(_uv_slice, 32);
+        if y_aligned0 && y_aligned1 && uv_aligned {
+            avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS, true>
+        } else {
+            avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS, false>
+        }
+    };
+
     let process_double_wide_row = |_bgra0: &mut [u8],
                                    _bgra1: &mut [u8],
                                    _y_plane0: &[u8],
@@ -287,7 +310,8 @@ fn yuv_nv12_to_rgbx<
             }
 
             if _use_avx2 {
-                let processed = avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>(
+                let handler = avx_double_row_handler(_y_plane0, _y_plane1, _uv_plane);
+                let processed = handler(
                     &chroma_range,
                     &inverse_transform,
                     _y_plane0,
