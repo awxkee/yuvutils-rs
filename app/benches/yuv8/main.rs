@@ -444,7 +444,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 4u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                ConversionQuality::Fastest,
+                ConversionQuality::Good,
             )
             .unwrap();
         })
