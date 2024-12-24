@@ -145,10 +145,10 @@ unsafe fn avx512_yuv_to_rgba_fast_impl420<const DESTINATION_CHANNELS: u8, const 
         transform.g_coeff_2 as i8,
         -transform.g_coeff_2 as i8,
     ));
+    let y_corr = _mm512_set1_epi8(range.bias_y as i8);
+    let u_bias_uv = _mm512_set1_epi8(range.bias_uv as i8);
 
     while cx + 64 < width {
-        let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-        let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
         let y_values0 = _mm512_subs_epu8(
             _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const i32),
             y_corr,
@@ -166,10 +166,10 @@ unsafe fn avx512_yuv_to_rgba_fast_impl420<const DESTINATION_CHANNELS: u8, const 
 
         let (mu_low0, mu_high0) = _mm256_interleave_epi8(u_values, u_values);
         let (u_low0, u_high0) =
-            avx512_zip_epi8::<HAS_VBMI>(avx512_create(mu_low0, mu_high0), uv_corr);
+            avx512_zip_epi8::<HAS_VBMI>(avx512_create(mu_low0, mu_high0), u_bias_uv);
         let (mv_low0, mv_high0) = _mm256_interleave_epi8(v_values, v_values);
         let (v_low0, v_high0) =
-            avx512_zip_epi8::<HAS_VBMI>(avx512_create(mv_low0, mv_high0), uv_corr);
+            avx512_zip_epi8::<HAS_VBMI>(avx512_create(mv_low0, mv_high0), u_bias_uv);
 
         let y_high0 = _mm512_mulhi_epu16(y0_10.1, v_luma_coeff);
         let y_high1 = _mm512_mulhi_epu16(y1_10.1, v_luma_coeff);

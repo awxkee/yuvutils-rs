@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Radzivon Bartoshyk, 12/2024. All rights reserved.
+ * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -149,7 +149,7 @@ unsafe fn avx512_yuv_to_rgba_fast_impl<
         -transform.g_coeff_2 as i8,
     ));
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
+    let u_bias_uv = _mm512_set1_epi8(range.bias_uv as i8);
 
     while cx + 64 < width {
         let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
@@ -163,21 +163,21 @@ unsafe fn avx512_yuv_to_rgba_fast_impl<
 
                 let (mu_low0, mu_high0) = _mm256_interleave_epi8(u_values, u_values);
                 (u_low0, u_high0) =
-                    avx512_zip_epi8::<HAS_VBMI>(avx512_create(mu_low0, mu_high0), uv_corr);
+                    avx512_zip_epi8::<HAS_VBMI>(avx512_create(mu_low0, mu_high0), u_bias_uv);
                 let (mv_low0, mv_high0) = _mm256_interleave_epi8(v_values, v_values);
                 (v_low0, v_high0) =
-                    avx512_zip_epi8::<HAS_VBMI>(avx512_create(mv_low0, mv_high0), uv_corr);
+                    avx512_zip_epi8::<HAS_VBMI>(avx512_create(mv_low0, mv_high0), u_bias_uv);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
                 let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
 
-                (u_low0, u_high0) = avx512_zip_epi8::<false>(u_values, uv_corr);
-                (v_low0, v_high0) = avx512_zip_epi8::<false>(v_values, uv_corr);
+                (u_low0, u_high0) = avx512_zip_epi8::<HAS_VBMI>(u_values, u_bias_uv);
+                (v_low0, v_high0) = avx512_zip_epi8::<HAS_VBMI>(v_values, u_bias_uv);
             }
         }
 
-        let (y_lo, y_hi) = avx512_zip_epi8::<false>(y_values, y_values);
+        let (y_lo, y_hi) = avx512_zip_epi8::<HAS_VBMI>(y_values, y_values);
 
         let y_high = _mm512_mulhi_epu16(y_hi, v_luma_coeff);
 
