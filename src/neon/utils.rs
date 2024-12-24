@@ -537,14 +537,6 @@ pub(crate) unsafe fn vexpand_high_8_to_16(a: uint8x16_t) -> uint16x8_t {
 
 /// Expands exactly 8 bit to 10
 #[inline(always)]
-pub(crate) unsafe fn vmulhiq_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
-    let hi = vmull_high_u16(a, b);
-    let lo = vmull_u16(vget_low_u16(a), vget_low_u16(b));
-    vcombine_u16(vshrn_n_u32::<8>(lo), vshrn_n_u32::<8>(hi))
-}
-
-/// Expands exactly 8 bit to 10
-#[inline(always)]
 pub(crate) unsafe fn vumulhiq_u16(a: uint16x8_t, b: uint16x8_t) -> int16x8_t {
     let hi = vmull_high_u16(a, b);
     let lo = vmull_u16(vget_low_u16(a), vget_low_u16(b));

@@ -41,7 +41,7 @@ use crate::avx512bw::{
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{
     neon_yuv_to_rgba_fast_row, neon_yuv_to_rgba_row, neon_yuv_to_rgba_row420,
-    neon_yuv_to_rgba_row_rdm, neon_yuv_to_rgba_row_rdm420,
+    neon_yuv_to_rgba_row_fast420, neon_yuv_to_rgba_row_rdm, neon_yuv_to_rgba_row_rdm420,
 };
 use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -114,10 +114,14 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
         neon_yuv_to_rgba_fast_row::<DESTINATION_CHANNELS, SAMPLING>
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_double_row_handler = if is_rdm_available {
-        neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS>
+    let neon_double_row_handler = if PRECISION == 13 {
+        if is_rdm_available {
+            neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS>
+        } else {
+            neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>
+        }
     } else {
-        neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>
+        neon_yuv_to_rgba_row_fast420::<DESTINATION_CHANNELS>
     };
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -717,18 +721,18 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
 
-            // #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            // {
-            //     if is_rdm_available {
-            //         return yuv_to_rgbx_impl::<DESTINATION_CHANNELS, SAMPLING, 13>(
-            //             image,
-            //             rgba,
-            //             rgba_stride,
-            //             range,
-            //             matrix,
-            //         );
-            //     }
-            // }
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                if is_rdm_available {
+                    return yuv_to_rgbx_impl::<DESTINATION_CHANNELS, SAMPLING, 13>(
+                        image,
+                        rgba,
+                        rgba_stride,
+                        range,
+                        matrix,
+                    );
+                }
+            }
 
             yuv_to_rgbx_impl::<DESTINATION_CHANNELS, SAMPLING, 6>(
                 image,
