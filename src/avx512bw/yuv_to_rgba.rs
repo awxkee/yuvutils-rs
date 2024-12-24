@@ -229,7 +229,7 @@ unsafe fn avx512_yuv_to_rgba_impl<
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(u_low10), uv_corr));
         let v_low1 =
             _mm512_slli_epi16::<SCALE>(_mm512_sub_epi16(_mm512_cvtepu8_epi16(v_low10), uv_corr));
-        let y_low1 = _mm512_mulhrs_epi16(y1_10.1, v_luma_coeff);
+        let y_low1 = _mm512_mulhrs_epi16(y1_10.0, v_luma_coeff);
 
         let r_low0 = _mm512_add_epi16(y_low0, _mm512_mulhrs_epi16(v_low0, v_cr_coeff));
         let b_low0 = _mm512_add_epi16(y_low0, _mm512_mulhrs_epi16(u_low0, v_cb_coeff));
