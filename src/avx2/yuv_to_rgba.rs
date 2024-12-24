@@ -29,6 +29,7 @@
 
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
+use crate::sse::{_xx_load_si128, _xx_load_si64};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -37,7 +38,11 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx2_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+pub(crate) fn avx2_yuv_to_rgba_row<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ALIGNED: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -49,14 +54,18 @@ pub(crate) fn avx2_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLIN
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx2_yuv_to_rgba_row_impl::<DESTINATION_CHANNELS, SAMPLING>(
+        avx2_yuv_to_rgba_row_impl::<DESTINATION_CHANNELS, SAMPLING, ALIGNED>(
             range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
         )
     }
 }
 
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+unsafe fn avx2_yuv_to_rgba_row_impl<
+    const DESTINATION_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ALIGNED: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -89,10 +98,12 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
     const SCALE: i32 = 2;
 
     while cx + 64 < width {
-        let y_values0 =
-            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
+        let y_values0 = _mm256_subs_epu8(
+            _xx256_load_si256::<ALIGNED>(y_ptr.add(cx) as *const __m256i),
+            y_corr,
+        );
         let y_values1 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_ptr.add(cx + 32) as *const __m256i),
+            _xx256_load_si256::<ALIGNED>(y_ptr.add(cx + 32) as *const __m256i),
             y_corr,
         );
 
@@ -100,8 +111,8 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values_v = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
-                let v_values_v = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
+                let u_values_v = _xx256_load_si256::<ALIGNED>(u_ptr.add(uv_x) as *const __m256i);
+                let v_values_v = _xx256_load_si256::<ALIGNED>(v_ptr.add(uv_x) as *const __m256i);
 
                 let i_u = _mm256_interleave_epi8(u_values_v, u_values_v);
                 let i_v = _mm256_interleave_epi8(v_values_v, v_values_v);
@@ -117,10 +128,12 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
                 v_low1 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(i_v.1));
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_values_v0 = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
-                let u_values_v1 = _mm256_loadu_si256(u_ptr.add(uv_x + 32) as *const __m256i);
-                let v_values_v0 = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
-                let v_values_v1 = _mm256_loadu_si256(v_ptr.add(uv_x + 32) as *const __m256i);
+                let u_values_v0 = _xx256_load_si256::<ALIGNED>(u_ptr.add(uv_x) as *const __m256i);
+                let u_values_v1 =
+                    _xx256_load_si256::<ALIGNED>(u_ptr.add(uv_x + 32) as *const __m256i);
+                let v_values_v0 = _xx256_load_si256::<ALIGNED>(v_ptr.add(uv_x) as *const __m256i);
+                let v_values_v1 =
+                    _xx256_load_si256::<ALIGNED>(v_ptr.add(uv_x + 32) as *const __m256i);
 
                 u_high0 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(u_values_v0));
                 v_high0 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(v_values_v0));
@@ -233,15 +246,17 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
     }
 
     while cx + 32 < width {
-        let y_values =
-            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
+        let y_values = _mm256_subs_epu8(
+            _xx256_load_si256::<ALIGNED>(y_ptr.add(cx) as *const __m256i),
+            y_corr,
+        );
 
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
-                let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
+                let u_values = _xx_load_si128::<ALIGNED>(u_ptr.add(uv_x) as *const __m128i);
+                let v_values = _xx_load_si128::<ALIGNED>(v_ptr.add(uv_x) as *const __m128i);
 
                 u_high_u16 = _mm256_cvtepu8_epi16(_mm_unpackhi_epi8(u_values, u_values));
                 v_high_u16 = _mm256_cvtepu8_epi16(_mm_unpackhi_epi8(v_values, v_values));
@@ -249,8 +264,8 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
                 v_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(v_values, v_values));
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
-                let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
+                let u_values = _xx256_load_si256::<ALIGNED>(u_ptr.add(uv_x) as *const __m256i);
+                let v_values = _xx256_load_si256::<ALIGNED>(v_ptr.add(uv_x) as *const __m256i);
 
                 u_high_u16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(u_values));
                 v_high_u16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(v_values));
@@ -318,7 +333,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
     while cx + 16 < width {
         let y_values = _mm256_subs_epu8(
-            _mm256_castsi128_si256(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i)),
+            _mm256_castsi128_si256(_xx_load_si128::<ALIGNED>(y_ptr.add(cx) as *const __m128i)),
             y_corr,
         );
 
@@ -326,15 +341,15 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values = _mm_loadu_si64(u_ptr.add(uv_x));
-                let v_values = _mm_loadu_si64(v_ptr.add(uv_x));
+                let u_values = _xx_load_si64(u_ptr.add(uv_x));
+                let v_values = _xx_load_si64(v_ptr.add(uv_x));
 
                 u_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(u_values, u_values));
                 v_low_u16 = _mm256_cvtepu8_epi16(_mm_unpacklo_epi8(v_values, v_values));
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
-                let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
+                let u_values = _xx_load_si128::<ALIGNED>(u_ptr.add(uv_x) as *const __m128i);
+                let v_values = _xx_load_si128::<ALIGNED>(v_ptr.add(uv_x) as *const __m128i);
 
                 u_low_u16 = _mm256_cvtepu8_epi16(u_values);
                 v_low_u16 = _mm256_cvtepu8_epi16(v_values);

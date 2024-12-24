@@ -648,17 +648,18 @@ impl From<usize> for Rgb30ByteOrder {
 
 pub(crate) fn search_forward_transform(
     precision: i32,
+    bit_depth: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     chroma_range: YuvChromaRange,
     kr_kb: YuvBias,
-    max_range_p8: u32,
 ) -> CbCrForwardTransform<i32> {
-    if let Some(stored_t) = get_built_forward_transform(precision as u32, 8, range, matrix) {
+    if let Some(stored_t) = get_built_forward_transform(precision as u32, bit_depth, range, matrix)
+    {
         stored_t
     } else {
         let transform_precise = get_forward_transform(
-            max_range_p8,
+            (1 << bit_depth) - 1,
             chroma_range.range_y,
             chroma_range.range_uv,
             kr_kb.kr,
@@ -670,16 +671,17 @@ pub(crate) fn search_forward_transform(
 
 pub(crate) fn search_inverse_transform(
     precision: i32,
+    bit_depth: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     chroma_range: YuvChromaRange,
     kr_kb: YuvBias,
 ) -> CbCrInverseTransform<i32> {
-    if let Some(stored) = get_built_inverse_transform(precision as u32, 8, range, matrix) {
+    if let Some(stored) = get_built_inverse_transform(precision as u32, bit_depth, range, matrix) {
         stored
     } else {
         let transform = get_inverse_transform(
-            255,
+            (1 << bit_depth) - 1,
             chroma_range.range_y,
             chroma_range.range_uv,
             kr_kb.kr,

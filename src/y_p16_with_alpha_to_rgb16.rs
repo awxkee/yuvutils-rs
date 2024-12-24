@@ -26,7 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::built_coefficients::get_built_inverse_transform;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvGrayAlphaImage};
 #[cfg(feature = "rayon")]
@@ -67,22 +66,10 @@ fn yuv400_p16_with_alpha_to_rgbx<
     let kr_kb = matrix.get_kr_kb();
 
     const PRECISION: i32 = 13;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1);
-    let i_transform = if let Some(stored) =
-        get_built_inverse_transform(PRECISION as u32, bit_depth, range, matrix)
-    {
-        stored
-    } else {
-        let transform = get_inverse_transform(
-            bit_depth,
-            chroma_range.range_y,
-            chroma_range.range_uv,
-            kr_kb.kr,
-            kr_kb.kb,
-        );
-        transform.to_integers(PRECISION as u32)
-    };
-    let y_coef = i_transform.y_coef;
+    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1) - 1;
+    let inverse_transform =
+        search_inverse_transform(PRECISION, bit_depth, range, matrix, chroma_range, kr_kb);
+    let y_coef = inverse_transform.y_coef;
 
     let bias_y = chroma_range.bias_y as i32;
 

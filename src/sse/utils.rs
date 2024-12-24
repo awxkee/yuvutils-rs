@@ -767,3 +767,17 @@ pub(crate) unsafe fn _mm_expand8_hi_to_10(v: __m128i) -> __m128i {
 pub(crate) unsafe fn _mm_expand8_lo_to_10(v: __m128i) -> __m128i {
     _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v))
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _xx_load_si128<const ALIGNED: bool>(ptr: *const __m128i) -> __m128i {
+    if ALIGNED {
+        _mm_load_si128(ptr)
+    } else {
+        _mm_loadu_si128(ptr)
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _xx_load_si64(ptr: *const u8) -> __m128i {
+    _mm_loadl_epi64(ptr as *const _)
+}

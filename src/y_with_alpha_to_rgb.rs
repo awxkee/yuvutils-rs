@@ -28,7 +28,6 @@
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::avx2_y_to_rgba_alpha_row;
-use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_y_to_rgb_alpha_row, neon_y_to_rgb_row_alpha_rdm};
 use crate::numerics::qrshr;
@@ -178,19 +177,7 @@ where
     let kr_kb = matrix.get_kr_kb();
     const PRECISION: i32 = 13;
     let inverse_transform =
-        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
-            stored
-        } else {
-            let transform = get_inverse_transform(
-                255,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform.to_integers(PRECISION as u32)
-        };
-
+        search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
     let y_coef = inverse_transform.y_coef;
     let bias_y = chroma_range.bias_y as i32;
 

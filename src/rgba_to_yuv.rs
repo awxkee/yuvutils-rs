@@ -67,10 +67,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     const PRECISION: i32 = 13;
-    let max_range_p8 = (1u32 << 8u32) - 1u32;
 
-    let transform =
-        search_forward_transform(PRECISION, range, matrix, chroma_range, kr_kb, max_range_p8);
+    let transform = search_forward_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
 
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;

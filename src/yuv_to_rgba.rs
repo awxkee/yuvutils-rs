@@ -33,6 +33,7 @@ use crate::avx2::{avx2_yuv_to_rgba_row, avx2_yuv_to_rgba_row420};
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::{avx512_yuv_to_rgba, avx512_yuv_to_rgba420};
+use crate::internals::is_slice_aligned;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{
     neon_yuv_to_rgba_row, neon_yuv_to_rgba_row420, neon_yuv_to_rgba_row_rdm,
@@ -71,7 +72,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     const PRECISION: i32 = 13;
 
-    let inverse_transform = search_inverse_transform(PRECISION, range, matrix, chroma_range, kr_kb);
+    let inverse_transform =
+        search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -128,9 +130,27 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         avx512_yuv_to_rgba420::<DESTINATION_CHANNELS, false>
     };
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let sse_row_handler = sse_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>;
+    let sse_row_handler = |_y_slice: &[u8], _u_slice: &[u8], _v_slice: &[u8]| {
+        let y_aligned = is_slice_aligned(_y_slice, 16);
+        let u_aligned = is_slice_aligned(_u_slice, 16);
+        let v_aligned = is_slice_aligned(_v_slice, 16);
+        if y_aligned && u_aligned && v_aligned {
+            sse_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING, true>
+        } else {
+            sse_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING, false>
+        }
+    };
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let avx_row_handler = avx2_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>;
+    let avx_row_handler = |_y_slice: &[u8], _u_slice: &[u8], _v_slice: &[u8]| {
+        let y_aligned = is_slice_aligned(_y_slice, 32);
+        let u_aligned = is_slice_aligned(_u_slice, 32);
+        let v_aligned = is_slice_aligned(_v_slice, 32);
+        if y_aligned && u_aligned && v_aligned {
+            avx2_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING, true>
+        } else {
+            avx2_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING, false>
+        }
+    };
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let sse_double_row_handler = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS>;
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -159,7 +179,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_avx2 {
-                let processed = avx_row_handler(
+                let handler = avx_row_handler(_y_plane, _u_plane, _v_plane);
+                let processed = handler(
                     &chroma_range,
                     &inverse_transform,
                     _y_plane,
@@ -174,7 +195,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 _uv_x = processed.ux;
             }
             if use_sse {
-                let processed = sse_row_handler(
+                let handler = sse_row_handler(_y_plane, _u_plane, _v_plane);
+                let processed = handler(
                     &chroma_range,
                     &inverse_transform,
                     _y_plane,

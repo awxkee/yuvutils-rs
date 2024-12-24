@@ -69,7 +69,8 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
     const PRECISION: i32 = 13;
-    let inverse_transform = search_inverse_transform(PRECISION, range, matrix, chroma_range, kr_kb);
+    let inverse_transform =
+        search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
 
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;

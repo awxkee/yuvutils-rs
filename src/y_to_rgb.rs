@@ -33,7 +33,6 @@ use crate::avx2::avx2_y_to_rgba_row;
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_y_to_rgb_row;
-use crate::built_coefficients::get_built_inverse_transform;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
@@ -71,18 +70,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     const PRECISION: i32 = 13;
     let inverse_transform =
-        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
-            stored
-        } else {
-            let transform = get_inverse_transform(
-                255,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform.to_integers(PRECISION as u32)
-        };
+        search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
     let y_coef = inverse_transform.y_coef;
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
