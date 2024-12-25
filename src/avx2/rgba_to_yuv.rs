@@ -305,10 +305,6 @@ unsafe fn avx2_rgba_to_yuv_impl<
         let (r_values, g_values, b_values) =
             _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
-        let g_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
-        let b_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values));
-
         let r_low =
             _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values)));
 
@@ -335,10 +331,6 @@ unsafe fn avx2_rgba_to_yuv_impl<
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, _mm256_castsi256_si128(y_yuv));
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let r_low = _mm256_slli_epi16::<V_SCALE>(r_lo16);
-            let g_low = _mm256_slli_epi16::<V_SCALE>(g_lo16);
-            let b_low = _mm256_slli_epi16::<V_SCALE>(b_lo16);
-
             let cb_l = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_add_epi16(
