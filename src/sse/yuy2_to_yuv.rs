@@ -185,16 +185,8 @@ unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 _mm_storeu_si128(u_plane.as_mut_ptr().add(u_pos) as *mut __m128i, u_value);
                 _mm_storeu_si128(v_plane.as_mut_ptr().add(v_pos) as *mut __m128i, v_value);
             } else {
-                std::ptr::copy_nonoverlapping(
-                    &u_value as *const _ as *const u8,
-                    u_plane.as_mut_ptr().add(u_pos),
-                    8,
-                );
-                std::ptr::copy_nonoverlapping(
-                    &v_value as *const _ as *const u8,
-                    v_plane.as_mut_ptr().add(v_pos),
-                    8,
-                );
+                _mm_storeu_si64(u_plane.as_mut_ptr().add(u_pos), u_value);
+                _mm_storeu_si64(v_plane.as_mut_ptr().add(u_pos), v_value);
             }
 
             _uv_x += match chroma_subsampling {

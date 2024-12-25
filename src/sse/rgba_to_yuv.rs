@@ -267,8 +267,8 @@ unsafe fn sse_rgba_to_yuv_row_impl<
             let cb = _mm_packus_epi16(cbk, cbk);
             let cr = _mm_packus_epi16(crk, crk);
 
-            std::ptr::copy_nonoverlapping(&cb as *const _ as *const u8, u_ptr.add(uv_x), 8);
-            std::ptr::copy_nonoverlapping(&cr as *const _ as *const u8, v_ptr.add(uv_x), 8);
+            _mm_storeu_si64(u_ptr.add(uv_x), cb);
+            _mm_storeu_si64(v_ptr.add(uv_x), cr);
             uv_x += 8;
         }
 
@@ -296,7 +296,7 @@ unsafe fn sse_rgba_to_yuv_row_impl<
         );
 
         let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
-        std::ptr::copy_nonoverlapping(&y_yuv as *const _ as *const u8, y_ptr.add(cx), 8);
+        _mm_storeu_si64(y_ptr.add(cx), y_yuv);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm_max_epi16(
@@ -335,8 +335,9 @@ unsafe fn sse_rgba_to_yuv_row_impl<
             let cb = _mm_packus_epi16(cb_l, _mm_setzero_si128());
             let cr = _mm_packus_epi16(cr_l, _mm_setzero_si128());
 
-            std::ptr::copy_nonoverlapping(&cb as *const _ as *const u8, u_ptr.add(uv_x), 8);
-            std::ptr::copy_nonoverlapping(&cr as *const _ as *const u8, v_ptr.add(uv_x), 8);
+            _mm_storeu_si64(u_ptr.add(uv_x), cb);
+            _mm_storeu_si64(v_ptr.add(uv_x), cr);
+
             uv_x += 8;
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
@@ -382,8 +383,8 @@ unsafe fn sse_rgba_to_yuv_row_impl<
             let cb = _mm_packus_epi16(cbk, cbk);
             let cr = _mm_packus_epi16(crk, crk);
 
-            (u_ptr.add(uv_x) as *mut i32).write_unaligned(_mm_extract_epi32::<0>(cb));
-            (v_ptr.add(uv_x) as *mut i32).write_unaligned(_mm_extract_epi32::<0>(cr));
+            _mm_storeu_si32(u_ptr.add(uv_x), cb);
+            _mm_storeu_si32(v_ptr.add(uv_x), cr);
             uv_x += 4;
         }
 

@@ -29,8 +29,7 @@
 use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
     _mm512_affine_transform, _mm512_affine_v_dot, _mm512_havg_epi16_epi32,
-    _mm512_load_deinterleave_rgb16_for_yuv, _mm512_loada_deinterleave_rgb16_for_yuv,
-    _mm512_to_msb_epi16, avx512_zip_epi16,
+    _mm512_loada_deinterleave_rgb16_for_yuv, _mm512_to_msb_epi16, avx512_zip_epi16,
 };
 use crate::internals::{is_slice_aligned, ProcessedOffset};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};

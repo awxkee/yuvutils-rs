@@ -229,10 +229,14 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
             vdup_n_u16(0),
         ));
 
-        (u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
-            .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cb)));
-        (v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
-            .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cr)));
+        vst1_lane_u32::<0>(
+            u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32,
+            vreinterpret_u32_u8(cb),
+        );
+        vst1_lane_u32::<0>(
+            v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32,
+            vreinterpret_u32_u8(cr),
+        );
 
         ux += 4;
         cx += 8;

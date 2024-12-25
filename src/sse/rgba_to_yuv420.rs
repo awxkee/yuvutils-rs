@@ -225,8 +225,8 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let cb = _mm_packus_epi16(cbk, cbk);
         let cr = _mm_packus_epi16(crk, crk);
 
-        std::ptr::copy_nonoverlapping(&cb as *const _ as *const u8, u_ptr.add(uv_x), 8);
-        std::ptr::copy_nonoverlapping(&cr as *const _ as *const u8, v_ptr.add(uv_x), 8);
+        _mm_storeu_si64(u_ptr.add(uv_x), cb);
+        _mm_storeu_si64(v_ptr.add(uv_x), cr);
 
         uv_x += 8;
         cx += 16;
@@ -277,16 +277,8 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let y0_yuv = _mm_packus_epi16(y0_l, _mm_setzero_si128());
         let y1_yuv = _mm_packus_epi16(y1_l, _mm_setzero_si128());
 
-        std::ptr::copy_nonoverlapping(
-            &y0_yuv as *const _ as *const u8,
-            y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
-            8,
-        );
-        std::ptr::copy_nonoverlapping(
-            &y1_yuv as *const _ as *const u8,
-            y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
-            8,
-        );
+        _mm_storeu_si64(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0_yuv);
+        _mm_storeu_si64(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1_yuv);
 
         let r1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(r_values0, r_values1));
         let g1 = _mm_slli_epi16::<V_SCALE>(sse_pairwise_avg_epi16_epi8(g_values0, g_values1));
@@ -323,8 +315,8 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let cb = _mm_packus_epi16(cbk, cbk);
         let cr = _mm_packus_epi16(crk, crk);
 
-        (u_ptr.add(uv_x) as *mut i32).write_unaligned(_mm_extract_epi32::<0>(cb));
-        (v_ptr.add(uv_x) as *mut i32).write_unaligned(_mm_extract_epi32::<0>(cr));
+        _mm_storeu_si32(u_ptr.add(uv_x), cb);
+        _mm_storeu_si32(v_ptr.add(uv_x), cr);
 
         uv_x += 4;
         cx += 8;

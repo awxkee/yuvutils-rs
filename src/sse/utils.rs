@@ -607,12 +607,12 @@ pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CHANS: u8>(
         YuvSourceChannels::Rgb => {
             let (v0, v1, _) = sse_interleave_rgb(r, g, b);
             _mm_storeu_si128(ptr as *mut __m128i, v0);
-            std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
+            _mm_storeu_si64(ptr.add(16), v1);
         }
         YuvSourceChannels::Bgr => {
             let (v0, v1, _) = sse_interleave_rgb(b, g, r);
             _mm_storeu_si128(ptr as *mut __m128i, v0);
-            std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
+            _mm_storeu_si64(ptr.add(16), v1);
         }
         YuvSourceChannels::Rgba => {
             let (row1, row2, _, _) = sse_interleave_rgba(r, g, b, a);

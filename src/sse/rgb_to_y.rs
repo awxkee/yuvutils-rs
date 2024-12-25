@@ -146,12 +146,7 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         );
 
         let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
-
-        std::ptr::copy_nonoverlapping(
-            &y_yuv as *const _ as *const u8,
-            y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),
-            8,
-        );
+        _mm_storeu_si64(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y_yuv);
 
         cx += 8;
     }

@@ -414,8 +414,8 @@ unsafe fn avx2_rgba_to_yuv_impl<
             let cb = _mm256_castsi256_si128(avx2_pack_u16(cb, cb));
             let cr = _mm256_castsi256_si128(avx2_pack_u16(cr, cr));
 
-            std::ptr::copy_nonoverlapping(&cb as *const _ as *const u8, u_ptr.add(uv_x), 8);
-            std::ptr::copy_nonoverlapping(&cr as *const _ as *const u8, v_ptr.add(uv_x), 8);
+            _mm_storeu_si64(u_ptr.add(uv_x), cb);
+            _mm_storeu_si64(v_ptr.add(uv_x), cr);
 
             uv_x += 8;
         }

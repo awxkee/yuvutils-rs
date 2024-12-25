@@ -2,7 +2,7 @@ workspace = { members = ["app", "fuzz"] }
 
 [package]
 name = "yuvutils-rs"
-version = "0.5.13"
+version = "0.5.14"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"
@@ -14,7 +14,7 @@ categories = ["multimedia::images", "multimedia::video"]
 homepage = "https://github.com/awxkee/yuvutils-rs"
 repository = "https://github.com/awxkee/yuvutils-rs"
 exclude = ["*.jpg", "assets/*", "*.png", "assets/bench.jpg"]
-rust-version = "1.73.0"
+rust-version = "1.82.0"
 
 [dependencies]
 num-traits = "0.2.19"

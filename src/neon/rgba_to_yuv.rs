@@ -192,9 +192,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         let (r_values0, g_values0, b_values0) =
             neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
 
-        let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values0)));
-        let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values0)));
-        let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(b_values0)));
+        let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values0));
+        let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values0));
+        let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(b_values0));
 
         let mut y_low = vqrdmlahq_laneq_s16::<0>(i_bias_y, r_low, v_weights);
         y_low = vqrdmlahq_laneq_s16::<1>(y_low, g_low, v_weights);
@@ -205,10 +205,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         vst1_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), vmovn_u16(y_low));
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values0));
-            let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values0));
-            let b_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(b_values0));
-
             let mut cb_low = vqrdmlahq_laneq_s16::<3>(uv_bias, r_low, v_weights);
             cb_low = vqrdmlahq_laneq_s16::<4>(cb_low, g_low, v_weights);
             cb_low = vqrdmlahq_laneq_s16::<5>(cb_low, b_low, v_weights);
@@ -268,11 +264,14 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
                 vdup_n_u16(0),
             ));
 
-            (u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
-                .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cb)));
-            (v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32)
-                .write_unaligned(vget_lane_u32::<0>(vreinterpret_u32_u8(cr)));
-
+            vst1_lane_u32::<0>(
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32,
+                vreinterpret_u32_u8(cb),
+            );
+            vst1_lane_u32::<0>(
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32,
+                vreinterpret_u32_u8(cr),
+            );
             ux += 4;
         }
 

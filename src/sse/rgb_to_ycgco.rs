@@ -163,16 +163,8 @@ pub(crate) unsafe fn sse_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPL
                 YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                     let cb_h = sse_pairwise_widen_avg(cg);
                     let cr_h = sse_pairwise_widen_avg(co);
-                    std::ptr::copy_nonoverlapping(
-                        &cb_h as *const _ as *const u8,
-                        cg_ptr.add(uv_x),
-                        8,
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        &cr_h as *const _ as *const u8,
-                        co_ptr.add(uv_x),
-                        8,
-                    );
+                    _mm_storeu_si64(cg_ptr.add(uv_x), cb_h);
+                    _mm_storeu_si64(co_ptr.add(uv_x), cr_h);
                     uv_x += 8;
                 }
                 YuvChromaSubsampling::Yuv444 => {
