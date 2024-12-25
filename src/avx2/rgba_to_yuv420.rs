@@ -126,6 +126,11 @@ unsafe fn avx2_rgba_to_yuv_impl420<
             ALIGNED,
         >(rgba0.get_unchecked(px..).as_ptr());
 
+        let (r_values1, g_values1, b_values1) = _mm256_loada_deinterleave_rgb_for_yuv::<
+            ORIGIN_CHANNELS,
+            ALIGNED,
+        >(rgba1.get_unchecked(px..).as_ptr());
+
         let r0_low =
             _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values0)));
         let r0_high = _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(
@@ -169,11 +174,6 @@ unsafe fn avx2_rgba_to_yuv_impl420<
             ),
             i_cap_y,
         );
-
-        let (r_values1, g_values1, b_values1) = _mm256_loada_deinterleave_rgb_for_yuv::<
-            ORIGIN_CHANNELS,
-            ALIGNED,
-        >(rgba1.get_unchecked(px..).as_ptr());
 
         let r1_low =
             _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values1)));
