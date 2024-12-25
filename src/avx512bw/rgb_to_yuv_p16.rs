@@ -148,7 +148,7 @@ unsafe fn avx_rgba_to_yuv_impl<
             y_vl = _mm512_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
 
-        _mm512_storeu_si512(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32, y_vl);
+        _mm512_storeu_si512(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_vl =
@@ -168,14 +168,8 @@ unsafe fn avx_rgba_to_yuv_impl<
                 cr_vl = _mm512_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
             }
 
-            _mm512_storeu_si512(
-                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut i32,
-                cb_vl,
-            );
-            _mm512_storeu_si512(
-                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut i32,
-                cr_vl,
-            );
+            _mm512_storeu_si512(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cb_vl);
+            _mm512_storeu_si512(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cr_vl);
 
             ux += 32;
         } else {

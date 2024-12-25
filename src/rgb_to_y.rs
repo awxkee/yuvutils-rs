@@ -33,10 +33,9 @@ use crate::avx2::avx2_rgb_to_y_row;
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_row_rgb_to_y;
-use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvGrayImageMut;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgb_to_y_row;
+use crate::neon::{neon_rgb_to_y_rdm, neon_rgb_to_y_row};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::sse_rgb_to_y;
 use crate::yuv_error::check_rgba_destination;
@@ -69,21 +68,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p8 = (1u32 << 8u32) - 1u32;
     const PRECISION: i32 = 13;
-    let transform =
-        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
-            stored_t
-        } else {
-            let transform_precise = get_forward_transform(
-                max_range_p8,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform_precise.to_integers(PRECISION as u32)
-        };
+
+    let transform = search_forward_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
 
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
@@ -110,6 +97,12 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         avx512_row_rgb_to_y::<ORIGIN_CHANNELS, true>
     } else {
         avx512_row_rgb_to_y::<ORIGIN_CHANNELS, false>
+    };
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    let neon_handler = if std::arch::is_aarch64_feature_detected!("rdm") {
+        neon_rgb_to_y_rdm::<ORIGIN_CHANNELS>
+    } else {
+        neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>
     };
 
     let iter;
@@ -175,7 +168,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
-            _cx = neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
+            _cx = neon_handler(
                 &transform,
                 &chroma_range,
                 y_plane.as_mut_ptr(),

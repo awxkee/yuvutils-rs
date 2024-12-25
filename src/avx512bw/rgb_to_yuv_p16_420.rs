@@ -151,12 +151,12 @@ unsafe fn avx512_rgba_to_yuv_impl<
         }
 
         _mm512_storeu_si512(
-            y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
             y0_vl,
         );
 
         _mm512_storeu_si512(
-            y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
             y1_vl,
         );
 

@@ -159,8 +159,6 @@ unsafe fn avx512_rgba_to_yuv_impl420<
 
     let cap_uv = range.bias_y as i16 + range.range_uv as i16;
 
-    const PREC: u32 = 13;
-
     let y_bias = _mm512_set1_epi16(bias_y);
     let uv_bias = _mm512_set1_epi16(bias_uv);
     let i_cap_y = _mm512_set1_epi16(range.bias_y as i16 + range.range_y as i16);
@@ -249,7 +247,7 @@ unsafe fn avx512_rgba_to_yuv_impl420<
 
         let y_yuv0 = avx512_pack_u16(y_l0, y_h0);
         _mm512_storeu_si512(
-            y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
             y_yuv0,
         );
 
@@ -282,7 +280,7 @@ unsafe fn avx512_rgba_to_yuv_impl420<
 
         let y_yuv1 = avx512_pack_u16(y_l1, y_h1);
         _mm512_storeu_si512(
-            y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
             y_yuv1,
         );
 

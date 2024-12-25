@@ -117,7 +117,7 @@ pub(crate) unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SA
 
         let y_intensity = avx512_pack_u16(y_l, y_h);
 
-        _mm512_storeu_si512(y_ptr.add(cx) as *mut i32, y_intensity);
+        _mm512_storeu_si512(y_ptr.add(cx) as *mut _, y_intensity);
 
         if compute_uv_row {
             let cg = avx512_pack_u16(cg_l, cg_h);
@@ -131,8 +131,8 @@ pub(crate) unsafe fn avx512_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SA
                     uv_x += 32;
                 }
                 YuvChromaSubsampling::Yuv444 => {
-                    _mm512_storeu_si512(cg_ptr.add(uv_x) as *mut i32, cg);
-                    _mm512_storeu_si512(co_ptr.add(uv_x) as *mut i32, co);
+                    _mm512_storeu_si512(cg_ptr.add(uv_x) as *mut _, cg);
+                    _mm512_storeu_si512(co_ptr.add(uv_x) as *mut _, co);
                     uv_x += 64;
                 }
             }

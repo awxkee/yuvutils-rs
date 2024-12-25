@@ -175,17 +175,17 @@ pub(crate) unsafe fn avx512_put_rgb_u8<const HAS_VBMI: bool>(
     c: __m512i,
 ) {
     let (rgb0, rgb1, rgb2) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(128) as *mut _, rgb2);
 }
 
 #[inline(always)]
 pub(crate) unsafe fn avx512_put_rgb16(dst: *mut u16, a: __m512i, b: __m512i, c: __m512i) {
     let (rgb0, rgb1, rgb2) = avx512_interleave_rgb16(a, b, c);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(32) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb2);
 }
 
 #[inline(always)]
@@ -196,7 +196,7 @@ pub(crate) unsafe fn avx512_put_half_rgb_u8<const HAS_VBMI: bool>(
     c: __m512i,
 ) {
     let (rgb0, rgb1, _) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
     _mm256_storeu_si256(dst.add(64) as *mut __m256i, _mm512_castsi512_si256(rgb1));
 }
 
@@ -265,10 +265,10 @@ pub(crate) unsafe fn avx512_put_rgba_u8<const HAS_VBMI: bool>(
     d: __m512i,
 ) {
     let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
-    _mm512_storeu_si512(dst.add(128 + 64) as *mut i32, rgb3);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(128) as *mut _, rgb2);
+    _mm512_storeu_si512(dst.add(128 + 64) as *mut _, rgb3);
 }
 
 #[inline(always)]
@@ -280,8 +280,8 @@ pub(crate) unsafe fn avx512_put_half_rgba_u8<const HAS_VBMI: bool>(
     d: __m512i,
 ) {
     let (rgb0, rgb1, _, _) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
 }
 
 #[inline(always)]
@@ -293,10 +293,10 @@ pub(crate) unsafe fn avx512_put_rgba16(
     d: __m512i,
 ) {
     let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba16(a, b, c, d);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
-    _mm512_storeu_si512(dst.add(96) as *mut i32, rgb3);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(32) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb2);
+    _mm512_storeu_si512(dst.add(96) as *mut _, rgb3);
 }
 
 #[inline(always)]
@@ -979,9 +979,9 @@ mod tests {
             let mut r_lane = vec![0u8; 64];
             let mut g_lane = vec![0u8; 64];
             let mut b_lane = vec![0u8; 64];
-            _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut i32, deinterleaving.0);
-            _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut i32, deinterleaving.1);
-            _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut i32, deinterleaving.2);
+            _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut _, deinterleaving.0);
+            _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut _, deinterleaving.1);
+            _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut _, deinterleaving.2);
             assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
             assert!(g_lane.iter().all(|&x| x == 2), "G lane was {:?}", g_lane);
             assert!(b_lane.iter().all(|&x| x == 3), "B lane was {:?}", b_lane);

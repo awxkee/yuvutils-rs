@@ -161,10 +161,7 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bo
 
         let y_yuv = avx512_pack_u16(y_l, y_h);
 
-        _mm512_storeu_si512(
-            y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut i32,
-            y_yuv,
-        );
+        _mm512_storeu_si512(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_yuv);
 
         cx += 64;
     }

@@ -225,7 +225,7 @@ unsafe fn avx512_rgba_to_yuv_impl<
         );
 
         let y_yuv = avx512_pack_u16(y_l, y_h);
-        _mm512_storeu_si512(y_ptr.add(cx) as *mut i32, y_yuv);
+        _mm512_storeu_si512(y_ptr.add(cx) as *mut _, y_yuv);
 
         let i_cap_uv = _mm512_set1_epi16(cap_uv);
 
@@ -298,8 +298,8 @@ unsafe fn avx512_rgba_to_yuv_impl<
             let cb = avx512_pack_u16(cb_l, cb_h);
             let cr = avx512_pack_u16(cr_l, cr_h);
 
-            _mm512_storeu_si512(u_ptr.add(uv_x) as *mut i32, cb);
-            _mm512_storeu_si512(v_ptr.add(uv_x) as *mut i32, cr);
+            _mm512_storeu_si512(u_ptr.add(uv_x) as *mut _, cb);
+            _mm512_storeu_si512(v_ptr.add(uv_x) as *mut _, cr);
             uv_x += 64;
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
