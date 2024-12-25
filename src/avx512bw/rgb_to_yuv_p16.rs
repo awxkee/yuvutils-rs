@@ -29,9 +29,9 @@
 use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
     _mm512_affine_transform, _mm512_affine_v_dot, _mm512_havg_epi16_epi32,
-    _mm512_load_deinterleave_rgb16_for_yuv, _mm512_to_msb_epi16, avx512_zip_epi16,
+    _mm512_loada_deinterleave_rgb16_for_yuv, _mm512_to_msb_epi16, avx512_zip_epi16,
 };
-use crate::internals::ProcessedOffset;
+use crate::internals::{is_slice_aligned, ProcessedOffset};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -60,16 +60,32 @@ pub(crate) fn avx512_rgba_to_yuv_p16<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx_rgba_to_yuv_impl::<
-            ORIGIN_CHANNELS,
-            SAMPLING,
-            ENDIANNESS,
-            BYTES_POSITION,
-            PRECISION,
-            BIT_DEPTH,
-        >(
-            transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-        )
+        let is_rgba_aligned = is_slice_aligned(rgba, 64);
+        if is_rgba_aligned {
+            avx_rgba_to_yuv_impl::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+                true,
+            >(
+                transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+            )
+        } else {
+            avx_rgba_to_yuv_impl::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+                false,
+            >(
+                transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+            )
+        }
     }
 }
 
@@ -81,6 +97,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     const BYTES_POSITION: u8,
     const PRECISION: i32,
     const BIT_DEPTH: usize,
+    const ALIGNED: bool,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -92,6 +109,9 @@ unsafe fn avx_rgba_to_yuv_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
+    if ALIGNED {
+        debug_assert!(rgba.as_ptr() as usize % 64 == 0);
+    }
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
@@ -131,7 +151,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     while cx + 32 < width {
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
         let (r_values, g_values, b_values) =
-            _mm512_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
+            _mm512_loada_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS, ALIGNED>(src_ptr.as_ptr());
 
         let (r_g_lo, r_g_hi) = avx512_zip_epi16(r_values, g_values);
         let b_hi = _mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64::<1>(b_values));
