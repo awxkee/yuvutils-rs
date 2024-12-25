@@ -29,7 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::sse::{
-    _mm_affine_dot, _mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv,
+    _mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv,
     sse_pairwise_avg_epi16_epi8,
 };
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -90,10 +90,11 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
 
     let zeros = _mm_setzero_si128();
 
+    let i_cap_y = _mm_set1_epi16(range.bias_y as i16 + range.range_y as i16);
     let y_bias = _mm_set1_epi16(bias_y);
     let uv_bias = _mm_set1_epi16(bias_uv);
-    let y_base = _mm_set1_epi32(bias_y as i32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
-    let v_yr_yg = _mm_set1_epi32(transform._interleaved_yr_yg());
+    let v_yr = _mm_set1_epi16(transform.yr as i16);
+    let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);
     let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
     let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
@@ -109,31 +110,73 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let (r_values0, g_values0, b_values0) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start0);
 
+        let r0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values0, zeros));
+        let r0_hi16 = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(r_values0, zeros));
+        let g0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values0, zeros));
+        let g0_hi16 = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(g_values0, zeros));
+        let b0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values0, zeros));
+        let b0_hi16 = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values0, zeros));
+
+        let y0_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(
+                        _mm_mulhrs_epi16(r0_lo16, v_yr),
+                        _mm_mulhrs_epi16(g0_lo16, v_yg),
+                    ),
+                    _mm_mulhrs_epi16(b0_lo16, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
+        let y0_h = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(
+                        _mm_mulhrs_epi16(r0_hi16, v_yr),
+                        _mm_mulhrs_epi16(g0_hi16, v_yg),
+                    ),
+                    _mm_mulhrs_epi16(b0_hi16, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
         let row_start1 = rgba1.get_unchecked(px..).as_ptr();
         let (r_values1, g_values1, b_values1) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start1);
 
-        let r0_lo16 = _mm_unpacklo_epi8(r_values0, zeros);
-        let r0_hi16 = _mm_unpackhi_epi8(r_values0, zeros);
-        let g0_lo16 = _mm_unpacklo_epi8(g_values0, zeros);
-        let g0_hi16 = _mm_unpackhi_epi8(g_values0, zeros);
-        let b0_lo16 = _mm_unpacklo_epi8(b_values0, zeros);
-        let b0_hi16 = _mm_unpackhi_epi8(b_values0, zeros);
+        let r1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values1, zeros));
+        let r1_hi = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(r_values1, zeros));
+        let g1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values1, zeros));
+        let g1_hi = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(g_values1, zeros));
+        let b1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values1, zeros));
+        let b1_hi = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values1, zeros));
 
-        let y0_l = _mm_affine_dot::<PRECISION>(y_base, r0_lo16, g0_lo16, b0_lo16, v_yr_yg, v_yb);
+        let y1_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(_mm_mulhrs_epi16(r1_lo, v_yr), _mm_mulhrs_epi16(g1_lo, v_yg)),
+                    _mm_mulhrs_epi16(b1_lo, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
 
-        let y0_h = _mm_affine_dot::<PRECISION>(y_base, r0_hi16, g0_hi16, b0_hi16, v_yr_yg, v_yb);
-
-        let r1_low = _mm_unpacklo_epi8(r_values1, zeros);
-        let r1_high = _mm_unpackhi_epi8(r_values1, zeros);
-        let g1_low = _mm_unpacklo_epi8(g_values1, zeros);
-        let g1_high = _mm_unpackhi_epi8(g_values1, zeros);
-        let b1_low = _mm_unpacklo_epi8(b_values1, zeros);
-        let b1_high = _mm_unpackhi_epi8(b_values1, zeros);
-
-        let y1_l = _mm_affine_dot::<PRECISION>(y_base, r1_low, g1_low, b1_low, v_yr_yg, v_yb);
-
-        let y1_h = _mm_affine_dot::<PRECISION>(y_base, r1_high, g1_high, b1_high, v_yr_yg, v_yb);
+        let y1_h = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(_mm_mulhrs_epi16(r1_hi, v_yr), _mm_mulhrs_epi16(g1_hi, v_yg)),
+                    _mm_mulhrs_epi16(b1_hi, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
 
         let y0_yuv = _mm_packus_epi16(y0_l, y0_h);
         let y1_yuv = _mm_packus_epi16(y1_l, y1_h);
@@ -198,17 +241,38 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let (r_values1, g_values1, b_values1) =
             _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start1);
 
-        let r0_low = _mm_unpacklo_epi8(r_values0, zeros);
-        let g0_low = _mm_unpacklo_epi8(g_values0, zeros);
-        let b0_low = _mm_unpacklo_epi8(b_values0, zeros);
+        let r0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values0, zeros));
+        let g0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values0, zeros));
+        let b0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values0, zeros));
 
-        let y0_l = _mm_affine_dot::<PRECISION>(y_base, r0_low, g0_low, b0_low, v_yr_yg, v_yb);
+        let y0_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(
+                        _mm_mulhrs_epi16(r0_lo16, v_yr),
+                        _mm_mulhrs_epi16(g0_lo16, v_yg),
+                    ),
+                    _mm_mulhrs_epi16(b0_lo16, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
 
-        let r1_low = _mm_unpacklo_epi8(r_values1, zeros);
-        let g1_low = _mm_unpacklo_epi8(g_values1, zeros);
-        let b1_low = _mm_unpacklo_epi8(b_values1, zeros);
+        let r1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values1, zeros));
+        let g1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values1, zeros));
+        let b1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values1, zeros));
 
-        let y1_l = _mm_affine_dot::<PRECISION>(y_base, r1_low, g1_low, b1_low, v_yr_yg, v_yb);
+        let y1_l = _mm_min_epi16(
+            _mm_add_epi16(
+                y_bias,
+                _mm_add_epi16(
+                    _mm_add_epi16(_mm_mulhrs_epi16(r1_lo, v_yr), _mm_mulhrs_epi16(g1_lo, v_yg)),
+                    _mm_mulhrs_epi16(b1_lo, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
 
         let y0_yuv = _mm_packus_epi16(y0_l, _mm_setzero_si128());
         let y1_yuv = _mm_packus_epi16(y1_l, _mm_setzero_si128());

@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::*;
-use crate::internals::ProcessedOffset;
+use crate::internals::{is_slice_aligned, ProcessedOffset};
 use crate::sse::{_xx_load_si128, _xx_load_si64};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -36,7 +36,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx2_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8, const ALIGNED: bool>(
+pub(crate) fn avx2_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -50,10 +50,21 @@ pub(crate) fn avx2_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8, const ALIG
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx2_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, ALIGNED>(
-            range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-            start_ux, width,
-        )
+        let y_aligned0 = is_slice_aligned(y_plane0, 32);
+        let y_aligned1 = is_slice_aligned(y_plane1, 32);
+        let u_aligned = is_slice_aligned(u_plane, 32);
+        let v_aligned = is_slice_aligned(v_plane, 32);
+        if y_aligned0 && y_aligned1 && u_aligned && v_aligned {
+            avx2_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, true>(
+                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            )
+        } else {
+            avx2_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, false>(
+                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            )
+        }
     }
 }
 

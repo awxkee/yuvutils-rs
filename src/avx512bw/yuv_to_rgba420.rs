@@ -27,11 +27,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::_mm256_interleave_epi8;
+use crate::avx2::{_mm256_interleave_epi8, _xx256_load_si256};
 use crate::avx512bw::avx512_utils::{
-    _mm512_expand8_to_10, avx512_pack_u16, avx512_store_rgba_for_yuv_u8,
+    _mm512_expand8_to_10, _xx512_load_si512, avx512_pack_u16, avx512_store_rgba_for_yuv_u8,
 };
-use crate::internals::ProcessedOffset;
+use crate::internals::{is_slice_aligned, ProcessedOffset};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -52,22 +52,40 @@ pub(crate) fn avx512_yuv_to_rgba420<const DESTINATION_CHANNELS: u8, const HAS_VB
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        if HAS_VBMI {
-            avx512_yuv_to_rgba_bmi_impl420::<DESTINATION_CHANNELS>(
-                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
-            )
+        let y_aligned0 = is_slice_aligned(y_plane0, 64);
+        let y_aligned1 = is_slice_aligned(y_plane1, 64);
+        let u_aligned = is_slice_aligned(u_plane, 64);
+        let v_aligned = is_slice_aligned(v_plane, 64);
+        if y_aligned0 && y_aligned1 && u_aligned && v_aligned {
+            if HAS_VBMI {
+                avx512_yuv_to_rgba_bmi_impl420::<DESTINATION_CHANNELS, true>(
+                    range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                    start_ux, width,
+                )
+            } else {
+                avx512_yuv_to_rgba_def_impl420::<DESTINATION_CHANNELS, true>(
+                    range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                    start_ux, width,
+                )
+            }
         } else {
-            avx512_yuv_to_rgba_def_impl420::<DESTINATION_CHANNELS>(
-                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
-            )
+            if HAS_VBMI {
+                avx512_yuv_to_rgba_bmi_impl420::<DESTINATION_CHANNELS, false>(
+                    range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                    start_ux, width,
+                )
+            } else {
+                avx512_yuv_to_rgba_def_impl420::<DESTINATION_CHANNELS, false>(
+                    range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                    start_ux, width,
+                )
+            }
         }
     }
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
-unsafe fn avx512_yuv_to_rgba_bmi_impl420<const DESTINATION_CHANNELS: u8>(
+unsafe fn avx512_yuv_to_rgba_bmi_impl420<const DESTINATION_CHANNELS: u8, const ALIGNED: bool>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -80,14 +98,14 @@ unsafe fn avx512_yuv_to_rgba_bmi_impl420<const DESTINATION_CHANNELS: u8>(
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    avx512_yuv_to_rgba_impl420::<DESTINATION_CHANNELS, true>(
+    avx512_yuv_to_rgba_impl420::<DESTINATION_CHANNELS, true, ALIGNED>(
         range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
         width,
     )
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_yuv_to_rgba_def_impl420<const DESTINATION_CHANNELS: u8>(
+unsafe fn avx512_yuv_to_rgba_def_impl420<const DESTINATION_CHANNELS: u8, const ALIGNED: bool>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -100,14 +118,18 @@ unsafe fn avx512_yuv_to_rgba_def_impl420<const DESTINATION_CHANNELS: u8>(
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    avx512_yuv_to_rgba_impl420::<DESTINATION_CHANNELS, false>(
+    avx512_yuv_to_rgba_impl420::<DESTINATION_CHANNELS, false, ALIGNED>(
         range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
         width,
     )
 }
 
 #[inline(always)]
-unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_VBMI: bool>(
+unsafe fn avx512_yuv_to_rgba_impl420<
+    const DESTINATION_CHANNELS: u8,
+    const HAS_VBMI: bool,
+    const ALIGNED: bool,
+>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -120,6 +142,12 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
+    if ALIGNED {
+        debug_assert!(y_plane0.as_ptr() as usize % 64 == 0);
+        debug_assert!(y_plane1.as_ptr() as usize % 64 == 0);
+        debug_assert!(u_plane.as_ptr() as usize % 64 == 0);
+        debug_assert!(v_plane.as_ptr() as usize % 64 == 0);
+    }
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -140,19 +168,19 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
         let y_corr = _mm512_set1_epi8(range.bias_y as i8);
         let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
         let y_values0 = _mm512_subs_epu8(
-            _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const i32),
+            _xx512_load_si512::<ALIGNED>(y_plane0.get_unchecked(cx..).as_ptr() as *const i32),
             y_corr,
         );
         let y_values1 = _mm512_subs_epu8(
-            _mm512_loadu_si512(y_plane1.get_unchecked(cx..).as_ptr() as *const i32),
+            _xx512_load_si512::<ALIGNED>(y_plane1.get_unchecked(cx..).as_ptr() as *const i32),
             y_corr,
         );
 
         let y0_10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values0);
         let y1_10 = _mm512_expand8_to_10::<HAS_VBMI>(y_values1);
 
-        let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
-        let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
+        let u_values = _xx256_load_si256::<ALIGNED>(u_ptr.add(uv_x) as *const __m256i);
+        let v_values = _xx256_load_si256::<ALIGNED>(v_ptr.add(uv_x) as *const __m256i);
 
         let i_u = _mm256_interleave_epi8(u_values, u_values);
         let i_v = _mm256_interleave_epi8(v_values, v_values);

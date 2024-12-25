@@ -500,6 +500,56 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_loada_deinterleave_rgb_for_yuv<
+    const ORIGINS: u8,
+    const ALIGNED: bool,
+>(
+    ptr: *const u8,
+) -> (__m256i, __m256i, __m256i) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+
+    let (r_values, g_values, b_values);
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _xx256_load_si256::<ALIGNED>(ptr as *const __m256i);
+            let row_2 = _xx256_load_si256::<ALIGNED>(ptr.add(32) as *const __m256i);
+            let row_3 = _xx256_load_si256::<ALIGNED>(ptr.add(64) as *const __m256i);
+
+            let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _xx256_load_si256::<ALIGNED>(ptr as *const __m256i);
+            let row_2 = _xx256_load_si256::<ALIGNED>(ptr.add(32) as *const __m256i);
+            let row_3 = _xx256_load_si256::<ALIGNED>(ptr.add(64) as *const __m256i);
+            let row_4 = _xx256_load_si256::<ALIGNED>(ptr.add(96) as *const __m256i);
+
+            let (it1, it2, it3, _) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+    }
+
+    (r_values, g_values, b_values)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_load_deinterleave_half_rgb_for_yuv<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (__m256i, __m256i, __m256i) {

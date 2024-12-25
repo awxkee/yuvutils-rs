@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::*;
-use crate::internals::ProcessedOffset;
+use crate::internals::{is_slice_aligned, ProcessedOffset};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
@@ -41,7 +41,6 @@ pub(crate) fn avx2_yuv_nv_to_rgba_row<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
-    const ALIGNED: bool,
 >(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -53,9 +52,17 @@ pub(crate) fn avx2_yuv_nv_to_rgba_row<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx2_yuv_nv_to_rgba_row_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, ALIGNED>(
-            range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
-        )
+        let y_aligned0 = is_slice_aligned(y_plane, 32);
+        let uv_aligned = is_slice_aligned(uv_plane, 32);
+        if y_aligned0 && uv_aligned {
+            avx2_yuv_nv_to_rgba_row_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, true>(
+                range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+            )
+        } else {
+            avx2_yuv_nv_to_rgba_row_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, false>(
+                range, transform, y_plane, uv_plane, rgba, start_cx, start_ux, width,
+            )
+        }
     }
 }
 

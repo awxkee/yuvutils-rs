@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::internals::ProcessedOffset;
+use crate::internals::{is_slice_aligned, ProcessedOffset};
 use crate::sse::{
     _mm_expand8_hi_to_10, _mm_expand8_lo_to_10, _mm_store_interleave_half_rgb_for_yuv,
     _mm_store_interleave_rgb_for_yuv, _xx_load_si128, _xx_load_si64,
@@ -38,7 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8, const ALIGNED: bool>(
+pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -52,10 +52,21 @@ pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8, const ALIGN
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, ALIGNED>(
-            range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-            start_ux, width,
-        )
+        let y_aligned0 = is_slice_aligned(y_plane0, 16);
+        let y_aligned1 = is_slice_aligned(y_plane1, 16);
+        let u_aligned = is_slice_aligned(u_plane, 16);
+        let v_aligned = is_slice_aligned(v_plane, 16);
+        if y_aligned0 && y_aligned1 && u_aligned && v_aligned {
+            sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, true>(
+                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            )
+        } else {
+            sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, false>(
+                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            )
+        }
     }
 }
 

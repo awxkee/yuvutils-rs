@@ -57,7 +57,7 @@ mod yuy2_to_yuv;
 
 #[cfg(feature = "nightly_avx512")]
 pub(crate) use avx2_utils::{
-    _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm256_interleave_epi8,
+    _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm256_interleave_epi8, _xx256_load_si256,
 };
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::avx2_rgba_to_nv;
