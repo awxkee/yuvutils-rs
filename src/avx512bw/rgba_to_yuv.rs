@@ -28,9 +28,9 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_load_half_rgb_u8, avx512_loada_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi8,
+    avx512_load_half_rgb_u8, avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi8,
 };
-use crate::internals::{is_slice_aligned, ProcessedOffset};
+use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -55,37 +55,20 @@ pub(crate) fn avx512_rgba_to_yuv<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        let is_rgba_aligned = is_slice_aligned(rgba, 64);
         if HAS_VBMI {
-            if is_rgba_aligned {
-                avx512_rgba_to_yuv_bmi_impl::<ORIGIN_CHANNELS, SAMPLING, true>(
-                    transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-                )
-            } else {
-                avx512_rgba_to_yuv_bmi_impl::<ORIGIN_CHANNELS, SAMPLING, false>(
-                    transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-                )
-            }
+            avx512_rgba_to_yuv_bmi_impl::<ORIGIN_CHANNELS, SAMPLING>(
+                transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+            )
         } else {
-            if is_rgba_aligned {
-                avx512_rgba_to_yuv_def_impl::<ORIGIN_CHANNELS, SAMPLING, true>(
-                    transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-                )
-            } else {
-                avx512_rgba_to_yuv_def_impl::<ORIGIN_CHANNELS, SAMPLING, false>(
-                    transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-                )
-            }
+            avx512_rgba_to_yuv_def_impl::<ORIGIN_CHANNELS, SAMPLING>(
+                transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+            )
         }
     }
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
-unsafe fn avx512_rgba_to_yuv_bmi_impl<
-    const ORIGIN_CHANNELS: u8,
-    const SAMPLING: u8,
-    const ALIGNED: bool,
->(
+unsafe fn avx512_rgba_to_yuv_bmi_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -96,17 +79,13 @@ unsafe fn avx512_rgba_to_yuv_bmi_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, true, ALIGNED>(
+    avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, true>(
         transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
     )
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_rgba_to_yuv_def_impl<
-    const ORIGIN_CHANNELS: u8,
-    const SAMPLING: u8,
-    const ALIGNED: bool,
->(
+unsafe fn avx512_rgba_to_yuv_def_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -117,7 +96,7 @@ unsafe fn avx512_rgba_to_yuv_def_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, false, ALIGNED>(
+    avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, SAMPLING, false>(
         transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
     )
 }
@@ -127,7 +106,6 @@ unsafe fn avx512_rgba_to_yuv_impl<
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,
     const HAS_VBMI: bool,
-    const ALIGNED: bool,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -139,9 +117,6 @@ unsafe fn avx512_rgba_to_yuv_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    if ALIGNED {
-        debug_assert!(rgba.as_ptr() as usize % 64 == 0);
-    }
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
@@ -178,7 +153,7 @@ unsafe fn avx512_rgba_to_yuv_impl<
         let px = cx * channels;
 
         let (r_values, g_values, b_values) =
-            avx512_loada_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI, ALIGNED>(rgba_ptr.add(px));
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
 
         let r_low =
             _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));

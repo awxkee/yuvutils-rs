@@ -27,10 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::internals::{is_slice_aligned, ProcessedOffset};
+use crate::internals::ProcessedOffset;
 use crate::sse::{
     _mm_expand8_hi_to_10, _mm_expand8_lo_to_10, _mm_store_interleave_half_rgb_for_yuv,
-    _mm_store_interleave_rgb_for_yuv, _xx_load_si128, _xx_load_si64,
+    _mm_store_interleave_rgb_for_yuv, _xx_load_si64,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -52,26 +52,15 @@ pub(crate) fn sse_yuv_to_rgba_row420<const DESTINATION_CHANNELS: u8>(
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        let y_aligned0 = is_slice_aligned(y_plane0, 16);
-        let y_aligned1 = is_slice_aligned(y_plane1, 16);
-        let u_aligned = is_slice_aligned(u_plane, 16);
-        let v_aligned = is_slice_aligned(v_plane, 16);
-        if y_aligned0 && y_aligned1 && u_aligned && v_aligned {
-            sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, true>(
-                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
-            )
-        } else {
-            sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS, false>(
-                range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
-            )
-        }
+        sse_yuv_to_rgba_row_impl420::<DESTINATION_CHANNELS>(
+            range, transform, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+            start_ux, width,
+        )
     }
 }
 
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8, const ALIGNED: bool>(
+unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -84,12 +73,6 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8, const ALIG
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    if ALIGNED {
-        debug_assert!(y_plane0.as_ptr() as usize % 16 == 0);
-        debug_assert!(y_plane1.as_ptr() as usize % 16 == 0);
-        debug_assert!(u_plane.as_ptr() as usize % 16 == 0);
-        debug_assert!(v_plane.as_ptr() as usize % 16 == 0);
-    }
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -114,11 +97,11 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8, const ALIG
 
     while cx + 16 < width {
         let y_values0 = _mm_subs_epu8(
-            _xx_load_si128::<ALIGNED>(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i),
+            _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i),
             y_corr,
         );
         let y_values1 = _mm_subs_epu8(
-            _xx_load_si128::<ALIGNED>(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i),
+            _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i),
             y_corr,
         );
 

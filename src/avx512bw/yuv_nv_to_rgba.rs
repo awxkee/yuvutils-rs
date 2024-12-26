@@ -143,7 +143,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
     let v_g_coeff_1 = _mm512_set1_epi16(transform.g_coeff_1 as i16);
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
-    while cx + 32 < width {
+    while cx + 64 < width {
         let y_corr = _mm512_set1_epi8(range.bias_y as i8);
         let uv_corr = _mm512_set1_epi16(range.bias_uv as i16);
         let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);

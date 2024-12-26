@@ -27,10 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::internals::{is_slice_aligned, ProcessedOffset};
+use crate::internals::ProcessedOffset;
 use crate::sse::{
     _mm_expand8_hi_to_10, _mm_expand8_lo_to_10, _mm_store_interleave_half_rgb_for_yuv,
-    _mm_store_interleave_rgb_for_yuv, _xx_load_si128, _xx_load_si64,
+    _mm_store_interleave_rgb_for_yuv, _xx_load_si64,
 };
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -52,27 +52,14 @@ pub(crate) fn sse_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const SAMPLING
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        let y_aligned = is_slice_aligned(y_plane, 16);
-        let u_aligned = is_slice_aligned(u_plane, 16);
-        let v_aligned = is_slice_aligned(v_plane, 16);
-        if y_aligned && u_aligned && v_aligned {
-            sse_yuv_to_rgba_row_impl::<DESTINATION_CHANNELS, SAMPLING, true>(
-                range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-            )
-        } else {
-            sse_yuv_to_rgba_row_impl::<DESTINATION_CHANNELS, SAMPLING, false>(
-                range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
-            )
-        }
+        sse_yuv_to_rgba_row_impl::<DESTINATION_CHANNELS, SAMPLING>(
+            range, transform, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+        )
     }
 }
 
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_yuv_to_rgba_row_impl<
-    const DESTINATION_CHANNELS: u8,
-    const SAMPLING: u8,
-    const ALIGNED: bool,
->(
+unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane: &[u8],
@@ -83,11 +70,6 @@ unsafe fn sse_yuv_to_rgba_row_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    if ALIGNED {
-        debug_assert!(y_plane.as_ptr() as usize % 16 == 0);
-        debug_assert!(u_plane.as_ptr() as usize % 16 == 0);
-        debug_assert!(v_plane.as_ptr() as usize % 16 == 0);
-    }
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -113,10 +95,7 @@ unsafe fn sse_yuv_to_rgba_row_impl<
     let zeros = _mm_setzero_si128();
 
     while cx + 16 < width {
-        let y_values = _mm_subs_epu8(
-            _xx_load_si128::<ALIGNED>(y_ptr.add(cx) as *const __m128i),
-            y_corr,
-        );
+        let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
 
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
@@ -132,8 +111,8 @@ unsafe fn sse_yuv_to_rgba_row_impl<
                 v_low_u16 = _mm_unpacklo_epi8(v_values, zeros);
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_values = _xx_load_si128::<ALIGNED>(u_ptr.add(uv_x) as *const __m128i);
-                let v_values = _xx_load_si128::<ALIGNED>(v_ptr.add(uv_x) as *const __m128i);
+                let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
+                let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
 
                 u_high_u16 = _mm_unpackhi_epi8(u_values, zeros);
                 v_high_u16 = _mm_unpackhi_epi8(v_values, zeros);

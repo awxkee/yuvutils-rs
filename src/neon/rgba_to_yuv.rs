@@ -109,7 +109,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         let y_low = vminq_u16(vreinterpretq_u16_s16(y_low), i_cap_y);
 
         let y = vcombine_u8(vqmovn_u16(y_low), vqmovn_u16(y_high));
-        vst1q_u8(y_ptr.add(cx), y);
+        vst1q_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_high = vqrdmlahq_laneq_s16::<3>(uv_bias, r_high, v_weights);

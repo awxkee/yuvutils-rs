@@ -655,55 +655,6 @@ pub(crate) unsafe fn avx512_load_rgb_u8<const CN: u8, const HAS_VBMI: bool>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_loada_rgb_u8<
-    const CN: u8,
-    const HAS_VBMI: bool,
-    const ALIGNED: bool,
->(
-    src: *const u8,
-) -> (__m512i, __m512i, __m512i) {
-    let source_channels: YuvSourceChannels = CN.into();
-    let (r_values, g_values, b_values);
-    match source_channels {
-        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-            let row_1 = _xx512_load_si512::<ALIGNED>(src as *const i32);
-            let row_2 = _xx512_load_si512::<ALIGNED>(src.add(64) as *const i32);
-            let row_3 = _xx512_load_si512::<ALIGNED>(src.add(128) as *const i32);
-
-            let (it1, it2, it3) = avx512_deinterleave_rgb::<HAS_VBMI>(row_1, row_2, row_3);
-            if source_channels == YuvSourceChannels::Rgb {
-                r_values = it1;
-                g_values = it2;
-                b_values = it3;
-            } else {
-                r_values = it3;
-                g_values = it2;
-                b_values = it1;
-            }
-        }
-        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-            let row_1 = _xx512_load_si512::<ALIGNED>(src as *const i32);
-            let row_2 = _xx512_load_si512::<ALIGNED>(src.add(64) as *const i32);
-            let row_3 = _xx512_load_si512::<ALIGNED>(src.add(128) as *const i32);
-            let row_4 = _xx512_load_si512::<ALIGNED>(src.add(128 + 64) as *const i32);
-
-            let (it1, it2, it3, _) =
-                avx512_deinterleave_rgba::<HAS_VBMI>(row_1, row_2, row_3, row_4);
-            if source_channels == YuvSourceChannels::Rgba {
-                r_values = it1;
-                g_values = it2;
-                b_values = it3;
-            } else {
-                r_values = it3;
-                g_values = it2;
-                b_values = it1;
-            }
-        }
-    }
-    (r_values, g_values, b_values)
-}
-
-#[inline(always)]
 pub(crate) unsafe fn avx512_load_half_rgb_u8<const CN: u8, const HAS_VBMI: bool>(
     src: *const u8,
 ) -> (__m512i, __m512i, __m512i) {
@@ -848,54 +799,6 @@ pub(crate) unsafe fn _mm512_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm512_loada_deinterleave_rgb16_for_yuv<
-    const CHANS: u8,
-    const ALIGNED: bool,
->(
-    ptr: *const u16,
-) -> (__m512i, __m512i, __m512i) {
-    let r_values;
-    let g_values;
-    let b_values;
-
-    let source_channels: YuvSourceChannels = CHANS.into();
-
-    let row0 = _xx512_load_si512::<ALIGNED>(ptr as *const i32);
-    let row1 = _xx512_load_si512::<ALIGNED>(ptr.add(32) as *const i32);
-    let row2 = _xx512_load_si512::<ALIGNED>(ptr.add(64) as *const i32);
-
-    match source_channels {
-        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-            let rgb_values = avx512_deinterleave_rgb16(row0, row1, row2);
-            if source_channels == YuvSourceChannels::Rgb {
-                r_values = rgb_values.0;
-                g_values = rgb_values.1;
-                b_values = rgb_values.2;
-            } else {
-                r_values = rgb_values.2;
-                g_values = rgb_values.1;
-                b_values = rgb_values.0;
-            }
-        }
-        YuvSourceChannels::Rgba => {
-            let row3 = _xx512_load_si512::<ALIGNED>(ptr.add(96) as *const i32);
-            let rgb_values = avx512_deinterleave_rgba16(row0, row1, row2, row3);
-            r_values = rgb_values.0;
-            g_values = rgb_values.1;
-            b_values = rgb_values.2;
-        }
-        YuvSourceChannels::Bgra => {
-            let row3 = _xx512_load_si512::<ALIGNED>(ptr.add(96) as *const i32);
-            let rgb_values = avx512_deinterleave_rgba16(row0, row1, row2, row3);
-            r_values = rgb_values.2;
-            g_values = rgb_values.1;
-            b_values = rgb_values.0;
-        }
-    }
-    (r_values, g_values, b_values)
-}
-
-#[inline(always)]
 pub(crate) unsafe fn _mm512_to_msb_epi16<const BIT_DEPTH: usize>(a: __m512i) -> __m512i {
     if BIT_DEPTH == 10 {
         _mm512_slli_epi16::<6>(a)
@@ -989,15 +892,6 @@ pub(crate) unsafe fn _mm512_affine_dot<const PRECISION: u32>(
 pub(crate) unsafe fn _mm512_expand8_to_10<const HAS_VBMI: bool>(v: __m512i) -> (__m512i, __m512i) {
     let (v0, v1) = avx512_zip_epi8::<HAS_VBMI>(v, v);
     (_mm512_srli_epi16::<6>(v0), _mm512_srli_epi16::<6>(v1))
-}
-
-#[inline(always)]
-pub(crate) unsafe fn _xx512_load_si512<const ALIGNED: bool>(ptr: *const i32) -> __m512i {
-    if ALIGNED {
-        _mm512_load_si512(ptr)
-    } else {
-        _mm512_loadu_si512(ptr)
-    }
 }
 
 #[cfg(test)]

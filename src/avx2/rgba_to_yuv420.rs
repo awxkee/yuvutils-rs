@@ -28,9 +28,9 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_loada_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8,
+    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8,
 };
-use crate::internals::{is_slice_aligned, ProcessedOffset};
+use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -51,28 +51,15 @@ pub(crate) fn avx2_rgba_to_yuv420<const ORIGIN_CHANNELS: u8, const PRECISION: i3
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        let is_aligned0 = is_slice_aligned(rgba0, 32);
-        let is_aligned1 = is_slice_aligned(rgba1, 32);
-        if is_aligned0 && is_aligned1 {
-            avx2_rgba_to_yuv_impl420::<ORIGIN_CHANNELS, PRECISION, true>(
-                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
-            )
-        } else {
-            avx2_rgba_to_yuv_impl420::<ORIGIN_CHANNELS, PRECISION, false>(
-                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
-            )
-        }
+        avx2_rgba_to_yuv_impl420::<ORIGIN_CHANNELS, PRECISION>(
+            transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+            start_ux, width,
+        )
     }
 }
 
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_rgba_to_yuv_impl420<
-    const ORIGIN_CHANNELS: u8,
-    const PRECISION: i32,
-    const ALIGNED: bool,
->(
+unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane0: &mut [u8],
@@ -85,10 +72,6 @@ unsafe fn avx2_rgba_to_yuv_impl420<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    if ALIGNED {
-        debug_assert!(rgba0.as_ptr() as usize % 32 == 0);
-        debug_assert!(rgba1.as_ptr() as usize % 32 == 0);
-    }
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
@@ -121,14 +104,12 @@ unsafe fn avx2_rgba_to_yuv_impl420<
 
     while cx + 32 < width {
         let px = cx * channels;
-        let (r_values0, g_values0, b_values0) = _mm256_loada_deinterleave_rgb_for_yuv::<
+        let (r_values0, g_values0, b_values0) = _mm256_load_deinterleave_rgb_for_yuv::<
             ORIGIN_CHANNELS,
-            ALIGNED,
         >(rgba0.get_unchecked(px..).as_ptr());
 
-        let (r_values1, g_values1, b_values1) = _mm256_loada_deinterleave_rgb_for_yuv::<
+        let (r_values1, g_values1, b_values1) = _mm256_load_deinterleave_rgb_for_yuv::<
             ORIGIN_CHANNELS,
-            ALIGNED,
         >(rgba1.get_unchecked(px..).as_ptr());
 
         let r0_low =
