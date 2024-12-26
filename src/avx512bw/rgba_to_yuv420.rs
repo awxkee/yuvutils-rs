@@ -128,8 +128,6 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    const V_SCALE: u32 = 2;
-
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
@@ -157,21 +155,12 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
         let (r_values1, g_values1, b_values1) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba1.get_unchecked(px..).as_ptr());
 
-        let r0_lo16 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values0)));
-        let r0_hi16 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(r_values0),
-        ));
-        let g0_lo16 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values0)));
-        let g0_hi16 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(g_values0),
-        ));
-        let b0_lo16 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values0)));
-        let b0_hi16 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(b_values0),
-        ));
+        let r0_lo16 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(r_values0, r_values0));
+        let r0_hi16 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(r_values0, r_values0));
+        let g0_lo16 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(g_values0, g_values0));
+        let g0_hi16 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(g_values0, g_values0));
+        let b0_lo16 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(b_values0, b_values0));
+        let b0_hi16 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(b_values0, b_values0));
 
         let y_l0 = _mm512_min_epi16(
             _mm512_add_epi16(
@@ -201,27 +190,18 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
             i_cap_y,
         );
 
-        let r1_lo16 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values1)));
-        let r1_hi16 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(r_values1),
-        ));
-        let g1_lo16 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values1)));
-        let g1_hi16 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(g_values1),
-        ));
-        let b1_lo16 =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values1)));
-        let b1_hi16 = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(b_values1),
-        ));
-
-        let y_yuv0 = avx512_pack_u16(y_l0, y_h0);
+        let y_yuv0 = _mm512_packus_epi16(y_l0, y_h0);
         _mm512_storeu_si512(
             y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
             y_yuv0,
         );
+
+        let r1_lo16 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(r_values1, r_values1));
+        let r1_hi16 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(r_values1, r_values1));
+        let g1_lo16 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(g_values1, g_values1));
+        let g1_hi16 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(g_values1, g_values1));
+        let b1_lo16 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(b_values1, b_values1));
+        let b1_hi16 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(b_values1, b_values1));
 
         let y_l1 = _mm512_min_epi16(
             _mm512_add_epi16(
@@ -250,7 +230,7 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
             i_cap_y,
         );
 
-        let y_yuv1 = avx512_pack_u16(y_l1, y_h1);
+        let y_yuv1 = _mm512_packus_epi16(y_l1, y_h1);
         _mm512_storeu_si512(
             y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
             y_yuv1,

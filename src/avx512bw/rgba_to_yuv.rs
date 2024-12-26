@@ -155,21 +155,12 @@ unsafe fn avx512_rgba_to_yuv_impl<
         let (r_values, g_values, b_values) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
 
-        let r_low =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));
-        let r_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(r_values),
-        ));
-        let g_low =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values)));
-        let g_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(g_values),
-        ));
-        let b_low =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values)));
-        let b_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(b_values),
-        ));
+        let r_low = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(r_values, r_values));
+        let r_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(r_values, r_values));
+        let g_low = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(g_values, g_values));
+        let g_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(g_values, g_values));
+        let b_low = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(b_values, b_values));
+        let b_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(b_values, b_values));
 
         let y_l = _mm512_min_epi16(
             _mm512_add_epi16(
@@ -199,7 +190,7 @@ unsafe fn avx512_rgba_to_yuv_impl<
             i_cap_y,
         );
 
-        let y_yuv = avx512_pack_u16(y_l, y_h);
+        let y_yuv = _mm512_packus_epi16(y_l, y_h);
         _mm512_storeu_si512(y_ptr.add(cx) as *mut _, y_yuv);
 
         let i_cap_uv = _mm512_set1_epi16(cap_uv);
@@ -270,8 +261,8 @@ unsafe fn avx512_rgba_to_yuv_impl<
                 y_bias,
             );
 
-            let cb = avx512_pack_u16(cb_l, cb_h);
-            let cr = avx512_pack_u16(cr_l, cr_h);
+            let cb = _mm512_packus_epi16(cb_l, cb_h);
+            let cr = _mm512_packus_epi16(cr_l, cr_h);
 
             _mm512_storeu_si512(u_ptr.add(uv_x) as *mut _, cb);
             _mm512_storeu_si512(v_ptr.add(uv_x) as *mut _, cr);

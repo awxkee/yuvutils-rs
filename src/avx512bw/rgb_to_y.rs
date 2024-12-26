@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{avx512_load_rgb_u8, avx512_pack_u16};
+use crate::avx512bw::avx512_utils::avx512_load_rgb_u8;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -100,7 +100,6 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bo
 
     let mut cx = start_cx;
 
-    const V_SCALE: u32 = 2;
     let bias_y = range.bias_y as i16;
 
     let i_cap_y = _mm512_set1_epi16(range.bias_y as i16 + range.range_y as i16);
@@ -115,21 +114,12 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bo
         let (r_values, g_values, b_values) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
 
-        let r_low =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));
-        let r_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(r_values),
-        ));
-        let g_low =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values)));
-        let g_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(g_values),
-        ));
-        let b_low =
-            _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values)));
-        let b_high = _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(
-            _mm512_extracti64x4_epi64::<1>(b_values),
-        ));
+        let r_low = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(r_values, r_values));
+        let r_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(r_values, r_values));
+        let g_low = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(g_values, g_values));
+        let g_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(g_values, g_values));
+        let b_low = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(b_values, b_values));
+        let b_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(b_values, b_values));
 
         let y_l = _mm512_min_epi16(
             _mm512_add_epi16(
@@ -159,7 +149,7 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bo
             i_cap_y,
         );
 
-        let y_yuv = avx512_pack_u16(y_l, y_h);
+        let y_yuv = _mm512_packus_epi16(y_l, y_h);
 
         _mm512_storeu_si512(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_yuv);
 

@@ -98,13 +98,18 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
                 let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
                 let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
 
-                let u_vl = _mm256_set_m128i(
-                    _mm_unpackhi_epi8(u_values, u_values),
-                    _mm_unpacklo_epi8(u_values, u_values),
+                let shuf_expand = _mm256_setr_epi8(
+                    0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12,
+                    12, 13, 13, 14, 14, 15, 15,
                 );
-                let v_vl = _mm256_set_m128i(
-                    _mm_unpackhi_epi8(v_values, v_values),
-                    _mm_unpacklo_epi8(v_values, v_values),
+
+                let u_vl = _mm256_shuffle_epi8(
+                    _mm256_inserti128_si256::<1>(_mm256_castsi128_si256(u_values), u_values),
+                    shuf_expand,
+                );
+                let v_vl = _mm256_shuffle_epi8(
+                    _mm256_inserti128_si256::<1>(_mm256_castsi128_si256(v_values), v_values),
+                    shuf_expand,
                 );
 
                 u_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(u_vl, u_vl));
