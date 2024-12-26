@@ -337,12 +337,6 @@ pub(crate) unsafe fn avx_pairwise_avg_epi16(a: __m256i, b: __m256i) -> __m256i {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx_pairwise_avg_epi16_epi8(a: __m256i) -> __m256i {
-    let sums = _mm256_maddubs_epi16(a, _mm256_set1_epi8(1));
-    _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
-}
-
-#[inline(always)]
 pub(crate) unsafe fn avx_pairwise_avg_epi16_epi8_f(a: __m256i, f: i8) -> __m256i {
     let sums = _mm256_maddubs_epi16(a, _mm256_set1_epi8(f));
     _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
