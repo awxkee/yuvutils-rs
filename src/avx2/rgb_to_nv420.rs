@@ -201,32 +201,32 @@ unsafe fn avx2_rgba_to_nv_impl<
         let b1 = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(b_values0, b_values1), 4);
 
         let cb = _mm256_min_epi16(
+            _mm256_add_epi16(
+                uv_bias,
                 _mm256_add_epi16(
-                    uv_bias,
                     _mm256_add_epi16(
-                        _mm256_add_epi16(
-                            _mm256_mulhrs_epi16(r1, v_cb_r),
-                            _mm256_mulhrs_epi16(g1, v_cb_g),
-                        ),
-                        _mm256_mulhrs_epi16(b1, v_cb_b),
+                        _mm256_mulhrs_epi16(r1, v_cb_r),
+                        _mm256_mulhrs_epi16(g1, v_cb_g),
                     ),
+                    _mm256_mulhrs_epi16(b1, v_cb_b),
                 ),
-                i_cap_uv,
-            );
+            ),
+            i_cap_uv,
+        );
 
         let cr = _mm256_min_epi16(
+            _mm256_add_epi16(
+                uv_bias,
                 _mm256_add_epi16(
-                    uv_bias,
                     _mm256_add_epi16(
-                        _mm256_add_epi16(
-                            _mm256_mulhrs_epi16(r1, v_cr_r),
-                            _mm256_mulhrs_epi16(g1, v_cr_g),
-                        ),
-                        _mm256_mulhrs_epi16(b1, v_cr_b),
+                        _mm256_mulhrs_epi16(r1, v_cr_r),
+                        _mm256_mulhrs_epi16(g1, v_cr_g),
                     ),
+                    _mm256_mulhrs_epi16(b1, v_cr_b),
                 ),
-                i_cap_uv,
-            );
+            ),
+            i_cap_uv,
+        );
 
         let cb = avx2_pack_u16(cb, cb);
         let cr = avx2_pack_u16(cr, cr);

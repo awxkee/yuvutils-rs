@@ -624,7 +624,10 @@ mod tests {
     fn sqrdml(v: i32, k: i32) -> i32 {
         use std::arch::x86_64::*;
         unsafe {
-            _mm_extract_epi16::<0>(_mm_mulhrs_epi16(_mm_set1_epi16((v << 2) as i16), _mm_set1_epi16(k as i16)))
+            _mm_extract_epi16::<0>(_mm_mulhrs_epi16(
+                _mm_set1_epi16((v << 2) as i16),
+                _mm_set1_epi16(k as i16),
+            ))
         }
         // let j = ((v << 2) * k) >> 15;
         // j
@@ -635,20 +638,23 @@ mod tests {
     fn sqrdml(v: i32, k: i32) -> i32 {
         use std::arch::aarch64::*;
         unsafe {
-            vget_lane_s16::<0>(vqrdmulh_s16(vdup_n_s16((v << 2) as i16), vdup_n_s16(k as i16))) as i32
+            vget_lane_s16::<0>(vqrdmulh_s16(
+                vdup_n_s16((v << 2) as i16),
+                vdup_n_s16(k as i16),
+            )) as i32
         }
         // let j = ((v << 2) * k) >> 14;
         // (j + 1) >> 1
     }
 
-    #[cfg(not(
-    any(all(target_arch = "aarch64", target_feature = "neon"), any(target_arch = "x86", target_arch = "x86_64"))
-    ))]
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        any(target_arch = "x86", target_arch = "x86_64")
+    )))]
     fn sqrdml(v: i32, k: i32) -> i32 {
         let j = ((v << 2) * k) >> 14;
         (j + 1) >> 1
     }
-
 
     #[test]
     fn check_forward_convergence() {
@@ -705,19 +711,47 @@ mod tests {
         }
 
         for weights in weights_limited {
-            let sqrdml_mul = sqrdml(255, weights.cb_r) + sqrdml(255, weights.cb_g) + sqrdml(0, weights.cb_b) + 128;
-            assert!(sqrdml_mul >= 16, "Failed on weights {:?}, expected >1 but got {sqrdml_mul}", weights);
+            let sqrdml_mul = sqrdml(255, weights.cb_r)
+                + sqrdml(255, weights.cb_g)
+                + sqrdml(0, weights.cb_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 16,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
 
-            let sqrdml_mul = sqrdml(0, weights.cr_r) + sqrdml(255, weights.cr_g) + sqrdml(255, weights.cr_b) + 128;
-            assert!(sqrdml_mul >= 16, "Failed on weights {:?}, expected >1 but got {sqrdml_mul}", weights);
+            let sqrdml_mul = sqrdml(0, weights.cr_r)
+                + sqrdml(255, weights.cr_g)
+                + sqrdml(255, weights.cr_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 16,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
         }
 
         for weights in weights_full {
-            let sqrdml_mul = sqrdml(255, weights.cb_r) + sqrdml(255, weights.cb_g) + sqrdml(0, weights.cb_b) + 128;
-            assert!(sqrdml_mul >= 0, "Failed on weights {:?}, expected >1 but got {sqrdml_mul}", weights);
+            let sqrdml_mul = sqrdml(255, weights.cb_r)
+                + sqrdml(255, weights.cb_g)
+                + sqrdml(0, weights.cb_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 0,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
 
-            let sqrdml_mul = sqrdml(0, weights.cr_r) + sqrdml(255, weights.cr_g) + sqrdml(255, weights.cr_b) + 128;
-            assert!(sqrdml_mul >= 0, "Failed on weights {:?}, expected >1 but got {sqrdml_mul}", weights);
+            let sqrdml_mul = sqrdml(0, weights.cr_r)
+                + sqrdml(255, weights.cr_g)
+                + sqrdml(255, weights.cr_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 0,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
 
             let r = 0;
             let g = 0;
