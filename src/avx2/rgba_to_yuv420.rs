@@ -352,146 +352,146 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const PRECISION: i
         cx += 16;
     }
 
-    // if cx < width {
-    //     let length = width - cx;
-    //     assert!(length <= 16);
-    //     let mut y0_part: [u8; 16] = [0; 16];
-    //     let mut y1_part: [u8; 16] = [0; 16];
-    //     let mut u_part: [u8; 16] = [0; 16];
-    //     let mut v_part: [u8; 16] = [0; 16];
-    //     let mut rgba0_part: [u8; 64] = [0; 64];
-    //     let mut rgba1_part: [u8; 64] = [0; 64];
-    //
-    //     let px = cx * channels;
-    //
-    //     std::ptr::copy_nonoverlapping(
-    //         rgba0.get_unchecked(px..).as_ptr(),
-    //         rgba0_part.as_mut_ptr(),
-    //         length * channels,
-    //     );
-    //     std::ptr::copy_nonoverlapping(
-    //         rgba1.get_unchecked(px..).as_ptr(),
-    //         rgba1_part.as_mut_ptr(),
-    //         length * channels,
-    //     );
-    //
-    //     let (mut r_values0, mut g_values0, mut b_values0) =
-    //         _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba0_part.as_ptr());
-    //
-    //     let (mut r_values1, mut g_values1, mut b_values1) =
-    //         _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba1_part.as_ptr());
-    //
-    //     let r_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(r_values0, r_values1), 4);
-    //     let g_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(g_values0, g_values1), 4);
-    //     let b_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(b_values0, b_values1), 4);
-    //
-    //     r_values0 = _mm256_permute4x64_epi64::<0x50>(r_values0);
-    //     g_values0 = _mm256_permute4x64_epi64::<0x50>(g_values0);
-    //     b_values0 = _mm256_permute4x64_epi64::<0x50>(b_values0);
-    //
-    //     r_values1 = _mm256_permute4x64_epi64::<0x50>(r_values1);
-    //     g_values1 = _mm256_permute4x64_epi64::<0x50>(g_values1);
-    //     b_values1 = _mm256_permute4x64_epi64::<0x50>(b_values1);
-    //
-    //     let r0_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(r_values0, r_values0));
-    //     let g0_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(g_values0, g_values0));
-    //     let b0_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(b_values0, b_values0));
-    //
-    //     let y0_l = _mm256_min_epi16(
-    //         _mm256_add_epi16(
-    //             y_bias,
-    //             _mm256_add_epi16(
-    //                 _mm256_add_epi16(
-    //                     _mm256_mulhrs_epi16(r0_low, v_yr),
-    //                     _mm256_mulhrs_epi16(g0_low, v_yg),
-    //                 ),
-    //                 _mm256_mulhrs_epi16(b0_low, v_yb),
-    //             ),
-    //         ),
-    //         i_cap_y,
-    //     );
-    //
-    //     let r1_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(r_values1, r_values1));
-    //     let g1_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(g_values1, g_values1));
-    //     let b1_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(b_values1, b_values1));
-    //
-    //     let y1_l = _mm256_min_epi16(
-    //         _mm256_add_epi16(
-    //             y_bias,
-    //             _mm256_add_epi16(
-    //                 _mm256_add_epi16(
-    //                     _mm256_mulhrs_epi16(r1_low, v_yr),
-    //                     _mm256_mulhrs_epi16(g1_low, v_yg),
-    //                 ),
-    //                 _mm256_mulhrs_epi16(b1_low, v_yb),
-    //             ),
-    //         ),
-    //         i_cap_y,
-    //     );
-    //
-    //     let y0_yuv = avx2_pack_u16(y0_l, y0_l);
-    //     let y1_yuv = avx2_pack_u16(y1_l, y1_l);
-    //
-    //     _mm_storeu_si128(
-    //         y0_part.as_mut_ptr() as *mut __m128i,
-    //         _mm256_castsi256_si128(y0_yuv),
-    //     );
-    //     _mm_storeu_si128(
-    //         y1_part.as_mut_ptr() as *mut __m128i,
-    //         _mm256_castsi256_si128(y1_yuv),
-    //     );
-    //
-    //     let cb = _mm256_min_epi16(
-    //         _mm256_add_epi16(
-    //             uv_bias,
-    //             _mm256_add_epi16(
-    //                 _mm256_add_epi16(
-    //                     _mm256_mulhrs_epi16(r_uv, v_cb_r),
-    //                     _mm256_mulhrs_epi16(g_uv, v_cb_g),
-    //                 ),
-    //                 _mm256_mulhrs_epi16(b_uv, v_cb_b),
-    //             ),
-    //         ),
-    //         i_cap_uv,
-    //     );
-    //
-    //     let cr = _mm256_min_epi16(
-    //         _mm256_add_epi16(
-    //             uv_bias,
-    //             _mm256_add_epi16(
-    //                 _mm256_add_epi16(
-    //                     _mm256_mulhrs_epi16(r_uv, v_cr_r),
-    //                     _mm256_mulhrs_epi16(g_uv, v_cr_g),
-    //                 ),
-    //                 _mm256_mulhrs_epi16(b_uv, v_cr_b),
-    //             ),
-    //         ),
-    //         i_cap_uv,
-    //     );
-    //
-    //     let cb = avx2_pack_u16(cb, cb);
-    //     let cr = avx2_pack_u16(cr, cr);
-    //
-    //     _mm_storeu_si64(u_part.as_mut_ptr() as *mut _, _mm256_castsi256_si128(cb));
-    //     _mm_storeu_si64(v_part.as_mut_ptr() as *mut _, _mm256_castsi256_si128(cr));
-    //
-    //     std::ptr::copy_nonoverlapping(
-    //         y0_part.as_ptr(),
-    //         y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
-    //         length,
-    //     );
-    //     std::ptr::copy_nonoverlapping(
-    //         y1_part.as_ptr(),
-    //         y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
-    //         length,
-    //     );
-    //     let half_l = length.div_ceil(2);
-    //     std::ptr::copy_nonoverlapping(u_part.as_ptr(), u_ptr.add(uv_x), half_l);
-    //     std::ptr::copy_nonoverlapping(v_part.as_ptr(), v_ptr.add(uv_x), half_l);
-    //
-    //     uv_x = width.div_ceil(2);
-    //     cx = width;
-    // }
+    if cx < width {
+        let length = width - cx;
+        assert!(length <= 16);
+        let mut y0_part: [u8; 16] = [0; 16];
+        let mut y1_part: [u8; 16] = [0; 16];
+        let mut u_part: [u8; 16] = [0; 16];
+        let mut v_part: [u8; 16] = [0; 16];
+        let mut rgba0_part: [u8; 64] = [0; 64];
+        let mut rgba1_part: [u8; 64] = [0; 64];
+
+        let px = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            rgba0.get_unchecked(px..).as_ptr(),
+            rgba0_part.as_mut_ptr(),
+            length * channels,
+        );
+        std::ptr::copy_nonoverlapping(
+            rgba1.get_unchecked(px..).as_ptr(),
+            rgba1_part.as_mut_ptr(),
+            length * channels,
+        );
+
+        let (mut r_values0, mut g_values0, mut b_values0) =
+            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba0_part.as_ptr());
+
+        let (mut r_values1, mut g_values1, mut b_values1) =
+            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba1_part.as_ptr());
+
+        let r_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(r_values0, r_values1), 4);
+        let g_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(g_values0, g_values1), 4);
+        let b_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(b_values0, b_values1), 4);
+
+        r_values0 = _mm256_permute4x64_epi64::<0x50>(r_values0);
+        g_values0 = _mm256_permute4x64_epi64::<0x50>(g_values0);
+        b_values0 = _mm256_permute4x64_epi64::<0x50>(b_values0);
+
+        r_values1 = _mm256_permute4x64_epi64::<0x50>(r_values1);
+        g_values1 = _mm256_permute4x64_epi64::<0x50>(g_values1);
+        b_values1 = _mm256_permute4x64_epi64::<0x50>(b_values1);
+
+        let r0_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(r_values0, r_values0));
+        let g0_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(g_values0, g_values0));
+        let b0_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(b_values0, b_values0));
+
+        let y0_l = _mm256_min_epi16(
+            _mm256_add_epi16(
+                y_bias,
+                _mm256_add_epi16(
+                    _mm256_add_epi16(
+                        _mm256_mulhrs_epi16(r0_low, v_yr),
+                        _mm256_mulhrs_epi16(g0_low, v_yg),
+                    ),
+                    _mm256_mulhrs_epi16(b0_low, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
+        let r1_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(r_values1, r_values1));
+        let g1_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(g_values1, g_values1));
+        let b1_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(b_values1, b_values1));
+
+        let y1_l = _mm256_min_epi16(
+            _mm256_add_epi16(
+                y_bias,
+                _mm256_add_epi16(
+                    _mm256_add_epi16(
+                        _mm256_mulhrs_epi16(r1_low, v_yr),
+                        _mm256_mulhrs_epi16(g1_low, v_yg),
+                    ),
+                    _mm256_mulhrs_epi16(b1_low, v_yb),
+                ),
+            ),
+            i_cap_y,
+        );
+
+        let y0_yuv = avx2_pack_u16(y0_l, y0_l);
+        let y1_yuv = avx2_pack_u16(y1_l, y1_l);
+
+        _mm_storeu_si128(
+            y0_part.as_mut_ptr() as *mut __m128i,
+            _mm256_castsi256_si128(y0_yuv),
+        );
+        _mm_storeu_si128(
+            y1_part.as_mut_ptr() as *mut __m128i,
+            _mm256_castsi256_si128(y1_yuv),
+        );
+
+        let cb = _mm256_min_epi16(
+            _mm256_add_epi16(
+                uv_bias,
+                _mm256_add_epi16(
+                    _mm256_add_epi16(
+                        _mm256_mulhrs_epi16(r_uv, v_cb_r),
+                        _mm256_mulhrs_epi16(g_uv, v_cb_g),
+                    ),
+                    _mm256_mulhrs_epi16(b_uv, v_cb_b),
+                ),
+            ),
+            i_cap_uv,
+        );
+
+        let cr = _mm256_min_epi16(
+            _mm256_add_epi16(
+                uv_bias,
+                _mm256_add_epi16(
+                    _mm256_add_epi16(
+                        _mm256_mulhrs_epi16(r_uv, v_cr_r),
+                        _mm256_mulhrs_epi16(g_uv, v_cr_g),
+                    ),
+                    _mm256_mulhrs_epi16(b_uv, v_cr_b),
+                ),
+            ),
+            i_cap_uv,
+        );
+
+        let cb = avx2_pack_u16(cb, cb);
+        let cr = avx2_pack_u16(cr, cr);
+
+        _mm_storeu_si64(u_part.as_mut_ptr() as *mut _, _mm256_castsi256_si128(cb));
+        _mm_storeu_si64(v_part.as_mut_ptr() as *mut _, _mm256_castsi256_si128(cr));
+
+        std::ptr::copy_nonoverlapping(
+            y0_part.as_ptr(),
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
+            length,
+        );
+        std::ptr::copy_nonoverlapping(
+            y1_part.as_ptr(),
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
+            length,
+        );
+        let half_l = length.div_ceil(2);
+        std::ptr::copy_nonoverlapping(u_part.as_ptr(), u_ptr.add(uv_x), half_l);
+        std::ptr::copy_nonoverlapping(v_part.as_ptr(), v_ptr.add(uv_x), half_l);
+
+        uv_x = width.div_ceil(2);
+        cx = width;
+    }
 
     ProcessedOffset { cx, ux: uv_x }
 }
