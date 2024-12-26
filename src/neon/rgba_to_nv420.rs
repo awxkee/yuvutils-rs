@@ -150,19 +150,13 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
         cbl = vqrdmlahq_laneq_s16::<4>(cbl, g1, v_weights);
         cbl = vqrdmlahq_laneq_s16::<5>(cbl, b1, v_weights);
 
-        let cb = vmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(cbl, i_bias_y)),
-            i_cap_uv,
-        ));
+        let cb = vmovn_u16(vminq_u16(vreinterpretq_u16_s16(cbl), i_cap_uv));
 
         let mut crl = vqrdmlahq_laneq_s16::<6>(uv_bias, r1, v_weights);
         crl = vqrdmlahq_laneq_s16::<7>(crl, g1, v_weights);
         crl = vqrdmlahq_laneq_s16::<0>(crl, b1, v_cr_b);
 
-        let cr = vmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(crl, i_bias_y)),
-            i_cap_uv,
-        ));
+        let cr = vmovn_u16(vminq_u16(vreinterpretq_u16_s16(crl), i_cap_uv));
 
         match order {
             YuvNVOrder::UV => {
@@ -206,9 +200,6 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
     let uv_ptr = uv_plane.as_mut_ptr();
-
-    let i_bias_y = vdupq_n_s16(range.bias_y as i16);
-    let i_cap_uv = vdupq_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
     let y_bias = vdupq_n_s32(bias_y);
     let uv_bias = vdupq_n_s32(bias_uv);
@@ -330,16 +321,10 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         cb_l = vmlal_laneq_s16::<4>(cb_l, vget_low_s16(g1), v_weights);
         cb_l = vmlal_laneq_s16::<5>(cb_l, vget_low_s16(b1), v_weights);
 
-        let cb = vmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(
-                    vshrn_n_s32::<PRECISION>(cb_l),
-                    vshrn_n_s32::<PRECISION>(cb_h),
-                ),
-                i_bias_y,
-            )),
-            i_cap_uv,
-        ));
+        let cb = vmovn_u16(vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(cb_l),
+            vshrn_n_s32::<PRECISION>(cb_h),
+        )));
 
         let mut cr_h = vmlal_high_laneq_s16::<6>(uv_bias, r1, v_weights);
         cr_h = vmlal_high_laneq_s16::<7>(cr_h, g1, v_weights);
@@ -349,16 +334,10 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         cr_l = vmlal_laneq_s16::<7>(cr_l, vget_low_s16(g1), v_weights);
         cr_l = vmlal_laneq_s16::<0>(cr_l, vget_low_s16(b1), v_cr_b);
 
-        let cr = vmovn_u16(vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(
-                vcombine_s16(
-                    vshrn_n_s32::<PRECISION>(cr_l),
-                    vshrn_n_s32::<PRECISION>(cr_h),
-                ),
-                i_bias_y,
-            )),
-            i_cap_uv,
-        ));
+        let cr = vmovn_u16(vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(cr_l),
+            vshrn_n_s32::<PRECISION>(cr_h),
+        )));
 
         match order {
             YuvNVOrder::UV => {

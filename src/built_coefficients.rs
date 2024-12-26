@@ -626,7 +626,8 @@ mod tests {
         unsafe {
             _mm_extract_epi16::<0>(_mm_mulhrs_epi16(_mm_set1_epi16((v << 2) as i16), _mm_set1_epi16(k as i16)))
         }
-        // let j = ((v << 2) * k) >> 14;
+        // let j = ((v << 2) * k) >> 15;
+        // j
         // (j + 1) >> 1
     }
 
@@ -664,8 +665,8 @@ mod tests {
             let default_mul = (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12)) >> 13;
             assert_eq!(default_mul, 255, "Failed on weights {:?}", weights);
 
-            // let sqrdml_mul = sqrdml(r, weights.yr) + sqrdml(g, weights.yg) + sqrdml(b, weights.yb);
-            // assert_eq!(sqrdml_mul, 255, "Failed on weights {:?}", weights);
+            let sqrdml_mul = sqrdml(r, weights.yr) + sqrdml(g, weights.yg) + sqrdml(b, weights.yb);
+            assert!(sqrdml_mul <= 255, "Failed on weights {:?}", weights);
         }
 
         let weights_full_10 = [
@@ -700,7 +701,7 @@ mod tests {
             assert_eq!(default_mul, 235, "Failed on weights {:?}", weights);
 
             // let sqrdml_mul = sqrdml(r, weights.yr) + sqrdml(g, weights.yg) + sqrdml(b, weights.yb) + 16;
-            // assert_eq!(sqrdml_mul, 235, "Failed on weights {:?}", weights);
+            // assert!(sqrdml_mul <= 235, "Failed on weights {:?} expected <= 235 but got {sqrdml_mul}", weights);
         }
 
         for weights in weights_limited {
