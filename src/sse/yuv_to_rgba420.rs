@@ -121,12 +121,15 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             _mm_mulhrs_epi16(u_high, v_g_coeff_2),
         );
 
-        let r_high0 = _mm_add_epi16(y_high0, _mm_mulhrs_epi16(v_high, v_cr_coeff));
-        let b_high0 = _mm_add_epi16(y_high0, _mm_mulhrs_epi16(u_high, v_cb_coeff));
+        let v_hi_cr = _mm_mulhrs_epi16(v_high, v_cr_coeff);
+        let v_hi_cb = _mm_mulhrs_epi16(u_high, v_cb_coeff);
+
+        let r_high0 = _mm_add_epi16(y_high0, v_hi_cr);
+        let b_high0 = _mm_add_epi16(y_high0, v_hi_cb);
         let g_high0 = _mm_sub_epi16(y_high0, g_coeff_hi);
 
-        let r_high1 = _mm_add_epi16(y_high1, _mm_mulhrs_epi16(v_high, v_cr_coeff));
-        let b_high1 = _mm_add_epi16(y_high1, _mm_mulhrs_epi16(u_high, v_cb_coeff));
+        let r_high1 = _mm_add_epi16(y_high1, v_hi_cr);
+        let b_high1 = _mm_add_epi16(y_high1, v_hi_cb);
         let g_high1 = _mm_sub_epi16(y_high1, g_coeff_hi);
 
         let u_low = _mm_sub_epi16(u_low_u16, uv_corr);
@@ -139,12 +142,15 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             _mm_mulhrs_epi16(u_low, v_g_coeff_2),
         );
 
-        let r_low0 = _mm_add_epi16(y_low0, _mm_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low0 = _mm_add_epi16(y_low0, _mm_mulhrs_epi16(u_low, v_cb_coeff));
+        let v_lo_cr = _mm_mulhrs_epi16(v_low, v_cr_coeff);
+        let v_lo_cb = _mm_mulhrs_epi16(u_low, v_cb_coeff);
+
+        let r_low0 = _mm_add_epi16(y_low0, v_lo_cr);
+        let b_low0 = _mm_add_epi16(y_low0, v_lo_cb);
         let g_low0 = _mm_sub_epi16(y_low0, g_coeff_lo);
 
-        let r_low1 = _mm_add_epi16(y_low1, _mm_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low1 = _mm_add_epi16(y_low1, _mm_mulhrs_epi16(u_low, v_cb_coeff));
+        let r_low1 = _mm_add_epi16(y_low1, v_lo_cr);
+        let b_low1 = _mm_add_epi16(y_low1, v_lo_cb);
         let g_low1 = _mm_sub_epi16(y_low1, g_coeff_lo);
 
         let r_values0 = _mm_packus_epi16(r_low0, r_high0);
@@ -179,20 +185,17 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 8 < width {
-        let y_values0 = _mm_subs_epi8(_xx_load_si64(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
-        let y_values1 = _mm_subs_epi8(_xx_load_si64(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
+        let y_values0 = _mm_subs_epu8(
+            _xx_load_si64(y_plane0.get_unchecked(cx..).as_ptr()),
+            y_corr,
+        );
+        let y_values1 = _mm_subs_epu8(
+            _xx_load_si64(y_plane1.get_unchecked(cx..).as_ptr()),
+            y_corr,
+        );
 
-        let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
-        let u_value = (u_ptr.add(uv_x) as *const i32).read_unaligned();
-        let v_value = (v_ptr.add(uv_x) as *const i32).read_unaligned();
-        let u_values = _mm_shuffle_epi8(
-            _mm_insert_epi32::<0>(_mm_setzero_si128(), u_value),
-            reshuffle,
-        );
-        let v_values = _mm_shuffle_epi8(
-            _mm_insert_epi32::<0>(_mm_setzero_si128(), v_value),
-            reshuffle,
-        );
+        let u_values = _mm_shuffle_epi8(_mm_loadu_si32(u_ptr.add(uv_x)), reshuffle);
+        let v_values = _mm_shuffle_epi8(_mm_loadu_si32(v_ptr.add(uv_x)), reshuffle);
 
         let u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u_values, u_values));
         let v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v_values, v_values));
@@ -202,18 +205,21 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
         let y_low0 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values0), v_luma_coeff);
         let y_low1 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values1), v_luma_coeff);
 
-        let g_coeff = _mm_add_epi16(
+        let g_coeff_lo = _mm_add_epi16(
             _mm_mulhrs_epi16(v_low, v_g_coeff_1),
             _mm_mulhrs_epi16(u_low, v_g_coeff_2),
         );
 
-        let r_low0 = _mm_add_epi16(y_low0, _mm_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low0 = _mm_add_epi16(y_low0, _mm_mulhrs_epi16(u_low, v_cb_coeff));
-        let g_low0 = _mm_sub_epi16(y_low0, g_coeff);
+        let v_lo_cr = _mm_mulhrs_epi16(v_low, v_cr_coeff);
+        let v_lo_cb = _mm_mulhrs_epi16(u_low, v_cb_coeff);
 
-        let r_low1 = _mm_add_epi16(y_low1, _mm_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low1 = _mm_add_epi16(y_low1, _mm_mulhrs_epi16(u_low, v_cb_coeff));
-        let g_low1 = _mm_sub_epi16(y_low1, g_coeff);
+        let r_low0 = _mm_add_epi16(y_low0, v_lo_cr);
+        let b_low0 = _mm_add_epi16(y_low0, v_lo_cb);
+        let g_low0 = _mm_sub_epi16(y_low0, g_coeff_lo);
+
+        let r_low1 = _mm_add_epi16(y_low1, v_lo_cr);
+        let b_low1 = _mm_add_epi16(y_low1, v_lo_cb);
+        let g_low1 = _mm_sub_epi16(y_low1, g_coeff_lo);
 
         let r_values0 = _mm_packus_epi16(r_low0, zeros);
         let g_values0 = _mm_packus_epi16(g_low0, zeros);
@@ -234,7 +240,6 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             b_values0,
             v_alpha,
         );
-
         _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
             rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values1,

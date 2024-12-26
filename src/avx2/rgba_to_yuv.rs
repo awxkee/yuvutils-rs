@@ -265,6 +265,8 @@ unsafe fn avx2_rgba_to_yuv_impl<
         let (mut r_values, mut g_values, mut b_values) =
             _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
+        let (r_v, g_v, b_v) = (r_values, g_values, b_values);
+
         r_values = _mm256_permute4x64_epi64::<0x50>(r_values);
         g_values = _mm256_permute4x64_epi64::<0x50>(g_values);
         b_values = _mm256_permute4x64_epi64::<0x50>(b_values);
@@ -327,9 +329,9 @@ unsafe fn avx2_rgba_to_yuv_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = avx_pairwise_avg_epi16_epi8_f(r_values, 4);
-            let g1 = avx_pairwise_avg_epi16_epi8_f(g_values, 4);
-            let b1 = avx_pairwise_avg_epi16_epi8_f(b_values, 4);
+            let r1 = avx_pairwise_avg_epi16_epi8_f(r_v, 4);
+            let g1 = avx_pairwise_avg_epi16_epi8_f(g_v, 4);
+            let b1 = avx_pairwise_avg_epi16_epi8_f(b_v, 4);
 
             let cb = _mm256_min_epi16(
                 _mm256_add_epi16(
@@ -385,6 +387,8 @@ unsafe fn avx2_rgba_to_yuv_impl<
 
         let (mut r_values, mut g_values, mut b_values) =
             _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_part.as_ptr());
+
+        let (r_v, g_v, b_v) = (r_values, g_values, b_values);
 
         r_values = _mm256_permute4x64_epi64::<0x50>(r_values);
         g_values = _mm256_permute4x64_epi64::<0x50>(g_values);
@@ -459,9 +463,9 @@ unsafe fn avx2_rgba_to_yuv_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = avx_pairwise_avg_epi16_epi8_f(r_values, 4);
-            let g1 = avx_pairwise_avg_epi16_epi8_f(g_values, 4);
-            let b1 = avx_pairwise_avg_epi16_epi8_f(b_values, 4);
+            let r1 = avx_pairwise_avg_epi16_epi8_f(r_v, 4);
+            let g1 = avx_pairwise_avg_epi16_epi8_f(g_v, 4);
+            let b1 = avx_pairwise_avg_epi16_epi8_f(b_v, 4);
 
             let cb = _mm256_min_epi16(
                 _mm256_add_epi16(
