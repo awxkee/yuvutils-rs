@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::avx2::avx2_utils::{
-    _mm256_affine_transform, _mm256_affine_v_dot, _mm256_havg_epi16_epi32, _mm256_interleave_epi16,
+    _mm256_affine_transform, _mm256_affine_uv_dot, _mm256_havg_epi16_epi32,
     _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16,
 };
 use crate::internals::ProcessedOffset;
@@ -122,19 +122,28 @@ unsafe fn avx_rgba_to_yuv_impl<
         let (r_values1, g_values1, b_values1) =
             _mm256_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr1.as_ptr());
 
-        let (r_g_lo0, r_g_hi0) = _mm256_interleave_epi16(r_values0, g_values0);
-        let b_hi0 = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(b_values0));
-        let b_lo0 = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(b_values0));
+        let zeros = _mm256_setzero_si256();
+        let (r_g_lo0, r_g_hi0) = (
+            _mm256_unpacklo_epi16(r_values0, g_values0),
+            _mm256_unpackhi_epi16(r_values0, g_values0),
+        );
+        let b_hi0 = _mm256_unpackhi_epi16(b_values0, zeros);
+        let b_lo0 = _mm256_unpacklo_epi16(b_values0, zeros);
 
-        let (r_g_lo1, r_g_hi1) = _mm256_interleave_epi16(r_values1, g_values1);
-        let b_hi1 = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(b_values1));
-        let b_lo1 = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(b_values1));
+        let (r_g_lo1, r_g_hi1) = (
+            _mm256_unpacklo_epi16(r_values1, g_values1),
+            _mm256_unpackhi_epi16(r_values1, g_values1),
+        );
+        let b_hi1 = _mm256_unpackhi_epi16(b_values1, zeros);
+        let b_lo1 = _mm256_unpacklo_epi16(b_values1, zeros);
 
-        let mut y0_vl =
-            _mm256_affine_v_dot::<PRECISION>(y_bias, r_g_lo0, r_g_hi0, b_lo0, b_hi0, v_yr_yg, v_yb);
+        let mut y0_vl = _mm256_affine_uv_dot::<PRECISION>(
+            y_bias, r_g_lo0, r_g_hi0, b_lo0, b_hi0, v_yr_yg, v_yb,
+        );
 
-        let mut y1_vl =
-            _mm256_affine_v_dot::<PRECISION>(y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb);
+        let mut y1_vl = _mm256_affine_uv_dot::<PRECISION>(
+            y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb,
+        );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y0_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y0_vl);
