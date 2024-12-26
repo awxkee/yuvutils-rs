@@ -28,8 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16,
-    avx_pairwise_avg_epi16_epi8_f,
+    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8_f,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -151,69 +150,57 @@ unsafe fn avx2_rgba_to_yuv_impl<
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb_l = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cb_l = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r_low, v_cb_r),
-                                _mm256_mulhrs_epi16(g_low, v_cb_g),
-                            ),
-                            _mm256_mulhrs_epi16(b_low, v_cb_b),
+                            _mm256_mulhrs_epi16(r_low, v_cb_r),
+                            _mm256_mulhrs_epi16(g_low, v_cb_g),
                         ),
+                        _mm256_mulhrs_epi16(b_low, v_cb_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
-            let cr_l = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cr_l = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r_low, v_cr_r),
-                                _mm256_mulhrs_epi16(g_low, v_cr_g),
-                            ),
-                            _mm256_mulhrs_epi16(b_low, v_cr_b),
+                            _mm256_mulhrs_epi16(r_low, v_cr_r),
+                            _mm256_mulhrs_epi16(g_low, v_cr_g),
                         ),
+                        _mm256_mulhrs_epi16(b_low, v_cr_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
-            let cb_h = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cb_h = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r_high, v_cb_r),
-                                _mm256_mulhrs_epi16(g_high, v_cb_g),
-                            ),
-                            _mm256_mulhrs_epi16(b_high, v_cb_b),
+                            _mm256_mulhrs_epi16(r_high, v_cb_r),
+                            _mm256_mulhrs_epi16(g_high, v_cb_g),
                         ),
+                        _mm256_mulhrs_epi16(b_high, v_cb_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
-            let cr_h = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cr_h = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r_high, v_cr_r),
-                                _mm256_mulhrs_epi16(g_high, v_cr_g),
-                            ),
-                            _mm256_mulhrs_epi16(b_high, v_cr_b),
+                            _mm256_mulhrs_epi16(r_high, v_cr_r),
+                            _mm256_mulhrs_epi16(g_high, v_cr_g),
                         ),
+                        _mm256_mulhrs_epi16(b_high, v_cr_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
 
             let cb = _mm256_packus_epi16(cb_l, cb_h);
@@ -229,37 +216,31 @@ unsafe fn avx2_rgba_to_yuv_impl<
             let g1 = avx_pairwise_avg_epi16_epi8_f(g_values, 4);
             let b1 = avx_pairwise_avg_epi16_epi8_f(b_values, 4);
 
-            let cb = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cb = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r1, v_cb_r),
-                                _mm256_mulhrs_epi16(g1, v_cb_g),
-                            ),
-                            _mm256_mulhrs_epi16(b1, v_cb_b),
+                            _mm256_mulhrs_epi16(r1, v_cb_r),
+                            _mm256_mulhrs_epi16(g1, v_cb_g),
                         ),
+                        _mm256_mulhrs_epi16(b1, v_cb_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
-            let cr = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cr = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r1, v_cr_r),
-                                _mm256_mulhrs_epi16(g1, v_cr_g),
-                            ),
-                            _mm256_mulhrs_epi16(b1, v_cr_b),
+                            _mm256_mulhrs_epi16(r1, v_cr_r),
+                            _mm256_mulhrs_epi16(g1, v_cr_g),
                         ),
+                        _mm256_mulhrs_epi16(b1, v_cr_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
 
             let cb = avx2_pack_u16(cb, cb);
@@ -310,37 +291,31 @@ unsafe fn avx2_rgba_to_yuv_impl<
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, _mm256_castsi256_si128(y_yuv));
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb_l = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cb_l = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r_low, v_cb_r),
-                                _mm256_mulhrs_epi16(g_low, v_cb_g),
-                            ),
-                            _mm256_mulhrs_epi16(b_low, v_cb_b),
+                            _mm256_mulhrs_epi16(r_low, v_cb_r),
+                            _mm256_mulhrs_epi16(g_low, v_cb_g),
                         ),
+                        _mm256_mulhrs_epi16(b_low, v_cb_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
-            let cr_l = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cr_l = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r_low, v_cr_r),
-                                _mm256_mulhrs_epi16(g_low, v_cr_g),
-                            ),
-                            _mm256_mulhrs_epi16(b_low, v_cr_b),
+                            _mm256_mulhrs_epi16(r_low, v_cr_r),
+                            _mm256_mulhrs_epi16(g_low, v_cr_g),
                         ),
+                        _mm256_mulhrs_epi16(b_low, v_cr_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
 
             let cb = avx2_pack_u16(cb_l, cb_l);
@@ -356,38 +331,32 @@ unsafe fn avx2_rgba_to_yuv_impl<
             let g1 = avx_pairwise_avg_epi16_epi8_f(g_values, 4);
             let b1 = avx_pairwise_avg_epi16_epi8_f(b_values, 4);
 
-            let cb = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cb = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r1, v_cb_r),
-                                _mm256_mulhrs_epi16(g1, v_cb_g),
-                            ),
-                            _mm256_mulhrs_epi16(b1, v_cb_b),
+                            _mm256_mulhrs_epi16(r1, v_cb_r),
+                            _mm256_mulhrs_epi16(g1, v_cb_g),
                         ),
+                        _mm256_mulhrs_epi16(b1, v_cb_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
 
-            let cr = _mm256_max_epi16(
-                _mm256_min_epi16(
+            let cr = _mm256_min_epi16(
+                _mm256_add_epi16(
+                    uv_bias,
                     _mm256_add_epi16(
-                        uv_bias,
                         _mm256_add_epi16(
-                            _mm256_add_epi16(
-                                _mm256_mulhrs_epi16(r1, v_cr_r),
-                                _mm256_mulhrs_epi16(g1, v_cr_g),
-                            ),
-                            _mm256_mulhrs_epi16(b1, v_cr_b),
+                            _mm256_mulhrs_epi16(r1, v_cr_r),
+                            _mm256_mulhrs_epi16(g1, v_cr_g),
                         ),
+                        _mm256_mulhrs_epi16(b1, v_cr_b),
                     ),
-                    i_cap_uv,
                 ),
-                y_bias,
+                i_cap_uv,
             );
 
             let cb = _mm256_castsi256_si128(avx2_pack_u16(cb, cb));

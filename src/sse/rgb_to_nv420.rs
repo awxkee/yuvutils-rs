@@ -194,32 +194,26 @@ unsafe fn sse_rgba_to_nv_row_impl420<
         let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
         let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
-        let cbk = _mm_max_epi16(
-            _mm_min_epi16(
+        let cbk = _mm_min_epi16(
+            _mm_add_epi16(
+                uv_bias,
                 _mm_add_epi16(
-                    uv_bias,
-                    _mm_add_epi16(
-                        _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
-                        _mm_mulhrs_epi16(b1, v_cb_b),
-                    ),
+                    _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
+                    _mm_mulhrs_epi16(b1, v_cb_b),
                 ),
-                i_cap_uv,
             ),
-            y_bias,
+            i_cap_uv,
         );
 
-        let crk = _mm_max_epi16(
-            _mm_min_epi16(
+        let crk = _mm_min_epi16(
+            _mm_add_epi16(
+                uv_bias,
                 _mm_add_epi16(
-                    uv_bias,
-                    _mm_add_epi16(
-                        _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
-                        _mm_mulhrs_epi16(b1, v_cr_b),
-                    ),
+                    _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
+                    _mm_mulhrs_epi16(b1, v_cr_b),
                 ),
-                i_cap_uv,
             ),
-            y_bias,
+            i_cap_uv,
         );
 
         let cb = _mm_packus_epi16(cbk, cbk);

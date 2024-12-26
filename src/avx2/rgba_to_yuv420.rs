@@ -197,38 +197,32 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const PRECISION: i
         let g_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(g_values0, g_values1), 4);
         let b_uv = avx_pairwise_avg_epi16_epi8_f(_mm256_avg_epu8(b_values0, b_values1), 4);
 
-        let cb = _mm256_max_epi16(
-            _mm256_min_epi16(
+        let cb = _mm256_min_epi16(
+            _mm256_add_epi16(
+                uv_bias,
                 _mm256_add_epi16(
-                    uv_bias,
                     _mm256_add_epi16(
-                        _mm256_add_epi16(
-                            _mm256_mulhrs_epi16(r_uv, v_cb_r),
-                            _mm256_mulhrs_epi16(g_uv, v_cb_g),
-                        ),
-                        _mm256_mulhrs_epi16(b_uv, v_cb_b),
+                        _mm256_mulhrs_epi16(r_uv, v_cb_r),
+                        _mm256_mulhrs_epi16(g_uv, v_cb_g),
                     ),
+                    _mm256_mulhrs_epi16(b_uv, v_cb_b),
                 ),
-                i_cap_uv,
             ),
-            y_bias,
+            i_cap_uv,
         );
 
-        let cr = _mm256_max_epi16(
-            _mm256_min_epi16(
+        let cr = _mm256_min_epi16(
+            _mm256_add_epi16(
+                uv_bias,
                 _mm256_add_epi16(
-                    uv_bias,
                     _mm256_add_epi16(
-                        _mm256_add_epi16(
-                            _mm256_mulhrs_epi16(r_uv, v_cr_r),
-                            _mm256_mulhrs_epi16(g_uv, v_cr_g),
-                        ),
-                        _mm256_mulhrs_epi16(b_uv, v_cr_b),
+                        _mm256_mulhrs_epi16(r_uv, v_cr_r),
+                        _mm256_mulhrs_epi16(g_uv, v_cr_g),
                     ),
+                    _mm256_mulhrs_epi16(b_uv, v_cr_b),
                 ),
-                i_cap_uv,
             ),
-            y_bias,
+            i_cap_uv,
         );
 
         let cb = avx2_pack_u16(cb, cb);
