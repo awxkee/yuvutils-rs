@@ -93,12 +93,6 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
     let v_yr = _mm_set1_epi16(transform.yr as i16);
     let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);
-    let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
-    let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
-    let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
-    let v_cr_r = _mm_set1_epi16(transform.cr_r as i16);
-    let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
-    let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
     while cx + 16 < width {
         let px = cx * channels;
@@ -191,6 +185,13 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let g1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(g_values0, g_values1), 4);
         let b1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(b_values0, b_values1), 4);
 
+        let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
+        let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
+        let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
+        let v_cr_r = _mm_set1_epi16(transform.cr_r as i16);
+        let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
+        let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
+
         let cbk = _mm_max_epi16(
             _mm_min_epi16(
                 _mm_add_epi16(
@@ -281,6 +282,13 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let r1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(r_values0, r_values1), 4);
         let g1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(g_values0, g_values1), 4);
         let b1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(b_values0, b_values1), 4);
+
+        let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
+        let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
+        let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
+        let v_cr_r = _mm_set1_epi16(transform.cr_r as i16);
+        let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
+        let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
         let cbk = _mm_max_epi16(
             _mm_min_epi16(

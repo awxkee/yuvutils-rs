@@ -27,8 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::avx2::avx2_utils::{
-    _mm256_affine_transform, _mm256_affine_uv_dot, _mm256_affine_v_dot, _mm256_havg_epi16_epi32,
-    _mm256_interleave_epi16, _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16,
+    _mm256_affine_transform, _mm256_affine_uv_dot, _mm256_havg_epi16_epi32,
+    _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -154,11 +154,11 @@ unsafe fn avx_rgba_to_yuv_impl<
         );
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut cb_vl = _mm256_affine_v_dot::<PRECISION>(
+            let mut cb_vl = _mm256_affine_uv_dot::<PRECISION>(
                 uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
             );
 
-            let mut cr_vl = _mm256_affine_v_dot::<PRECISION>(
+            let mut cr_vl = _mm256_affine_uv_dot::<PRECISION>(
                 uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
             );
 

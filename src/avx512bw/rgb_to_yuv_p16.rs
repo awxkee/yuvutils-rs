@@ -28,8 +28,8 @@
  */
 use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
-    _mm512_affine_transform, _mm512_affine_v_dot, _mm512_havg_epi16_epi32,
-    _mm512_load_deinterleave_rgb16_for_yuv, _mm512_to_msb_epi16, avx512_zip_epi16,
+    _mm512_affine_transform, _mm512_affine_uv_dot, _mm512_havg_epi16_epi32,
+    _mm512_load_deinterleave_rgb16_for_yuv, _mm512_to_msb_epi16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -133,12 +133,16 @@ unsafe fn avx_rgba_to_yuv_impl<
         let (r_values, g_values, b_values) =
             _mm512_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
-        let (r_g_lo, r_g_hi) = avx512_zip_epi16(r_values, g_values);
-        let b_hi = _mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64::<1>(b_values));
-        let b_lo = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(b_values));
+        let zeros = _mm512_setzero_si512();
+        let (r_g_lo, r_g_hi) = (
+            _mm512_unpacklo_epi8(r_values, g_values),
+            _mm512_unpackhi_epi8(r_values, g_values),
+        );
+        let b_hi = _mm512_unpackhi_epi8(b_values, zeros);
+        let b_lo = _mm512_unpacklo_epi8(b_values, zeros);
 
         let mut y_vl =
-            _mm512_affine_v_dot::<PREC>(y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb);
+            _mm512_affine_uv_dot::<PREC>(y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(y_vl);
@@ -151,10 +155,11 @@ unsafe fn avx_rgba_to_yuv_impl<
         _mm512_storeu_si512(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut cb_vl =
-                _mm512_affine_v_dot::<PREC>(uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b);
+            let mut cb_vl = _mm512_affine_uv_dot::<PREC>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
+            );
 
-            let mut cr_vl = _mm512_affine_v_dot::<PREC>(
+            let mut cr_vl = _mm512_affine_uv_dot::<PREC>(
                 uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
             );
 
