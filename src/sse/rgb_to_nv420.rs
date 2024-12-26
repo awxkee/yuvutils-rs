@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_load_deinterleave_rgb_for_yuv, sse_pairwise_wide_avg};
+use crate::sse::{_mm_load_deinterleave_rgb_for_yuv, sse_pairwise_avg_epi8_f};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -84,13 +84,10 @@ unsafe fn sse_rgba_to_nv_row_impl420<
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    const V_SCALE: i32 = 2;
     let bias_y = range.bias_y as i16;
     let bias_uv = range.bias_uv as i16;
 
     let i_cap_uv = _mm_set1_epi16(range.bias_y as i16 + range.range_uv as i16);
-
-    let zeros = _mm_setzero_si128();
 
     let i_cap_y = _mm_set1_epi16(range.bias_y as i16 + range.range_y as i16);
     let y_bias = _mm_set1_epi16(bias_y);
@@ -111,12 +108,12 @@ unsafe fn sse_rgba_to_nv_row_impl420<
         let (r_values0, g_values0, b_values0) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start0);
 
-        let r0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values0, zeros));
-        let r0_hi16 = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(r_values0, zeros));
-        let g0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values0, zeros));
-        let g0_hi16 = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(g_values0, zeros));
-        let b0_lo16 = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values0, zeros));
-        let b0_hi16 = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values0, zeros));
+        let r0_lo16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(r_values0, r_values0));
+        let r0_hi16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(r_values0, r_values0));
+        let g0_lo16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(g_values0, g_values0));
+        let g0_hi16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(g_values0, g_values0));
+        let b0_lo16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(b_values0, b_values0));
+        let b0_hi16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(b_values0, b_values0));
 
         let y0_l = _mm_min_epi16(
             _mm_add_epi16(
@@ -150,12 +147,12 @@ unsafe fn sse_rgba_to_nv_row_impl420<
         let (r_values1, g_values1, b_values1) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start1);
 
-        let r1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values1, zeros));
-        let r1_hi = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(r_values1, zeros));
-        let g1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values1, zeros));
-        let g1_hi = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(g_values1, zeros));
-        let b1_lo = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values1, zeros));
-        let b1_hi = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values1, zeros));
+        let r1_lo = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(r_values1, r_values1));
+        let r1_hi = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(r_values1, r_values1));
+        let g1_lo = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(g_values1, g_values1));
+        let g1_hi = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(g_values1, g_values1));
+        let b1_lo = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(b_values1, b_values1));
+        let b1_hi = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(b_values1, b_values1));
 
         let y1_l = _mm_min_epi16(
             _mm_add_epi16(
@@ -191,18 +188,9 @@ unsafe fn sse_rgba_to_nv_row_impl420<
             y1_yuv,
         );
 
-        let r1 = _mm_slli_epi16::<V_SCALE>(_mm_avg_epu16(
-            sse_pairwise_wide_avg(r_values0),
-            sse_pairwise_wide_avg(r_values1),
-        ));
-        let g1 = _mm_slli_epi16::<V_SCALE>(_mm_avg_epu16(
-            sse_pairwise_wide_avg(g_values0),
-            sse_pairwise_wide_avg(g_values1),
-        ));
-        let b1 = _mm_slli_epi16::<V_SCALE>(_mm_avg_epu16(
-            sse_pairwise_wide_avg(b_values0),
-            sse_pairwise_wide_avg(b_values1),
-        ));
+        let r1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(r_values0, r_values1), 4);
+        let g1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(g_values0, g_values1), 4);
+        let b1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(b_values0, b_values1), 4);
 
         let cbk = _mm_max_epi16(
             _mm_min_epi16(

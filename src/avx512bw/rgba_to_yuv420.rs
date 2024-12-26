@@ -27,7 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx512bw::avx512_utils::{avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8};
+use crate::avx512bw::avx512_utils::{
+    avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8,
+};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -104,10 +106,7 @@ unsafe fn avx512_rgba_to_yuv_def_impl420<const ORIGIN_CHANNELS: u8>(
 }
 
 #[inline(always)]
-unsafe fn avx512_rgba_to_yuv_impl420<
-    const ORIGIN_CHANNELS: u8,
-    const HAS_VBMI: bool,
->(
+unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bool>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane0: &mut [u8],
@@ -153,14 +152,10 @@ unsafe fn avx512_rgba_to_yuv_impl420<
         let px = cx * channels;
 
         let (r_values0, g_values0, b_values0) =
-            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(
-                rgba0.get_unchecked(px..).as_ptr(),
-            );
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba0.get_unchecked(px..).as_ptr());
 
         let (r_values1, g_values1, b_values1) =
-            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(
-                rgba1.get_unchecked(px..).as_ptr(),
-            );
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba1.get_unchecked(px..).as_ptr());
 
         let r0_lo16 =
             _mm512_slli_epi16::<V_SCALE>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values0)));
@@ -261,9 +256,9 @@ unsafe fn avx512_rgba_to_yuv_impl420<
             y_yuv1,
         );
 
-        let r1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi16_epi8(r_values0, r_values1));
-        let g1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi16_epi8(g_values0, g_values1));
-        let b1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi16_epi8(b_values0, b_values1));
+        let r1 = avx512_pairwise_avg_epi16_epi8(r_values0, r_values1, 4);
+        let g1 = avx512_pairwise_avg_epi16_epi8(g_values0, g_values1, 4);
+        let b1 = avx512_pairwise_avg_epi16_epi8(b_values0, b_values1, 4);
 
         let i_cap_uv = _mm512_set1_epi16(cap_uv);
 

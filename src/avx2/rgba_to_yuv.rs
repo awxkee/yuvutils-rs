@@ -27,9 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8,
-};
+use crate::avx2::avx2_utils::{_mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8, avx_pairwise_avg_epi16_epi8_f};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -113,21 +111,12 @@ unsafe fn avx2_rgba_to_yuv_impl<
         let (r_values, g_values, b_values) =
             _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_low =
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values)));
-        let r_high = _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(
-            _mm256_extracti128_si256::<1>(r_values),
-        ));
-        let g_low =
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values)));
-        let g_high = _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(
-            _mm256_extracti128_si256::<1>(g_values),
-        ));
-        let b_low =
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values)));
-        let b_high = _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(
-            _mm256_extracti128_si256::<1>(b_values),
-        ));
+        let r_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(r_values, r_values));
+        let r_high = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(r_values, r_values));
+        let g_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(g_values, g_values));
+        let g_high = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(g_values, g_values));
+        let b_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(b_values, b_values));
+        let b_high = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(b_values, b_values));
 
         let y_l = _mm256_min_epi16(
             _mm256_add_epi16(
@@ -157,7 +146,7 @@ unsafe fn avx2_rgba_to_yuv_impl<
             i_cap_y,
         );
 
-        let y_yuv = avx2_pack_u16(y_l, y_h);
+        let y_yuv = _mm256_packus_epi16(y_l, y_h);
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
@@ -226,8 +215,8 @@ unsafe fn avx2_rgba_to_yuv_impl<
                 y_bias,
             );
 
-            let cb = avx2_pack_u16(cb_l, cb_h);
-            let cr = avx2_pack_u16(cr_l, cr_h);
+            let cb = _mm256_packus_epi16(cb_l, cb_h);
+            let cr = _mm256_packus_epi16(cr_l, cr_h);
 
             _mm256_storeu_si256(u_ptr.add(uv_x) as *mut __m256i, cb);
             _mm256_storeu_si256(v_ptr.add(uv_x) as *mut __m256i, cr);
@@ -238,6 +227,7 @@ unsafe fn avx2_rgba_to_yuv_impl<
             let r1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(r_values));
             let g1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(g_values));
             let b1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(b_values));
+
             let cb = _mm256_max_epi16(
                 _mm256_min_epi16(
                     _mm256_add_epi16(
@@ -290,16 +280,16 @@ unsafe fn avx2_rgba_to_yuv_impl<
 
     while cx + 16 < width {
         let px = cx * channels;
-        let (r_values, g_values, b_values) =
+        let (mut r_values, mut g_values, mut b_values) =
             _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_low =
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values)));
+        r_values = _mm256_permute4x64_epi64::<0x50>(r_values);
+        g_values = _mm256_permute4x64_epi64::<0x50>(g_values);
+        b_values = _mm256_permute4x64_epi64::<0x50>(b_values);
 
-        let g_low =
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values)));
-        let b_low =
-            _mm256_slli_epi16::<V_SCALE>(_mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values)));
+        let r_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(r_values, r_values));
+        let g_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(g_values, g_values));
+        let b_low = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(b_values, b_values));
 
         let y_l = _mm256_min_epi16(
             _mm256_add_epi16(
@@ -361,9 +351,9 @@ unsafe fn avx2_rgba_to_yuv_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(r_values));
-            let g1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(g_values));
-            let b1 = _mm256_slli_epi16::<V_SCALE>(avx_pairwise_avg_epi16_epi8(b_values));
+            let r1 = avx_pairwise_avg_epi16_epi8_f(r_values, 4);
+            let g1 = avx_pairwise_avg_epi16_epi8_f(g_values, 4);
+            let b1 = avx_pairwise_avg_epi16_epi8_f(b_values, 4);
 
             let cb = _mm256_max_epi16(
                 _mm256_min_epi16(

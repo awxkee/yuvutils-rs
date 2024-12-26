@@ -68,27 +68,23 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
 
     let bias_y = range.bias_y as i16;
 
-    let zeros = _mm_setzero_si128();
-
     let i_cap_y = _mm_set1_epi16(range.bias_y as i16 + range.range_y as i16);
     let y_bias = _mm_set1_epi16(bias_y);
     let v_yr = _mm_set1_epi16(transform.yr as i16);
     let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);
 
-    const V_SCALE: i32 = 2;
-
     while cx + 16 < width {
         let px = cx * channels;
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_low = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values, zeros));
-        let r_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(r_values, zeros));
-        let g_low = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values, zeros));
-        let g_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(g_values, zeros));
-        let b_low = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values, zeros));
-        let b_high = _mm_slli_epi16::<V_SCALE>(_mm_unpackhi_epi8(b_values, zeros));
+        let r_low = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(r_values, r_values));
+        let r_high = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(r_values, r_values));
+        let g_low = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(g_values, g_values));
+        let g_high = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(g_values, g_values));
+        let b_low = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(b_values, b_values));
+        let b_high = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(b_values, b_values));
 
         let y_l = _mm_min_epi16(
             _mm_add_epi16(
@@ -130,9 +126,9 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_low = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values, zeros));
-        let g_low = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values, zeros));
-        let b_low = _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values, zeros));
+        let r_low = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(r_values, r_values));
+        let g_low = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(g_values, g_values));
+        let b_low = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(b_values, b_values));
 
         let y_l = _mm_min_epi16(
             _mm_add_epi16(

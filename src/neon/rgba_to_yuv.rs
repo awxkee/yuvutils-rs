@@ -121,9 +121,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
                 i_cap_uv,
             );
 
-            let mut cr_high = vqrdmlahq_laneq_s16::<6>(uv_bias, r_low, v_weights);
-            cr_high = vqrdmlahq_laneq_s16::<7>(cr_high, g_low, v_weights);
-            cr_high = vqrdmlahq_laneq_s16::<0>(cr_high, b_low, v_cr_b);
+            let mut cr_high = vqrdmlahq_laneq_s16::<6>(uv_bias, r_high, v_weights);
+            cr_high = vqrdmlahq_laneq_s16::<7>(cr_high, g_high, v_weights);
+            cr_high = vqrdmlahq_laneq_s16::<0>(cr_high, b_high, v_cr_b);
 
             let cr_high = vminq_u16(
                 vreinterpretq_u16_s16(vmaxq_s16(cr_high, i_bias_y)),

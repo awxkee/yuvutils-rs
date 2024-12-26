@@ -279,9 +279,9 @@ unsafe fn avx512_rgba_to_yuv_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(r_values));
-            let g1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(g_values));
-            let b1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(b_values));
+            let r1 = avx512_pairwise_avg_epi8(r_values, 4);
+            let g1 = avx512_pairwise_avg_epi8(g_values, 4);
+            let b1 = avx512_pairwise_avg_epi8(b_values, 4);
 
             let cbk = _mm512_max_epi16(
                 _mm512_min_epi16(
@@ -409,9 +409,9 @@ unsafe fn avx512_rgba_to_yuv_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(r_values));
-            let g1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(g_values));
-            let b1 = _mm512_slli_epi16::<V_SCALE>(avx512_pairwise_avg_epi8(b_values));
+            let r1 = avx512_pairwise_avg_epi8(r_values, 4);
+            let g1 = avx512_pairwise_avg_epi8(g_values, 4);
+            let b1 = avx512_pairwise_avg_epi8(b_values, 4);
 
             let cbk = _mm512_max_epi16(
                 _mm512_min_epi16(

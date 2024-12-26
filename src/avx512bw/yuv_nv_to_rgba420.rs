@@ -28,10 +28,10 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    _mm512_expand8_to_10, avx512_pack_u16, avx512_store_rgba_for_yuv_u8,
-    avx512_unzip_epi8, avx512_zip_epi8,
+    _mm512_expand8_to_10, avx512_pack_u16, avx512_store_rgba_for_yuv_u8, avx512_unzip_epi8,
+    avx512_zip_epi8,
 };
-use crate::internals::{ ProcessedOffset};
+use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -57,23 +57,20 @@ pub(crate) fn avx512_yuv_nv_to_rgba420<
     unsafe {
         if HAS_VBMI {
             avx512_yuv_nv_to_rgba_bmi_impl420::<UV_ORDER, DESTINATION_CHANNELS>(
-                range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
+                range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux,
+                width,
             )
         } else {
             avx512_yuv_nv_to_rgba_def_impl420::<UV_ORDER, DESTINATION_CHANNELS>(
-                range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
+                range, transform, y_plane0, y_plane1, uv_plane, rgba0, rgba1, start_cx, start_ux,
+                width,
             )
         }
     }
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
-unsafe fn avx512_yuv_nv_to_rgba_bmi_impl420<
-    const UV_ORDER: u8,
-    const DESTINATION_CHANNELS: u8,
->(
+unsafe fn avx512_yuv_nv_to_rgba_bmi_impl420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
@@ -91,10 +88,7 @@ unsafe fn avx512_yuv_nv_to_rgba_bmi_impl420<
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_yuv_nv_to_rgba_def_impl420<
-    const UV_ORDER: u8,
-    const DESTINATION_CHANNELS: u8,
->(
+unsafe fn avx512_yuv_nv_to_rgba_def_impl420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     y_plane0: &[u8],
