@@ -66,7 +66,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
     let kr_kb = matrix.get_kr_kb();
 
     const PRECISION: i32 = 13;
-    const ROUNDING_CONST: i32 = 1 << (PRECISION - 1) - 1;
+    const ROUNDING_CONST: i32 = (1 << (PRECISION - 1)) - 1;
     let inverse_transform =
         search_inverse_transform(PRECISION, bit_depth, range, matrix, chroma_range, kr_kb);
     let y_coef = inverse_transform.y_coef;

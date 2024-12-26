@@ -28,7 +28,10 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv, sse_pairwise_avg_epi8_f};
+use crate::sse::{
+    _mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv,
+    sse_pairwise_avg_epi8_f,
+};
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };

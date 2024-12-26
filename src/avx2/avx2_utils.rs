@@ -904,3 +904,10 @@ pub(crate) unsafe fn _mm256_expand8_to_10(v: __m256i) -> (__m256i, __m256i) {
     let (v0, v1) = _mm256_interleave_epi8(v, v);
     (_mm256_srli_epi16::<6>(v0), _mm256_srli_epi16::<6>(v1))
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_expand8_unordered_to_10(v: __m256i) -> (__m256i, __m256i) {
+    let v0 = _mm256_unpacklo_epi8(v, v);
+    let v1 = _mm256_unpackhi_epi8(v, v);
+    (_mm256_srli_epi16::<6>(v0), _mm256_srli_epi16::<6>(v1))
+}
