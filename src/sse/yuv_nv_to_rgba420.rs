@@ -79,10 +79,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
     let uv_ptr = uv_plane.as_ptr();
 
-    const SCALE: i32 = 2;
-
     let y_corr = _mm_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm_set1_epi16(range.bias_uv as i16);
+    let uv_corr = _mm_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
     let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
@@ -113,21 +111,21 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         match order {
             YuvNVOrder::UV => {
-                u_high_u16 = _mm_unpackhi_epi8(u, zeros);
-                v_high_u16 = _mm_unpackhi_epi8(v, zeros);
-                u_low_u16 = _mm_unpacklo_epi8(u, zeros);
-                v_low_u16 = _mm_unpacklo_epi8(v, zeros);
+                u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u, u));
+                v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v));
+                u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
+                v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
             }
             YuvNVOrder::VU => {
-                u_high_u16 = _mm_unpackhi_epi8(v, zeros);
-                v_high_u16 = _mm_unpackhi_epi8(u, zeros);
-                u_low_u16 = _mm_unpacklo_epi8(v, zeros);
-                v_low_u16 = _mm_unpacklo_epi8(u, zeros);
+                u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v));
+                v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u, u));
+                u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
+                v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
             }
         }
 
-        let u_high = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_high_u16, uv_corr));
-        let v_high = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_high_u16, uv_corr));
+        let u_high = _mm_sub_epi16(u_high_u16, uv_corr);
+        let v_high = _mm_sub_epi16(v_high_u16, uv_corr);
         let y_high0 = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values0), v_luma_coeff);
         let y_high1 = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values1), v_luma_coeff);
 
@@ -143,8 +141,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
         let b_high1 = _mm_add_epi16(y_high1, _mm_mulhrs_epi16(u_high, v_cb_coeff));
         let g_high1 = _mm_sub_epi16(y_high1, g_coeff_hi);
 
-        let u_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_low_u16, uv_corr));
-        let v_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_low_u16, uv_corr));
+        let u_low = _mm_sub_epi16(u_low_u16, uv_corr);
+        let v_low = _mm_sub_epi16(v_low_u16, uv_corr);
         let y_low0 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values0), v_luma_coeff);
         let y_low1 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values1), v_luma_coeff);
 
@@ -211,17 +209,17 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         match order {
             YuvNVOrder::UV => {
-                u_low_u16 = _mm_unpacklo_epi8(u, zeros);
-                v_low_u16 = _mm_unpacklo_epi8(v, zeros);
+                u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
+                v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
             }
             YuvNVOrder::VU => {
-                u_low_u16 = _mm_unpacklo_epi8(v, zeros);
-                v_low_u16 = _mm_unpacklo_epi8(u, zeros);
+                u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
+                v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
             }
         }
 
-        let u_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(u_low_u16, uv_corr));
-        let v_low = _mm_slli_epi16::<SCALE>(_mm_sub_epi16(v_low_u16, uv_corr));
+        let u_low = _mm_sub_epi16(u_low_u16, uv_corr);
+        let v_low = _mm_sub_epi16(v_low_u16, uv_corr);
         let y_low0 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values0), v_luma_coeff);
         let y_low1 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values1), v_luma_coeff);
 

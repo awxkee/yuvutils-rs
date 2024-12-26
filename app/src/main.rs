@@ -99,7 +99,7 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut bi_planar_image =
-        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
         YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
@@ -107,8 +107,8 @@ fn main() {
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420(
-        &mut planar_image,
+    rgb_to_yuv_nv12(
+        &mut bi_planar_image,
         &src_bytes,
         rgba_stride as u32,
         YuvRange::Limited,
@@ -264,8 +264,8 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv420_to_rgb(
-        &fixed_planar,
+    yuv_nv12_to_rgb(
+        &fixed_biplanar,
         &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
