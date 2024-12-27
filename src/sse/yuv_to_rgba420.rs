@@ -185,14 +185,8 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 8 < width {
-        let y_values0 = _mm_subs_epu8(
-            _xx_load_si64(y_plane0.get_unchecked(cx..).as_ptr()),
-            y_corr,
-        );
-        let y_values1 = _mm_subs_epu8(
-            _xx_load_si64(y_plane1.get_unchecked(cx..).as_ptr()),
-            y_corr,
-        );
+        let y_values0 = _mm_subs_epu8(_xx_load_si64(y_plane0.get_unchecked(cx..).as_ptr()), y_corr);
+        let y_values1 = _mm_subs_epu8(_xx_load_si64(y_plane1.get_unchecked(cx..).as_ptr()), y_corr);
 
         let u_values = _mm_shuffle_epi8(_mm_loadu_si32(u_ptr.add(uv_x)), reshuffle);
         let v_values = _mm_shuffle_epi8(_mm_loadu_si32(v_ptr.add(uv_x)), reshuffle);

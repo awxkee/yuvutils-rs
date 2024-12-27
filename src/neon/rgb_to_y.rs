@@ -42,13 +42,10 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
 ) -> usize {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
-    const V_SCALE: i32 = 2;
-    let bias_y = range.bias_y as i16;
 
     let y_ptr = y_plane;
     let rgba_ptr = rgba.as_ptr();
 
-    let y_bias = vdupq_n_s16(bias_y);
     let weights_arr: [i16; 4] = [
         transform.yr as i16,
         transform.yg as i16,
@@ -57,7 +54,9 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
     ];
     let v_weights = vld1_s16(weights_arr.as_ptr());
 
-    let i_cap_y = vdupq_n_u16(range.range_y as u16 + range.bias_y as u16);
+    const V_SCALE: i32 = 4;
+    const A_E: i32 = 2;
+    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)));
 
     let mut cx = start_cx;
 
@@ -73,7 +72,7 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
         y_high = vqrdmlahq_lane_s16::<1>(y_high, g_high, v_weights);
         y_high = vqrdmlahq_lane_s16::<2>(y_high, b_high, v_weights);
 
-        let y_high = vminq_u16(vreinterpretq_u16_s16(y_high), i_cap_y);
+        let y_high = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(y_high));
 
         let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values_u8)));
@@ -83,9 +82,9 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
         y_low = vqrdmlahq_lane_s16::<1>(y_low, g_low, v_weights);
         y_low = vqrdmlahq_lane_s16::<2>(y_low, b_low, v_weights);
 
-        let y_low = vminq_u16(vreinterpretq_u16_s16(y_low), i_cap_y);
+        let y_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(y_low));
 
-        let y = vcombine_u8(vmovn_u16(y_low), vmovn_u16(y_high));
+        let y = vcombine_u8(y_low, y_high);
         vst1q_u8(y_ptr.add(cx), y);
 
         cx += 16;
@@ -103,9 +102,9 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
         y_low = vqrdmlahq_lane_s16::<1>(y_low, g_low, v_weights);
         y_low = vqrdmlahq_lane_s16::<2>(y_low, b_low, v_weights);
 
-        let y_low = vminq_u16(vreinterpretq_u16_s16(y_low), i_cap_y);
+        let y_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(y_low));
 
-        vst1_u8(y_ptr.add(cx), vmovn_u16(y_low));
+        vst1_u8(y_ptr.add(cx), y_low);
 
         cx += 8;
     }
