@@ -51,14 +51,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
 
     const V_SCALE: i32 = 4;
     const A_E: i32 = 2;
-    let bias_y = range.bias_y as i16;
-    let bias_uv = range.bias_uv as i16;
 
     let u_ptr = u_plane;
     let v_ptr = v_plane;
 
-    let y_bias = vdupq_n_s16(bias_y * (1 << A_E) + (1 << (A_E - 1)));
-    let uv_bias = vdupq_n_s16(bias_uv * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E));
+    let uv_bias = vdupq_n_s16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let weights_arr: [i16; 8] = [
         transform.yr as i16,

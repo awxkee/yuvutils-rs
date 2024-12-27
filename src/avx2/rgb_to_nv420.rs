@@ -89,8 +89,8 @@ unsafe fn avx2_rgba_to_nv_impl<
 
     const V_S: i32 = 4;
     const A_E: i32 = 2;
-    let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)));
-    let uv_bias = _mm256_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E));
+    let uv_bias = _mm256_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let v_yr = _mm256_set1_epi16(transform.yr as i16);
     let v_yg = _mm256_set1_epi16(transform.yg as i16);
     let v_yb = _mm256_set1_epi16(transform.yb as i16);

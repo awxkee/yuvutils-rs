@@ -54,14 +54,12 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let bias_uv = range.bias_uv as i16;
-
     let uv_ptr = uv_plane.as_mut_ptr();
 
     const V_SCALE: i32 = 4;
     const A_E: i32 = 2;
-    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)));
-    let uv_bias = vdupq_n_s16(bias_uv * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E));
+    let uv_bias = vdupq_n_s16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let weights_arr: [i16; 8] = [
         transform.yr as i16,

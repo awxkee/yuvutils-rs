@@ -102,7 +102,7 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bo
 
     const V_S: u32 = 4;
     const A_E: u32 = 2;
-    let y_bias = _mm512_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = _mm512_set1_epi16(range.bias_y as i16 * (1 << A_E));
     let v_yr = _mm512_set1_epi16(transform.yr as i16);
     let v_yg = _mm512_set1_epi16(transform.yg as i16);
     let v_yb = _mm512_set1_epi16(transform.yb as i16);

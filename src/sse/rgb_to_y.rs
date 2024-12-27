@@ -66,11 +66,9 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
 
     let mut cx = start_cx;
 
-    let bias_y = range.bias_y as i16;
-
     const V_S: i32 = 4;
     const A_E: i32 = 2;
-    let y_bias = _mm_set1_epi16(bias_y * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E));
     let v_yr = _mm_set1_epi16(transform.yr as i16);
     let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);

@@ -56,7 +56,7 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
 
     const V_SCALE: i32 = 4;
     const A_E: i32 = 2;
-    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E));
 
     let mut cx = start_cx;
 

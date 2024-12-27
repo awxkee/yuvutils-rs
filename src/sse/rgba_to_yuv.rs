@@ -90,13 +90,10 @@ unsafe fn sse_rgba_to_yuv_row_impl<
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    let bias_y = range.bias_y as i16;
-    let bias_uv = range.bias_uv as i16;
-
     const V_S: i32 = 4;
     const A_E: i32 = 2;
-    let y_bias = _mm_set1_epi16(bias_y * (1 << A_E) + (1 << (A_E - 1)));
-    let uv_bias = _mm_set1_epi16(bias_uv * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E));
+    let uv_bias = _mm_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let v_yr = _mm_set1_epi16(transform.yr as i16);
     let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);

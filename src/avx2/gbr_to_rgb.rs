@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::avx2::avx2_utils::{
-    _mm256_expand8_to_10, _mm256_store_interleave_rgb_for_yuv, avx2_pack_u16,
+    _mm256_expand8_unordered_to_10, _mm256_store_interleave_rgb_for_yuv,
 };
 use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
@@ -138,9 +138,9 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
             vy_bias,
         );
 
-        let (r_y_lo, r_y_hi) = _mm256_expand8_to_10(r_values0);
-        let (g_y_lo, g_y_hi) = _mm256_expand8_to_10(g_values0);
-        let (b_y_lo, b_y_hi) = _mm256_expand8_to_10(b_values0);
+        let (r_y_lo, r_y_hi) = _mm256_expand8_unordered_to_10(r_values0);
+        let (g_y_lo, g_y_hi) = _mm256_expand8_unordered_to_10(g_values0);
+        let (b_y_lo, b_y_hi) = _mm256_expand8_unordered_to_10(b_values0);
 
         let rl_hi = _mm256_mulhrs_epi16(r_y_hi, vy_coeff);
         let gl_hi = _mm256_mulhrs_epi16(g_y_hi, vy_coeff);
@@ -150,9 +150,9 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         let gl_lo = _mm256_mulhrs_epi16(g_y_lo, vy_coeff);
         let bl_lo = _mm256_mulhrs_epi16(b_y_lo, vy_coeff);
 
-        let r_values = avx2_pack_u16(rl_lo, rl_hi);
-        let g_values = avx2_pack_u16(gl_lo, gl_hi);
-        let b_values = avx2_pack_u16(bl_lo, bl_hi);
+        let r_values = _mm256_packus_epi16(rl_lo, rl_hi);
+        let g_values = _mm256_packus_epi16(gl_lo, gl_hi);
+        let b_values = _mm256_packus_epi16(bl_lo, bl_hi);
 
         let dst_shift = cx * destination_channels.get_channels_count();
         let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);

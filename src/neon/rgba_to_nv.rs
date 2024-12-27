@@ -64,8 +64,8 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
 
     const V_SCALE: i32 = 4;
     const A_E: i32 = 2;
-    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)));
-    let uv_bias = vdupq_n_s16(bias_uv * (1 << A_E) + (1 << (A_E - 1)));
+    let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E));
+    let uv_bias = vdupq_n_s16(bias_uv * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let weights_arr: [i16; 8] = [
         transform.yr as i16,
