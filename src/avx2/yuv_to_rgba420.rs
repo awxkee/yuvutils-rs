@@ -132,12 +132,15 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             _mm256_mulhrs_epi16(u_high, v_g_coeff_2),
         );
 
-        let r_high0 = _mm256_add_epi16(y_high0, _mm256_mulhrs_epi16(v_high, v_cr_coeff));
-        let b_high0 = _mm256_add_epi16(y_high0, _mm256_mulhrs_epi16(u_high, v_cb_coeff));
+        let v_cr_hi = _mm256_mulhrs_epi16(v_high, v_cr_coeff);
+        let v_cb_hi = _mm256_mulhrs_epi16(u_high, v_cb_coeff);
+
+        let r_high0 = _mm256_add_epi16(y_high0, v_cr_hi);
+        let b_high0 = _mm256_add_epi16(y_high0, v_cb_hi);
         let g_high0 = _mm256_sub_epi16(y_high0, g_coeff_hi);
 
-        let r_high1 = _mm256_add_epi16(y_high1, _mm256_mulhrs_epi16(v_high, v_cr_coeff));
-        let b_high1 = _mm256_add_epi16(y_high1, _mm256_mulhrs_epi16(u_high, v_cb_coeff));
+        let r_high1 = _mm256_add_epi16(y_high1, v_cr_hi);
+        let b_high1 = _mm256_add_epi16(y_high1, v_cb_hi);
         let g_high1 = _mm256_sub_epi16(y_high1, g_coeff_hi);
 
         let u_low = _mm256_sub_epi16(u_low_u16, uv_corr);
@@ -150,12 +153,15 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
         );
 
-        let r_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
+        let v_cr_lo = _mm256_mulhrs_epi16(v_low, v_cr_coeff);
+        let v_cb_lo = _mm256_mulhrs_epi16(u_low, v_cb_coeff);
+
+        let r_low0 = _mm256_add_epi16(y_low0, v_cr_lo);
+        let b_low0 = _mm256_add_epi16(y_low0, v_cb_lo);
         let g_low0 = _mm256_sub_epi16(y_low0, g_coeff_lo);
 
-        let r_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
+        let r_low1 = _mm256_add_epi16(y_low1, v_cr_lo);
+        let b_low1 = _mm256_add_epi16(y_low1, v_cb_lo);
         let g_low1 = _mm256_sub_epi16(y_low1, g_coeff_lo);
 
         let r_values0 = _mm256_packus_epi16(r_low0, r_high0);
@@ -229,12 +235,15 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
         );
 
-        let r_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low0 = _mm256_add_epi16(y_low0, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
+        let v_cr_lo = _mm256_mulhrs_epi16(v_low, v_cr_coeff);
+        let v_cb_lo = _mm256_mulhrs_epi16(u_low, v_cb_coeff);
+
+        let r_low0 = _mm256_add_epi16(y_low0, v_cr_lo);
+        let b_low0 = _mm256_add_epi16(y_low0, v_cb_lo);
         let g_low0 = _mm256_sub_epi16(y_low0, g_coeff_lo);
 
-        let r_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low1 = _mm256_add_epi16(y_low1, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
+        let r_low1 = _mm256_add_epi16(y_low1, v_cr_lo);
+        let b_low1 = _mm256_add_epi16(y_low1, v_cb_lo);
         let g_low1 = _mm256_sub_epi16(y_low1, g_coeff_lo);
 
         let zeros = _mm256_setzero_si256();
