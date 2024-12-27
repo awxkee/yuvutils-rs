@@ -28,102 +28,114 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8,
+    avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8, avx512_zip_epi8,
 };
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
+use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) fn avx512_rgba_to_yuv420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bool>(
-    transform: &CbCrForwardTransform<i32>,
-    range: &YuvChromaRange,
+pub(crate) fn avx512_rgba_to_nv420<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const PRECISION: i32,
+    const HAS_VBMI: bool,
+>(
     y_plane0: &mut [u8],
     y_plane1: &mut [u8],
-    u_plane: &mut [u8],
-    v_plane: &mut [u8],
+    uv_plane: &mut [u8],
     rgba0: &[u8],
     rgba1: &[u8],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    width: usize,
 ) -> ProcessedOffset {
     unsafe {
         if HAS_VBMI {
-            avx512_rgba_to_yuv_bmi_impl420::<ORIGIN_CHANNELS>(
-                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
+            avx512_rgba_to_nv_vbmi_impl::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
+                y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, range, transform, start_cx,
+                start_ux,
             )
         } else {
-            avx512_rgba_to_yuv_def_impl420::<ORIGIN_CHANNELS>(
-                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
+            avx512_rgba_to_nv_def_impl::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
+                y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, range, transform, start_cx,
+                start_ux,
             )
         }
     }
 }
 
-#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vbmi")]
-unsafe fn avx512_rgba_to_yuv_bmi_impl420<const ORIGIN_CHANNELS: u8>(
-    transform: &CbCrForwardTransform<i32>,
-    range: &YuvChromaRange,
+#[target_feature(enable = "avx512f", enable = "avx512bw")]
+unsafe fn avx512_rgba_to_nv_def_impl<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const PRECISION: i32,
+>(
     y_plane0: &mut [u8],
     y_plane1: &mut [u8],
-    u_plane: &mut [u8],
-    v_plane: &mut [u8],
+    uv_plane: &mut [u8],
     rgba0: &[u8],
     rgba1: &[u8],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    width: usize,
 ) -> ProcessedOffset {
-    avx512_rgba_to_yuv_impl420::<ORIGIN_CHANNELS, true>(
-        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
-        width,
+    avx512_rgba_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, false>(
+        y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, range, transform, start_cx, start_ux,
     )
 }
 
-#[target_feature(enable = "avx512bw", enable = "avx512f")]
-unsafe fn avx512_rgba_to_yuv_def_impl420<const ORIGIN_CHANNELS: u8>(
-    transform: &CbCrForwardTransform<i32>,
-    range: &YuvChromaRange,
+#[target_feature(enable = "avx512f", enable = "avx512bw", enable = "avx512vbmi")]
+unsafe fn avx512_rgba_to_nv_vbmi_impl<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const PRECISION: i32,
+>(
     y_plane0: &mut [u8],
     y_plane1: &mut [u8],
-    u_plane: &mut [u8],
-    v_plane: &mut [u8],
+    uv_plane: &mut [u8],
     rgba0: &[u8],
     rgba1: &[u8],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    width: usize,
 ) -> ProcessedOffset {
-    avx512_rgba_to_yuv_impl420::<ORIGIN_CHANNELS, false>(
-        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
-        width,
+    avx512_rgba_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, true>(
+        y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, range, transform, start_cx, start_ux,
     )
 }
 
 #[inline(always)]
-unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bool>(
-    transform: &CbCrForwardTransform<i32>,
-    range: &YuvChromaRange,
+unsafe fn avx512_rgba_to_nv_impl<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const PRECISION: i32,
+    const HAS_VBMI: bool,
+>(
     y_plane0: &mut [u8],
     y_plane1: &mut [u8],
-    u_plane: &mut [u8],
-    v_plane: &mut [u8],
+    uv_plane: &mut [u8],
     rgba0: &[u8],
     rgba1: &[u8],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    width: usize,
 ) -> ProcessedOffset {
+    let order: YuvNVOrder = UV_ORDER.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let u_ptr = u_plane.as_mut_ptr();
-    let v_ptr = v_plane.as_mut_ptr();
+    let uv_ptr = uv_plane.as_mut_ptr();
 
     let mut cx = start_cx;
     let mut uv_x = start_ux;
@@ -142,89 +154,88 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
     let v_cr_g = _mm512_set1_epi16(transform.cr_g as i16);
     let v_cr_b = _mm512_set1_epi16(transform.cr_b as i16);
 
-    while cx + 64 < width {
+    while cx + 64 < width as usize {
         let px = cx * channels;
-
         let (r_values0, g_values0, b_values0) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba0.get_unchecked(px..).as_ptr());
-
         let (r_values1, g_values1, b_values1) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba1.get_unchecked(px..).as_ptr());
 
-        let r0_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values0, r_values0));
-        let r0_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values0, r_values0));
-        let g0_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(g_values0, g_values0));
-        let g0_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(g_values0, g_values0));
-        let b0_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(b_values0, b_values0));
-        let b0_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(b_values0, b_values0));
+        let r0_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values0, r_values0));
+        let r0_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values0, r_values0));
+        let g0_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(g_values0, g_values0));
+        let g0_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(g_values0, g_values0));
+        let b0_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(b_values0, b_values0));
+        let b0_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(b_values0, b_values0));
 
-        let y_l0 = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
+        let y0_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
             y_bias,
             _mm512_add_epi16(
                 _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r0_lo16, v_yr),
-                    _mm512_mulhrs_epi16(g0_lo16, v_yg),
+                    _mm512_mulhrs_epi16(r0_low, v_yr),
+                    _mm512_mulhrs_epi16(g0_low, v_yg),
                 ),
-                _mm512_mulhrs_epi16(b0_lo16, v_yb),
+                _mm512_mulhrs_epi16(b0_low, v_yb),
             ),
         ));
 
-        let y_h0 = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
+        let y0_h = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
             y_bias,
             _mm512_add_epi16(
                 _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r0_hi16, v_yr),
-                    _mm512_mulhrs_epi16(g0_hi16, v_yg),
+                    _mm512_mulhrs_epi16(r0_high, v_yr),
+                    _mm512_mulhrs_epi16(g0_high, v_yg),
                 ),
-                _mm512_mulhrs_epi16(b0_hi16, v_yb),
+                _mm512_mulhrs_epi16(b0_high, v_yb),
             ),
         ));
 
-        let y_yuv0 = _mm512_packus_epi16(y_l0, y_h0);
+        let r1_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values1, r_values1));
+        let r1_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values1, r_values1));
+        let g1_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(g_values1, g_values1));
+        let g1_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(g_values1, g_values1));
+        let b1_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(b_values1, b_values1));
+        let b1_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(b_values1, b_values1));
+
+        let y1_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
+            y_bias,
+            _mm512_add_epi16(
+                _mm512_add_epi16(
+                    _mm512_mulhrs_epi16(r1_low, v_yr),
+                    _mm512_mulhrs_epi16(g1_low, v_yg),
+                ),
+                _mm512_mulhrs_epi16(b1_low, v_yb),
+            ),
+        ));
+
+        let y1_h = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
+            y_bias,
+            _mm512_add_epi16(
+                _mm512_add_epi16(
+                    _mm512_mulhrs_epi16(r1_high, v_yr),
+                    _mm512_mulhrs_epi16(g1_high, v_yg),
+                ),
+                _mm512_mulhrs_epi16(b1_high, v_yb),
+            ),
+        ));
+
+        let y0_yuv = _mm512_packus_epi16(y0_l, y0_h);
+        let y1_yuv = _mm512_packus_epi16(y1_l, y1_h);
+
         _mm512_storeu_si512(
             y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
-            y_yuv0,
+            y0_yuv,
         );
-
-        let r1_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values1, r_values1));
-        let r1_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values1, r_values1));
-        let g1_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(g_values1, g_values1));
-        let g1_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(g_values1, g_values1));
-        let b1_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(b_values1, b_values1));
-        let b1_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(b_values1, b_values1));
-
-        let y_l1 = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
-            y_bias,
-            _mm512_add_epi16(
-                _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r1_lo16, v_yr),
-                    _mm512_mulhrs_epi16(g1_lo16, v_yg),
-                ),
-                _mm512_mulhrs_epi16(b1_lo16, v_yb),
-            ),
-        ));
-        let y_h1 = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
-            y_bias,
-            _mm512_add_epi16(
-                _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r1_hi16, v_yr),
-                    _mm512_mulhrs_epi16(g1_hi16, v_yg),
-                ),
-                _mm512_mulhrs_epi16(b1_hi16, v_yb),
-            ),
-        ));
-
-        let y_yuv1 = _mm512_packus_epi16(y_l1, y_h1);
         _mm512_storeu_si512(
             y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
-            y_yuv1,
+            y1_yuv,
         );
 
         let r1 = avx512_pairwise_avg_epi16_epi8(r_values0, r_values1, 1 << (16 - V_S - 8));
         let g1 = avx512_pairwise_avg_epi16_epi8(g_values0, g_values1, 1 << (16 - V_S - 8));
-        let b1 = avx512_pairwise_avg_epi16_epi8(b_values0, b_values1, 1 << (16 - V_S - 8));
+        let b1 = avx512_pairwise_avg_epi16_epi8(b_values0, b_values1, 1 << (16 - V_S as i8 - 8));
 
-        let cbk = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
+        let cb = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
             uv_bias,
             _mm512_add_epi16(
                 _mm512_add_epi16(
@@ -235,7 +246,7 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
             ),
         ));
 
-        let crk = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
+        let cr = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
             uv_bias,
             _mm512_add_epi16(
                 _mm512_add_epi16(
@@ -246,19 +257,17 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
             ),
         ));
 
-        let cb = avx512_pack_u16(cbk, cbk);
-        let cr = avx512_pack_u16(crk, crk);
+        let cb = avx512_pack_u16(cb, cb);
+        let cr = avx512_pack_u16(cr, cr);
 
-        _mm256_storeu_si256(
-            u_ptr.add(uv_x) as *mut _ as *mut __m256i,
-            _mm512_castsi512_si256(cb),
-        );
-        _mm256_storeu_si256(
-            v_ptr.add(uv_x) as *mut _ as *mut __m256i,
-            _mm512_castsi512_si256(cr),
-        );
-        uv_x += 32;
+        let (row0, _) = match order {
+            YuvNVOrder::UV => avx512_zip_epi8::<HAS_VBMI>(cb, cr),
+            YuvNVOrder::VU => avx512_zip_epi8::<HAS_VBMI>(cr, cb),
+        };
 
+        _mm512_storeu_si512(uv_ptr.add(uv_x) as *mut _, row0);
+
+        uv_x += 64;
         cx += 64;
     }
 

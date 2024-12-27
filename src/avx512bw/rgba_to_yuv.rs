@@ -131,8 +131,8 @@ unsafe fn avx512_rgba_to_yuv_impl<
 
     const V_S: u32 = 4;
     const A_E: u32 = 2;
-    let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E));
-    let uv_bias = _mm_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
+    let y_bias = _mm512_set1_epi16(range.bias_y as i16 * (1 << A_E));
+    let uv_bias = _mm512_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let v_yr = _mm512_set1_epi16(transform.yr as i16);
     let v_yg = _mm512_set1_epi16(transform.yg as i16);
     let v_yb = _mm512_set1_epi16(transform.yb as i16);
@@ -281,12 +281,15 @@ unsafe fn avx512_rgba_to_yuv_impl<
         let (r_values, g_values, b_values) =
             avx512_load_half_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
 
-        let r_low =
-            _mm512_slli_epi16::<V_S>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(r_values)));
-        let g_low =
-            _mm512_slli_epi16::<V_S>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(g_values)));
-        let b_low =
-            _mm512_slli_epi16::<V_S>(_mm512_cvtepu8_epi16(_mm512_castsi512_si256(b_values)));
+        let mask = _mm512_setr_epi64(0, 0, 1, 0, 2, 0, 3, 0);
+
+        let r_o = _mm512_permutexvar_epi64(mask, r_values);
+        let g_o = _mm512_permutexvar_epi64(mask, g_values);
+        let b_o = _mm512_permutexvar_epi64(mask, b_values);
+
+        let r_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_o, r_o));
+        let g_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(g_o, g_o));
+        let b_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(b_o, b_o));
 
         let y_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
             y_bias,
