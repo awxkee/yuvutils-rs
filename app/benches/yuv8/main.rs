@@ -114,19 +114,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let fixed_gray = gray_image.to_fixed();
 
-    // c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
-    //     let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
-    //     b.iter(|| {
-    //         gbr_to_rgba(
-    //             &fixed_gbr,
-    //             &mut rgb_bytes,
-    //             dimensions.0 * 4,
-    //             YuvRange::Limited,
-    //         )
-    //         .unwrap();
-    //     })
-    // });
-    //
+    c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            gbr_to_rgba(
+                &fixed_gbr,
+                &mut rgb_bytes,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+            )
+            .unwrap();
+        })
+    });
+
     c.bench_function("yuvutils RGB -> YUV 4:2:0", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
             dimensions.0,
