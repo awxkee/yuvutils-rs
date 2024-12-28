@@ -27,9 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::sse::{
-    _mm_affine_dot, _mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv,
-};
+use crate::sse::{_mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -68,12 +66,11 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
 
     let mut cx = start_cx;
 
-    let bias_y = range.bias_y as i16;
-
-    let zeros = _mm_setzero_si128();
-
-    let y_base = _mm_set1_epi32(bias_y as i32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
-    let v_yr_yg = _mm_set1_epi32(transform._interleaved_yr_yg());
+    const V_S: i32 = 4;
+    const A_E: i32 = 2;
+    let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E));
+    let v_yr = _mm_set1_epi16(transform.yr as i16);
+    let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);
 
     while cx + 16 < width {
@@ -81,15 +78,31 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_lo16 = _mm_unpacklo_epi8(r_values, zeros);
-        let r_hi16 = _mm_unpackhi_epi8(r_values, zeros);
-        let g_lo16 = _mm_unpacklo_epi8(g_values, zeros);
-        let g_hi16 = _mm_unpackhi_epi8(g_values, zeros);
-        let b_lo16 = _mm_unpacklo_epi8(b_values, zeros);
-        let b_hi16 = _mm_unpackhi_epi8(b_values, zeros);
+        let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
+        let r_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(r_values, r_values));
+        let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
+        let g_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(g_values, g_values));
+        let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
+        let b_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(b_values, b_values));
 
-        let y_l = _mm_affine_dot::<PRECISION>(y_base, r_lo16, g_lo16, b_lo16, v_yr_yg, v_yb);
-        let y_h = _mm_affine_dot::<PRECISION>(y_base, r_hi16, g_hi16, b_hi16, v_yr_yg, v_yb);
+        let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            y_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
+                _mm_mulhrs_epi16(b_low, v_yb),
+            ),
+        ));
+
+        let y_h = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            y_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(
+                    _mm_mulhrs_epi16(r_high, v_yr),
+                    _mm_mulhrs_epi16(g_high, v_yg),
+                ),
+                _mm_mulhrs_epi16(b_high, v_yb),
+            ),
+        ));
 
         let y_yuv = _mm_packus_epi16(y_l, y_h);
 
@@ -106,19 +119,20 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_lo16 = _mm_unpacklo_epi8(r_values, zeros);
-        let g_lo16 = _mm_unpacklo_epi8(g_values, zeros);
-        let b_lo16 = _mm_unpacklo_epi8(b_values, zeros);
+        let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
+        let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
+        let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
 
-        let y_l = _mm_affine_dot::<PRECISION>(y_base, r_lo16, g_lo16, b_lo16, v_yr_yg, v_yb);
+        let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            y_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
+                _mm_mulhrs_epi16(b_low, v_yb),
+            ),
+        ));
 
         let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
-
-        std::ptr::copy_nonoverlapping(
-            &y_yuv as *const _ as *const u8,
-            y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),
-            8,
-        );
+        _mm_storeu_si64(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y_yuv);
 
         cx += 8;
     }

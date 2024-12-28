@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::avx2::avx2_utils::{
-    _mm256_affine_transform, _mm256_affine_v_dot, _mm256_havg_epi16_epi32, _mm256_interleave_epi16,
+    _mm256_affine_transform, _mm256_affine_uv_dot, _mm256_havg_epi16_epi32,
     _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16,
 };
 use crate::internals::ProcessedOffset;
@@ -129,12 +129,16 @@ unsafe fn avx_rgba_to_yuv_impl<
         let (r_values, g_values, b_values) =
             _mm256_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
-        let (r_g_lo, r_g_hi) = _mm256_interleave_epi16(r_values, g_values);
-        let b_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(b_values));
-        let b_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(b_values));
+        let zeros = _mm256_setzero_si256();
+        let (r_g_lo, r_g_hi) = (
+            _mm256_unpacklo_epi16(r_values, g_values),
+            _mm256_unpackhi_epi16(r_values, g_values),
+        );
+        let b_hi = _mm256_unpackhi_epi16(b_values, zeros);
+        let b_lo = _mm256_unpacklo_epi16(b_values, zeros);
 
         let mut y_vl =
-            _mm256_affine_v_dot::<PRECISION>(y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb);
+            _mm256_affine_uv_dot::<PRECISION>(y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y_vl);
@@ -150,11 +154,11 @@ unsafe fn avx_rgba_to_yuv_impl<
         );
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut cb_vl = _mm256_affine_v_dot::<PRECISION>(
+            let mut cb_vl = _mm256_affine_uv_dot::<PRECISION>(
                 uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
             );
 
-            let mut cr_vl = _mm256_affine_v_dot::<PRECISION>(
+            let mut cr_vl = _mm256_affine_uv_dot::<PRECISION>(
                 uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
             );
 

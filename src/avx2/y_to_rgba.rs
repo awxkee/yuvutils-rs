@@ -76,16 +76,16 @@ unsafe fn avx2_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
             y_corr,
         );
 
-        let y0 = _mm256_expand8_to_10(y_values0);
-        let y1 = _mm256_expand8_to_10(y_values1);
+        let y0 = _mm256_expand8_unordered_to_10(y_values0);
+        let y1 = _mm256_expand8_unordered_to_10(y_values1);
 
         let y_high0 = _mm256_mulhrs_epi16(y0.1, v_luma_coeff);
         let y_high1 = _mm256_mulhrs_epi16(y1.1, v_luma_coeff);
         let y_low0 = _mm256_mulhrs_epi16(y0.0, v_luma_coeff);
         let y_low1 = _mm256_mulhrs_epi16(y1.0, v_luma_coeff);
 
-        let v_values0 = avx2_pack_u16(y_low0, y_high0);
-        let v_values1 = avx2_pack_u16(y_low1, y_high1);
+        let v_values0 = _mm256_packus_epi16(y_low0, y_high0);
+        let v_values1 = _mm256_packus_epi16(y_low1, y_high1);
 
         let dst_shift = cx * channels;
 
@@ -113,13 +113,13 @@ unsafe fn avx2_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
         let y_values =
             _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
 
-        let y0 = _mm256_expand8_to_10(y_values);
+        let y0 = _mm256_expand8_unordered_to_10(y_values);
 
         let y_high = _mm256_mulhrs_epi16(y0.1, v_luma_coeff);
 
         let y_low = _mm256_mulhrs_epi16(y0.0, v_luma_coeff);
 
-        let v_values = avx2_pack_u16(y_low, y_high);
+        let v_values = _mm256_packus_epi16(y_low, y_high);
 
         let dst_shift = cx * channels;
 
@@ -141,7 +141,7 @@ unsafe fn avx2_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
             y_corr,
         );
 
-        let y0 = _mm256_expand8_to_10(y_values);
+        let y0 = _mm256_expand8_unordered_to_10(_mm256_permute4x64_epi64::<0x50>(y_values));
 
         let y_low = _mm256_mulhrs_epi16(y0.0, v_luma_coeff);
 

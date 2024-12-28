@@ -28,8 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_affine_dot, _mm256_load_deinterleave_half_rgb_for_yuv,
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16,
+    _mm256_load_deinterleave_half_rgb_for_yuv, _mm256_load_deinterleave_rgb_for_yuv,
 };
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -69,10 +68,11 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
 
     let mut cx = start_cx;
 
-    let bias_y = range.bias_y as i16;
-
-    let y_base = _mm256_set1_epi32(bias_y as i32 * (1 << PRECISION) + (1 << (PRECISION - 1)) - 1);
-    let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
+    const V_S: i32 = 4;
+    const A_E: i32 = 2;
+    let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E));
+    let v_yr = _mm256_set1_epi16(transform.yr as i16);
+    let v_yg = _mm256_set1_epi16(transform.yg as i16);
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
     while cx + 32 < width {
@@ -80,17 +80,36 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         let (r_values, g_values, b_values) =
             _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
-        let r_hi16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(r_values));
-        let g_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
-        let g_hi16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(g_values));
-        let b_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values));
-        let b_hi16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(b_values));
+        let r_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values, r_values));
+        let r_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(r_values, r_values));
+        let g_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values, g_values));
+        let g_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(g_values, g_values));
+        let b_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(b_values, b_values));
+        let b_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(b_values, b_values));
 
-        let y_l = _mm256_affine_dot::<PRECISION>(y_base, r_lo16, g_lo16, b_lo16, v_yr_yg, v_yb);
-        let y_h = _mm256_affine_dot::<PRECISION>(y_base, r_hi16, g_hi16, b_hi16, v_yr_yg, v_yb);
+        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
+            y_bias,
+            _mm256_add_epi16(
+                _mm256_add_epi16(
+                    _mm256_mulhrs_epi16(r_low, v_yr),
+                    _mm256_mulhrs_epi16(g_low, v_yg),
+                ),
+                _mm256_mulhrs_epi16(b_low, v_yb),
+            ),
+        ));
 
-        let y_yuv = avx2_pack_u16(y_l, y_h);
+        let y_h = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
+            y_bias,
+            _mm256_add_epi16(
+                _mm256_add_epi16(
+                    _mm256_mulhrs_epi16(r_high, v_yr),
+                    _mm256_mulhrs_epi16(g_high, v_yg),
+                ),
+                _mm256_mulhrs_epi16(b_high, v_yb),
+            ),
+        ));
+
+        let y_yuv = _mm256_packus_epi16(y_l, y_h);
         _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, y_yuv);
 
         cx += 32;
@@ -101,13 +120,22 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         let (r_values, g_values, b_values) =
             _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
-        let g_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
-        let b_lo16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(b_values));
+        let r_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values, r_values));
+        let g_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values, g_values));
+        let b_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(b_values, b_values));
 
-        let y_l = _mm256_affine_dot::<PRECISION>(y_base, r_lo16, g_lo16, b_lo16, v_yr_yg, v_yb);
+        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
+            y_bias,
+            _mm256_add_epi16(
+                _mm256_add_epi16(
+                    _mm256_mulhrs_epi16(r_low, v_yr),
+                    _mm256_mulhrs_epi16(g_low, v_yg),
+                ),
+                _mm256_mulhrs_epi16(b_low, v_yb),
+            ),
+        ));
 
-        let y_yuv = avx2_pack_u16(y_l, _mm256_setzero_si256());
+        let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
         _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, _mm256_castsi256_si128(y_yuv));
 
         cx += 16;

@@ -175,17 +175,17 @@ pub(crate) unsafe fn avx512_put_rgb_u8<const HAS_VBMI: bool>(
     c: __m512i,
 ) {
     let (rgb0, rgb1, rgb2) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(128) as *mut _, rgb2);
 }
 
 #[inline(always)]
 pub(crate) unsafe fn avx512_put_rgb16(dst: *mut u16, a: __m512i, b: __m512i, c: __m512i) {
     let (rgb0, rgb1, rgb2) = avx512_interleave_rgb16(a, b, c);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(32) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb2);
 }
 
 #[inline(always)]
@@ -196,7 +196,7 @@ pub(crate) unsafe fn avx512_put_half_rgb_u8<const HAS_VBMI: bool>(
     c: __m512i,
 ) {
     let (rgb0, rgb1, _) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
     _mm256_storeu_si256(dst.add(64) as *mut __m256i, _mm512_castsi512_si256(rgb1));
 }
 
@@ -265,10 +265,10 @@ pub(crate) unsafe fn avx512_put_rgba_u8<const HAS_VBMI: bool>(
     d: __m512i,
 ) {
     let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(128) as *mut i32, rgb2);
-    _mm512_storeu_si512(dst.add(128 + 64) as *mut i32, rgb3);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(128) as *mut _, rgb2);
+    _mm512_storeu_si512(dst.add(128 + 64) as *mut _, rgb3);
 }
 
 #[inline(always)]
@@ -280,8 +280,8 @@ pub(crate) unsafe fn avx512_put_half_rgba_u8<const HAS_VBMI: bool>(
     d: __m512i,
 ) {
     let (rgb0, rgb1, _, _) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb1);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
 }
 
 #[inline(always)]
@@ -293,10 +293,10 @@ pub(crate) unsafe fn avx512_put_rgba16(
     d: __m512i,
 ) {
     let (rgb0, rgb1, rgb2, rgb3) = avx512_interleave_rgba16(a, b, c, d);
-    _mm512_storeu_si512(dst as *mut i32, rgb0);
-    _mm512_storeu_si512(dst.add(32) as *mut i32, rgb1);
-    _mm512_storeu_si512(dst.add(64) as *mut i32, rgb2);
-    _mm512_storeu_si512(dst.add(96) as *mut i32, rgb3);
+    _mm512_storeu_si512(dst as *mut _, rgb0);
+    _mm512_storeu_si512(dst.add(32) as *mut _, rgb1);
+    _mm512_storeu_si512(dst.add(64) as *mut _, rgb2);
+    _mm512_storeu_si512(dst.add(96) as *mut _, rgb3);
 }
 
 #[inline(always)]
@@ -704,18 +704,18 @@ pub(crate) unsafe fn avx512_load_half_rgb_u8<const CN: u8, const HAS_VBMI: bool>
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8(a: __m512i, b: __m512i) -> __m512i {
+pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8(a: __m512i, b: __m512i, f: i8) -> __m512i {
     let v = _mm512_avg_epu8(a, b);
     _mm512_srli_epi16::<1>(_mm512_add_epi16(
-        _mm512_maddubs_epi16(v, _mm512_set1_epi8(1)),
+        _mm512_maddubs_epi16(v, _mm512_set1_epi8(f)),
         _mm512_set1_epi16(1),
     ))
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_pairwise_avg_epi8(a: __m512i) -> __m512i {
+pub(crate) unsafe fn avx512_pairwise_avg_epi8(a: __m512i, f: i8) -> __m512i {
     _mm512_srli_epi16::<1>(_mm512_add_epi16(
-        _mm512_maddubs_epi16(a, _mm512_set1_epi8(1)),
+        _mm512_maddubs_epi16(a, _mm512_set1_epi8(f)),
         _mm512_set1_epi16(1),
     ))
 }
@@ -857,6 +857,30 @@ pub(crate) unsafe fn _mm512_affine_v_dot<const PRECISION: u32>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm512_affine_uv_dot<const PRECISION: u32>(
+    slope: __m512i,
+    v0: __m512i,
+    v1: __m512i,
+    b0: __m512i,
+    b1: __m512i,
+    w0: __m512i,
+    w1: __m512i,
+) -> __m512i {
+    let y_l_l = _mm512_add_epi32(
+        slope,
+        _mm512_add_epi32(_mm512_madd_epi16(v0, w0), _mm512_madd_epi16(b0, w1)),
+    );
+    let y_l_h = _mm512_add_epi32(
+        slope,
+        _mm512_add_epi32(_mm512_madd_epi16(v1, w0), _mm512_madd_epi16(b1, w1)),
+    );
+    _mm512_packus_epi32(
+        _mm512_srli_epi32::<PRECISION>(y_l_l),
+        _mm512_srli_epi32::<PRECISION>(y_l_h),
+    )
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm512_affine_dot<const PRECISION: u32>(
     base: __m512i,
     r: __m512i,
@@ -894,6 +918,14 @@ pub(crate) unsafe fn _mm512_expand8_to_10<const HAS_VBMI: bool>(v: __m512i) -> (
     (_mm512_srli_epi16::<6>(v0), _mm512_srli_epi16::<6>(v1))
 }
 
+#[inline(always)]
+pub(crate) unsafe fn _mm512_expand8_unordered_to_10<const HAS_VBMI: bool>(
+    v: __m512i,
+) -> (__m512i, __m512i) {
+    let (v0, v1) = (_mm512_unpacklo_epi8(v, v), _mm512_unpackhi_epi8(v, v));
+    (_mm512_srli_epi16::<6>(v0), _mm512_srli_epi16::<6>(v1))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -921,9 +953,9 @@ mod tests {
             let mut r_lane = vec![0u8; 64];
             let mut g_lane = vec![0u8; 64];
             let mut b_lane = vec![0u8; 64];
-            _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut i32, deinterleaving.0);
-            _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut i32, deinterleaving.1);
-            _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut i32, deinterleaving.2);
+            _mm512_storeu_si512(r_lane.as_mut_ptr() as *mut _, deinterleaving.0);
+            _mm512_storeu_si512(g_lane.as_mut_ptr() as *mut _, deinterleaving.1);
+            _mm512_storeu_si512(b_lane.as_mut_ptr() as *mut _, deinterleaving.2);
             assert!(r_lane.iter().all(|&x| x == 1), "R lane was {:?}", r_lane);
             assert!(g_lane.iter().all(|&x| x == 2), "G lane was {:?}", g_lane);
             assert!(b_lane.iter().all(|&x| x == 3), "B lane was {:?}", b_lane);

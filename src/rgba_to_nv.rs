@@ -28,6 +28,11 @@
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::{avx2_rgba_to_nv, avx2_rgba_to_nv420};
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
+use crate::avx512bw::avx512_rgba_to_nv420;
 use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvBiPlanarImageMut;
 use crate::internals::ProcessedOffset;
@@ -88,6 +93,16 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -101,6 +116,15 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>
     } else {
         neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>
+    };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    let avx512_double_row_handler = if use_vbmi {
+        avx512_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, true>
+    } else {
+        avx512_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, false>
     };
 
     let width = image.width;
@@ -241,6 +265,22 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "nightly_avx512")]
+            if use_avx512 {
+                let offset = avx512_double_row_handler(
+                    _y_plane0,
+                    _y_plane1,
+                    _uv_plane,
+                    _rgba0,
+                    _rgba1,
+                    width,
+                    &chroma_range,
+                    &transform,
+                    _offset.cx,
+                    _offset.ux,
+                );
+                _offset = offset;
+            }
             if use_avx2 {
                 let offset = avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
                     _y_plane0,

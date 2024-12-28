@@ -30,8 +30,8 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use std::alloc::Layout;
 use yuv_sys::{
-    rs_ABGRToI420, rs_ABGRToJ422, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24, rs_I422ToABGR,
-    rs_I444ToABGR, rs_NV21ToABGR, rs_RGB24ToI420,
+    rs_ABGRToI420, rs_ABGRToJ422, rs_ABGRToNV21, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24,
+    rs_I422ToABGR, rs_I444ToABGR, rs_NV21ToABGR, rs_RGB24ToI420,
 };
 use yuvutils_rs::{
     gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
@@ -307,6 +307,45 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             )
             .unwrap();
         })
+    });
+
+    c.bench_function("yuvutils RGB -> NV21", |b| {
+        let mut test_planar = YuvBiPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgb_to_yuv_nv12(
+                &mut test_planar,
+                &src_bytes,
+                stride as u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("libyuv RGBA -> NV21", |b| unsafe {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        let mut test_bi_planar = YuvBiPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rs_ABGRToNV21(
+                rgb_bytes.as_ptr(),
+                dimensions.0 as i32 * 4i32,
+                test_bi_planar.y_plane.borrow_mut().as_mut_ptr(),
+                test_bi_planar.y_stride as i32,
+                test_bi_planar.uv_plane.borrow_mut().as_mut_ptr(),
+                test_bi_planar.uv_stride as i32,
+                dimensions.0 as i32,
+                dimensions.1 as i32,
+            );
+        });
     });
 
     c.bench_function("yuvutils YUV NV12 -> RGB", |b| {

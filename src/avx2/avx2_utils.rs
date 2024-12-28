@@ -337,8 +337,8 @@ pub(crate) unsafe fn avx_pairwise_avg_epi16(a: __m256i, b: __m256i) -> __m256i {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx_pairwise_avg_epi16_epi8(a: __m256i) -> __m256i {
-    let sums = _mm256_maddubs_epi16(a, _mm256_set1_epi8(1));
+pub(crate) unsafe fn avx_pairwise_avg_epi16_epi8_f(a: __m256i, f: i8) -> __m256i {
+    let sums = _mm256_maddubs_epi16(a, _mm256_set1_epi8(f));
     _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)))
 }
 
@@ -894,16 +894,38 @@ pub(crate) unsafe fn _mm256_affine_v_dot<const PRECISION: i32>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32>(
+    slope: __m256i,
+    v0: __m256i,
+    v1: __m256i,
+    b0: __m256i,
+    b1: __m256i,
+    w0: __m256i,
+    w1: __m256i,
+) -> __m256i {
+    let y_l_l = _mm256_add_epi32(
+        slope,
+        _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
+    );
+    let y_l_h = _mm256_add_epi32(
+        slope,
+        _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
+    );
+    _mm256_packus_epi32(
+        _mm256_srli_epi32::<PRECISION>(y_l_l),
+        _mm256_srli_epi32::<PRECISION>(y_l_h),
+    )
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_expand8_to_10(v: __m256i) -> (__m256i, __m256i) {
     let (v0, v1) = _mm256_interleave_epi8(v, v);
     (_mm256_srli_epi16::<6>(v0), _mm256_srli_epi16::<6>(v1))
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _xx256_load_si256<const ALIGNED: bool>(ptr: *const __m256i) -> __m256i {
-    if ALIGNED {
-        _mm256_load_si256(ptr)
-    } else {
-        _mm256_loadu_si256(ptr)
-    }
+pub(crate) unsafe fn _mm256_expand8_unordered_to_10(v: __m256i) -> (__m256i, __m256i) {
+    let v0 = _mm256_unpacklo_epi8(v, v);
+    let v1 = _mm256_unpackhi_epi8(v, v);
+    (_mm256_srli_epi16::<6>(v0), _mm256_srli_epi16::<6>(v1))
 }

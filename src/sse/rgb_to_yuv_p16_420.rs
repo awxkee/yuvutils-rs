@@ -177,19 +177,10 @@ unsafe fn sse_rgba_to_yuv_impl<
             cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
         }
 
-        std::ptr::copy_nonoverlapping(
-            &cb_s as *const _ as *const u8,
-            u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
-            8,
-        );
-        std::ptr::copy_nonoverlapping(
-            &cr_s as *const _ as *const u8,
-            v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
-            8,
-        );
+        _mm_storeu_si64(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8, cb_s);
+        _mm_storeu_si64(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8, cr_s);
 
         ux += 4;
-
         cx += 8;
     }
 

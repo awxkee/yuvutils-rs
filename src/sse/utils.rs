@@ -219,13 +219,6 @@ pub(crate) unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn sse_pairwise_wide_avg(v: __m128i) -> __m128i {
-    let ones = _mm_set1_epi8(1);
-    let sums = _mm_maddubs_epi16(v, ones);
-    _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)))
-}
-
-#[inline(always)]
 pub(crate) unsafe fn _mm_havg_epu8(a: __m128i, b: __m128i) -> __m128i {
     let ones = _mm_set1_epi8(1);
     let ones_16 = _mm_set1_epi16(1);
@@ -607,12 +600,12 @@ pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CHANS: u8>(
         YuvSourceChannels::Rgb => {
             let (v0, v1, _) = sse_interleave_rgb(r, g, b);
             _mm_storeu_si128(ptr as *mut __m128i, v0);
-            std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
+            _mm_storeu_si64(ptr.add(16), v1);
         }
         YuvSourceChannels::Bgr => {
             let (v0, v1, _) = sse_interleave_rgb(b, g, r);
             _mm_storeu_si128(ptr as *mut __m128i, v0);
-            std::ptr::copy_nonoverlapping(&v1 as *const _ as *const u8, ptr.add(16), 8);
+            _mm_storeu_si64(ptr.add(16), v1);
         }
         YuvSourceChannels::Rgba => {
             let (row1, row2, _, _) = sse_interleave_rgba(r, g, b, a);
@@ -669,18 +662,9 @@ pub(crate) unsafe fn _mm_store_shr_epi16_epi8<const BIT_DEPTH: usize>(a: __m128i
 }
 
 #[inline(always)]
-pub(crate) unsafe fn sse_pairwise_avg_epi8(a: __m128i) -> __m128i {
+pub(crate) unsafe fn sse_pairwise_avg_epi8_f(a: __m128i, f: i8) -> __m128i {
     _mm_srli_epi16::<1>(_mm_add_epi16(
-        _mm_maddubs_epi16(a, _mm_set1_epi8(1)),
-        _mm_set1_epi16(1),
-    ))
-}
-
-#[inline(always)]
-pub(crate) unsafe fn sse_pairwise_avg_epi16_epi8(a: __m128i, b: __m128i) -> __m128i {
-    let v = _mm_avg_epu8(a, b);
-    _mm_srli_epi16::<1>(_mm_add_epi16(
-        _mm_maddubs_epi16(v, _mm_set1_epi8(1)),
+        _mm_maddubs_epi16(a, _mm_set1_epi8(f)),
         _mm_set1_epi16(1),
     ))
 }
@@ -766,15 +750,6 @@ pub(crate) unsafe fn _mm_expand8_hi_to_10(v: __m128i) -> __m128i {
 #[inline(always)]
 pub(crate) unsafe fn _mm_expand8_lo_to_10(v: __m128i) -> __m128i {
     _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v))
-}
-
-#[inline(always)]
-pub(crate) unsafe fn _xx_load_si128<const ALIGNED: bool>(ptr: *const __m128i) -> __m128i {
-    if ALIGNED {
-        _mm_load_si128(ptr)
-    } else {
-        _mm_loadu_si128(ptr)
-    }
 }
 
 #[inline(always)]

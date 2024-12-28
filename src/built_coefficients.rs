@@ -620,6 +620,42 @@ pub(crate) fn get_built_inverse_transform(
 mod tests {
     use super::*;
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn sqrdml(v: i32, k: i32) -> i32 {
+        use std::arch::x86_64::*;
+        unsafe {
+            _mm_extract_epi16::<0>(_mm_mulhrs_epi16(
+                _mm_set1_epi16((v << 2) as i16),
+                _mm_set1_epi16(k as i16),
+            ))
+        }
+        // let j = ((v << 2) * k) >> 15;
+        // j
+        // (j + 1) >> 1
+    }
+
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    fn sqrdml(v: i32, k: i32) -> i32 {
+        use std::arch::aarch64::*;
+        unsafe {
+            vget_lane_s16::<0>(vqrdmulh_s16(
+                vdup_n_s16((v << 2) as i16),
+                vdup_n_s16(k as i16),
+            )) as i32
+        }
+        // let j = ((v << 2) * k) >> 14;
+        // (j + 1) >> 1
+    }
+
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        any(target_arch = "x86", target_arch = "x86_64")
+    )))]
+    fn sqrdml(v: i32, k: i32) -> i32 {
+        let j = ((v << 2) * k) >> 14;
+        (j + 1) >> 1
+    }
+
     #[test]
     fn check_forward_convergence() {
         let r = 255;
@@ -634,6 +670,9 @@ mod tests {
         for weights in weights_full {
             let default_mul = (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12)) >> 13;
             assert_eq!(default_mul, 255, "Failed on weights {:?}", weights);
+
+            let sqrdml_mul = sqrdml(r, weights.yr) + sqrdml(g, weights.yg) + sqrdml(b, weights.yb);
+            assert!(sqrdml_mul <= 255, "Failed on weights {:?}", weights);
         }
 
         let weights_full_10 = [
@@ -666,9 +705,54 @@ mod tests {
                 (r * weights.yr + g * weights.yg + b * weights.yb + (1 << 12) + 16 * (1 << 13))
                     >> 13;
             assert_eq!(default_mul, 235, "Failed on weights {:?}", weights);
+
+            // let sqrdml_mul = sqrdml(r, weights.yr) + sqrdml(g, weights.yg) + sqrdml(b, weights.yb) + 16;
+            // assert!(sqrdml_mul <= 235, "Failed on weights {:?} expected <= 235 but got {sqrdml_mul}", weights);
+        }
+
+        for weights in weights_limited {
+            let sqrdml_mul = sqrdml(255, weights.cb_r)
+                + sqrdml(255, weights.cb_g)
+                + sqrdml(0, weights.cb_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 16,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
+
+            let sqrdml_mul = sqrdml(0, weights.cr_r)
+                + sqrdml(255, weights.cr_g)
+                + sqrdml(255, weights.cr_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 16,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
         }
 
         for weights in weights_full {
+            let sqrdml_mul = sqrdml(255, weights.cb_r)
+                + sqrdml(255, weights.cb_g)
+                + sqrdml(0, weights.cb_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 0,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
+
+            let sqrdml_mul = sqrdml(0, weights.cr_r)
+                + sqrdml(255, weights.cr_g)
+                + sqrdml(255, weights.cr_b)
+                + 128;
+            assert!(
+                sqrdml_mul >= 0,
+                "Failed on weights {:?}, expected >1 but got {sqrdml_mul}",
+                weights
+            );
+
             let r = 0;
             let g = 0;
             let b = 255;

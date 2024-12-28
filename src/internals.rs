@@ -33,8 +33,3 @@ pub(crate) struct ProcessedOffset {
     pub(crate) cx: usize,
     pub(crate) ux: usize,
 }
-
-#[inline(always)]
-pub(crate) fn is_slice_aligned<T>(v: &[T], align: usize) -> bool {
-    v.as_ptr() as usize % align == 0
-}

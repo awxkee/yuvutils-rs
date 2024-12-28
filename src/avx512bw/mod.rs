@@ -30,6 +30,7 @@
 mod avx512_rgb_to_yuv;
 mod avx512_setr;
 mod avx512_utils;
+mod rgb_to_nv420;
 mod rgb_to_y;
 mod rgb_to_ycgco;
 mod rgb_to_yuv_p16;
@@ -47,6 +48,7 @@ mod yuv_to_rgba;
 mod yuv_to_rgba420;
 mod yuv_to_rgba_alpha;
 
+pub(crate) use rgb_to_nv420::avx512_rgba_to_nv420;
 pub(crate) use rgb_to_y::avx512_row_rgb_to_y;
 pub(crate) use rgb_to_ycgco::avx512_rgb_to_ycgco_row;
 pub(crate) use rgb_to_yuv_p16::avx512_rgba_to_yuv_p16;
