@@ -28,7 +28,8 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8_f,
+    _mm256_load_deinterleave_half_rgb_for_yuv, _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16,
+    avx_pairwise_avg_epi16_epi8_f,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -236,7 +237,7 @@ unsafe fn avx2_rgba_to_yuv_impl<
     while cx + 16 < width {
         let px = cx * channels;
         let (mut r_values, mut g_values, mut b_values) =
-            _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
+            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
         let (r_v, g_v, b_v) = (r_values, g_values, b_values);
 
