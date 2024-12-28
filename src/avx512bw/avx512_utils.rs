@@ -580,6 +580,14 @@ pub(crate) unsafe fn avx512_zip_epi16(a: __m512i, b: __m512i) -> (__m512i, __m51
 }
 
 #[inline(always)]
+pub(crate) unsafe fn avx512_zip_u_epi16(a: __m512i, b: __m512i) -> (__m512i, __m512i) {
+    (
+        _mm512_unpacklo_epi16(a, b),
+        _mm512_unpackhi_epi16(a, b)
+        )
+}
+
+#[inline(always)]
 pub(crate) unsafe fn avx512_zip_epi8<const HAS_VBMI: bool>(
     a: __m512i,
     b: __m512i,

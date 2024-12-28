@@ -27,12 +27,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx2_yuv_to_rgba_row, avx2_yuv_to_rgba_row420};
+use crate::avx2::{avx2_yuv_to_rgba_row, avx2_yuv_to_rgba_row420, avx2_yuv_to_rgba_row422};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
 ))]
-use crate::avx512bw::{avx512_yuv_to_rgba, avx512_yuv_to_rgba420};
+use crate::avx512bw::{avx512_yuv_to_rgba, avx512_yuv_to_rgba420, avx512_yuv_to_rgba422};
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{
     neon_yuv_to_rgba_row, neon_yuv_to_rgba_row420, neon_yuv_to_rgba_row_rdm,
@@ -123,6 +123,15 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly_avx512"
     ))]
+    let avx512_wide422_row = if use_vbmi {
+        avx512_yuv_to_rgba422::<DESTINATION_CHANNELS, true>
+    } else {
+        avx512_yuv_to_rgba422::<DESTINATION_CHANNELS, false>
+    };
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
     let avx512_double_wide_row = if use_vbmi {
         avx512_yuv_to_rgba420::<DESTINATION_CHANNELS, true>
     } else {
@@ -136,7 +145,14 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         {
             #[cfg(feature = "nightly_avx512")]
             if use_avx512 {
-                let processed = avx512_wide_row(
+                let handler = if chroma_subsampling == YuvChromaSubsampling::Yuv420
+                    || chroma_subsampling == YuvChromaSubsampling::Yuv422
+                {
+                    avx512_wide422_row
+                } else {
+                    avx512_wide_row
+                };
+                let processed = handler(
                     &chroma_range,
                     &inverse_transform,
                     _y_plane,
@@ -152,7 +168,14 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             }
 
             if use_avx2 {
-                let processed = avx2_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
+                let handler = if chroma_subsampling == YuvChromaSubsampling::Yuv420
+                    || chroma_subsampling == YuvChromaSubsampling::Yuv422
+                {
+                    avx2_yuv_to_rgba_row422::<DESTINATION_CHANNELS>
+                } else {
+                    avx2_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>
+                };
+                let processed = handler(
                     &chroma_range,
                     &inverse_transform,
                     _y_plane,
@@ -166,6 +189,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 _cx = processed.cx;
                 _uv_x = processed.ux;
             }
+
             if use_sse {
                 let processed = sse_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>(
                     &chroma_range,
