@@ -28,8 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    _mm512_expand8_unordered_to_10, avx512_store_rgba_for_yuv_u8,
-    avx512_zip_u_epi16,
+    _mm512_expand8_unordered_to_10, avx512_store_rgba_for_yuv_u8, avx512_zip_u_epi16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
@@ -38,6 +37,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+/// This is special path for halved chroma Row to reuse variables instead of computing them
 pub(crate) fn avx512_yuv_to_rgba422<const DESTINATION_CHANNELS: u8, const HAS_VBMI: bool>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,

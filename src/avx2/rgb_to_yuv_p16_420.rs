@@ -38,6 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+/// This is special path for 2 rows of 4:2:0 to reuse variables instead of computing them
 pub(crate) fn avx_rgba_to_yuv_p16_420<
     const ORIGIN_CHANNELS: u8,
     const ENDIANNESS: u8,

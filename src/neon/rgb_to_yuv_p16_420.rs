@@ -166,6 +166,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
 }
 
 #[target_feature(enable = "rdm")]
+/// Special path for Planar YUV 4:2:0 for aarch64 with RDM available
 pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
     const ORIGIN_CHANNELS: u8,
     const ENDIANNESS: u8,

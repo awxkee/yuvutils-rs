@@ -34,6 +34,7 @@ use crate::neon::utils::neon_vld_rgb_for_yuv;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 
 #[target_feature(enable = "rdm")]
+/// Special path for BiPlanar YUV 4:2:0 for aarch64 with RDM available
 pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     const ORIGIN_CHANNELS: u8,
     const UV_ORDER: u8,

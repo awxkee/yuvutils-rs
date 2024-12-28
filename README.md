@@ -3,11 +3,14 @@
 [![crates.io](https://img.shields.io/crates/v/yuvutils-rs.svg)](https://crates.io/crates/yuvutils-rs)
 ![Build](https://github.com/awxkee/yuvutils-rs/actions/workflows/build_push.yml/badge.svg)
 
-Fast and simple YUV approximation conversion in pure Rust. At most the same as libyuv does. Performance will be equal to libyuv or slightly higher on platforms where SIMD is implemented. Otherwise equal or slower. 
+Fast and simple YUV approximation conversion in pure Rust. At most the same as libyuv does.
+Performance will be equal to libyuv or slightly higher on platforms where SIMD is implemented. Otherwise, equal or slower.
+Used precision is slightly higher than used in libyuv, however for decoding 4:2:0 is almost always faster than libyuv,
+decoding 4:2:2, 4:4:4 almost the same, however encoding except 4:2:0 often is slower with better results.
 
-Mostly implemented AVX-512, AVX2, SSE, NEON, WASM
+Mostly implemented AVX-512, AVX2, SSE, NEON, WASM. Waiting for SVE to be available in `nightly`.
 
-X86 targets with SSE and AVX uses runtime dispatch to detect available cpu features.
+x86 targets with SSE and AVX uses runtime dispatch to detect available cpu features.
 
 Supports:
 - [x] YCbCr ( aka YUV )
@@ -22,13 +25,15 @@ All the methods support RGB, BGR, BGRA and RGBA
 
 Runtime dispatch is used for use if available `sse4.1`, `avx2`, `avx512bw`, `avx512vbmi`, `rdm` for NEON. 
 
-For the `sse4.1`, `avx2`, `rdm` no action is needed, however for AVX-512 activated feature `nightly_avx512` along `nightly` rust channel is required.
+For the `sse4.1`, `avx2`, `rdm` there is no action needed, however for AVX-512 activated feature `nightly_avx512` along `nightly` rust channel is required.
+
+Always consider to compile with `nightly_avx512` when compiling for x86, it adds noticeable gain on supported cpus. 
 
 Wasm `simd128` as target feature should be enabled for implemented SIMD wasm paths support,
 
 # Rayon 
 
-Some paths have multi-threading support, consider this feature if you're working on platform with multi-threading.
+Some paths have multi-threading support, consider this feature if you're working on platform where using of multi-threading is reasonable.
 
 ### Adding to project
 
