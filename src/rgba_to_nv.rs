@@ -28,6 +28,10 @@
  */
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::avx2::{avx2_rgba_to_nv, avx2_rgba_to_nv420};
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
 use crate::avx512bw::avx512_rgba_to_nv420;
 use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvBiPlanarImageMut;
