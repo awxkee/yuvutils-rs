@@ -38,6 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+/// This is special path for 2 rows of BiPlanar 4:2:0 to reuse variables instead of computing them
 pub(crate) fn avx2_rgba_to_nv420<
     const ORIGIN_CHANNELS: u8,
     const UV_ORDER: u8,

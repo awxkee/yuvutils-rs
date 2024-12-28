@@ -39,11 +39,13 @@ pub(crate) fn qrshr<const PRECISION: i32, const BIT_DEPTH: usize>(val: i32) -> i
 }
 
 #[inline]
+/// Integer division by 255 with rounding to nearest
 pub(crate) fn div_by_255(v: u16) -> u8 {
     ((((v + 0x80) >> 8) + v + 0x80) >> 8) as u8
 }
 
 #[inline(always)]
+/// Converts to MSB, if needed, and also to big endian
 pub(crate) fn to_ne<const ENDIANNESS: u8, const BYTES_POSITION: u8>(v: u16, msb: i32) -> u16 {
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();

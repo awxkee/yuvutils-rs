@@ -36,6 +36,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+/// This is special path for halved chroma Row to reuse variables instead of computing them
 pub(crate) fn avx2_yuv_to_rgba_row422<const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,

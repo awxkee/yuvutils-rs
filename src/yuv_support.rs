@@ -195,6 +195,7 @@ pub enum YuvRange {
     Full,
 }
 
+/// Holds YUV bias values
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct YuvChromaRange {
     pub bias_y: u32,
@@ -204,6 +205,7 @@ pub struct YuvChromaRange {
     pub range: YuvRange,
 }
 
+/// Computes YUV ranges for given bit depth
 pub const fn get_yuv_range(depth: u32, range: YuvRange) -> YuvChromaRange {
     match range {
         YuvRange::Limited => YuvChromaRange {
@@ -646,6 +648,7 @@ impl From<usize> for Rgb30ByteOrder {
     }
 }
 
+/// Search for prebuilt forward transform, otherwise computes new transform
 pub(crate) fn search_forward_transform(
     precision: i32,
     bit_depth: u32,
@@ -669,6 +672,7 @@ pub(crate) fn search_forward_transform(
     }
 }
 
+/// Search for prebuilt inverse transform, otherwise computes new transform
 pub(crate) fn search_inverse_transform(
     precision: i32,
     bit_depth: u32,

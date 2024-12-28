@@ -33,7 +33,6 @@ use crate::avx2::{avx2_rgba_to_nv, avx2_rgba_to_nv420};
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::avx512_rgba_to_nv420;
-use crate::built_coefficients::get_built_forward_transform;
 use crate::images::YuvBiPlanarImageMut;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -68,22 +67,9 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
 
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p8 = (1u32 << 8u32) - 1;
 
     const PRECISION: i32 = 13;
-    let transform =
-        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
-            stored_t
-        } else {
-            let transform_precise = get_forward_transform(
-                max_range_p8,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform_precise.to_integers(PRECISION as u32)
-        };
+    let transform = search_forward_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
 
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
