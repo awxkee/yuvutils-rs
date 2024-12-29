@@ -100,7 +100,7 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut bi_planar_image =
-        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
     let mut planar_image =
         YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
@@ -108,8 +108,8 @@ fn main() {
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv422(
-        &mut planar_image,
+    rgb_to_yuv_nv16(
+        &mut bi_planar_image,
         &src_bytes,
         rgba_stride as u32,
         YuvRange::Full,
@@ -265,8 +265,8 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv422_to_rgb(
-        &fixed_planar,
+    yuv_nv16_to_rgb(
+        &fixed_biplanar,
         &mut rgba,
         rgba_stride as u32,
         YuvRange::Full,
@@ -337,38 +337,6 @@ fn main() {
     // /    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
 
     // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
-
-    let mut bgra = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
-    rgb_to_bgra(
-        &rgba,
-        dimensions.0 * 3,
-        &mut bgra,
-        dimensions.0 * 4,
-        dimensions.0,
-        dimensions.1,
-    )
-    .unwrap();
-
-    let mut bgra1 = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
-
-    bgra_to_rgba(
-        &bgra,
-        dimensions.0 * 4,
-        &mut bgra1,
-        dimensions.0 * 4,
-        dimensions.0,
-        dimensions.1,
-    )
-    .unwrap();
-
-    image::save_buffer(
-        "converted_sharp_bgra.png",
-        bgra1.as_bytes(),
-        dimensions.0,
-        dimensions.1,
-        image::ExtendedColorType::Rgba8,
-    )
-    .unwrap();
 
     image::save_buffer(
         "converted_sharp15.png",

@@ -38,6 +38,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+/// This is an exceptional path for doubled row with 4:2:0 subsampling only.
 pub(crate) fn sse_yuv_nv_to_rgba420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,

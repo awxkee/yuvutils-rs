@@ -924,9 +924,7 @@ pub(crate) unsafe fn _mm512_expand8_to_10<const HAS_VBMI: bool>(v: __m512i) -> (
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm512_expand8_unordered_to_10<const HAS_VBMI: bool>(
-    v: __m512i,
-) -> (__m512i, __m512i) {
+pub(crate) unsafe fn _mm512_expand8_unordered_to_10(v: __m512i) -> (__m512i, __m512i) {
     let (v0, v1) = (_mm512_unpacklo_epi8(v, v), _mm512_unpackhi_epi8(v, v));
     (_mm512_srli_epi16::<6>(v0), _mm512_srli_epi16::<6>(v1))
 }

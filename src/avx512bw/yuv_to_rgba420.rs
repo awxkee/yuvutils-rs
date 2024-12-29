@@ -147,8 +147,8 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
             y_corr,
         );
 
-        let y0_10 = _mm512_expand8_unordered_to_10::<HAS_VBMI>(y_values0);
-        let y1_10 = _mm512_expand8_unordered_to_10::<HAS_VBMI>(y_values1);
+        let y0_10 = _mm512_expand8_unordered_to_10(y_values0);
+        let y1_10 = _mm512_expand8_unordered_to_10(y_values1);
 
         let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
         let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);

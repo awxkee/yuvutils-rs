@@ -35,6 +35,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+/// This is an exceptional path for two rows at one time for 4:2:0 only.
 pub(crate) fn avx2_yuv_nv_to_rgba_row420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
