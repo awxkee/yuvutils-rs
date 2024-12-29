@@ -432,6 +432,55 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgb_for_yuv<const CHANS: u8>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm_load_deinterleave_rgbx<const CHANS: u8>(
+    ptr: *const u8,
+) -> (__m128i, __m128i, __m128i, __m128i) {
+    let (r_values0, g_values0, b_values0, a_values0);
+
+    let source_channels: YuvSourceChannels = CHANS.into();
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
+            let row_3 = _mm_loadu_si128(ptr.add(32) as *const __m128i);
+
+            let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, row_3);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+            }
+            a_values0 = _mm_set1_epi8(255u8 as i8);
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
+            let row_3 = _mm_loadu_si128(ptr.add(32) as *const __m128i);
+            let row_4 = _mm_loadu_si128(ptr.add(48) as *const __m128i);
+
+            let (it1, it2, it3, it4) = sse_deinterleave_rgba(row_1, row_2, row_3, row_4);
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+                a_values0 = it4;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+                a_values0 = it4;
+            }
+        }
+    }
+    (r_values0, g_values0, b_values0, a_values0)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm_load_deinterleave_half_rgb_for_yuv<const CHANS: u8>(
     ptr: *const u8,
 ) -> (__m128i, __m128i, __m128i) {
@@ -473,6 +522,53 @@ pub(crate) unsafe fn _mm_load_deinterleave_half_rgb_for_yuv<const CHANS: u8>(
         }
     }
     (r_values0, g_values0, b_values0)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_load_deinterleave_half_rgbx<const CHANS: u8>(
+    ptr: *const u8,
+) -> (__m128i, __m128i, __m128i, __m128i) {
+    let (r_values0, g_values0, b_values0, a_values0);
+
+    let source_channels: YuvSourceChannels = CHANS.into();
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si64(ptr.add(16));
+
+            let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, _mm_setzero_si128());
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+            }
+            a_values0 = _mm_set1_epi8(255u8 as i8);
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm_loadu_si128(ptr as *const __m128i);
+            let row_2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
+
+            let (it1, it2, it3, it4) =
+                sse_deinterleave_rgba(row_1, row_2, _mm_setzero_si128(), _mm_setzero_si128());
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values0 = it1;
+                g_values0 = it2;
+                b_values0 = it3;
+                a_values0 = it4;
+            } else {
+                r_values0 = it3;
+                g_values0 = it2;
+                b_values0 = it1;
+                a_values0 = it4;
+            }
+        }
+    }
+    (r_values0, g_values0, b_values0, a_values0)
 }
 
 #[inline(always)]

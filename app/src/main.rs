@@ -36,15 +36,16 @@ use std::thread::available_parallelism;
 use std::time::Instant;
 use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24, rs_RGB24ToI420};
 use yuvutils_rs::{
-    gbr_to_rgb, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16,
-    rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12,
-    rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba_to_yuv422, yuv400_to_rgb,
-    yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb,
-    yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16, yuv444_to_rgb,
-    yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb,
-    yuv_nv24_to_rgb, yuyv422_to_rgb, yuyv422_to_yuv420, SharpYuvGammaTransfer, YuvBiPlanarImageMut,
-    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut, YuvPackedImage,
-    YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    bgra_to_rgba, gbr_to_rgb, rgb_to_bgra, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv400,
+    rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444,
+    rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16, rgb_to_yuv_nv24,
+    rgba_to_bgra, rgba_to_yuv422, yuv400_to_rgb, yuv420_p16_to_rgb, yuv420_p16_to_rgb16,
+    yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb,
+    yuv422_to_rgba, yuv444_p16_to_rgb16, yuv444_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16,
+    yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv24_to_rgb, yuyv422_to_rgb,
+    yuyv422_to_yuv420, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking,
+    YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut,
+    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -336,6 +337,38 @@ fn main() {
     // /    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
 
     // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+
+    let mut bgra = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
+    rgb_to_bgra(
+        &rgba,
+        dimensions.0 * 3,
+        &mut bgra,
+        dimensions.0 * 4,
+        dimensions.0,
+        dimensions.1,
+    )
+    .unwrap();
+
+    let mut bgra1 = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
+
+    bgra_to_rgba(
+        &bgra,
+        dimensions.0 * 4,
+        &mut bgra1,
+        dimensions.0 * 4,
+        dimensions.0,
+        dimensions.1,
+    )
+    .unwrap();
+
+    image::save_buffer(
+        "converted_sharp_bgra.png",
+        bgra1.as_bytes(),
+        dimensions.0,
+        dimensions.1,
+        image::ExtendedColorType::Rgba8,
+    )
+    .unwrap();
 
     image::save_buffer(
         "converted_sharp15.png",

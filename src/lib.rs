@@ -57,6 +57,7 @@ mod rgb_to_yuv_p16;
 mod rgba_to_nv;
 mod rgba_to_yuv;
 mod sharpyuv;
+mod shuffle;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod sse;
 mod to_identity;
@@ -441,6 +442,10 @@ pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
 };
 pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
+pub use shuffle::{
+    bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
+    rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
+};
 pub use yuv_p16_ar30::{
     yuv420_p16_to_ab30, yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ab30,
     yuv422_p16_to_ar30, yuv422_p16_to_ra30, yuv444_p16_to_ab30, yuv444_p16_to_ar30,
