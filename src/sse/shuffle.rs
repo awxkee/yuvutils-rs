@@ -32,9 +32,10 @@ use crate::sse::{
     _mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv, _xx_load_si64,
 };
 use crate::yuv_support::YuvSourceChannels;
-use std::arch::x86_64::{
-    __m128i, _mm_loadu_si128, _mm_shuffle_epi8, _mm_storeu_si128, _mm_storeu_si64,
-};
+#[cfg(target_arch = "x86")]
+use std::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 /// This is default shuffling with interleaving and de-interleaving.
 ///
