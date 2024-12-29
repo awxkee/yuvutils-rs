@@ -263,6 +263,48 @@ pub(crate) unsafe fn neon_vld_rgb_for_yuv<const ORIGINS: u8>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn neon_vld_rgb<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (uint8x16_t, uint8x16_t, uint8x16_t, uint8x16_t) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let r_values_u8: uint8x16_t;
+    let g_values_u8: uint8x16_t;
+    let b_values_u8: uint8x16_t;
+    let a_vals: uint8x16_t;
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = vld3q_u8(ptr);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values_u8 = rgb_values.0;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.2;
+            } else {
+                r_values_u8 = rgb_values.2;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.0;
+            }
+            a_vals = vdupq_n_u8(255);
+        }
+        YuvSourceChannels::Rgba => {
+            let rgb_values = vld4q_u8(ptr);
+            r_values_u8 = rgb_values.0;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.2;
+            a_vals = rgb_values.3;
+        }
+        YuvSourceChannels::Bgra => {
+            let rgb_values = vld4q_u8(ptr);
+            r_values_u8 = rgb_values.2;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.0;
+            a_vals = rgb_values.3;
+        }
+    }
+    (r_values_u8, g_values_u8, b_values_u8, a_vals)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn neon_vld_h_rgb_for_yuv<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (uint8x8_t, uint8x8_t, uint8x8_t) {
@@ -298,6 +340,48 @@ pub(crate) unsafe fn neon_vld_h_rgb_for_yuv<const ORIGINS: u8>(
         }
     }
     (r_values_u8, g_values_u8, b_values_u8)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn neon_vld_h_rgb<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (uint8x8_t, uint8x8_t, uint8x8_t, uint8x8_t) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let r_values_u8: uint8x8_t;
+    let g_values_u8: uint8x8_t;
+    let b_values_u8: uint8x8_t;
+    let a_vals: uint8x8_t;
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let rgb_values = vld3_u8(ptr);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values_u8 = rgb_values.0;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.2;
+            } else {
+                r_values_u8 = rgb_values.2;
+                g_values_u8 = rgb_values.1;
+                b_values_u8 = rgb_values.0;
+            }
+            a_vals = vdup_n_u8(0);
+        }
+        YuvSourceChannels::Rgba => {
+            let rgb_values = vld4_u8(ptr);
+            r_values_u8 = rgb_values.0;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.2;
+            a_vals = rgb_values.3;
+        }
+        YuvSourceChannels::Bgra => {
+            let rgb_values = vld4_u8(ptr);
+            r_values_u8 = rgb_values.2;
+            g_values_u8 = rgb_values.1;
+            b_values_u8 = rgb_values.0;
+            a_vals = rgb_values.3;
+        }
+    }
+    (r_values_u8, g_values_u8, b_values_u8, a_vals)
 }
 
 #[inline(always)]

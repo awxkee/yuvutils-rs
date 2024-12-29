@@ -83,7 +83,7 @@ impl ShuffleConverterFactory<u8> for u8 {
             if src_channels.get_channels_count() == 4 && dst_channels.get_channels_count() == 4 {
                 converter = Box::new(ShuffleQTableConverterSse::<SRC, DST>::create());
             } else {
-                converter = Box::new(ShuffleConverterSse::default());
+                converter = Box::new(ShuffleConverterSse::<SRC, DST>::default());
             }
         }
         converter
@@ -91,7 +91,8 @@ impl ShuffleConverterFactory<u8> for u8 {
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     fn make_converter<const SRC: u8, const DST: u8>() -> Box<dyn ShuffleConverter<u8, SRC, DST>> {
-        Box::new(Rgba8DefaultConverter::default())
+        use crate::neon::ShuffleConverterNeon;
+        Box::new(ShuffleConverterNeon::<SRC, DST>::default())
     }
 
     #[cfg(not(any(
@@ -99,7 +100,7 @@ impl ShuffleConverterFactory<u8> for u8 {
         any(target_arch = "x86", target_arch = "x86_64")
     )))]
     fn make_converter<const SRC: u8, const DST: u8>() -> Box<dyn ShuffleConverter<u8, SRC, DST>> {
-        Box::new(Rgba8DefaultConverter::default())
+        Box::new(Rgba8DefaultConverter::<SRC, DST>::default())
     }
 }
 
