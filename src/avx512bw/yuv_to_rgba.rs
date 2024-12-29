@@ -182,8 +182,8 @@ unsafe fn avx512_yuv_to_rgba_impl<
             }
         }
 
-        let y0_10 = _mm512_expand8_unordered_to_10::<HAS_VBMI>(y_values0);
-        let y1_10 = _mm512_expand8_unordered_to_10::<HAS_VBMI>(y_values1);
+        let y0_10 = _mm512_expand8_unordered_to_10(y_values0);
+        let y1_10 = _mm512_expand8_unordered_to_10(y_values1);
 
         let u_high0 = _mm512_sub_epi16(u_high00, uv_corr);
         let v_high0 = _mm512_sub_epi16(v_high00, uv_corr);
@@ -312,7 +312,7 @@ unsafe fn avx512_yuv_to_rgba_impl<
             }
         }
 
-        let y_10 = _mm512_expand8_unordered_to_10::<HAS_VBMI>(y_values);
+        let y_10 = _mm512_expand8_unordered_to_10(y_values);
 
         let u_high = _mm512_sub_epi16(u_high0, uv_corr);
         let v_high = _mm512_sub_epi16(v_high0, uv_corr);
