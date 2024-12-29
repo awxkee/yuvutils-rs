@@ -183,16 +183,8 @@ unsafe fn sse_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLIN
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
-                let u_value = (u_ptr.add(uv_x) as *const i32).read_unaligned();
-                let v_value = (v_ptr.add(uv_x) as *const i32).read_unaligned();
-                let u_values = _mm_shuffle_epi8(
-                    _mm_insert_epi32::<0>(_mm_setzero_si128(), u_value),
-                    reshuffle,
-                );
-                let v_values = _mm_shuffle_epi8(
-                    _mm_insert_epi32::<0>(_mm_setzero_si128(), v_value),
-                    reshuffle,
-                );
+                let u_values = _mm_shuffle_epi8(_mm_loadu_si32(u_ptr.add(uv_x)), reshuffle);
+                let v_values = _mm_shuffle_epi8(_mm_loadu_si32(v_ptr.add(uv_x)), reshuffle);
 
                 u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u_values, u_values));
                 v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v_values, v_values));
