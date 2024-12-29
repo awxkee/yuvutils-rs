@@ -90,7 +90,7 @@ impl ShuffleConverterFactory<u8> for u8 {
     }
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    fn make_converter<const SRC: u8, const DST: u8>() -> Box<dyn ShuffleConverter<u8>> {
+    fn make_converter<const SRC: u8, const DST: u8>() -> Box<dyn ShuffleConverter<u8, SRC, DST>> {
         Box::new(Rgba8DefaultConverter::default())
     }
 
@@ -404,6 +404,58 @@ pub fn bgra_to_rgba(
     height: u32,
 ) -> Result<(), YuvError> {
     shuffle_impl::<u8, { YuvSourceChannels::Bgra as u8 }, { YuvSourceChannels::Rgba as u8 }, 8>(
+        src, src_stride, dst, dst_stride, width, height,
+    )
+}
+
+/// Converts BGRA to RGB8
+///
+/// # Arguments
+///
+/// * `src`: Source slice
+/// * `src_stride`: Source slice stride
+/// * `dst`: Destination slice
+/// * `dst_stride`: Destination slice stride
+/// * `width`: Image width
+/// * `height`: Image height
+///
+/// returns: Result<(), YuvError>
+///
+pub fn bgra_to_rgb(
+    src: &[u8],
+    src_stride: u32,
+    dst: &mut [u8],
+    dst_stride: u32,
+    width: u32,
+    height: u32,
+) -> Result<(), YuvError> {
+    shuffle_impl::<u8, { YuvSourceChannels::Bgra as u8 }, { YuvSourceChannels::Rgb as u8 }, 8>(
+        src, src_stride, dst, dst_stride, width, height,
+    )
+}
+
+/// Converts BGRA to RGB8
+///
+/// # Arguments
+///
+/// * `src`: Source slice
+/// * `src_stride`: Source slice stride
+/// * `dst`: Destination slice
+/// * `dst_stride`: Destination slice stride
+/// * `width`: Image width
+/// * `height`: Image height
+///
+/// returns: Result<(), YuvError>
+///
+pub fn bgra_to_bgr(
+    src: &[u8],
+    src_stride: u32,
+    dst: &mut [u8],
+    dst_stride: u32,
+    width: u32,
+    height: u32,
+) -> Result<(), YuvError> {
+    shuffle_impl::<u8, { YuvSourceChannels::Bgra as u8 }, { YuvSourceChannels::Bgr as u8 }, 8>(
         src, src_stride, dst, dst_stride, width, height,
     )
 }
