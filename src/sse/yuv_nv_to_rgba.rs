@@ -99,8 +99,6 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
     let zeros = _mm_setzero_si128();
 
-    let distribute_shuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
-
     while cx + 16 < width {
         let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
 
@@ -110,6 +108,9 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_x) as *const __m128i);
                 let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
+
+                let distribute_shuffle =
+                    _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
 
                 u = _mm_shuffle_epi8(u, distribute_shuffle);
                 v = _mm_shuffle_epi8(v, distribute_shuffle);
@@ -133,20 +134,22 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
                 let uv_source_ptr = uv_ptr.add(uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
                 let row1 = _mm_loadu_si128(uv_source_ptr.add(16) as *const __m128i);
-                let (u, v) = _mm_deinterleave_x2_epi8(row0, row1);
+
+                let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
+                let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
 
                 match order {
                     YuvNVOrder::UV => {
-                        u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u, u));
-                        v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v));
-                        u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
-                        v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
+                        u_high_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row1, sh_e));
+                        v_high_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row1, sh_o));
+                        u_low_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row0, sh_e));
+                        v_low_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row0, sh_o));
                     }
                     YuvNVOrder::VU => {
-                        u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v));
-                        v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u, u));
-                        u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
-                        v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
+                        u_high_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row1, sh_o));
+                        v_high_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row1, sh_e));
+                        u_low_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row0, sh_o));
+                        v_low_u16 = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row0, sh_e));
                     }
                 }
             }
@@ -216,35 +219,42 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_values_ = _mm_loadu_si64(uv_ptr.add(uv_x));
-                let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
-                u = _mm_shuffle_epi8(u, distribute_shuffle);
-                v = _mm_shuffle_epi8(v, distribute_shuffle);
+                let sh_e = _mm_setr_epi8(0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 6);
+                let sh_o = _mm_setr_epi8(1, 1, 1, 1, 3, 3, 3, 3, 5, 5, 5, 5, 7, 7, 7, 7);
+
+                let u = _mm_srli_epi16::<6>(_mm_shuffle_epi8(uv_values_, sh_e));
+                let v = _mm_srli_epi16::<6>(_mm_shuffle_epi8(uv_values_, sh_o));
 
                 match order {
                     YuvNVOrder::UV => {
-                        u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
-                        v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
+                        u_low_u16 = u;
+                        v_low_u16 = v;
                     }
                     YuvNVOrder::VU => {
-                        u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
-                        v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
+                        u_low_u16 = v;
+                        v_low_u16 = u;
                     }
                 }
             }
             YuvChromaSubsampling::Yuv444 => {
                 let uv_source_ptr = uv_ptr.add(uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
-                let (u, v) = _mm_deinterleave_x2_epi8(row0, zeros);
+
+                let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
+                let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+
+                let u = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row0, sh_e));
+                let v = _mm_srli_epi16::<6>(_mm_shuffle_epi8(row0, sh_o));
 
                 match order {
                     YuvNVOrder::UV => {
-                        u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, zeros));
-                        v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, zeros));
+                        u_low_u16 = u;
+                        v_low_u16 = v;
                     }
                     YuvNVOrder::VU => {
-                        u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, zeros));
-                        v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, zeros));
+                        u_low_u16 = v;
+                        v_low_u16 = u;
                     }
                 }
             }

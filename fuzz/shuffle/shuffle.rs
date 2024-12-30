@@ -30,10 +30,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
-    bgr_to_rgba, rgba_to_bgr, rgba_to_bgra, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgb,
-    yuv422_to_rgba, yuv444_to_rgb, yuv444_to_rgba, YuvPlanarImage, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{bgr_to_rgb, rgba_to_bgr, rgba_to_bgra};
 
 fuzz_target!(|data: (u8, u8, bool, bool)| {
     fuzz_shuffler(data.0, data.1, data.2, data.3);
@@ -53,7 +50,7 @@ fn fuzz_shuffler(i_width: u8, i_height: u8, src_rgba: bool, dst_rgba: bool) {
     } else if src_rgba {
         rgba_to_bgr
     } else {
-        bgr_to_rgba
+        bgr_to_rgb
     };
     shuffler(
         &src_data,
