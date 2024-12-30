@@ -119,8 +119,6 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
 
     let v_alpha = _mm_set1_epi8(255u8 as i8);
 
-    const V_SCALE: i32 = 2;
-
     let vy_coeff = _mm_set1_epi16(y_coeff as i16);
     let vy_bias = _mm_set1_epi8(y_bias as i8);
 
@@ -139,28 +137,28 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         );
 
         let rl_hi = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(r_values0)),
+            _mm_srli_epi16::<6>(_mm_unpackhi_epi8(r_values0, r_values0)),
             vy_coeff,
         );
         let gl_hi = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(g_values0)),
+            _mm_srli_epi16::<6>(_mm_unpackhi_epi8(g_values0, g_values0)),
             vy_coeff,
         );
         let bl_hi = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<V_SCALE>(_mm_cvtepu8_epi16(b_values0)),
+            _mm_srli_epi16::<6>(_mm_unpackhi_epi8(b_values0, b_values0)),
             vy_coeff,
         );
 
         let rl_lo = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(r_values0, _mm_setzero_si128())),
+            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(r_values0, r_values0)),
             vy_coeff,
         );
         let gl_lo = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(g_values0, _mm_setzero_si128())),
+            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(g_values0, g_values0)),
             vy_coeff,
         );
         let bl_lo = _mm_mulhrs_epi16(
-            _mm_slli_epi16::<V_SCALE>(_mm_unpacklo_epi8(b_values0, _mm_setzero_si128())),
+            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(b_values0, b_values0)),
             vy_coeff,
         );
 

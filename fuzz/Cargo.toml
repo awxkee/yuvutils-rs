@@ -94,3 +94,10 @@ path = "rgb16_to_nv16/rgb16_to_nv16.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "shuffle"
+path = "shuffle/shuffle.rs"
+test = false
+doc = false
+bench = false
