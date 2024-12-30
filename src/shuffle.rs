@@ -460,3 +460,110 @@ pub fn bgra_to_bgr(
         src, src_stride, dst, dst_stride, width, height,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_4_chan_reshuffling() {
+        let image_width = 256usize;
+        let image_height = 256usize;
+
+        const CHANNELS: usize = 4;
+
+        let mut image_rgba = vec![0u8; image_width * image_height * CHANNELS];
+        let mut image_bgra = vec![0u8; image_width * image_height * CHANNELS];
+
+        let center = image_width / 2 * CHANNELS + (image_height / 2) * CHANNELS * image_width;
+
+        image_rgba[center] = 127;
+        image_rgba[center + 1] = 17;
+        image_rgba[center + 2] = 2;
+        image_rgba[center + 3] = 90;
+
+        rgba_to_bgra(
+            &image_rgba,
+            CHANNELS as u32 * image_width as u32,
+            &mut image_bgra,
+            CHANNELS as u32 * image_width as u32,
+            image_width as u32,
+            image_height as u32,
+        )
+        .unwrap();
+
+        assert_eq!(image_bgra[center], 2);
+        assert_eq!(image_bgra[center + 1], 17);
+        assert_eq!(image_bgra[center + 2], 127);
+        assert_eq!(image_bgra[center + 3], 90);
+    }
+
+    #[test]
+    fn check_3_to_4_chan_reshuffling() {
+        let image_width = 256usize;
+        let image_height = 256usize;
+
+        const SRC: usize = 3;
+        const DST: usize = 4;
+
+        let mut image_rgb = vec![0u8; image_width * image_height * SRC];
+        let mut image_bgra = vec![0u8; image_width * image_height * DST];
+
+        let center_src = image_width / 2 * SRC + (image_height / 2) * SRC * image_width;
+        let center_dst = image_width / 2 * DST + (image_height / 2) * DST * image_width;
+
+        image_rgb[center_src] = 127;
+        image_rgb[center_src + 1] = 17;
+        image_rgb[center_src + 2] = 2;
+        image_rgb[center_src + 3] = 90;
+
+        rgb_to_bgra(
+            &image_rgb,
+            SRC as u32 * image_width as u32,
+            &mut image_bgra,
+            DST as u32 * image_width as u32,
+            image_width as u32,
+            image_height as u32,
+        )
+        .unwrap();
+
+        assert_eq!(image_bgra[center_dst], 2);
+        assert_eq!(image_bgra[center_dst + 1], 17);
+        assert_eq!(image_bgra[center_dst + 2], 127);
+        assert_eq!(image_bgra[center_dst + 3], 255);
+    }
+
+    #[test]
+    fn check_4_to_3_chan_reshuffling() {
+        let image_width = 256usize;
+        let image_height = 256usize;
+
+        const SRC: usize = 4;
+        const DST: usize = 3;
+
+        let mut image_rgba = vec![0u8; image_width * image_height * SRC];
+        let mut image_bgr = vec![0u8; image_width * image_height * DST];
+
+        let center_src = image_width / 2 * SRC + (image_height / 2) * SRC * image_width;
+        let center_dst = image_width / 2 * DST + (image_height / 2) * DST * image_width;
+
+        image_rgba[center_src] = 127;
+        image_rgba[center_src + 1] = 17;
+        image_rgba[center_src + 2] = 2;
+        image_rgba[center_src + 3] = 90;
+
+        rgba_to_bgr(
+            &image_rgba,
+            SRC as u32 * image_width as u32,
+            &mut image_bgr,
+            DST as u32 * image_width as u32,
+            image_width as u32,
+            image_height as u32,
+        )
+        .unwrap();
+
+        assert_eq!(image_bgr[center_dst], 2);
+        assert_eq!(image_bgr[center_dst + 1], 17);
+        assert_eq!(image_bgr[center_dst + 2], 127);
+    }
+}
