@@ -500,6 +500,56 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_load_deinterleave_rgb<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (__m256i, __m256i, __m256i, __m256i) {
+    let source_channels: YuvSourceChannels = ORIGINS.into();
+
+    let (r_values, g_values, b_values, a_values);
+
+    match source_channels {
+        YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
+            let row_1 = _mm256_loadu_si256(ptr as *const __m256i);
+            let row_2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+            let row_3 = _mm256_loadu_si256(ptr.add(64) as *const __m256i);
+
+            let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
+            if source_channels == YuvSourceChannels::Rgb {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+            a_values = _mm256_set1_epi8(255u8 as i8);
+        }
+        YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
+            let row_1 = _mm256_loadu_si256(ptr as *const __m256i);
+            let row_2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+            let row_3 = _mm256_loadu_si256(ptr.add(64) as *const __m256i);
+            let row_4 = _mm256_loadu_si256(ptr.add(96) as *const __m256i);
+
+            let (it1, it2, it3, it4) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
+            if source_channels == YuvSourceChannels::Rgba {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+                a_values = it4;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+                a_values = it4;
+            }
+        }
+    }
+
+    (r_values, g_values, b_values, a_values)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_load_deinterleave_half_rgb_for_yuv<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (__m256i, __m256i, __m256i) {
