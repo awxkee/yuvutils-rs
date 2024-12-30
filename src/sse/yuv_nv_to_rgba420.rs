@@ -102,71 +102,57 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
             y_corr,
         );
 
-        let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
-
         let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_x) as *const __m128i);
-        let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
-        u = _mm_shuffle_epi8(u, distribute_shuffle);
-        v = _mm_shuffle_epi8(v, distribute_shuffle);
+        let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
+        let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+        let mut u = _mm_shuffle_epi8(uv_values_, sh_e);
+        let mut v = _mm_shuffle_epi8(uv_values_, sh_o);
 
-        match order {
-            YuvNVOrder::UV => {
-                u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u, u));
-                v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v));
-                u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
-                v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
-            }
-            YuvNVOrder::VU => {
-                u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v));
-                v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u, u));
-                u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v));
-                v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u));
-            }
+        u = _mm_sub_epi16(_mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u)), uv_corr);
+        v = _mm_sub_epi16(_mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v)), uv_corr);
+
+        if order == YuvNVOrder::VU {
+            let j = u;
+            u = v;
+            v = j;
         }
 
-        let u_high = _mm_sub_epi16(u_high_u16, uv_corr);
-        let v_high = _mm_sub_epi16(v_high_u16, uv_corr);
+        let v_u = _mm_mulhrs_epi16(u, v_cb_coeff);
+        let v_v = _mm_mulhrs_epi16(v, v_cr_coeff);
+
+        let v_g = _mm_add_epi16(
+            _mm_mulhrs_epi16(v, v_g_coeff_1),
+            _mm_mulhrs_epi16(u, v_g_coeff_2),
+        );
+
+        let (v_u_l, v_u_h) = (_mm_unpacklo_epi16(v_u, v_u), _mm_unpackhi_epi16(v_u, v_u));
+
+        let (v_v_l, v_v_h) = (_mm_unpacklo_epi16(v_v, v_v), _mm_unpackhi_epi16(v_v, v_v));
+
+        let (v_g_l, v_g_h) = (_mm_unpacklo_epi16(v_g, v_g), _mm_unpackhi_epi16(v_g, v_g));
+
         let y_high0 = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values0), v_luma_coeff);
         let y_high1 = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values1), v_luma_coeff);
 
-        let g_coeff_hi = _mm_add_epi16(
-            _mm_mulhrs_epi16(v_high, v_g_coeff_1),
-            _mm_mulhrs_epi16(u_high, v_g_coeff_2),
-        );
+        let r_high0 = _mm_add_epi16(y_high0, v_v_h);
+        let b_high0 = _mm_add_epi16(y_high0, v_u_h);
+        let g_high0 = _mm_sub_epi16(y_high0, v_g_h);
 
-        let v_cr_hi = _mm_mulhrs_epi16(v_high, v_cr_coeff);
-        let v_cb_hi = _mm_mulhrs_epi16(u_high, v_cb_coeff);
-
-        let r_high0 = _mm_add_epi16(y_high0, v_cr_hi);
-        let b_high0 = _mm_add_epi16(y_high0, v_cb_hi);
-        let g_high0 = _mm_sub_epi16(y_high0, g_coeff_hi);
-
-        let r_high1 = _mm_add_epi16(y_high1, v_cr_hi);
-        let b_high1 = _mm_add_epi16(y_high1, v_cb_hi);
-        let g_high1 = _mm_sub_epi16(y_high1, g_coeff_hi);
-
-        let u_low = _mm_sub_epi16(u_low_u16, uv_corr);
-        let v_low = _mm_sub_epi16(v_low_u16, uv_corr);
+        let r_high1 = _mm_add_epi16(y_high1, v_v_h);
+        let b_high1 = _mm_add_epi16(y_high1, v_u_h);
+        let g_high1 = _mm_sub_epi16(y_high1, v_g_h);
 
         let y_low0 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values0), v_luma_coeff);
         let y_low1 = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values1), v_luma_coeff);
 
-        let g_coeff_lo = _mm_add_epi16(
-            _mm_mulhrs_epi16(v_low, v_g_coeff_1),
-            _mm_mulhrs_epi16(u_low, v_g_coeff_2),
-        );
+        let r_low0 = _mm_add_epi16(y_low0, v_v_l);
+        let b_low0 = _mm_add_epi16(y_low0, v_u_l);
+        let g_low0 = _mm_sub_epi16(y_low0, v_g_l);
 
-        let v_cr_lo = _mm_mulhrs_epi16(v_low, v_cr_coeff);
-        let v_cb_lo = _mm_mulhrs_epi16(u_low, v_cb_coeff);
-
-        let r_low0 = _mm_add_epi16(y_low0, v_cr_lo);
-        let b_low0 = _mm_add_epi16(y_low0, v_cb_lo);
-        let g_low0 = _mm_sub_epi16(y_low0, g_coeff_lo);
-
-        let r_low1 = _mm_add_epi16(y_low1, v_cr_lo);
-        let b_low1 = _mm_add_epi16(y_low1, v_cb_lo);
-        let g_low1 = _mm_sub_epi16(y_low1, g_coeff_lo);
+        let r_low1 = _mm_add_epi16(y_low1, v_v_l);
+        let b_low1 = _mm_add_epi16(y_low1, v_u_l);
+        let g_low1 = _mm_sub_epi16(y_low1, v_g_l);
 
         let r_values0 = _mm_packus_epi16(r_low0, r_high0);
         let g_values0 = _mm_packus_epi16(g_low0, g_high0);
