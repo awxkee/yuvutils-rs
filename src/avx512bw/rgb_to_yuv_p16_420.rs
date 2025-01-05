@@ -59,20 +59,99 @@ pub(crate) fn avx512_rgba_to_yuv_p16_420<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH>(
-            transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-            start_ux, width,
-        )
+        if std::arch::is_x86_feature_detected!("avx512vnni") {
+            avx512_rgba_to_yuv_dot::<
+                ORIGIN_CHANNELS,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >(
+                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            )
+        } else {
+            avx512_rgba_to_yuv_reg::<
+                ORIGIN_CHANNELS,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >(
+                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            )
+        }
     }
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512f")]
+unsafe fn avx512_rgba_to_yuv_reg<
+    const ORIGIN_CHANNELS: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u16],
+    y_plane1: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba0: &[u16],
+    rgba1: &[u16],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_rgba_to_yuv_impl::<
+        ORIGIN_CHANNELS,
+        ENDIANNESS,
+        BYTES_POSITION,
+        PRECISION,
+        BIT_DEPTH,
+        false,
+    >(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[target_feature(enable = "avx512bw", enable = "avx512f", enable = "avx512vnni")]
+unsafe fn avx512_rgba_to_yuv_dot<
+    const ORIGIN_CHANNELS: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u16],
+    y_plane1: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba0: &[u16],
+    rgba1: &[u16],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_rgba_to_yuv_impl::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH, true>(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[inline(always)]
 unsafe fn avx512_rgba_to_yuv_impl<
     const ORIGIN_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const PRECISION: i32,
     const BIT_DEPTH: usize,
+    const HAS_DOT_PROD: bool,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -128,14 +207,15 @@ unsafe fn avx512_rgba_to_yuv_impl<
 
         let zeros = _mm512_setzero_si512();
         let (r_g_lo0, r_g_hi0) = (
-            _mm512_unpacklo_epi8(r_values0, g_values0),
-            _mm512_unpackhi_epi8(r_values0, g_values0),
+            _mm512_unpacklo_epi16(r_values0, g_values0),
+            _mm512_unpackhi_epi16(r_values0, g_values0),
         );
-        let b_hi0 = _mm512_unpackhi_epi8(b_values0, zeros);
-        let b_lo0 = _mm512_unpacklo_epi8(b_values0, zeros);
+        let b_hi0 = _mm512_unpackhi_epi16(b_values0, zeros);
+        let b_lo0 = _mm512_unpacklo_epi16(b_values0, zeros);
 
-        let mut y0_vl =
-            _mm512_affine_uv_dot::<PREC>(y_bias, r_g_lo0, r_g_hi0, b_lo0, b_hi0, v_yr_yg, v_yb);
+        let mut y0_vl = _mm512_affine_uv_dot::<PREC, HAS_DOT_PROD>(
+            y_bias, r_g_lo0, r_g_hi0, b_lo0, b_hi0, v_yr_yg, v_yb,
+        );
 
         let (r_g_lo1, r_g_hi1) = (
             _mm512_unpacklo_epi8(r_values1, g_values1),
@@ -144,8 +224,9 @@ unsafe fn avx512_rgba_to_yuv_impl<
         let b_hi1 = _mm512_unpackhi_epi8(b_values1, zeros);
         let b_lo1 = _mm512_unpacklo_epi8(b_values1, zeros);
 
-        let mut y1_vl =
-            _mm512_affine_uv_dot::<PREC>(y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb);
+        let mut y1_vl = _mm512_affine_uv_dot::<PREC, HAS_DOT_PROD>(
+            y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb,
+        );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y0_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(y0_vl);
@@ -173,11 +254,13 @@ unsafe fn avx512_rgba_to_yuv_impl<
 
         let r_g_values = _mm512_or_si512(r_values, _mm512_slli_epi32::<16>(g_values));
 
-        let mut cb_s =
-            _mm512_affine_transform::<PREC>(uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b);
+        let mut cb_s = _mm512_affine_transform::<PREC, HAS_DOT_PROD>(
+            uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b,
+        );
 
-        let mut cr_s =
-            _mm512_affine_transform::<PREC>(uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b);
+        let mut cr_s = _mm512_affine_transform::<PREC, HAS_DOT_PROD>(
+            uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b,
+        );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             cb_s = _mm512_to_msb_epi16::<BIT_DEPTH>(cb_s);

@@ -41,11 +41,11 @@ use yuvutils_rs::{
     rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16,
     rgb_to_yuv_nv24, rgba_to_bgr, rgba_to_bgra, rgba_to_yuv422, yuv400_to_rgb, yuv420_p16_to_rgb,
     yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_yuyv422, yuv422_p16_to_rgb, yuv422_p16_to_rgb16,
-    yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16, yuv444_to_rgb, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv24_to_rgb,
-    yuyv422_to_rgb, yuyv422_to_yuv420, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking,
-    YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb, yuv444_p16_to_rgb16, yuv444_to_rgb,
+    yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb,
+    yuv_nv24_to_rgb, yuyv422_to_rgb, yuyv422_to_yuv420, SharpYuvGammaTransfer, YuvBiPlanarImageMut,
+    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut, YuvPackedImage,
+    YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -63,7 +63,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 }
 
 fn main() {
-    let mut img = ImageReader::open("./assets/bench.jpg")
+    let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
         .unwrap();
@@ -103,17 +103,20 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
     //
-    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv12(
-        &mut bi_planar_image,
-        &src_bytes,
+    rgb_to_yuv444_p16(
+        &mut planar_image,
+        &bytes_16,
         rgba_stride as u32,
+        10,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -265,12 +268,15 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv_nv12_to_rgb(
-        &fixed_biplanar,
+    yuv444_p16_to_rgb(
+        &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
+        10,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
