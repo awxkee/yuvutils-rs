@@ -7,6 +7,7 @@ Fast and simple YUV approximation conversion in pure Rust. At most the same as l
 Performance will be equal to libyuv or slightly higher on platforms where SIMD is implemented. Otherwise, equal or slower.
 Used precision is slightly higher than used in libyuv, however for decoding 4:2:0 is almost always faster than libyuv,
 decoding 4:2:2, 4:4:4 almost the same, however encoding except 4:2:0 often is slower with better results.
+Modern NEON CPU is almost always faster than libyuv.
 
 Mostly implemented AVX-512, AVX2, SSE, NEON, WASM. Waiting for SVE to be available in `nightly`.
 
