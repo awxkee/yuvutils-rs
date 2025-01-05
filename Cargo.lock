@@ -1524,7 +1524,7 @@ dependencies = [
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.5.15"
+version = "0.5.14"
 dependencies = [
  "num-traits",
  "rand",
