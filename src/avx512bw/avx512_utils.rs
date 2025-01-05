@@ -831,8 +831,8 @@ pub(crate) unsafe fn _mm512_affine_transform<const PRECISION: u32, const HAS_DOT
     w1: __m512i,
 ) -> __m512i {
     if HAS_DOT {
-        let j = _mm512_srli_epi32::<PRECISION>(_mm512_dpwssds_epi32(
-            _mm512_dpwssds_epi32(slope, v0, w0),
+        let j = _mm512_srli_epi32::<PRECISION>(_mm512_dpwssd_epi32(
+            _mm512_dpwssd_epi32(slope, v0, w0),
             v1,
             w1,
         ));
@@ -881,8 +881,8 @@ pub(crate) unsafe fn _mm512_affine_uv_dot<const PRECISION: u32, const HAS_DOT: b
     w1: __m512i,
 ) -> __m512i {
     if HAS_DOT {
-        let y_l_l = _mm512_dpwssds_epi32(_mm512_dpwssds_epi32(slope, v0, w0), b0, w1);
-        let y_l_h = _mm512_dpwssds_epi32(_mm512_dpwssds_epi32(slope, v1, w0), b1, w1);
+        let y_l_l = _mm512_dpwssd_epi32(_mm512_dpwssd_epi32(slope, v0, w0), b0, w1);
+        let y_l_h = _mm512_dpwssd_epi32(_mm512_dpwssd_epi32(slope, v1, w0), b1, w1);
         _mm512_packus_epi32(
             _mm512_srli_epi32::<PRECISION>(y_l_l),
             _mm512_srli_epi32::<PRECISION>(y_l_h),

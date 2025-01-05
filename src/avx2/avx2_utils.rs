@@ -905,18 +905,38 @@ pub(crate) unsafe fn _mm256_affine_dot<const PRECISION: i32>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm256_affine_transform<const PRECISION: i32>(
+pub(crate) unsafe fn _mm256_affine_transform<const PRECISION: i32, const HAS_DOT: bool>(
     slope: __m256i,
     v0: __m256i,
     v1: __m256i,
     w0: __m256i,
     w1: __m256i,
 ) -> __m256i {
-    let j = _mm256_srli_epi32::<PRECISION>(_mm256_add_epi32(
-        slope,
-        _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(v1, w1)),
-    ));
-    avx2_pack_u32(j, j)
+    #[cfg(feature = "nightly_avx512")]
+    {
+        if HAS_DOT {
+            let j = _mm256_srli_epi32::<PRECISION>(_mm256_dpwssd_avx_epi32(
+                _mm256_dpwssd_avx_epi32(slope, v0, w0),
+                v1,
+                w1,
+            ));
+            avx2_pack_u32(j, j)
+        } else {
+            let j = _mm256_srli_epi32::<PRECISION>(_mm256_add_epi32(
+                slope,
+                _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(v1, w1)),
+            ));
+            avx2_pack_u32(j, j)
+        }
+    }
+    #[cfg(not(feature = "nightly_avx512"))]
+    {
+        let j = _mm256_srli_epi32::<PRECISION>(_mm256_add_epi32(
+            slope,
+            _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(v1, w1)),
+        ));
+        avx2_pack_u32(j, j)
+    }
 }
 
 #[inline(always)]
@@ -944,7 +964,7 @@ pub(crate) unsafe fn _mm256_affine_v_dot<const PRECISION: i32>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32>(
+pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32, const HAS_DOT: bool>(
     slope: __m256i,
     v0: __m256i,
     v1: __m256i,
@@ -953,18 +973,45 @@ pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32>(
     w0: __m256i,
     w1: __m256i,
 ) -> __m256i {
-    let y_l_l = _mm256_add_epi32(
-        slope,
-        _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
-    );
-    let y_l_h = _mm256_add_epi32(
-        slope,
-        _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
-    );
-    _mm256_packus_epi32(
-        _mm256_srli_epi32::<PRECISION>(y_l_l),
-        _mm256_srli_epi32::<PRECISION>(y_l_h),
-    )
+    #[cfg(feature = "nightly_avx512")]
+    {
+        if HAS_DOT {
+            let y_l_l = _mm256_dpwssd_avx_epi32(_mm256_dpwssd_avx_epi32(slope, v0, w0), b0, w1);
+            let y_l_h = _mm256_dpwssd_avx_epi32(_mm256_dpwssd_avx_epi32(slope, v1, w0), b1, w1);
+            _mm256_packus_epi32(
+                _mm256_srli_epi32::<PRECISION>(y_l_l),
+                _mm256_srli_epi32::<PRECISION>(y_l_h),
+            )
+        } else {
+            let y_l_l = _mm256_add_epi32(
+                slope,
+                _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
+            );
+            let y_l_h = _mm256_add_epi32(
+                slope,
+                _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
+            );
+            _mm256_packus_epi32(
+                _mm256_srli_epi32::<PRECISION>(y_l_l),
+                _mm256_srli_epi32::<PRECISION>(y_l_h),
+            )
+        }
+    }
+    #[cfg(not(feature = "nightly_avx512"))]
+    {
+        let y_l_l = _mm256_add_epi32(
+            slope,
+            _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
+        );
+        let y_l_h = _mm256_add_epi32(
+            slope,
+            _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
+        );
+        _mm256_packus_epi32(
+            _mm256_srli_epi32::<PRECISION>(y_l_l),
+            _mm256_srli_epi32::<PRECISION>(y_l_h),
+        )
+    }
 }
 
 #[inline(always)]
