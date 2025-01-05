@@ -823,18 +823,27 @@ pub(crate) unsafe fn _mm512_havg_epi16_epi32(a: __m512i) -> __m512i {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm512_affine_transform<const PRECISION: u32>(
+pub(crate) unsafe fn _mm512_affine_transform<const PRECISION: u32, const HAS_DOT: bool>(
     slope: __m512i,
     v0: __m512i,
     v1: __m512i,
     w0: __m512i,
     w1: __m512i,
 ) -> __m512i {
-    let j = _mm512_srli_epi32::<PRECISION>(_mm512_add_epi32(
-        slope,
-        _mm512_add_epi32(_mm512_madd_epi16(v0, w0), _mm512_madd_epi16(v1, w1)),
-    ));
-    avx512_pack_u32(j, j)
+    if HAS_DOT {
+        let j = _mm512_srli_epi32::<PRECISION>(_mm512_dpwssds_epi32(
+            _mm512_dpwssds_epi32(slope, v0, w0),
+            v1,
+            w1,
+        ));
+        avx512_pack_u32(j, j)
+    } else {
+        let j = _mm512_srli_epi32::<PRECISION>(_mm512_add_epi32(
+            slope,
+            _mm512_add_epi32(_mm512_madd_epi16(v0, w0), _mm512_madd_epi16(v1, w1)),
+        ));
+        avx512_pack_u32(j, j)
+    }
 }
 
 #[inline(always)]
@@ -862,7 +871,7 @@ pub(crate) unsafe fn _mm512_affine_v_dot<const PRECISION: u32>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm512_affine_uv_dot<const PRECISION: u32>(
+pub(crate) unsafe fn _mm512_affine_uv_dot<const PRECISION: u32, const HAS_DOT: bool>(
     slope: __m512i,
     v0: __m512i,
     v1: __m512i,
@@ -871,50 +880,27 @@ pub(crate) unsafe fn _mm512_affine_uv_dot<const PRECISION: u32>(
     w0: __m512i,
     w1: __m512i,
 ) -> __m512i {
-    let y_l_l = _mm512_add_epi32(
-        slope,
-        _mm512_add_epi32(_mm512_madd_epi16(v0, w0), _mm512_madd_epi16(b0, w1)),
-    );
-    let y_l_h = _mm512_add_epi32(
-        slope,
-        _mm512_add_epi32(_mm512_madd_epi16(v1, w0), _mm512_madd_epi16(b1, w1)),
-    );
-    _mm512_packus_epi32(
-        _mm512_srli_epi32::<PRECISION>(y_l_l),
-        _mm512_srli_epi32::<PRECISION>(y_l_h),
-    )
-}
-
-#[inline(always)]
-pub(crate) unsafe fn _mm512_affine_dot<const PRECISION: u32>(
-    base: __m512i,
-    r: __m512i,
-    g: __m512i,
-    b: __m512i,
-    w0: __m512i,
-    w1: __m512i,
-) -> __m512i {
-    let r_intl_g_lo = avx512_zip_epi16(r, g);
-
-    let y_l_l = _mm512_add_epi32(
-        base,
-        _mm512_add_epi32(
-            _mm512_madd_epi16(r_intl_g_lo.0, w0),
-            _mm512_madd_epi16(_mm512_cvtepi16_epi32(_mm512_castsi512_si256(b)), w1),
-        ),
-    );
-
-    let y_l_h = _mm512_add_epi32(
-        base,
-        _mm512_add_epi32(
-            _mm512_madd_epi16(r_intl_g_lo.1, w0),
-            _mm512_madd_epi16(_mm512_cvtepi16_epi32(_mm512_extracti64x4_epi64::<1>(b)), w1),
-        ),
-    );
-    avx512_pack_u32(
-        _mm512_srli_epi32::<PRECISION>(y_l_l),
-        _mm512_srli_epi32::<PRECISION>(y_l_h),
-    )
+    if HAS_DOT {
+        let y_l_l = _mm512_dpwssds_epi32(_mm512_dpwssds_epi32(slope, v0, w0), b0, w1);
+        let y_l_h = _mm512_dpwssds_epi32(_mm512_dpwssds_epi32(slope, v1, w0), b1, w1);
+        _mm512_packus_epi32(
+            _mm512_srli_epi32::<PRECISION>(y_l_l),
+            _mm512_srli_epi32::<PRECISION>(y_l_h),
+        )
+    } else {
+        let y_l_l = _mm512_add_epi32(
+            slope,
+            _mm512_add_epi32(_mm512_madd_epi16(v0, w0), _mm512_madd_epi16(b0, w1)),
+        );
+        let y_l_h = _mm512_add_epi32(
+            slope,
+            _mm512_add_epi32(_mm512_madd_epi16(v1, w0), _mm512_madd_epi16(b1, w1)),
+        );
+        _mm512_packus_epi32(
+            _mm512_srli_epi32::<PRECISION>(y_l_l),
+            _mm512_srli_epi32::<PRECISION>(y_l_h),
+        )
+    }
 }
 
 #[inline(always)]
