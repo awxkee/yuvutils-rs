@@ -59,7 +59,20 @@ pub(crate) fn avx_rgba_to_yuv_p16_420<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx_rgba_to_yuv_impl::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH>(
+        #[cfg(feature = "nightly_avx512")]
+        if std::arch::is_x86_feature_detected!("avxvnni") {
+            return avx_rgba_to_yuv_vnni::<
+                ORIGIN_CHANNELS,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >(
+                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            );
+        }
+        avx_rgba_to_yuv_reg::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH>(
             transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
             start_ux, width,
         )
@@ -67,12 +80,66 @@ pub(crate) fn avx_rgba_to_yuv_p16_420<
 }
 
 #[target_feature(enable = "avx2")]
+unsafe fn avx_rgba_to_yuv_reg<
+    const ORIGIN_CHANNELS: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u16],
+    y_plane1: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba0: &[u16],
+    rgba1: &[u16],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx_rgba_to_yuv_impl::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH, false>(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[cfg(feature = "nightly_avx512")]
+#[target_feature(enable = "avx2", enable = "avxvnni")]
+unsafe fn avx_rgba_to_yuv_vnni<
+    const ORIGIN_CHANNELS: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u16],
+    y_plane1: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba0: &[u16],
+    rgba1: &[u16],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx_rgba_to_yuv_impl::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH, true>(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[inline(always)]
 unsafe fn avx_rgba_to_yuv_impl<
     const ORIGIN_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const PRECISION: i32,
     const BIT_DEPTH: usize,
+    const HAS_DOT: bool,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -138,11 +205,11 @@ unsafe fn avx_rgba_to_yuv_impl<
         let b_hi1 = _mm256_unpackhi_epi16(b_values1, zeros);
         let b_lo1 = _mm256_unpacklo_epi16(b_values1, zeros);
 
-        let mut y0_vl = _mm256_affine_uv_dot::<PRECISION>(
+        let mut y0_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
             y_bias, r_g_lo0, r_g_hi0, b_lo0, b_hi0, v_yr_yg, v_yb,
         );
 
-        let mut y1_vl = _mm256_affine_uv_dot::<PRECISION>(
+        let mut y1_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
             y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb,
         );
 
@@ -172,11 +239,13 @@ unsafe fn avx_rgba_to_yuv_impl<
 
         let r_g_values = _mm256_or_si256(r_values, _mm256_slli_epi32::<16>(g_values));
 
-        let mut cb_s =
-            _mm256_affine_transform::<PRECISION>(uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b);
+        let mut cb_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
+            uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b,
+        );
 
-        let mut cr_s =
-            _mm256_affine_transform::<PRECISION>(uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b);
+        let mut cr_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
+            uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b,
+        );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             cb_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_s);

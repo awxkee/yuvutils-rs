@@ -59,7 +59,20 @@ pub(crate) fn avx_rgba_to_yuv_p16<
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx_rgba_to_yuv_impl::<
+        #[cfg(feature = "nightly_avx512")]
+        if std::arch::is_x86_feature_detected!("avxvnni") {
+            return avx_rgba_to_yuv_vnni::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >(
+                transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+            );
+        }
+        avx_rgba_to_yuv_reg::<
             ORIGIN_CHANNELS,
             SAMPLING,
             ENDIANNESS,
@@ -73,6 +86,71 @@ pub(crate) fn avx_rgba_to_yuv_p16<
 }
 
 #[target_feature(enable = "avx2")]
+unsafe fn avx_rgba_to_yuv_reg<
+    const ORIGIN_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u16],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx_rgba_to_yuv_impl::<
+        ORIGIN_CHANNELS,
+        SAMPLING,
+        ENDIANNESS,
+        BYTES_POSITION,
+        PRECISION,
+        BIT_DEPTH,
+        false,
+    >(
+        transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+    )
+}
+
+#[cfg(feature = "nightly_avx512")]
+#[target_feature(enable = "avx2", enable = "avxvnni")]
+unsafe fn avx_rgba_to_yuv_vnni<
+    const ORIGIN_CHANNELS: u8,
+    const SAMPLING: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane: &mut [u16],
+    u_plane: &mut [u16],
+    v_plane: &mut [u16],
+    rgba: &[u16],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx_rgba_to_yuv_impl::<
+        ORIGIN_CHANNELS,
+        SAMPLING,
+        ENDIANNESS,
+        BYTES_POSITION,
+        PRECISION,
+        BIT_DEPTH,
+        true,
+    >(
+        transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,
+    )
+}
+
+#[inline(always)]
 unsafe fn avx_rgba_to_yuv_impl<
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,
@@ -80,6 +158,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     const BYTES_POSITION: u8,
     const PRECISION: i32,
     const BIT_DEPTH: usize,
+    const HAS_DOT: bool,
 >(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
@@ -137,8 +216,9 @@ unsafe fn avx_rgba_to_yuv_impl<
         let b_hi = _mm256_unpackhi_epi16(b_values, zeros);
         let b_lo = _mm256_unpacklo_epi16(b_values, zeros);
 
-        let mut y_vl =
-            _mm256_affine_uv_dot::<PRECISION>(y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb);
+        let mut y_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
+            y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb,
+        );
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y_vl);
@@ -154,11 +234,11 @@ unsafe fn avx_rgba_to_yuv_impl<
         );
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let mut cb_vl = _mm256_affine_uv_dot::<PRECISION>(
+            let mut cb_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
                 uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
             );
 
-            let mut cr_vl = _mm256_affine_uv_dot::<PRECISION>(
+            let mut cr_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
                 uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
             );
 
@@ -189,11 +269,11 @@ unsafe fn avx_rgba_to_yuv_impl<
 
             let r_g_values = _mm256_or_si256(r_values, _mm256_slli_epi32::<16>(g_values));
 
-            let mut cb_s = _mm256_affine_transform::<PRECISION>(
+            let mut cb_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
                 uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b,
             );
 
-            let mut cr_s = _mm256_affine_transform::<PRECISION>(
+            let mut cr_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
                 uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b,
             );
 

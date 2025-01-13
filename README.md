@@ -24,7 +24,7 @@ All the methods support RGB, BGR, BGRA and RGBA
 
 # SIMD
 
-Runtime dispatch is used for use if available `sse4.1`, `avx2`, `avx512bw`, `avx512vbmi`, `rdm` for NEON. 
+Runtime dispatch is used for use if available `sse4.1`, `avx2`, `avx512bw`, `avx512vbmi`, `avx512vnni`, `avxvnni`, `rdm` for NEON. 
 
 For the `sse4.1`, `avx2`, `rdm` there is no action needed, however for AVX-512 activated feature `nightly_avx512` along `nightly` rust channel is required.
 
