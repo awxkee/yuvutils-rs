@@ -172,9 +172,9 @@ checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "bytemuck"
-version = "1.16.0"
+version = "1.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78834c15cb5d5efe3452d58b1e8ba890dd62d21907f867f383358198e56ebca5"
+checksum = "ef657dfab802224e671f5818e9a4935f9b1957ed18e58292690cc39e7a4092a3"
 
 [[package]]
 name = "byteorder-lite"
@@ -405,6 +405,15 @@ dependencies = [
  "rayon-core",
  "smallvec",
  "zune-inflate",
+]
+
+[[package]]
+name = "fast_transpose"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49f8801cd9c0ad204c73f1ac7f8445333e2588e7d66e1886e636ba3b26dce46c"
+dependencies = [
+ "bytemuck",
 ]
 
 [[package]]
@@ -1524,8 +1533,9 @@ dependencies = [
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.5.14"
+version = "0.5.15"
 dependencies = [
+ "fast_transpose",
  "num-traits",
  "rand",
  "rayon",

@@ -21,3 +21,7 @@ harness = false
 [[bench]]
 name = "yuv16"
 harness = false
+
+[[bench]]
+name = "geometry"
+harness = false

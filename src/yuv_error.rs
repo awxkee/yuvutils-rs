@@ -48,11 +48,13 @@ pub enum YuvError {
     ChromaPlaneSizeMismatch(MismatchedSize),
     PackedFrameSizeMismatch(MismatchedSize),
     ImagesSizesNotMatch,
+    ImageDimensionsNotMatch,
 }
 
 impl Display for YuvError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            YuvError::ImageDimensionsNotMatch => f.write_str("Buffer must match image dimensions"),
             YuvError::ImagesSizesNotMatch => {
                 f.write_str("All images size must match in one function")
             }

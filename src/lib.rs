@@ -44,8 +44,10 @@ mod avx512bw;
 mod built_coefficients;
 mod from_identity;
 mod from_identity_alpha;
+mod geometry;
 mod images;
 mod internals;
+mod mirroring;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
 mod numerics;
@@ -440,6 +442,14 @@ pub use yuv_p16_rgba_p16::*;
 
 pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
+};
+pub use geometry::{
+    rotate_cbcr, rotate_cbcr16, rotate_plane, rotate_plane16, rotate_rgb, rotate_rgb16,
+    rotate_rgba, rotate_rgba16, RotationMode,
+};
+pub use mirroring::{
+    mirror_cbcr, mirror_cbcr16, mirror_plane, mirror_plane16, mirror_rgb, mirror_rgb16,
+    mirror_rgba, mirror_rgba16, MirrorMode,
 };
 pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
 pub use shuffle::{

@@ -161,6 +161,23 @@ cargo +nightly bench --bench yuv16 --manifest-path ./app/Cargo.toml --features n
 | libyuv YUV10 4:2:2->RGBA8 |  1.7056ms  |    6.8374ms    |   1.21ms   |   991.23µs    |
 | utils YUV10 4:4:4->RGBA10 |  931.28µs  |    848.02µs    |   2.34ms   |   1.8639ms    |
 
+### Geometry and mirroring
+
+```bash
+cargo bench --bench geometry --manifest-path ./app/Cargo.toml
+```
+
+|                          | time(NEON) | Time(AVX2 Win) | Time(AVX2) |
+|--------------------------|:----------:|:--------------:|:----------:|
+| utils Rotate 90 RGBA8    |  657.87µs  |       -        |     -      |
+| libyuv Rotate 90 RGBA8   |   1.85ms   |       -        |     -      |
+| utils Rotate 90 Plane8   |  509.22µs  |       -        |     -      |
+| libyuv Rotate 90 Plane8  |  291.15µs  |       -        |     -      |
+| utils Rotate 180 RGBA8   |  327.68µs  |       -        |     -      |
+| libyuv Rotate 180 RGBA8  |  378.70µs  |       -        |     -      |
+| utils Rotate 180 Plane8  |  61.02µs   |       -        |     -      |
+| libyuv Rotate 180 Plane8 |  95.41µs   |       -        |     -      |
+
 This project is licensed under either of
 
 - BSD-3-Clause License (see [LICENSE](LICENSE.md))
