@@ -221,9 +221,9 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
             y_yuv1,
         );
 
-        let r1 = avx512_pairwise_avg_epi16_epi8(r_values0, r_values1, 1 << (16 - V_S - 8));
-        let g1 = avx512_pairwise_avg_epi16_epi8(g_values0, g_values1, 1 << (16 - V_S - 8));
-        let b1 = avx512_pairwise_avg_epi16_epi8(b_values0, b_values1, 1 << (16 - V_S - 8));
+        let r1 = avx512_pairwise_avg_epi16_epi8(r_values0, r_values1, 1 << (16 - V_S - 8 - 1));
+        let g1 = avx512_pairwise_avg_epi16_epi8(g_values0, g_values1, 1 << (16 - V_S - 8 - 1));
+        let b1 = avx512_pairwise_avg_epi16_epi8(b_values0, b_values1, 1 << (16 - V_S - 8 - 1));
 
         let cbk = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
             uv_bias,

@@ -178,7 +178,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.1 as usize,
                 RotationMode::Rotate270,
             )
-                .unwrap();
+            .unwrap();
         })
     });
 

@@ -29,7 +29,7 @@
 
 use crate::avx2::avx2_utils::{
     _mm256_load_deinterleave_half_rgb_for_yuv, _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16,
-    avx_pairwise_avg_epi16_epi8_f,
+    avx_pairwise_avg_epi16_epi8_j,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -177,17 +177,17 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const PRECISION: i
             y1_yuv,
         );
 
-        let r_uv = avx_pairwise_avg_epi16_epi8_f(
+        let r_uv = avx_pairwise_avg_epi16_epi8_j(
             _mm256_avg_epu8(r_values0, r_values1),
-            1 << (16 - V_S - 8),
+            1 << (16 - V_S - 8 - 1),
         );
-        let g_uv = avx_pairwise_avg_epi16_epi8_f(
+        let g_uv = avx_pairwise_avg_epi16_epi8_j(
             _mm256_avg_epu8(g_values0, g_values1),
-            1 << (16 - V_S - 8),
+            1 << (16 - V_S - 8 - 1),
         );
-        let b_uv = avx_pairwise_avg_epi16_epi8_f(
+        let b_uv = avx_pairwise_avg_epi16_epi8_j(
             _mm256_avg_epu8(b_values0, b_values1),
-            1 << (16 - V_S - 8),
+            1 << (16 - V_S - 8 - 1),
         );
 
         let cb = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
@@ -240,17 +240,17 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const PRECISION: i
                 rgba1.get_unchecked(px..).as_ptr(),
             );
 
-        let r_uv = avx_pairwise_avg_epi16_epi8_f(
+        let r_uv = avx_pairwise_avg_epi16_epi8_j(
             _mm256_avg_epu8(r_values0, r_values1),
-            1 << (16 - V_S - 8),
+            1 << (16 - V_S - 8 - 1),
         );
-        let g_uv = avx_pairwise_avg_epi16_epi8_f(
+        let g_uv = avx_pairwise_avg_epi16_epi8_j(
             _mm256_avg_epu8(g_values0, g_values1),
-            1 << (16 - V_S - 8),
+            1 << (16 - V_S - 8 - 1),
         );
-        let b_uv = avx_pairwise_avg_epi16_epi8_f(
+        let b_uv = avx_pairwise_avg_epi16_epi8_j(
             _mm256_avg_epu8(b_values0, b_values1),
-            1 << (16 - V_S - 8),
+            1 << (16 - V_S - 8 - 1),
         );
 
         r_values0 = _mm256_permute4x64_epi64::<0x50>(r_values0);

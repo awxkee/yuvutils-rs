@@ -30,7 +30,7 @@
 use crate::internals::ProcessedOffset;
 use crate::sse::{
     _mm_load_deinterleave_half_rgb_for_yuv, _mm_load_deinterleave_rgb_for_yuv,
-    sse_pairwise_avg_epi8_f,
+    sse_pairwise_avg_epi8_j,
 };
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -189,9 +189,9 @@ unsafe fn sse_rgba_to_yuv_row_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = sse_pairwise_avg_epi8_f(r_values, 1 << (16 - V_S - 8));
-            let g1 = sse_pairwise_avg_epi8_f(g_values, 1 << (16 - V_S - 8));
-            let b1 = sse_pairwise_avg_epi8_f(b_values, 1 << (16 - V_S - 8));
+            let r1 = sse_pairwise_avg_epi8_j(r_values, 1 << (16 - V_S - 8 - 1));
+            let g1 = sse_pairwise_avg_epi8_j(g_values, 1 << (16 - V_S - 8 - 1));
+            let b1 = sse_pairwise_avg_epi8_j(b_values, 1 << (16 - V_S - 8 - 1));
 
             let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
                 uv_bias,
@@ -272,9 +272,9 @@ unsafe fn sse_rgba_to_yuv_row_impl<
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = sse_pairwise_avg_epi8_f(r_values, 1 << (16 - V_S - 8));
-            let g1 = sse_pairwise_avg_epi8_f(g_values, 1 << (16 - V_S - 8));
-            let b1 = sse_pairwise_avg_epi8_f(b_values, 1 << (16 - V_S - 8));
+            let r1 = sse_pairwise_avg_epi8_j(r_values, 1 << (16 - V_S - 8 - 1));
+            let g1 = sse_pairwise_avg_epi8_j(g_values, 1 << (16 - V_S - 8 - 1));
+            let b1 = sse_pairwise_avg_epi8_j(b_values, 1 << (16 - V_S - 8 - 1));
 
             let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
                 uv_bias,
