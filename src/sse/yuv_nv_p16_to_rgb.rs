@@ -173,8 +173,8 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                 let u_values_c = _mm_sub_epi16(u_vl, uv_corr);
                 let v_values_c = _mm_sub_epi16(v_vl, uv_corr);
 
-                let u_values_32 = _mm_cvtepi16_epi32(u_values_c);
-                let v_values_32 = _mm_cvtepi16_epi32(v_values_c);
+                let u_values_32 = _mm_unpacklo_epi32(u_values_c, _mm_setzero_si128());
+                let v_values_32 = _mm_unpacklo_epi32(v_values_c, _mm_setzero_si128());
 
                 u_high = _mm_unpackhi_epi32(u_values_32, u_values_32);
                 v_high = _mm_unpackhi_epi32(v_values_32, v_values_32);
@@ -207,8 +207,8 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                 let v_values_c = _mm_sub_epi16(v_vl, uv_corr_q);
                 u_high = _mm_unpackhi_epi16(u_values_c, zeros);
                 v_high = _mm_unpackhi_epi16(v_values_c, zeros);
-                u_low = _mm_cvtepi16_epi32(u_values_c);
-                v_low = _mm_cvtepi16_epi32(v_values_c);
+                u_low = _mm_unpacklo_epi32(u_values_c, _mm_setzero_si128());
+                v_low = _mm_unpacklo_epi32(v_values_c, _mm_setzero_si128());
             }
         }
 
