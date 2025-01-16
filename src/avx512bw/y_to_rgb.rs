@@ -105,12 +105,9 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
     const SCALE: u32 = 2;
 
     while cx + 64 < width {
-        let y_values = _mm512_slli_epi16::<SCALE>(_mm512_subs_epi8(
-            _mm512_loadu_si512(y_ptr.add(cx) as *const i32),
-            y_corr,
-        ));
+        let y_s = _mm512_subs_epi8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
 
-        let y10 = _mm512_expand8_unordered_to_10(y_values);
+        let y10 = _mm512_expand8_unordered_to_10(y_s);
 
         let y_high = _mm512_mulhrs_epi16(y10.1, v_luma_coeff);
 
