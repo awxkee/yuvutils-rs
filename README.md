@@ -167,22 +167,18 @@ cargo +nightly bench --bench yuv16 --manifest-path ./app/Cargo.toml --features n
 cargo bench --bench geometry --manifest-path ./app/Cargo.toml
 ```
 
-This is interesting thing with x86 libyuv implementation, it is often faster somewhere about 20-40%
-on images lower than 2K, after 2K it is immediately slower up to 3 times. Also, on some CPU's it is slower
-at any image size.
-
 |                          | time(NEON) | Time(AVX2 Win) | Time(AVX2) |
 |--------------------------|:----------:|:--------------:|:----------:|
-| utils Rotate 90 RGBA8    |  560.74µs  |       -        |   6.01ms   |
-| libyuv Rotate 90 RGBA8   |   1.84ms   |       -        |   3.65ms   |
-| utils Rotate 90 Plane8   |  215.43µs  |       -        |   1.96ms   |
-| libyuv Rotate 90 Plane8  |  291.15µs  |       -        |  826.13µs  |
-| utils Rotate 180 RGBA8   |  326.44µs  |       -        |   1.58ms   |
-| libyuv Rotate 180 RGBA8  |  378.70µs  |       -        |   1.28ms   |
-| utils Rotate 180 Plane8  |  61.02µs   |       -        |  271.22µs  |
-| libyuv Rotate 180 Plane8 |  94.11µs   |       -        |  275.86µs  |
-| utils Rotate 270 RGBA8   |  564.78µs  |       -        |     -      |
-| libyuv Rotate 270 RGBA8  |   1.99ms   |       -        |     -      |
+| utils Rotate 90 RGBA8    |  560.74µs  |       -        |   2.50ms   |
+| libyuv Rotate 90 RGBA8   |   1.84ms   |       -        |   2.86ms   |
+| utils Rotate 90 Plane8   |  215.43µs  |       -        |   1.05ms   |
+| libyuv Rotate 90 Plane8  |  291.15µs  |       -        |   1.06ms   |
+| utils Rotate 180 RGBA8   |  326.44µs  |       -        |  657.93µs  |
+| libyuv Rotate 180 RGBA8  |  378.70µs  |       -        |  669.12µs  |
+| utils Rotate 180 Plane8  |  61.02µs   |       -        |  227.66µs  |
+| libyuv Rotate 180 Plane8 |  94.11µs   |       -        |  233.66µs  |
+| utils Rotate 270 RGBA8   |  564.78µs  |       -        |   2.57ms   |
+| libyuv Rotate 270 RGBA8  |   1.99ms   |       -        |   3.06ms   |
 
 This project is licensed under either of
 
