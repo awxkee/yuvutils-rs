@@ -409,9 +409,7 @@ dependencies = [
 
 [[package]]
 name = "fast_transpose"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49f8801cd9c0ad204c73f1ac7f8445333e2588e7d66e1886e636ba3b26dce46c"
+version = "0.2.2"
 dependencies = [
  "bytemuck",
 ]

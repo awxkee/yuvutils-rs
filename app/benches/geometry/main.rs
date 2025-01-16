@@ -28,7 +28,7 @@
  */
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{EncodableLayout, GenericImageView, ImageReader};
-use yuv_sys::{RotationMode_kRotate180, RotationMode_kRotate90};
+use yuv_sys::{RotationMode_kRotate180, RotationMode_kRotate270, RotationMode_kRotate90};
 use yuvutils_rs::{rotate_plane, rotate_rgba, RotationMode};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -162,6 +162,37 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 as i32,
                 dimensions.0 as i32,
                 dimensions.1 as i32,
+            );
+        })
+    });
+
+    c.bench_function("yuvutils: Rotate 270 RGBA8", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            rotate_rgba(
+                &rgba_src_bytes,
+                dimensions.0 as usize * 4,
+                &mut rgb_bytes,
+                4 * dimensions.1 as usize,
+                dimensions.0 as usize,
+                dimensions.1 as usize,
+                RotationMode::Rotate270,
+            )
+                .unwrap();
+        })
+    });
+
+    c.bench_function("libyuv: Rotate 270 RGBA8", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| unsafe {
+            yuv_sys::rs_ARGBRotate(
+                rgba_src_bytes.as_ptr(),
+                dimensions.0 as i32 * 4,
+                rgb_bytes.as_mut_ptr(),
+                4 * dimensions.1 as i32,
+                dimensions.0 as i32,
+                dimensions.1 as i32,
+                RotationMode_kRotate270,
             );
         })
     });
