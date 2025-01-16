@@ -58,6 +58,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     let uv_ptr = uv_plane.as_mut_ptr();
 
     const V_SCALE: i32 = 4;
+    const V_HALF_SCALE: i32 = V_SCALE - 2;
     const A_E: i32 = 2;
     let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E));
     let uv_bias = vdupq_n_s16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
@@ -129,18 +130,18 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
         let y1 = vcombine_u8(y1_low, y1_high);
         vst1q_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1);
 
-        let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vhaddq_u16(
+        let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vaddq_u16(
             vpaddlq_u8(r_values0),
             vpaddlq_u8(r_values1),
-        ))));
-        let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vhaddq_u16(
+        )));
+        let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vaddq_u16(
             vpaddlq_u8(g_values0),
             vpaddlq_u8(g_values1),
-        ))));
-        let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vhaddq_u16(
+        )));
+        let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vaddq_u16(
             vpaddlq_u8(b_values0),
             vpaddlq_u8(b_values1),
-        ))));
+        )));
 
         let mut cbl = vqrdmlahq_laneq_s16::<3>(uv_bias, r1, v_weights);
         cbl = vqrdmlahq_laneq_s16::<4>(cbl, g1, v_weights);
