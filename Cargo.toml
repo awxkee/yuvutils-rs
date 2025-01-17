@@ -27,6 +27,7 @@ rand = "0.8.5"
 [features]
 default = []
 nightly_avx512 = ["fast_transpose/nightly_avx512"]
+nightly_f16 = []
 rayon = ["dep:rayon"]
 
 [profile.dev.package]

@@ -27,6 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![deny(unreachable_code, unreachable_pub)]
+#[cfg(feature = "nightly_f16")]
+mod f16_converter;
+#[cfg(feature = "nightly_f16")]
+mod f16_utils;
 mod gbr_to_rgb;
 mod neon_ycgco;
 mod rgb_to_y;
@@ -59,6 +63,12 @@ mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+#[cfg(feature = "nightly_f16")]
+pub(crate) use f16_converter::{
+    SurfaceF16ToUnsigned16Neon, SurfaceF16ToUnsigned16NeonFallback, SurfaceF16ToUnsigned8Neon,
+    SurfaceF16ToUnsigned8NeonFallback, SurfaceU16ToFloat16Neon, SurfaceU16ToFloat16NeonFallback,
+    SurfaceU8ToFloat16Neon, SurfaceU8ToFloat16NeonFallback,
+};
 pub(crate) use gbr_to_rgb::{
     yuv_to_rgba_row_full, yuv_to_rgba_row_limited, yuv_to_rgba_row_limited_rdm,
 };

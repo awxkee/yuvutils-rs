@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-yuvutils-rs = {path = ".."}
+yuvutils-rs = {path = "..", features = ["nightly_f16"]}
 
 [[bin]]
 name = "yuv_to_rgb"
@@ -98,6 +98,13 @@ bench = false
 [[bin]]
 name = "shuffle"
 path = "shuffle/shuffle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rgb_to_f16"
+path = "rgb_to_f16/rgb_to_f16.rs"
 test = false
 doc = false
 bench = false

@@ -29,6 +29,8 @@
 #![deny(unreachable_code, unreachable_pub)]
 mod avx2_utils;
 mod avx2_ycgco;
+#[cfg(feature = "nightly_f16")]
+mod f16_converter;
 mod gbr_to_rgb;
 mod rgb_to_nv;
 mod rgb_to_nv420;
@@ -62,6 +64,8 @@ mod yuy2_to_yuv;
 pub(crate) use avx2_utils::{
     _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm256_interleave_epi8,
 };
+#[cfg(feature = "nightly_f16")]
+pub(crate) use f16_converter::{SurfaceU16ToFloat16Avx2, SurfaceU8ToFloat16Avx2};
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::avx2_rgba_to_nv;
 pub(crate) use rgb_to_nv420::avx2_rgba_to_nv420;

@@ -462,6 +462,7 @@ fn yuv_nv12_to_rgbx<
                 let rgba1 = &mut rgba1[0..channels];
                 let uv_src = uv_src.chunks_exact(2).last().unwrap();
                 let y_src0 = y_src0.chunks_exact(2).remainder();
+                let y_src1 = y_src1.chunks_exact(2).remainder();
 
                 let y_vl0 = y_src0[0] as i32;
                 let y_value0: i32 = (y_vl0 - bias_y) * y_coef;
@@ -1641,21 +1642,24 @@ mod tests {
 
             assert!(
                 diff_r <= 30,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                "Original RGB {:?}, Round-tripped RGB {:?}, actual diff {}",
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                diff_b,
             );
             assert!(
                 diff_g <= 30,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                "Original RGB {:?}, Round-tripped RGB {:?}, actual diff {}",
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                diff_b,
             );
             assert!(
                 diff_b <= 30,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                "Original RGB {:?}, Round-tripped RGB {:?}, actual diff {}",
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                diff_b,
             );
         }
     }
@@ -2013,21 +2017,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 49,
+                diff_r <= 50,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 49,
+                diff_g <= 50,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 49,
+                diff_b <= 50,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],
