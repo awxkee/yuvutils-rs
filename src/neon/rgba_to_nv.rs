@@ -63,6 +63,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     let rgba_ptr = rgba.as_ptr();
 
     const V_SCALE: i32 = 4;
+    const V_HALF_SCALE: i32 = V_SCALE - 1;
     const A_E: i32 = 2;
     let y_bias = vdupq_n_s16(range.bias_y as i16 * (1 << A_E));
     let uv_bias = vdupq_n_s16(bias_uv * (1 << A_E) + (1 << (A_E - 1)) - 1);
@@ -152,15 +153,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
-                r_values0,
-            ))));
-            let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
-                g_values0,
-            ))));
-            let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(vpaddlq_u8(
-                b_values0,
-            ))));
+            let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpaddlq_u8(r_values0)));
+            let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpaddlq_u8(g_values0)));
+            let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpaddlq_u8(b_values0)));
 
             let mut cbl = vqrdmlahq_laneq_s16::<3>(uv_bias, r1, v_weights);
             cbl = vqrdmlahq_laneq_s16::<4>(cbl, g1, v_weights);

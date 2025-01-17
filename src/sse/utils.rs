@@ -758,11 +758,8 @@ pub(crate) unsafe fn _mm_store_shr_epi16_epi8<const BIT_DEPTH: usize>(a: __m128i
 }
 
 #[inline(always)]
-pub(crate) unsafe fn sse_pairwise_avg_epi8_f(a: __m128i, f: i8) -> __m128i {
-    _mm_srli_epi16::<1>(_mm_add_epi16(
-        _mm_maddubs_epi16(a, _mm_set1_epi8(f)),
-        _mm_set1_epi16(1),
-    ))
+pub(crate) unsafe fn sse_pairwise_avg_epi8_j(a: __m128i, f: i8) -> __m128i {
+    _mm_maddubs_epi16(a, _mm_set1_epi8(f))
 }
 
 #[inline(always)]

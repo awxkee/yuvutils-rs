@@ -28,7 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_load_deinterleave_rgb_for_yuv, sse_pairwise_avg_epi8_f};
+use crate::sse::{_mm_load_deinterleave_rgb_for_yuv, sse_pairwise_avg_epi8_j};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -167,9 +167,12 @@ unsafe fn sse_rgba_to_nv_row_impl420<
             y1_yuv,
         );
 
-        let r1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(r_values0, r_values1), 1 << (16 - V_S - 8));
-        let g1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(g_values0, g_values1), 1 << (16 - V_S - 8));
-        let b1 = sse_pairwise_avg_epi8_f(_mm_avg_epu8(b_values0, b_values1), 1 << (16 - V_S - 8));
+        let r1 =
+            sse_pairwise_avg_epi8_j(_mm_avg_epu8(r_values0, r_values1), 1 << (16 - V_S - 8 - 1));
+        let g1 =
+            sse_pairwise_avg_epi8_j(_mm_avg_epu8(g_values0, g_values1), 1 << (16 - V_S - 8 - 1));
+        let b1 =
+            sse_pairwise_avg_epi8_j(_mm_avg_epu8(b_values0, b_values1), 1 << (16 - V_S - 8 - 1));
 
         let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
         let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);

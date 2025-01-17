@@ -86,7 +86,7 @@ unsafe fn shuffle_channels8_impl<const SRC: u8, const DST: u8>(
         .chunks_exact_mut(8 * dst_channels.get_channels_count())
         .into_remainder();
 
-    if src.len() > 0 && dst.len() > 0 {
+    if !src.is_empty() && !dst.is_empty() {
         assert!(src.len() < 64);
         assert!(dst.len() < 64);
         let mut transient_src: [u8; 64] = [0; 64];

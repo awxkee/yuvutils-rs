@@ -51,6 +51,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
     let channels = source_channels.get_channels_count();
 
     const V_SCALE: i32 = 4;
+    const V_HALF_SCALE: i32 = V_SCALE - 2;
     const A_E: i32 = 2;
 
     let u_ptr = u_plane;
@@ -126,12 +127,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         let y1 = vcombine_u8(y1_low, y1_high);
         vst1q_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1);
 
-        let box_r_values = vhaddq_u16(vpaddlq_u8(r_values0), vpaddlq_u8(r_values1));
-        let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(box_r_values)));
-        let box_g_values = vhaddq_u16(vpaddlq_u8(g_values0), vpaddlq_u8(g_values1));
-        let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(box_g_values)));
-        let box_b_values = vhaddq_u16(vpaddlq_u8(b_values0), vpaddlq_u8(b_values1));
-        let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_SCALE>(vrshrq_n_u16::<1>(box_b_values)));
+        let box_r_values = vaddq_u16(vpaddlq_u8(r_values0), vpaddlq_u8(r_values1));
+        let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(box_r_values));
+        let box_g_values = vaddq_u16(vpaddlq_u8(g_values0), vpaddlq_u8(g_values1));
+        let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(box_g_values));
+        let box_b_values = vaddq_u16(vpaddlq_u8(b_values0), vpaddlq_u8(b_values1));
+        let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(box_b_values));
 
         let mut cbl = vqrdmlahq_laneq_s16::<3>(uv_bias, r1, v_weights);
         cbl = vqrdmlahq_laneq_s16::<4>(cbl, g1, v_weights);
@@ -183,12 +184,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         vst1_u8(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0_low);
         vst1_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1_low);
 
-        let box_r_values = vhadd_u16(vpaddl_u8(r_values0), vpaddl_u8(r_values1));
-        let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(box_r_values)));
-        let box_g_values = vhadd_u16(vpaddl_u8(g_values0), vpaddl_u8(g_values1));
-        let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(box_g_values)));
-        let box_b_values = vhadd_u16(vpaddl_u8(b_values0), vpaddl_u8(b_values1));
-        let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_SCALE>(vrshr_n_u16::<1>(box_b_values)));
+        let box_r_values = vadd_u16(vpaddl_u8(r_values0), vpaddl_u8(r_values1));
+        let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(box_r_values));
+        let box_g_values = vadd_u16(vpaddl_u8(g_values0), vpaddl_u8(g_values1));
+        let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(box_g_values));
+        let box_b_values = vadd_u16(vpaddl_u8(b_values0), vpaddl_u8(b_values1));
+        let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(box_b_values));
 
         let mut cbl = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
         cbl = vqrdmlah_laneq_s16::<4>(cbl, g1, v_weights);
