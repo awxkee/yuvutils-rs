@@ -28,7 +28,8 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm256_store_interleave_rgb16_for_yuv,
+    _mm256_expand_bp_by2, _mm256_from_msb_epi16, _mm256_interleave_epi16,
+    _mm256_store_interleave_rgb16_for_yuv,
 };
 use crate::internals::ProcessedOffset;
 use crate::sse::_mm_from_msb_epi16;
@@ -215,11 +216,11 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
 
         u_values0 = _mm256_slli_epi16::<SCALE>(u_values0);
         v_values0 = _mm256_slli_epi16::<SCALE>(v_values0);
-        y_values0 = _mm256_slli_epi16::<SCALE>(y_values0);
+        y_values0 = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values0);
 
         u_values1 = _mm256_slli_epi16::<SCALE>(u_values1);
         v_values1 = _mm256_slli_epi16::<SCALE>(v_values1);
-        y_values1 = _mm256_slli_epi16::<SCALE>(y_values1);
+        y_values1 = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values1);
 
         let y_vals0 = _mm256_mulhrs_epi16(y_values0, v_luma_coeff);
         let y_vals1 = _mm256_mulhrs_epi16(y_values1, v_luma_coeff);
@@ -337,7 +338,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
 
         u_values = _mm256_slli_epi16::<SCALE>(u_values);
         v_values = _mm256_slli_epi16::<SCALE>(v_values);
-        y_values = _mm256_slli_epi16::<SCALE>(y_values);
+        y_values = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values);
 
         let y_vals = _mm256_mulhrs_epi16(y_values, v_luma_coeff);
 

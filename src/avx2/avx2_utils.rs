@@ -1025,3 +1025,14 @@ pub(crate) unsafe fn _mm256_expand8_unordered_to_10(v: __m256i) -> (__m256i, __m
     let v1 = _mm256_unpackhi_epi8(v, v);
     (_mm256_srli_epi16::<6>(v0), _mm256_srli_epi16::<6>(v1))
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_expand_bp_by2<const BIT_DEPTH: usize>(v: __m256i) -> __m256i {
+    if BIT_DEPTH == 10 {
+        _mm256_or_si256(_mm256_slli_epi16::<2>(v), _mm256_srli_epi16::<8>(v))
+    } else if BIT_DEPTH == 12 {
+        _mm256_or_si256(_mm256_slli_epi16::<2>(v), _mm256_srli_epi16::<10>(v))
+    } else {
+        v
+    }
+}

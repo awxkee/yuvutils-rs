@@ -61,9 +61,9 @@ fn rgb_to_ar30_impl<
             .chunks_exact(rgba_layout.get_channels_count())
             .zip(dst.iter_mut())
         {
-            let mut r = src[rgba_layout.get_r_channel_offset()];
-            let mut g = src[rgba_layout.get_g_channel_offset()];
-            let mut b = src[rgba_layout.get_b_channel_offset()];
+            let r = src[rgba_layout.get_r_channel_offset()];
+            let g = src[rgba_layout.get_g_channel_offset()];
+            let b = src[rgba_layout.get_b_channel_offset()];
 
             let r = u16::from_ne_bytes([r, r]) >> 6;
             let g = u16::from_ne_bytes([g, g]) >> 6;
