@@ -102,7 +102,6 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
-    const SCALE: u32 = 2;
 
     while cx + 64 < width {
         let y_s = _mm512_subs_epi8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);

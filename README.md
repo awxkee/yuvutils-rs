@@ -34,7 +34,7 @@ Wasm `simd128` as target feature should be enabled for implemented SIMD wasm pat
 
 # Rayon 
 
-Some paths have multi-threading support, consider this feature if you're working on platform where using of multi-threading is reasonable.
+Some paths have multi-threading support. However, YUV conversion usually makes more sense in single-threaded mode, thus use this feature with care.
 
 ### Adding to project
 
