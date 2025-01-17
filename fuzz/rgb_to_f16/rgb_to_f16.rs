@@ -1,3 +1,4 @@
+#![feature(f16)]
 /*
  * Copyright (c) Radzivon Bartoshyk, 12/2024. All rights reserved.
  *
@@ -26,7 +27,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #![no_main]
 use core::f16;
 use libfuzzer_sys::fuzz_target;

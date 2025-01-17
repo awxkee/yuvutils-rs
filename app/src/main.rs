@@ -282,36 +282,7 @@ fn main() {
 
     println!("Backward time: {:?}", start_time.elapsed());
 
-    let start_time = Instant::now();
-
-    let mut rgba16 = rgba
-        .iter()
-        .map(|&x| u16::from_ne_bytes([x, x]) >> 6)
-        .collect::<Vec<u16>>();
-    let mut rgb_f16 = vec![0.; width as usize * components * height as usize];
-
-    convert_rgb16_to_f16(
-        &rgba16,
-        rgba_stride,
-        &mut rgb_f16,
-        rgba_stride,
-        10,
-        width as usize,
-        height as usize,
-    )
-    .unwrap();
-    convert_rgb_f16_to_rgb16(
-        &rgb_f16,
-        rgba_stride,
-        &mut rgba16,
-        rgba_stride,
-        10,
-        width as usize,
-        height as usize,
-    )
-    .unwrap();
-
-    rgba = rgba16.iter().map(|&x| (x >> 2) as u8).collect();
+    // rgba = rgba16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
         "converted_sharp151.png",

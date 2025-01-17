@@ -2018,24 +2018,30 @@ mod tests {
 
             assert!(
                 diff_r <= 50,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}, Point (x: {}, y: {})",
                 diff_r,
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                x,
+                y,
             );
             assert!(
                 diff_g <= 50,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}, Point (x: {}, y: {})",
                 diff_g,
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                x,
+                y,
             );
             assert!(
                 diff_b <= 50,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}, Point (x: {}, y: {})",
                 diff_b,
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                x,
+                y,
             );
         }
     }
