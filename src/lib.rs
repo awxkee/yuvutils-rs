@@ -31,6 +31,7 @@
 #![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
 #![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
+#![cfg_attr(feature = "nightly_f16", feature(f16))]
 extern crate core;
 
 mod ar30_rgb;
@@ -42,6 +43,8 @@ mod avx2;
 ))]
 mod avx512bw;
 mod built_coefficients;
+#[cfg(feature = "nightly_f16")]
+mod f16_converter;
 mod from_identity;
 mod from_identity_alpha;
 mod geometry;
@@ -442,6 +445,13 @@ pub use yuv_p16_rgba_p16::*;
 
 pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
+};
+#[cfg(feature = "nightly_f16")]
+pub use f16_converter::{
+    convert_plane16_to_f16, convert_plane_f16_to_planar, convert_plane_f16_to_planar16,
+    convert_plane_to_f16, convert_rgb16_to_f16, convert_rgb_f16_to_rgb, convert_rgb_f16_to_rgb16,
+    convert_rgb_to_f16, convert_rgba16_to_f16, convert_rgba_f16_to_rgba,
+    convert_rgba_f16_to_rgba16, convert_rgba_to_f16,
 };
 pub use geometry::{
     rotate_cbcr, rotate_cbcr16, rotate_plane, rotate_plane16, rotate_rgb, rotate_rgb16,

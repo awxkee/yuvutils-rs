@@ -1,3 +1,4 @@
+#![feature(f16)]
 /*
  * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
  *
@@ -36,7 +37,8 @@ use std::thread::available_parallelism;
 use std::time::Instant;
 use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24, rs_RGB24ToI420};
 use yuvutils_rs::{
-    bgr_to_rgba, bgra_to_rgba, gbr_to_rgb, mirror_rgb, rgb_to_bgra, rgb_to_gbr,
+    bgr_to_rgba, bgra_to_rgba, convert_rgb16_to_f16, convert_rgb_f16_to_rgb,
+    convert_rgb_f16_to_rgb16, convert_rgb_to_f16, gbr_to_rgb, mirror_rgb, rgb_to_bgra, rgb_to_gbr,
     rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422,
     rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16,
     rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba_to_bgr, rgba_to_bgra, rgba_to_yuv422, rotate_rgba,
@@ -62,8 +64,11 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Return the buffer
     Ok(buffer)
 }
+use core::f16;
 
 fn main() {
+    let j = (1. / u16::MAX as f32) as f16;
+    println!("{}, j {}", j.to_bits(), j as f32);
     let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
@@ -104,17 +109,20 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
-    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv12(
-        &mut bi_planar_image,
-        &src_bytes,
+    rgb_to_yuv420_p16(
+        &mut planar_image,
+        &bytes_16,
         rgba_stride as u32,
+        10,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -229,7 +237,8 @@ fn main() {
     //     width,
     //     Rgb30ByteOrder::Host,
     //     &src_bytes,
-    //     rgba_stride as u32,
+    //     rgba_stride as u32,        _mm256_slli_epi16::<2>(v)
+
     //     width,
     //     height,
     // )
@@ -266,78 +275,21 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv_nv12_to_rgb(
-        &fixed_biplanar,
-        &mut rgba,
+    yuv420_p16_to_rgb16(
+        &fixed_planar,
+        &mut bytes_16,
         rgba_stride as u32,
+        10,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 
-    let start_time = Instant::now();
-
-    // unsafe {
-    //     let mut planar_image =
-    //         YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
-    //
-    //     let mut source_bgr = vec![0u8; src_bytes.len()];
-    //
-    //     rgba.chunks_exact(3).zip(source_bgr.chunks_exact_mut(3)).for_each(|(src, dst)| {
-    //         let b = src[0];
-    //         dst[0] = src[2];
-    //         dst[1] = src[1];
-    //         dst[2] = b;
-    //     });
-    //
-    //     rs_RGB24ToI420(
-    //         src_bytes.as_ptr(),
-    //         rgba_stride as i32,
-    //         planar_image.y_plane.borrow_mut().as_mut_ptr(),
-    //         planar_image.y_stride as i32,
-    //         planar_image.u_plane.borrow_mut().as_mut_ptr(),
-    //         planar_image.u_stride as i32,
-    //         planar_image.v_plane.borrow_mut().as_mut_ptr(),
-    //         planar_image.v_stride as i32,
-    //         dimensions.0 as i32,
-    //         dimensions.1 as i32,
-    //     );
-    //     let fixed_planar = planar_image.to_fixed();
-    //     rs_I420ToRGB24(
-    //         fixed_planar.y_plane.as_ptr(),
-    //         fixed_planar.y_stride as i32,
-    //         fixed_planar.u_plane.as_ptr(),
-    //         fixed_planar.u_stride as i32,
-    //         fixed_planar.v_plane.as_ptr(),
-    //         fixed_planar.v_stride as i32,
-    //         rgba.as_mut_ptr(),
-    //         rgba_stride as i32,
-    //         fixed_planar.width as i32,
-    //         fixed_planar.height as i32,
-    //     );
-    //
-    //     // rgba.chunks_exact_mut(3).for_each(|chunk| {
-    //     //     let b = chunk[0];
-    //     //     chunk[0] = chunk[2];
-    //     //     chunk[2] = b;
-    //     // });
-    // //     rs_NV12ToRGB24(
-    // //         fixed_biplanar.y_plane.as_ptr(),
-    // //         fixed_biplanar.y_stride as i32,
-    // //         fixed_biplanar.uv_plane.as_ptr(),
-    // //         fixed_biplanar.uv_stride as i32,
-    // //         rgba.as_mut_ptr(),
-    // //         rgba_stride as i32,
-    // //         fixed_planar.width as i32,
-    // //         fixed_planar.height as i32,
-    // //     );
-    // }
-
-    // /    println!("Backward LIBYUV time: {:?}", start_time.elapsed());
-
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     image::save_buffer(
         "converted_sharp151.png",

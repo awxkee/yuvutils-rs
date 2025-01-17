@@ -366,6 +366,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 let rgba1 = &rgba1[0..channels];
                 let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
                 let y_dst0 = y_dst0.chunks_exact_mut(2).into_remainder();
+                let y_dst1 = y_dst1.chunks_exact_mut(2).into_remainder();
 
                 let r0 = rgba0[src_chans.get_r_channel_offset()] as i32;
                 let g0 = rgba0[src_chans.get_g_channel_offset()] as i32;

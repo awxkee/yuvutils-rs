@@ -218,11 +218,11 @@ unsafe fn avx512_rgba_to_yuv_impl<
         );
 
         let (r_g_lo1, r_g_hi1) = (
-            _mm512_unpacklo_epi8(r_values1, g_values1),
-            _mm512_unpackhi_epi8(r_values1, g_values1),
+            _mm512_unpacklo_epi16(r_values1, g_values1),
+            _mm512_unpackhi_epi16(r_values1, g_values1),
         );
-        let b_hi1 = _mm512_unpackhi_epi8(b_values1, zeros);
-        let b_lo1 = _mm512_unpacklo_epi8(b_values1, zeros);
+        let b_hi1 = _mm512_unpackhi_epi16(b_values1, zeros);
+        let b_lo1 = _mm512_unpacklo_epi16(b_values1, zeros);
 
         let mut y1_vl = _mm512_affine_uv_dot::<PREC, HAS_DOT_PROD>(
             y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb,

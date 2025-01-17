@@ -849,3 +849,14 @@ pub(crate) unsafe fn _mm_expand8_lo_to_10(v: __m128i) -> __m128i {
 pub(crate) unsafe fn _xx_load_si64(ptr: *const u8) -> __m128i {
     _mm_loadl_epi64(ptr as *const _)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_expand_bp_by2<const BIT_DEPTH: usize>(v: __m128i) -> __m128i {
+    if BIT_DEPTH == 10 {
+        _mm_or_si128(_mm_slli_epi16::<2>(v), _mm_srli_epi16::<8>(v))
+    } else if BIT_DEPTH == 12 {
+        _mm_or_si128(_mm_slli_epi16::<2>(v), _mm_srli_epi16::<10>(v))
+    } else {
+        v
+    }
+}

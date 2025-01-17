@@ -24,9 +24,11 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: rustup target add aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu i686-unknown-linux-gnu powerpc-unknown-linux-gnu wasm32-unknown-unknown
       - run: RUSTFLAGS="-C target-feature=+neon" cargo build --target aarch64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --features nightly_f16 --target aarch64-unknown-linux-gnu
       - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --target i686-unknown-linux-gnu
       - run: cargo build --target powerpc-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --features "nightly_avx512" --target x86_64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --features nightly_avx512 --target x86_64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --features nightly_f16 --target x86_64-unknown-linux-gnu
       - run: RUSTFLAGS="-C target-feature=+simd128" cargo build --target wasm32-unknown-unknown
 
   clippy_x86:
@@ -83,6 +85,7 @@ jobs:
       - run: cargo fuzz run yuv_to_yuyu2 -- -max_total_time=15
       - run: cargo fuzz run yuv_nv16_to_rgb16 -- -max_total_time=15
       - run: cargo fuzz run shuffle -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_f16 -- -max_total_time=15
 
   fuzz_encoding:
     name: Fuzzing encoders

@@ -61,18 +61,23 @@ fn rgb_to_ar30_impl<
             .chunks_exact(rgba_layout.get_channels_count())
             .zip(dst.iter_mut())
         {
-            let mut r = src[rgba_layout.get_r_channel_offset()] as i32;
-            let mut g = src[rgba_layout.get_g_channel_offset()] as i32;
-            let mut b = src[rgba_layout.get_b_channel_offset()] as i32;
+            let r = src[rgba_layout.get_r_channel_offset()];
+            let g = src[rgba_layout.get_g_channel_offset()];
+            let b = src[rgba_layout.get_b_channel_offset()];
 
-            r = (r << 2) | (r >> 6);
-            g = (g << 2) | (g >> 6);
-            b = (b << 2) | (b >> 6);
+            let r = u16::from_ne_bytes([r, r]) >> 6;
+            let g = u16::from_ne_bytes([g, g]) >> 6;
+            let b = u16::from_ne_bytes([b, b]) >> 6;
 
             let packed = if rgba_layout.has_alpha() {
-                ar30_layout.pack_w_a::<AR30_BYTE_ORDER>(r, g, b, src[3] as i32 >> 6)
+                ar30_layout.pack_w_a::<AR30_BYTE_ORDER>(
+                    r as i32,
+                    g as i32,
+                    b as i32,
+                    src[3] as i32 >> 6,
+                )
             } else {
-                ar30_layout.pack::<AR30_BYTE_ORDER>(r, g, b)
+                ar30_layout.pack::<AR30_BYTE_ORDER>(r as i32, g as i32, b as i32)
             };
             *dst = packed;
         }
