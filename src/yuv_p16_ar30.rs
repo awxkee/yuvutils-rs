@@ -29,7 +29,7 @@
 use crate::numerics::{qrshr, to_ne};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_inverse_transform, get_yuv_range, Rgb30, YuvBytesPacking, YuvChromaSubsampling,
+    get_yuv_range, search_inverse_transform, Rgb30, YuvBytesPacking, YuvChromaSubsampling,
     YuvEndianness, YuvRange, YuvStandardMatrix,
 };
 use crate::{Rgb30ByteOrder, YuvError, YuvPlanarImage};
@@ -55,31 +55,30 @@ fn yuv_p16_to_image_ar30<
     let ar30_layout: Rgb30 = AR30_LAYOUT.into();
 
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let range = get_yuv_range(BIT_DEPTH as u32, range);
+    let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
 
     image.check_constraints(chroma_subsampling)?;
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, 1)?;
 
     let kr_kb = matrix.get_kr_kb();
     const AR30_DEPTH: usize = 10;
-    let max_range_p10 = ((1u32 << AR30_DEPTH as u32) - 1) as i32;
     const PRECISION: i32 = 12;
-    let transform = get_inverse_transform(
-        max_range_p10 as u32,
-        range.range_y,
-        range.range_uv,
-        kr_kb.kr,
-        kr_kb.kb,
+    let i_transform = search_inverse_transform(
+        PRECISION,
+        BIT_DEPTH as u32,
+        range,
+        matrix,
+        chroma_range,
+        kr_kb,
     );
-    let i_transform = transform.to_integers(PRECISION as u32);
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;
     let g_coef_1 = i_transform.g_coeff_1;
     let g_coef_2 = i_transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
 

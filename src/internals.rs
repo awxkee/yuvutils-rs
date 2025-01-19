@@ -26,10 +26,24 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange};
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub(crate) struct ProcessedOffset {
     pub(crate) cx: usize,
     pub(crate) ux: usize,
+}
+
+pub(crate) trait WideRowInversionHandler<V, K> {
+    fn handle_row(
+        &self,
+        y_plane: &[V],
+        u_plane: &[V],
+        v_plane: &[V],
+        rgba: &mut [V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrInverseTransform<K>,
+    ) -> ProcessedOffset;
 }

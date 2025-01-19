@@ -26,7 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::built_coefficients::get_built_inverse_transform;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_yuv_nv12_p10_to_rgba_row;
@@ -64,21 +63,14 @@ fn yuv_nv_p10_to_image_impl<
 
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
-    let max_range_p10 = (1u32 << BIT_DEPTH as u32) - 1u32;
-    let i_transform = if let Some(stored) =
-        get_built_inverse_transform(PRECISION as u32, BIT_DEPTH as u32, range, matrix)
-    {
-        stored
-    } else {
-        let transform = get_inverse_transform(
-            max_range_p10,
-            chroma_range.range_y,
-            chroma_range.range_uv,
-            kr_kb.kr,
-            kr_kb.kb,
-        );
-        transform.to_integers(PRECISION as u32)
-    };
+    let i_transform = search_inverse_transform(
+        PRECISION,
+        BIT_DEPTH as u32,
+        range,
+        matrix,
+        chroma_range,
+        kr_kb,
+    );
     let cr_coef = i_transform.cr_coef;
     let cb_coef = i_transform.cb_coef;
     let y_coef = i_transform.y_coef;

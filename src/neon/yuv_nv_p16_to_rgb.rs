@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{neon_store_rgb16, vfrommsb_u16, vfrommsbq_u16};
+use crate::neon::utils::{neon_store_rgb16, vexpand_high_bp_by_2, vfrommsb_u16, vfrommsbq_u16};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
@@ -335,7 +335,8 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
             }
         }
 
-        let y_high = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<V_SCALE>(y_values), v_weights);
+        let y_high =
+            vqrdmulhq_laneq_s16::<0>(vexpand_high_bp_by_2::<BIT_DEPTH>(y_values), v_weights);
 
         let r_vals = vqrdmlahq_laneq_s16::<1>(y_high, v_values, v_weights);
         let b_vals = vqrdmlahq_laneq_s16::<2>(y_high, u_values, v_weights);

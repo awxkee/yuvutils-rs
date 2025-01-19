@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{neon_store_rgb16, vld_s16_endian, vldq_s16_endian};
+use crate::neon::utils::{neon_store_rgb16, vexpand_high_bp_by_2, vld_s16_endian, vldq_s16_endian};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -460,8 +460,10 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
             v_values1 = vshlq_n_s16::<SCALE>(v_high);
         }
 
-        let y_high0 = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<SCALE>(y_values0), v_weights);
-        let y_high1 = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<SCALE>(y_values1), v_weights);
+        let y_high0 =
+            vqrdmulhq_laneq_s16::<0>(vexpand_high_bp_by_2::<BIT_DEPTH>(y_values0), v_weights);
+        let y_high1 =
+            vqrdmulhq_laneq_s16::<0>(vexpand_high_bp_by_2::<BIT_DEPTH>(y_values1), v_weights);
 
         let r_vals0 = vqrdmlahq_laneq_s16::<1>(y_high0, v_values0, v_weights);
         let b_vals0 = vqrdmlahq_laneq_s16::<2>(y_high0, u_values0, v_weights);
@@ -582,7 +584,8 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
             v_values = vshlq_n_s16::<SCALE>(vcombine_s16(v_low, v_high));
         }
 
-        let y_high = vqrdmulhq_laneq_s16::<0>(vshlq_n_s16::<SCALE>(y_values), v_weights);
+        let y_high =
+            vqrdmulhq_laneq_s16::<0>(vexpand_high_bp_by_2::<BIT_DEPTH>(y_values), v_weights);
 
         let r_vals = vqrdmlahq_laneq_s16::<1>(y_high, v_values, v_weights);
         let b_vals = vqrdmlahq_laneq_s16::<2>(y_high, u_values, v_weights);

@@ -39,27 +39,31 @@ pub(crate) trait SurfaceFloat16ToUnsigned<V> {
 }
 
 trait ConverterFactoryFloat16<V> {
-    fn make_forward_converter() -> Box<dyn SurfaceToFloat16<V>>;
-    fn make_inverse_converter() -> Box<dyn SurfaceFloat16ToUnsigned<V>>;
+    fn make_forward_converter(bit_depth: usize) -> Box<dyn SurfaceToFloat16<V>>;
+    fn make_inverse_converter(bit_depth: usize) -> Box<dyn SurfaceFloat16ToUnsigned<V>>;
 }
 
 impl ConverterFactoryFloat16<u8> for u8 {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    fn make_forward_converter() -> Box<dyn SurfaceToFloat16<u8>> {
+    fn make_forward_converter(bit_depth: usize) -> Box<dyn SurfaceToFloat16<u8>> {
         use crate::neon::{SurfaceU8ToFloat16Neon, SurfaceU8ToFloat16NeonFallback};
-        if std::arch::is_aarch64_feature_detected!("fp16") {
-            return Box::new(SurfaceU8ToFloat16Neon::default());
+        if bit_depth <= 14 {
+            if std::arch::is_aarch64_feature_detected!("fp16") {
+                return Box::new(SurfaceU8ToFloat16Neon::default());
+            }
         }
         Box::new(SurfaceU8ToFloat16NeonFallback::default())
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn make_forward_converter() -> Box<dyn SurfaceToFloat16<u8>> {
+    fn make_forward_converter(bit_depth: usize) -> Box<dyn SurfaceToFloat16<u8>> {
         use crate::avx2::SurfaceU8ToFloat16Avx2;
-        if std::arch::is_x86_feature_detected!("avx2")
-            && std::arch::is_x86_feature_detected!("f16c")
-        {
-            return Box::new(SurfaceU8ToFloat16Avx2::default());
+        if bit_depth <= 14 {
+            if std::arch::is_x86_feature_detected!("avx2")
+                && std::arch::is_x86_feature_detected!("f16c")
+            {
+                return Box::new(SurfaceU8ToFloat16Avx2::default());
+            }
         }
         Box::new(CommonSurfaceToFloat16::<u8> {
             _phantom: Default::default(),
@@ -70,17 +74,19 @@ impl ConverterFactoryFloat16<u8> for u8 {
         all(target_arch = "aarch64", target_feature = "neon"),
         any(target_arch = "x86", target_arch = "x86_64")
     )))]
-    fn make_forward_converter() -> Box<dyn SurfaceToFloat16<u8>> {
+    fn make_forward_converter(_: usize) -> Box<dyn SurfaceToFloat16<u8>> {
         Box::new(CommonSurfaceToFloat16::<u8> {
             _phantom: Default::default(),
         })
     }
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    fn make_inverse_converter() -> Box<dyn SurfaceFloat16ToUnsigned<u8>> {
+    fn make_inverse_converter(bit_depth: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u8>> {
         use crate::neon::{SurfaceF16ToUnsigned8Neon, SurfaceF16ToUnsigned8NeonFallback};
-        if std::arch::is_aarch64_feature_detected!("fp16") {
-            return Box::new(SurfaceF16ToUnsigned8Neon::default());
+        if bit_depth <= 14 {
+            if std::arch::is_aarch64_feature_detected!("fp16") {
+                return Box::new(SurfaceF16ToUnsigned8Neon::default());
+            }
         }
         Box::new(SurfaceF16ToUnsigned8NeonFallback::default())
     }
@@ -89,14 +95,14 @@ impl ConverterFactoryFloat16<u8> for u8 {
         all(target_arch = "aarch64", target_feature = "neon"),
         any(target_arch = "x86", target_arch = "x86_64")
     )))]
-    fn make_inverse_converter() -> Box<dyn SurfaceFloat16ToUnsigned<u8>> {
+    fn make_inverse_converter(_: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u8>> {
         Box::new(CommonSurfaceFloat16ToUnsigned::<u8> {
             _phantom: Default::default(),
         })
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn make_inverse_converter() -> Box<dyn SurfaceFloat16ToUnsigned<u8>> {
+    fn make_inverse_converter(_: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u8>> {
         Box::new(CommonSurfaceFloat16ToUnsigned::<u8> {
             _phantom: Default::default(),
         })
@@ -105,21 +111,25 @@ impl ConverterFactoryFloat16<u8> for u8 {
 
 impl ConverterFactoryFloat16<u16> for u16 {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    fn make_forward_converter() -> Box<dyn SurfaceToFloat16<u16>> {
+    fn make_forward_converter(bit_depth: usize) -> Box<dyn SurfaceToFloat16<u16>> {
         use crate::neon::{SurfaceU16ToFloat16Neon, SurfaceU16ToFloat16NeonFallback};
-        if std::arch::is_aarch64_feature_detected!("fp16") {
-            return Box::new(SurfaceU16ToFloat16Neon::default());
+        if bit_depth <= 14 {
+            if std::arch::is_aarch64_feature_detected!("fp16") {
+                return Box::new(SurfaceU16ToFloat16Neon::default());
+            }
         }
         Box::new(SurfaceU16ToFloat16NeonFallback::default())
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn make_forward_converter() -> Box<dyn SurfaceToFloat16<u16>> {
+    fn make_forward_converter(bit_depth: usize) -> Box<dyn SurfaceToFloat16<u16>> {
         use crate::avx2::SurfaceU16ToFloat16Avx2;
-        if std::arch::is_x86_feature_detected!("avx2")
-            && std::arch::is_x86_feature_detected!("f16c")
-        {
-            return Box::new(SurfaceU16ToFloat16Avx2::default());
+        if bit_depth <= 14 {
+            if std::arch::is_x86_feature_detected!("avx2")
+                && std::arch::is_x86_feature_detected!("f16c")
+            {
+                return Box::new(SurfaceU16ToFloat16Avx2::default());
+            }
         }
         Box::new(CommonSurfaceToFloat16::<u16> {
             _phantom: Default::default(),
@@ -130,17 +140,19 @@ impl ConverterFactoryFloat16<u16> for u16 {
         all(target_arch = "aarch64", target_feature = "neon"),
         any(target_arch = "x86", target_arch = "x86_64")
     )))]
-    fn make_forward_converter() -> Box<dyn SurfaceToFloat16<u16>> {
+    fn make_forward_converter(_: usize) -> Box<dyn SurfaceToFloat16<u16>> {
         Box::new(CommonSurfaceToFloat16::<u16> {
             _phantom: Default::default(),
         })
     }
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    fn make_inverse_converter() -> Box<dyn SurfaceFloat16ToUnsigned<u16>> {
+    fn make_inverse_converter(bit_depth: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u16>> {
         use crate::neon::{SurfaceF16ToUnsigned16Neon, SurfaceF16ToUnsigned16NeonFallback};
-        if std::arch::is_aarch64_feature_detected!("fp16") {
-            return Box::new(SurfaceF16ToUnsigned16Neon::default());
+        if bit_depth <= 14 {
+            if std::arch::is_aarch64_feature_detected!("fp16") {
+                return Box::new(SurfaceF16ToUnsigned16Neon::default());
+            }
         }
         Box::new(SurfaceF16ToUnsigned16NeonFallback::default())
     }
@@ -149,14 +161,14 @@ impl ConverterFactoryFloat16<u16> for u16 {
         all(target_arch = "aarch64", target_feature = "neon"),
         any(target_arch = "x86", target_arch = "x86_64")
     )))]
-    fn make_inverse_converter() -> Box<dyn SurfaceFloat16ToUnsigned<u16>> {
+    fn make_inverse_converter(_: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u16>> {
         Box::new(CommonSurfaceFloat16ToUnsigned::<u16> {
             _phantom: Default::default(),
         })
     }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn make_inverse_converter() -> Box<dyn SurfaceFloat16ToUnsigned<u16>> {
+    fn make_inverse_converter(_: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u16>> {
         Box::new(CommonSurfaceFloat16ToUnsigned::<u16> {
             _phantom: Default::default(),
         })
@@ -212,7 +224,7 @@ fn convert_surface_to_f16<V: Copy + ConverterFactoryFloat16<V>, const CN: usize>
     check_rgba_destination(src, src_stride as u32, width as u32, height as u32, CN)?;
     check_rgba_destination(dst, dst_stride as u32, width as u32, height as u32, CN)?;
 
-    let converter = V::make_forward_converter();
+    let converter = V::make_forward_converter(bit_depth);
 
     for (src, dst) in src
         .chunks_exact(src_stride)
@@ -238,7 +250,7 @@ fn convert_f16_surface_to_unsigned<V: Copy + ConverterFactoryFloat16<V>, const C
     check_rgba_destination(src, src_stride as u32, width as u32, height as u32, CN)?;
     check_rgba_destination(dst, dst_stride as u32, width as u32, height as u32, CN)?;
 
-    let converter = V::make_inverse_converter();
+    let converter = V::make_inverse_converter(bit_depth);
 
     for (src, dst) in src
         .chunks_exact(src_stride)
