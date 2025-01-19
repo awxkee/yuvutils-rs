@@ -405,12 +405,12 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 std::ptr::copy_nonoverlapping(
-                    u_plane.get_unchecked(cx..).as_ptr(),
+                    u_plane.get_unchecked(ux..).as_ptr(),
                     u_buffer.as_mut_ptr(),
                     diff.div_ceil(2),
                 );
                 std::ptr::copy_nonoverlapping(
-                    v_plane.get_unchecked(cx..).as_ptr(),
+                    v_plane.get_unchecked(ux..).as_ptr(),
                     v_buffer.as_mut_ptr(),
                     diff.div_ceil(2),
                 );
