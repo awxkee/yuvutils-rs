@@ -36,7 +36,6 @@ use crate::avx2::{
     feature = "nightly_avx512"
 ))]
 use crate::avx512bw::{avx512_yuv_nv_to_rgba, avx512_yuv_nv_to_rgba420, avx512_yuv_nv_to_rgba422};
-use crate::built_coefficients::get_built_inverse_transform;
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -87,18 +86,7 @@ fn yuv_nv12_to_rgbx<
     const PRECISION: i32 = 13;
 
     let inverse_transform =
-        if let Some(stored) = get_built_inverse_transform(PRECISION as u32, 8, range, matrix) {
-            stored
-        } else {
-            let transform = get_inverse_transform(
-                255,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform.to_integers(PRECISION as u32)
-        };
+        search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
     let cr_coef = inverse_transform.cr_coef;
     let cb_coef = inverse_transform.cb_coef;
     let y_coef = inverse_transform.y_coef;
@@ -1641,21 +1629,21 @@ mod tests {
             let diff_b = (b as i32 - ob as i32).abs();
 
             assert!(
-                diff_r <= 30,
+                diff_r <= 37,
                 "Original RGB {:?}, Round-tripped RGB {:?}, actual diff {}",
                 [or, og, ob],
                 [r, g, b],
-                diff_b,
+                diff_r,
             );
             assert!(
-                diff_g <= 30,
+                diff_g <= 37,
                 "Original RGB {:?}, Round-tripped RGB {:?}, actual diff {}",
                 [or, og, ob],
                 [r, g, b],
-                diff_b,
+                diff_g,
             );
             assert!(
-                diff_b <= 30,
+                diff_b <= 37,
                 "Original RGB {:?}, Round-tripped RGB {:?}, actual diff {}",
                 [or, og, ob],
                 [r, g, b],

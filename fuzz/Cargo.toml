@@ -9,7 +9,10 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-yuvutils-rs = {path = "..", features = ["nightly_f16"]}
+yuvutils-rs = { path = "..", features = ["nightly_f16"] }
+
+[features]
+nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
 
 [[bin]]
 name = "yuv_to_rgb"

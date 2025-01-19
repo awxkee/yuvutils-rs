@@ -527,6 +527,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
             let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
             let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
             let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + g_built_coeff);
+
             rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
             rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
             rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
