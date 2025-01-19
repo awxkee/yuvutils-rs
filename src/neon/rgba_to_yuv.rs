@@ -167,9 +167,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         cx += 16;
     }
 
-    while cx + 8 < width {
+    let encode_8_part = |src: &[u8], y_dst: &mut [u8], u_dst: &mut [u8], v_dst: &mut [u8]| {
         let (r_values0, g_values0, b_values0) =
-            neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
+            neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
 
         let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values0));
         let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values0));
@@ -181,7 +181,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
 
         let y_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(y_low));
 
-        vst1_u8(y_ptr.get_unchecked_mut(cx..).as_mut_ptr(), y_low);
+        vst1_u8(y_dst.as_mut_ptr(), y_low);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_low = vqrdmlahq_laneq_s16::<3>(uv_bias, r_low, v_weights);
@@ -196,10 +196,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
 
             let cr_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(cr_low));
 
-            vst1_u8(u_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cb_low);
-            vst1_u8(v_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cr_low);
-
-            ux += 8;
+            vst1_u8(u_dst.as_mut_ptr(), cb_low);
+            vst1_u8(v_dst.as_mut_ptr(), cr_low);
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
@@ -225,18 +223,88 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
                 vreinterpret_u16_s16(crl),
             ));
 
-            vst1_lane_u32::<0>(
-                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32,
-                vreinterpret_u32_u8(cb),
-            );
-            vst1_lane_u32::<0>(
-                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u32,
-                vreinterpret_u32_u8(cr),
-            );
+            vst1_lane_u32::<0>(u_dst.as_mut_ptr() as *mut u32, vreinterpret_u32_u8(cb));
+            vst1_lane_u32::<0>(v_dst.as_mut_ptr() as *mut u32, vreinterpret_u32_u8(cr));
+        }
+    };
+
+    while cx + 8 < width {
+        encode_8_part(
+            rgba.get_unchecked(cx * channels..),
+            y_ptr.get_unchecked_mut(cx..),
+            u_ptr.get_unchecked_mut(ux..),
+            v_ptr.get_unchecked_mut(ux..),
+        );
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            ux += 8;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
             ux += 4;
         }
 
         cx += 8;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+        let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut u_buffer: [u8; 8] = [0; 8];
+        let mut v_buffer: [u8; 8] = [0; 8];
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        encode_8_part(
+            src_buffer.as_slice(),
+            y_buffer.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+
+            ux += diff;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let hv = diff.div_ceil(2);
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+
+            ux += hv;
+        }
     }
 
     ProcessedOffset { cx, ux }
