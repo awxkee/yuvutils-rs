@@ -99,7 +99,7 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 | libyuv RGB->YUV 4:2:0  |  306.80µs  |     3.62ms     |   1.10ms   |   972.52µs    |
 | utils RGBA->YUV 4:2:0  |  370.49µs  |    367.47µs    |   1.09ms   |   785.93µs    |
 | libyuv RGBA->YUV 4:2:0 |  429.36µs  |     2.70ms     |  808.11µs  |   707.33µs    |
-| utils RGBA->YUV 4:2:2  |  427.03µs  |    464.82µs    |   1.27ms   |   964.87µs    |
+| utils RGBA->YUV 4:2:2  |  427.03µs  |    464.82µs    |   1.23ms   |   964.87µs    |
 | libyuv RGBA->YUV 4:2:2 |  651.84µs  |    4.3003ms    |   1.09ms   |   947.97µs    |
 | utils RGBA->YUV 4:4:4  |  455.59µs  |    534.87µs    |   1.57ms   |   974.29µs    |
 
