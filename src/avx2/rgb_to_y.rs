@@ -115,9 +115,12 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         cx += 32;
     }
 
-    let encode_16_part = |src: &[u8], y_dst: &mut [u8]| {
-        let (r_values, g_values, b_values) =
-            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
+    while cx + 16 < width {
+        let px = cx * channels;
+
+        let (r_values, g_values, b_values) = _mm256_load_deinterleave_half_rgb_for_yuv::<
+            ORIGIN_CHANNELS,
+        >(rgba.get_unchecked(px..).as_ptr());
 
         let r_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values, r_values));
         let g_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values, g_values));
@@ -136,14 +139,10 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
 
         let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
         _mm_storeu_si128(
-            y_dst.as_mut_ptr() as *mut __m128i,
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m128i,
             _mm256_castsi256_si128(y_yuv),
         );
-    };
 
-    while cx + 16 < width {
-        let px = cx * channels;
-        encode_16_part(rgba.get_unchecked(px..), y_plane.get_unchecked_mut(cx..));
         cx += 16;
     }
 
@@ -159,7 +158,29 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
             diff * channels,
         );
 
-        encode_16_part(src_buffer.as_slice(), y_buffer.as_mut_slice());
+        let (r_values, g_values, b_values) =
+            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+
+        let r_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values, r_values));
+        let g_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values, g_values));
+        let b_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(b_values, b_values));
+
+        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
+            y_bias,
+            _mm256_add_epi16(
+                _mm256_add_epi16(
+                    _mm256_mulhrs_epi16(r_low, v_yr),
+                    _mm256_mulhrs_epi16(g_low, v_yg),
+                ),
+                _mm256_mulhrs_epi16(b_low, v_yb),
+            ),
+        ));
+
+        let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
+        _mm_storeu_si128(
+            y_buffer.as_mut_ptr() as *mut __m128i,
+            _mm256_castsi256_si128(y_yuv),
+        );
 
         std::ptr::copy_nonoverlapping(
             y_buffer.as_ptr(),

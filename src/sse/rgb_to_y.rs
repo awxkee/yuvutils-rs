@@ -111,9 +111,12 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         cx += 16;
     }
 
-    let encode_8_part = |src: &[u8], y_dst: &mut [u8]| {
-        let (r_values, g_values, b_values) =
-            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
+    while cx + 8 < width {
+        let px = cx * channels;
+
+        let (r_values, g_values, b_values) = _mm_load_deinterleave_half_rgb_for_yuv::<
+            ORIGIN_CHANNELS,
+        >(rgba.get_unchecked(px..).as_ptr());
 
         let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
         let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
@@ -128,12 +131,8 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         ));
 
         let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
-        _mm_storeu_si64(y_dst.as_mut_ptr(), y_yuv);
-    };
+        _mm_storeu_si64(y_plane.get_unchecked_mut(cx..).as_mut_ptr(), y_yuv);
 
-    while cx + 8 < width {
-        let px = cx * channels;
-        encode_8_part(rgba.get_unchecked(px..), y_plane.get_unchecked_mut(cx..));
         cx += 8;
     }
 
@@ -149,7 +148,23 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
             diff * channels,
         );
 
-        encode_8_part(src_buffer.as_slice(), y_buffer.as_mut_slice());
+        let (r_values, g_values, b_values) =
+            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+
+        let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
+        let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
+        let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
+
+        let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            y_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
+                _mm_mulhrs_epi16(b_low, v_yb),
+            ),
+        ));
+
+        let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
+        _mm_storeu_si64(y_buffer.as_mut_ptr(), y_yuv);
 
         std::ptr::copy_nonoverlapping(
             y_buffer.as_ptr(),
