@@ -438,13 +438,15 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
             diff,
         );
 
+        let ux_size = match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
+            YuvChromaSubsampling::Yuv444 => diff * 2,
+        };
+
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
             uv_buffer.as_mut_ptr(),
-            match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
-                YuvChromaSubsampling::Yuv444 => diff * 2,
-            },
+            ux_size,
         );
 
         decode_8_part(
@@ -462,14 +464,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
         );
 
         cx += diff;
-        match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                ux += diff;
-            }
-            YuvChromaSubsampling::Yuv444 => {
-                ux += diff * 2;
-            }
-        }
+        ux += ux_size;
     }
 
     ProcessedOffset { cx, ux }
@@ -687,13 +682,15 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row<
             diff,
         );
 
+        let ux_size = match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
+            YuvChromaSubsampling::Yuv444 => diff * 2,
+        };
+
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
             uv_buffer.as_mut_ptr(),
-            match chroma_subsampling {
-                YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
-                YuvChromaSubsampling::Yuv444 => diff * 2,
-            },
+            ux_size,
         );
 
         decode_8_part(
@@ -710,14 +707,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row<
         );
 
         cx += diff;
-        match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                ux += diff;
-            }
-            YuvChromaSubsampling::Yuv444 => {
-                ux += diff * 2;
-            }
-        }
+        ux += ux_size;
     }
 
     ProcessedOffset { cx, ux }

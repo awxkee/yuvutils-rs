@@ -300,17 +300,19 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             diff,
         );
 
-        std::ptr::copy_nonoverlapping(
-            uv_buffer.as_mut_ptr(),
-            uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
-            diff * channels,
-        );
-
-        cx += diff;
-        ux += match chroma_subsampling {
+        let ux_size = match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
             YuvChromaSubsampling::Yuv444 => diff * 2,
         };
+
+        std::ptr::copy_nonoverlapping(
+            uv_buffer.as_mut_ptr(),
+            uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            ux_size,
+        );
+
+        cx += diff;
+        ux += ux_size;
     }
 
     ProcessedOffset { cx, ux }
