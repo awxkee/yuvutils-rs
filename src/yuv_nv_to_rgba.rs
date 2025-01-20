@@ -1533,21 +1533,24 @@ mod tests {
 
             assert!(
                 diff_r <= 3,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                "Original RGB {:?}, Round-tripped RGB {:?}, diff {}",
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                diff_r,
             );
             assert!(
                 diff_g <= 3,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                "Original RGB {:?}, Round-tripped RGB {:?}, diff {}",
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                diff_g
             );
             assert!(
                 diff_b <= 3,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                "Original RGB {:?}, Round-tripped RGB {:?}, diff {}",
                 [or, og, ob],
-                [r, g, b]
+                [r, g, b],
+                diff_b
             );
         }
     }

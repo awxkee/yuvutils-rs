@@ -106,23 +106,20 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut bi_planar_image =
-        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
 
     let mut planar_image =
         YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
-    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420_p16(
-        &mut planar_image,
-        &bytes_16,
+    rgb_to_yuv_nv24(
+        &mut bi_planar_image,
+        &src_bytes,
         rgba_stride as u32,
-        10,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -275,23 +272,20 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    bytes_16.fill(0);
+    // bytes_16.fill(0);
 
-    yuv420_p16_to_rgb16(
-        &fixed_planar,
-        &mut bytes_16,
+    yuv_nv24_to_rgb(
+        &fixed_biplanar,
+        &mut rgba,
         rgba_stride as u32,
-        10,
         YuvRange::Full,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 
-    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 2) axs u8).collect();
 
     image::save_buffer(
         "converted_sharp151.png",
