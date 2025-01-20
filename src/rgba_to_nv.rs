@@ -78,7 +78,7 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
     Default for SemiPlanar420Encoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+        let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
             return SemiPlanar420Encoder { handler: None };
         }
@@ -260,8 +260,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let src_chans: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = src_chans.get_channels_count();
 
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;

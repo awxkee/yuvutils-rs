@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_error::check_rgba_destination;
-use crate::yuv_support::{Rgb30, YuvSourceChannels};
+use crate::yuv_support::{to_channels_layout, Rgb30, YuvSourceChannels};
 use crate::{Rgb30ByteOrder, YuvError};
 
 fn ar30_to_rgb8_impl<
@@ -42,7 +42,7 @@ fn ar30_to_rgb8_impl<
     width: u32,
     height: u32,
 ) -> Result<(), YuvError> {
-    let rgba_layout: YuvSourceChannels = RGBA_LAYOUT.into();
+    let rgba_layout: YuvSourceChannels = to_channels_layout(RGBA_LAYOUT);
     let ar30_layout: Rgb30 = AR30_LAYOUT.into();
     check_rgba_destination(ar30, ar30_stride, width, height, 1)?;
     check_rgba_destination(

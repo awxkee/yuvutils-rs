@@ -95,7 +95,7 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let cr_coef = transform.cr_coef;

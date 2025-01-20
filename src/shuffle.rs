@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_error::check_rgba_destination;
-use crate::yuv_support::YuvSourceChannels;
+use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
 use crate::YuvError;
 
 pub(crate) trait ShuffleConverter<V: Copy, const SRC: u8, const DST: u8> {
@@ -50,8 +50,8 @@ impl<const SRC: u8, const DST: u8> ShuffleConverter<u8, SRC, DST>
     for Rgba8DefaultConverter<SRC, DST>
 {
     fn convert(&self, src: &[u8], dst: &mut [u8], _: usize) {
-        let src_channels: YuvSourceChannels = SRC.into();
-        let dst_channels: YuvSourceChannels = DST.into();
+        let src_channels: YuvSourceChannels = to_channels_layout(SRC);
+        let dst_channels: YuvSourceChannels = to_channels_layout(DST);
         for (dst, src) in dst
             .chunks_exact_mut(dst_channels.get_channels_count())
             .zip(src.chunks_exact(src_channels.get_channels_count()))
@@ -78,8 +78,8 @@ impl ShuffleConverterFactory<u8> for u8 {
         use crate::sse::{ShuffleConverterSse, ShuffleQTableConverterSse};
         let mut converter: Box<dyn ShuffleConverter<u8, SRC, DST>> =
             Box::new(Rgba8DefaultConverter::default());
-        let src_channels: YuvSourceChannels = SRC.into();
-        let dst_channels: YuvSourceChannels = DST.into();
+        let src_channels: YuvSourceChannels = to_channels_layout(SRC);
+        let dst_channels: YuvSourceChannels = to_channels_layout(DST);
         if std::arch::is_x86_feature_detected!("avx2") {
             if src_channels.get_channels_count() == 4 && dst_channels.get_channels_count() == 4 {
                 converter = Box::new(ShuffleQTableConverterAvx2::<SRC, DST>::create());
@@ -125,8 +125,8 @@ fn shuffle_impl<
     width: u32,
     height: u32,
 ) -> Result<(), YuvError> {
-    let src_channels: YuvSourceChannels = SRC.into();
-    let dst_channels: YuvSourceChannels = DST.into();
+    let src_channels: YuvSourceChannels = to_channels_layout(SRC);
+    let dst_channels: YuvSourceChannels = to_channels_layout(DST);
     check_rgba_destination(
         src,
         src_stride,

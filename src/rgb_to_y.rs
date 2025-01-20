@@ -54,7 +54,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = source_channels.get_channels_count();
 
     check_rgba_destination(

@@ -50,8 +50,8 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: YuvRange,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = destination_channels.get_channels_count();
 
     check_rgba_destination(

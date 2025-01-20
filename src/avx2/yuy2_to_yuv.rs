@@ -29,7 +29,7 @@
 use crate::avx2::avx2_utils::{
     _mm256_deinterleave_rgba_epi8, _mm256_interleave_epi8, _mm256_interleave_x2_epi8,
 };
-use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
+use crate::yuv_support::{to_subsampling, YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -61,7 +61,7 @@ unsafe fn yuy2_to_yuv_avx_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
 
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;

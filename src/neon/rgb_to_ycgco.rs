@@ -29,7 +29,9 @@
 
 use crate::internals::ProcessedOffset;
 use crate::neon::neon_ycgco::neon_rgb_to_ycgco;
-use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
+use crate::yuv_support::{
+    to_channels_layout, to_subsampling, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
+};
 use std::arch::aarch64::*;
 
 pub(crate) unsafe fn neon_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
@@ -47,8 +49,8 @@ pub(crate) unsafe fn neon_rgb_to_ycgco_row<const ORIGIN_CHANNELS: u8, const SAMP
     width: usize,
     compute_uv_row: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = source_channels.get_channels_count();
 
     let y_ptr = y_plane.add(y_offset);

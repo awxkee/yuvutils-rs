@@ -110,7 +110,7 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const HA
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
 ) {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     const V_S: u32 = 4;
     const A_E: u32 = 2;
     let y_bias = _mm512_set1_epi16(range.bias_y as i16 * (1 << A_E));
@@ -247,7 +247,7 @@ unsafe fn avx512_rgba_to_yuv_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 

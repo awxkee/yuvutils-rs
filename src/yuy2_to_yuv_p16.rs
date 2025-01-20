@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
+use crate::yuv_support::{to_subsampling, YuvChromaSubsampling, Yuy2Description};
 use crate::{YuvError, YuvPackedImage, YuvPlanarImageMut};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
@@ -38,7 +38,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     packed_image: &YuvPackedImage<u16>,
 ) -> Result<(), YuvError> {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
 
     planar_image.check_constraints(chroma_subsampling)?;
     packed_image.check_constraints()?;

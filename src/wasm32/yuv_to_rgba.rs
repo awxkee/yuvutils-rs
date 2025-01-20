@@ -32,7 +32,7 @@ use crate::wasm32::utils::{
     i16x8_pack_sat_u8x16, v128_load_half, wasm_store_rgb, wasm_zip_lo_i8x16,
 };
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
+    to_subsampling, CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use std::arch::wasm32::*;
 
@@ -48,7 +48,7 @@ pub(crate) unsafe fn wasm_yuv_to_rgba_row<const DESTINATION_CHANNELS: u8, const 
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 

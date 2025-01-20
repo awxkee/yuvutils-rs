@@ -54,10 +54,10 @@ fn yuv_nv_p16_to_image_impl<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = dst_chans.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
     let max_range = ((1u32 << (BIT_DEPTH as u32)) - 1u32) as i32;

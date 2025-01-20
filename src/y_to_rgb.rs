@@ -59,7 +59,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = destination_channels.get_channels_count();
 
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;

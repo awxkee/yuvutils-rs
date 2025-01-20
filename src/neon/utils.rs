@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::yuv_support::YuvSourceChannels;
+use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
 use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
 
@@ -228,7 +228,7 @@ pub(crate) unsafe fn xvst1q_u8_x2(ptr: *mut u8, b: uint8x16x2_t) {
 pub(crate) unsafe fn neon_vld_rgb_for_yuv<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (uint8x16_t, uint8x16_t, uint8x16_t) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     let r_values_u8: uint8x16_t;
     let g_values_u8: uint8x16_t;
     let b_values_u8: uint8x16_t;
@@ -266,7 +266,7 @@ pub(crate) unsafe fn neon_vld_rgb_for_yuv<const ORIGINS: u8>(
 pub(crate) unsafe fn neon_vld_rgb<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (uint8x16_t, uint8x16_t, uint8x16_t, uint8x16_t) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     let r_values_u8: uint8x16_t;
     let g_values_u8: uint8x16_t;
     let b_values_u8: uint8x16_t;
@@ -308,7 +308,7 @@ pub(crate) unsafe fn neon_vld_rgb<const ORIGINS: u8>(
 pub(crate) unsafe fn neon_vld_h_rgb_for_yuv<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (uint8x8_t, uint8x8_t, uint8x8_t) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     let r_values_u8: uint8x8_t;
     let g_values_u8: uint8x8_t;
     let b_values_u8: uint8x8_t;
@@ -346,7 +346,7 @@ pub(crate) unsafe fn neon_vld_h_rgb_for_yuv<const ORIGINS: u8>(
 pub(crate) unsafe fn neon_vld_h_rgb<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (uint8x8_t, uint8x8_t, uint8x8_t, uint8x8_t) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     let r_values_u8: uint8x8_t;
     let g_values_u8: uint8x8_t;
     let b_values_u8: uint8x8_t;
@@ -388,7 +388,7 @@ pub(crate) unsafe fn neon_vld_h_rgb<const ORIGINS: u8>(
 pub(crate) unsafe fn neon_vld_rgb16_for_yuv<const ORIGINS: u8>(
     ptr: *const u16,
 ) -> (uint16x8_t, uint16x8_t, uint16x8_t) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     let r_values;
     let g_values;
     let b_values;
@@ -430,7 +430,7 @@ pub(crate) unsafe fn neon_store_rgb16<const ORIGINS: u8>(
     b_values: uint16x8_t,
     v_max_colors: uint16x8_t,
 ) {
-    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     match destination_channels {
         YuvSourceChannels::Rgb => {
             let dst_pack = uint16x8x3_t(r_values, g_values, b_values);
@@ -459,7 +459,7 @@ pub(crate) unsafe fn neon_store_rgb8<const ORIGINS: u8>(
     b_values: uint8x16_t,
     v_max_colors: uint8x16_t,
 ) {
-    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     match destination_channels {
         YuvSourceChannels::Rgb => {
             let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
@@ -488,7 +488,7 @@ pub(crate) unsafe fn neon_store_half_rgb8<const ORIGINS: u8>(
     b_values: uint8x8_t,
     v_max_colors: uint8x8_t,
 ) {
-    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
     match destination_channels {
         YuvSourceChannels::Rgb => {
             let dst_pack: uint8x8x3_t = uint8x8x3_t(r_values, g_values, b_values);

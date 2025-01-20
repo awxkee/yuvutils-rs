@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::neon::utils::vmullnq_s16;
-use crate::yuv_support::YuvSourceChannels;
+use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
 use std::arch::aarch64::*;
 
 pub(crate) fn yuv_to_rgba_row_limited_rdm<const DESTINATION_CHANNELS: u8>(
@@ -60,7 +60,7 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
 ) -> usize {
     let mut cx = start_cx;
 
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
 
     let v_alpha = vdupq_n_u8(255u8);
 
@@ -154,7 +154,7 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
     unsafe {
         let mut cx = start_cx;
 
-        let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+        let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
 
         let v_alpha = vdupq_n_u8(255u8);
 
@@ -229,7 +229,7 @@ pub(crate) fn yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
     unsafe {
         let mut cx = start_cx;
 
-        let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+        let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
 
         let v_alpha = vdupq_n_u8(255u8);
 

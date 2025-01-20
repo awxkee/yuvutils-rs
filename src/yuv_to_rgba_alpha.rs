@@ -55,8 +55,8 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     matrix: YuvStandardMatrix,
     premultiply_alpha: bool,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     assert!(
         dst_chans.has_alpha(),
         "yuv_with_alpha_to_rgbx cannot be called on configuration without alpha"

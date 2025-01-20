@@ -48,8 +48,8 @@ use crate::numerics::to_ne;
 use crate::sse::sse_yuv_p16_to_rgba8_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
-    YuvRange, YuvSourceChannels, YuvStandardMatrix,
+    get_inverse_transform, get_yuv_range, to_channels_layout, to_subsampling, YuvBytesPacking,
+    YuvChromaSubsampling, YuvEndianness, YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 use crate::{YuvError, YuvPlanarImage};
 
@@ -66,10 +66,10 @@ fn yuv_p16_to_image_ant<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = dst_chans.get_channels_count();
 
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
 
     assert!(
         BIT_DEPTH == 10 || BIT_DEPTH == 12,

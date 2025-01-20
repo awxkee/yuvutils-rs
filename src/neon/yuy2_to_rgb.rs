@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvSourceChannels, Yuy2Description,
+    to_channels_layout, CbCrInverseTransform, YuvChromaRange, YuvSourceChannels, Yuy2Description,
 };
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
@@ -45,7 +45,7 @@ pub(crate) fn yuy2_to_rgb_neon<
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
-    let dst_chans: YuvSourceChannels = DST_CHANNELS.into();
+    let dst_chans: YuvSourceChannels = to_channels_layout(DST_CHANNELS);
 
     let mut _cx = nav.cx;
     let mut _yuy2_x = nav.x;

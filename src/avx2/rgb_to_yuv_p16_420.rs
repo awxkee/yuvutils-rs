@@ -31,7 +31,9 @@ use crate::avx2::avx2_utils::{
     _mm256_load_deinterleave_rgb16_for_yuv, _mm256_to_msb_epi16,
 };
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
+use crate::yuv_support::{
+    to_channels_layout, CbCrForwardTransform, YuvChromaRange, YuvSourceChannels,
+};
 use crate::{YuvBytesPacking, YuvEndianness};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -153,7 +155,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();

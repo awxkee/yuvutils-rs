@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::yuv_support::YuvSourceChannels;
+use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -455,7 +455,7 @@ pub(crate) unsafe fn _mm256_havg_epu8(a: __m256i, b: __m256i) -> __m256i {
 pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (__m256i, __m256i, __m256i) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
 
     let (r_values, g_values, b_values);
 
@@ -502,7 +502,7 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
 pub(crate) unsafe fn _mm256_load_deinterleave_rgb<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (__m256i, __m256i, __m256i, __m256i) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
 
     let (r_values, g_values, b_values, a_values);
 
@@ -552,7 +552,7 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb<const ORIGINS: u8>(
 pub(crate) unsafe fn _mm256_load_deinterleave_half_rgb_for_yuv<const ORIGINS: u8>(
     ptr: *const u8,
 ) -> (__m256i, __m256i, __m256i) {
-    let source_channels: YuvSourceChannels = ORIGINS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
 
     let (r_values, g_values, b_values);
 
@@ -606,7 +606,7 @@ pub(crate) unsafe fn _mm256_store_interleave_rgb16_for_yuv<const ORIGINS: u8>(
     b: __m256i,
     a: __m256i,
 ) {
-    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
 
     match destination_channels {
         YuvSourceChannels::Rgb => {
@@ -646,7 +646,7 @@ pub(crate) unsafe fn _mm256_store_interleave_rgb_half_for_yuv<const ORIGINS: u8>
     b: __m256i,
     a: __m256i,
 ) {
-    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
 
     match destination_channels {
         YuvSourceChannels::Rgb => {
@@ -686,7 +686,7 @@ pub(crate) unsafe fn _mm256_store_interleave_rgb_for_yuv<const ORIGINS: u8>(
     b: __m256i,
     a: __m256i,
 ) {
-    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(ORIGINS);
 
     match destination_channels {
         YuvSourceChannels::Rgb => {
@@ -783,7 +783,7 @@ pub(crate) unsafe fn _mm256_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
     let g_values;
     let b_values;
 
-    let source_channels: YuvSourceChannels = CHANS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(CHANS);
 
     let row0 = _mm256_loadu_si256(ptr as *const __m256i);
     let row1 = _mm256_loadu_si256(ptr.add(16) as *const __m256i);

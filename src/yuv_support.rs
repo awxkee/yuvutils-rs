@@ -320,14 +320,13 @@ pub enum YuvChromaSubsampling {
     Yuv444 = 2,
 }
 
+#[inline]
 pub(crate) const fn to_subsampling(subsampling: u8) -> YuvChromaSubsampling {
     match subsampling {
         0 => YuvChromaSubsampling::Yuv420,
         1 => YuvChromaSubsampling::Yuv422,
         2 => YuvChromaSubsampling::Yuv444,
-        _ => {
-            unimplemented!("Unknown value")
-        }
+        _ => YuvChromaSubsampling::Yuv420,
     }
 }
 
@@ -400,6 +399,17 @@ pub enum YuvSourceChannels {
     Rgba = 1,
     Bgra = 2,
     Bgr = 3,
+}
+
+#[inline]
+pub(crate) const fn to_channels_layout(channels: u8) -> YuvSourceChannels {
+    match channels {
+        0 => YuvSourceChannels::Rgb,
+        1 => YuvSourceChannels::Rgba,
+        2 => YuvSourceChannels::Bgra,
+        3 => YuvSourceChannels::Bgr,
+        _ => YuvSourceChannels::Rgb,
+    }
 }
 
 impl From<u8> for YuvSourceChannels {

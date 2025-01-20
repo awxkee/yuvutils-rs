@@ -50,7 +50,7 @@ pub(crate) unsafe fn avx512_ycgco_to_rgb_row<const DESTINATION_CHANNELS: u8, con
     rgba_offset: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let bias_y = range.bias_y as i32;

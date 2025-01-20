@@ -51,8 +51,8 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = source_channels.get_channels_count();
     let range = get_yuv_range(8, range);
     let precision_scale = (1 << 8) as f32;

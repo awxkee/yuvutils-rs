@@ -30,7 +30,8 @@
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::{neon_store_half_rgb8, vld_s16_endian, vldq_s16_endian, vpackq_n_shift16};
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
+    to_channels_layout, to_subsampling, CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling,
+    YuvSourceChannels,
 };
 use std::arch::aarch64::*;
 
@@ -53,9 +54,9 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = destination_channels.get_channels_count();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let dst_ptr = rgba.as_mut_ptr();
 
     let y_corr = vdupq_n_u16(range.bias_y as u16);

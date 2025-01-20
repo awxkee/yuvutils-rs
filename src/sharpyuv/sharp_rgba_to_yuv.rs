@@ -51,7 +51,7 @@ fn sharpen_row420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
     transform: &CbCrForwardTransform<i32>,
     width: usize,
 ) {
-    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let src_chans: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = src_chans.get_channels_count();
 
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
@@ -216,7 +216,7 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
     transform: &CbCrForwardTransform<i32>,
     width: usize,
 ) {
-    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let src_chans: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = src_chans.get_channels_count();
 
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
@@ -319,8 +319,8 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     matrix: YuvStandardMatrix,
     sharp_yuv_gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let src_chans: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
 
     check_rgba_destination(
         rgba,

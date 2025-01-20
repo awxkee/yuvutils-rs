@@ -37,8 +37,8 @@ use crate::numerics::{qrshr, to_ne};
 use crate::sse::sse_yuv_p16_to_rgba_alpha_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_yuv_range, search_inverse_transform, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
-    YuvRange, YuvSourceChannels, YuvStandardMatrix,
+    get_yuv_range, search_inverse_transform, to_channels_layout, to_subsampling, YuvBytesPacking,
+    YuvChromaSubsampling, YuvEndianness, YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 use crate::{YuvError, YuvPlanarImageWithAlpha};
 #[cfg(feature = "rayon")]
@@ -59,7 +59,7 @@ fn yuv_p16_to_image_alpha_ant<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = dst_chans.get_channels_count();
 
     assert!(
@@ -67,7 +67,7 @@ fn yuv_p16_to_image_alpha_ant<
         "Cannot call YUV p16 to Rgb8 with alpha without real alpha"
     );
 
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
 

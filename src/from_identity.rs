@@ -35,7 +35,7 @@ use crate::numerics::qrshr;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::{sse_yuv_to_rgba_row_full, sse_yuv_to_rgba_row_limited};
 use crate::yuv_error::check_rgba_destination;
-use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
+use crate::yuv_support::{get_yuv_range, to_channels_layout, YuvSourceChannels};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImage, YuvRange};
 use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
@@ -236,7 +236,7 @@ where
     WideRowGbrProcessor<V>: FullRangeWideRow<V>,
     WideRowGbrLimitedProcessor<V>: LimitedRangeWideRow<V>,
 {
-    let destination_channels: YuvSourceChannels = CHANNELS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(CHANNELS);
     let channels = destination_channels.get_channels_count();
     assert!(
         channels == 3 || channels == 4,

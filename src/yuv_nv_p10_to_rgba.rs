@@ -50,10 +50,10 @@ fn yuv_nv_p10_to_image_impl<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = dst_chans.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
 
     const BIT_DEPTH: usize = 10;
 

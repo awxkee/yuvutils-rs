@@ -43,8 +43,9 @@ use crate::numerics::{qrshr, to_ne};
 use crate::sse::sse_yuv_p16_to_rgba_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_yuv_range, search_inverse_transform, CbCrInverseTransform, YuvBytesPacking, YuvChromaRange,
-    YuvChromaSubsampling, YuvEndianness, YuvRange, YuvSourceChannels, YuvStandardMatrix,
+    get_yuv_range, search_inverse_transform, to_channels_layout, to_subsampling,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
+    YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 use crate::{YuvError, YuvPlanarImage};
 #[cfg(feature = "rayon")]
@@ -244,10 +245,10 @@ fn yuv_p16_to_image_p16_ant<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = dst_chans.get_channels_count();
 
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
 
     image.check_constraints(chroma_subsampling)?;

@@ -33,7 +33,8 @@ use crate::sse::{
     _mm_expand8_hi_to_10, _mm_expand8_lo_to_10, _mm_store_interleave_rgb_for_yuv, _xx_load_si64,
 };
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
+    to_channels_layout, to_subsampling, CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling,
+    YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use core::arch::x86::*;
@@ -84,8 +85,8 @@ unsafe fn sse_yuv_to_rgba_alpha_row_impl<const DESTINATION_CHANNELS: u8, const S
     width: usize,
     use_premultiply: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;

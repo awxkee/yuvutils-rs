@@ -37,8 +37,8 @@ use crate::sse::{
     _mm_deinterleave_x2_epi16, _mm_from_msb_epi16, _mm_store_interleave_rgb16_for_yuv,
 };
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
-    YuvNVOrder, YuvSourceChannels,
+    to_channels_layout, to_subsampling, CbCrInverseTransform, YuvBytesPacking, YuvChromaRange,
+    YuvChromaSubsampling, YuvEndianness, YuvNVOrder, YuvSourceChannels,
 };
 
 pub(crate) unsafe fn sse_yuv_nv_p16_to_rgba_row<
@@ -93,10 +93,10 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = destination_channels.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let cr_coef = transform.cr_coef;

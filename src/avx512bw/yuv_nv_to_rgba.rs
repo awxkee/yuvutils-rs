@@ -126,7 +126,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_to_subsampling(SAMPLING);
     let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;

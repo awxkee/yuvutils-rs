@@ -30,7 +30,8 @@ use crate::internals::ProcessedOffset;
 use crate::wasm32::transpose::{v128_load_deinterleave_half_u8_x2, v128_load_deinterleave_u8_x2};
 use crate::wasm32::utils::{i16x8_pack_sat_u8x16, wasm_store_rgb, wasm_zip_lo_i8x16};
 use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
+    to_subsampling, CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder,
+    YuvSourceChannels,
 };
 use std::arch::wasm32::*;
 
@@ -53,7 +54,7 @@ pub(crate) unsafe fn wasm_yuv_nv_to_rgba_row420<
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(YUV_CHROMA_SAMPLING);
     let channels = destination_channels.get_channels_count();
 
     let uv_ptr = uv_plane.as_ptr();

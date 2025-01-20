@@ -29,7 +29,9 @@
 
 use crate::internals::ProcessedOffset;
 use crate::sse::{_mm_load_deinterleave_rgb_for_yuv, sse_pairwise_avg_epi8_j};
-use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
+use crate::yuv_support::{
+    to_channels_layout, CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels,
+};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -197,7 +199,7 @@ unsafe fn sse_rgba_to_nv_row_impl420<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = source_channels.get_channels_count();
 
     let mut cx = start_cx;

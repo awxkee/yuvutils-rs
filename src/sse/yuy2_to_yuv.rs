@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::sse::utils::sse_deinterleave_rgba;
-use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
+use crate::yuv_support::{to_subsampling, YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -59,7 +59,7 @@ unsafe fn yuy2_to_yuv_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
 
     let mut _cx = nav.cx;
     let mut _uv_x = nav.uv_x;

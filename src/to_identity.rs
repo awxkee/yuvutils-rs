@@ -28,7 +28,7 @@
  */
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
-use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
+use crate::yuv_support::{get_yuv_range, to_channels_layout, YuvSourceChannels};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImageMut, YuvRange};
 use num_traits::AsPrimitive;
 use std::fmt::Debug;
@@ -48,7 +48,7 @@ fn rgbx_to_gbr_impl<
 where
     i32: AsPrimitive<V>,
 {
-    let destination_channels: YuvSourceChannels = CHANNELS.into();
+    let destination_channels: YuvSourceChannels = to_channels_layout(CHANNELS);
     let channels = destination_channels.get_channels_count();
     assert!(
         channels == 3 || channels == 4,

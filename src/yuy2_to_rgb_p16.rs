@@ -29,7 +29,7 @@
 use crate::numerics::qrshr_n;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_inverse_transform, get_yuv_range, YuvSourceChannels, Yuy2Description,
+    get_inverse_transform, get_yuv_range, to_channels_layout, YuvSourceChannels, Yuy2Description,
 };
 use crate::{YuvError, YuvPackedImage, YuvRange, YuvStandardMatrix};
 #[cfg(feature = "rayon")]
@@ -46,7 +46,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
     let yuy2_source: Yuy2Description = YUY2_SOURCE.into();
-    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
     let channels = dst_chans.get_channels_count();
 
     packed_image.check_constraints()?;

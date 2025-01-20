@@ -29,7 +29,8 @@
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv, vdotl_laneq_u16_x3};
 use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
+    to_channels_layout, to_subsampling, CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling,
+    YuvNVOrder, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
 
@@ -50,8 +51,8 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     start_ux: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = source_channels.get_channels_count();
 
     let bias_uv = range.bias_uv as i16;
@@ -334,8 +335,8 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
     start_ux: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
     let channels = source_channels.get_channels_count();
 
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;

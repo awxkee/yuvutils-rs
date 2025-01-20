@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::neon::utils::xvld1q_u8_x2;
-use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
+use crate::yuv_support::{to_subsampling, YuvChromaSubsampling, Yuy2Description};
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use std::arch::aarch64::*;
 
@@ -40,7 +40,7 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
 
     let shuffle_table: [u8; 16] = [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15];
 
