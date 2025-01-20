@@ -94,7 +94,7 @@ unsafe fn shuffle_channels8_impl<const SRC: u8, const DST: u8>(
         .chunks_exact_mut(8 * dst_channels.get_channels_count())
         .into_remainder();
 
-    if src.len() > 0 && dst.len() > 0 {
+    if !src.is_empty() && !dst.is_empty() {
         assert!(src.len() < 64);
         assert!(dst.len() < 64);
         let mut transient_src: [u8; 64] = [0; 64];
@@ -120,15 +120,15 @@ const RGBA_TO_BGRA_TABLE: [u8; 16] = [
     3,
     2 + 4,
     1 + 4,
-    0 + 4,
+    4,
     3 + 4,
     2 + 8,
     1 + 8,
-    0 + 8,
+    8,
     3 + 8,
     2 + 12,
     1 + 12,
-    0 + 12,
+    12,
     3 + 12,
 ];
 
@@ -219,7 +219,7 @@ unsafe fn shuffle_qtable_channels8_impl<const SRC: u8, const DST: u8>(
     let src = src.chunks_exact(8).remainder();
     let dst = dst.chunks_exact_mut(8).into_remainder();
 
-    if src.len() > 0 && dst.len() > 0 {
+    if !src.is_empty() && !dst.is_empty() {
         assert!(src.len() < 16);
         assert!(dst.len() < 16);
         let mut transient_src: [u8; 16] = [0; 16];
