@@ -155,7 +155,7 @@ where
     i32: AsPrimitive<V>,
     WideRowProcessor<V>: ProcessRowHandler<V>,
 {
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     assert!(
         destination_channels.has_alpha(),

@@ -29,7 +29,7 @@
 #![forbid(unsafe_code)]
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
-use crate::yuv_support::{get_yuv_range, to_channels_layout, YuvSourceChannels};
+use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImageWithAlpha, YuvRange};
 use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
@@ -53,7 +53,7 @@ fn gbr_to_rgbx_alpha_impl<
 where
     i32: AsPrimitive<V>,
 {
-    let destination_channels: YuvSourceChannels = to_channels_layout(CHANNELS);
+    let destination_channels: YuvSourceChannels = CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     assert_eq!(
         channels, 4,

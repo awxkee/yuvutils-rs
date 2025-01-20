@@ -33,8 +33,7 @@ use crate::avx2::avx2_utils::{
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    to_channels_layout, to_subsampling, CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling,
-    YuvNVOrder, YuvSourceChannels,
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -80,7 +79,7 @@ unsafe fn encode_32_part<
     const A_E: i32 = 2;
 
     let order: YuvNVOrder = UV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     let (r_values, g_values, b_values) =
         _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
@@ -237,8 +236,8 @@ unsafe fn avx2_rgba_to_nv_impl<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
     let mut cx = start_cx;

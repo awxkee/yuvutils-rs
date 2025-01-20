@@ -28,8 +28,8 @@
  */
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_forward_transform, get_yuv_range, to_channels_layout, to_subsampling, ToIntegerTransform,
-    YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
+    get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSubsampling, YuvNVOrder,
+    YuvSourceChannels,
 };
 use crate::{
     YuvBiPlanarImageMut, YuvBytesPacking, YuvEndianness, YuvError, YuvRange, YuvStandardMatrix,
@@ -71,8 +71,8 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
     let nv_order: YuvNVOrder = NV_ORDER.into();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let src_chans: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
     image.check_constraints(chroma_subsampling)?;

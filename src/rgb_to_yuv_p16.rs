@@ -43,8 +43,8 @@ use crate::neon::{
 use crate::sse::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_420};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_forward_transform, get_yuv_range, to_channels_layout, to_subsampling, ToIntegerTransform,
-    YuvChromaSubsampling, YuvSourceChannels,
+    get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSubsampling,
+    YuvSourceChannels,
 };
 use crate::{
     YuvBytesPacking, YuvEndianness, YuvError, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
@@ -84,8 +84,8 @@ fn rgbx_to_yuv_ant<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let src_chans: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
     image.check_constraints(chroma_subsampling)?;

@@ -33,8 +33,7 @@ use crate::sse::{
     sse_pairwise_avg_epi8_j,
 };
 use crate::yuv_support::{
-    to_channels_layout, to_subsampling, CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling,
-    YuvSourceChannels,
+    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -72,7 +71,7 @@ unsafe fn encode_8_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRE
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
 ) {
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     const V_S: i32 = 4;
     const A_E: i32 = 2;
 
@@ -181,8 +180,8 @@ unsafe fn sse_rgba_to_yuv_row_impl<
     start_ux: usize,
     width: usize,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
     let y_ptr = y_plane.as_mut_ptr();

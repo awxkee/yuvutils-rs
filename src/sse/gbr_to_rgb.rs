@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::sse::_mm_store_interleave_rgb_for_yuv;
-use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
+use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -59,7 +59,7 @@ unsafe fn sse_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
 ) -> usize {
     let mut cx = start_cx;
 
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let v_alpha = _mm_set1_epi8(255u8 as i8);
 
@@ -115,7 +115,7 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
 ) -> usize {
     let mut cx = start_cx;
 
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let v_alpha = _mm_set1_epi8(255u8 as i8);
 

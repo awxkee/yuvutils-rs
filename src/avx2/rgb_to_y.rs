@@ -30,9 +30,7 @@
 use crate::avx2::avx2_utils::{
     _mm256_load_deinterleave_half_rgb_for_yuv, _mm256_load_deinterleave_rgb_for_yuv,
 };
-use crate::yuv_support::{
-    to_channels_layout, CbCrForwardTransform, YuvChromaRange, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -62,7 +60,7 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
     start_cx: usize,
     width: usize,
 ) -> usize {
-    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
     let y_ptr = y_plane.as_mut_ptr();

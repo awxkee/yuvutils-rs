@@ -37,8 +37,8 @@ use crate::numerics::to_ne;
 use crate::sse::sse_yuv_p16_to_rgba8_alpha_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
-    get_yuv_range, search_inverse_transform, to_channels_layout, to_subsampling, YuvBytesPacking,
-    YuvChromaSubsampling, YuvEndianness, YuvRange, YuvSourceChannels, YuvStandardMatrix,
+    get_yuv_range, search_inverse_transform, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
+    YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 use crate::{YuvError, YuvPlanarImageWithAlpha};
 #[cfg(feature = "rayon")]
@@ -59,7 +59,7 @@ fn yuv_p16_to_image_alpha_ant<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
 
     assert!(
@@ -71,7 +71,7 @@ fn yuv_p16_to_image_alpha_ant<
         "YUV16 -> RGB8 implemented only 10 and 12 bit depth"
     );
 
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     image.check_constraints(chroma_subsampling)?;
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;

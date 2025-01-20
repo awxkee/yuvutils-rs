@@ -33,7 +33,7 @@ use crate::images::YuvPackedImage;
 use crate::neon::yuy2_to_yuv_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuy2_to_yuv_sse;
-use crate::yuv_support::{to_subsampling, YuvChromaSubsampling, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 #[allow(unused_imports)]
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 use crate::{YuvError, YuvPlanarImageMut};
@@ -47,7 +47,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     packed_image: &YuvPackedImage<u8>,
 ) -> Result<(), YuvError> {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     planar_image.check_constraints(chroma_subsampling)?;
     packed_image.check_constraints()?;

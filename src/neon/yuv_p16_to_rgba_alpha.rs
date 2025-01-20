@@ -34,8 +34,8 @@ use crate::neon::utils::{
     neon_store_half_rgb8, vfrommsbq_u16, vld_s16_endian, vldq_s16_endian, vpackq_n_shift16,
 };
 use crate::yuv_support::{
-    to_channels_layout, to_subsampling, CbCrInverseTransform, YuvBytesPacking, YuvChromaRange,
-    YuvChromaSubsampling, YuvEndianness, YuvSourceChannels,
+    CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
+    YuvSourceChannels,
 };
 
 #[inline(always)]
@@ -58,14 +58,14 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     if destination_channels == YuvSourceChannels::Rgb
         || destination_channels == YuvSourceChannels::Bgr
     {
         unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = rgba.as_mut_ptr();

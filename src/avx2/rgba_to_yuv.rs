@@ -32,8 +32,7 @@ use crate::avx2::avx2_utils::{
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    to_channels_layout, to_subsampling, CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling,
-    YuvSourceChannels,
+    to_subsampling, CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -230,7 +229,7 @@ unsafe fn avx2_rgba_to_yuv_impl<
     width: usize,
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
     let mut cx = start_cx;

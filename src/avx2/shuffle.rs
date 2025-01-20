@@ -32,7 +32,7 @@ use crate::sse::{
     _mm_load_deinterleave_half_rgbx, _mm_load_deinterleave_rgbx,
     _mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv, _xx_load_si64,
 };
-use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
+use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -63,8 +63,8 @@ unsafe fn shuffle_channels8_avx_impl<const SRC: u8, const DST: u8>(
     dst: &mut [u8],
     _: usize,
 ) {
-    let src_channels: YuvSourceChannels = to_channels_layout(SRC);
-    let dst_channels: YuvSourceChannels = to_channels_layout(DST);
+    let src_channels: YuvSourceChannels = SRC.into();
+    let dst_channels: YuvSourceChannels = DST.into();
 
     for (src, dst) in src
         .chunks_exact(32 * src_channels.get_channels_count())
@@ -187,8 +187,8 @@ const RGBA_TO_BGRA_TABLE_AVX2: [u8; 32] = [
 
 impl<const SRC: u8, const DST: u8> ShuffleQTableConverterAvx2<SRC, DST> {
     pub(crate) fn create() -> Self {
-        let src_channels: YuvSourceChannels = to_channels_layout(SRC);
-        let dst_channels: YuvSourceChannels = to_channels_layout(DST);
+        let src_channels: YuvSourceChannels = SRC.into();
+        let dst_channels: YuvSourceChannels = DST.into();
         if src_channels.get_channels_count() != 4 || dst_channels.get_channels_count() != 4 {
             unimplemented!("Shuffle table implemented only for 4 channels");
         }
@@ -255,8 +255,8 @@ unsafe fn shuffle_qtable_channels8_avx_impl<const SRC: u8, const DST: u8>(
     vq_table_avx: [u8; 32],
     vq_table_sse: [u8; 16],
 ) {
-    let src_channels: YuvSourceChannels = to_channels_layout(SRC);
-    let dst_channels: YuvSourceChannels = to_channels_layout(DST);
+    let src_channels: YuvSourceChannels = SRC.into();
+    let dst_channels: YuvSourceChannels = DST.into();
     assert_eq!(src_channels.get_channels_count(), 4);
     assert_eq!(dst_channels.get_channels_count(), 4);
 

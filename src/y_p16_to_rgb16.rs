@@ -49,7 +49,7 @@ fn yuv400_p16_to_rgbx_impl<
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let max_colors = (1 << bit_depth) - 1;
 

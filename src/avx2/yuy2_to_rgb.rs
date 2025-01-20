@@ -31,7 +31,7 @@ use crate::avx2::avx2_utils::{
     avx2_interleave_rgb, avx2_pack_u16,
 };
 use crate::yuv_support::{
-    to_channels_layout, CbCrInverseTransform, YuvChromaRange, YuvSourceChannels, Yuy2Description,
+    CbCrInverseTransform, YuvChromaRange, YuvSourceChannels, Yuy2Description,
 };
 use crate::yuv_to_yuy2::YuvToYuy2Navigation;
 #[cfg(target_arch = "x86")]
@@ -64,7 +64,7 @@ unsafe fn yuy2_to_rgb_avx_impl<const DST_CHANNELS: u8, const YUY2_TARGET: usize>
     nav: YuvToYuy2Navigation,
 ) -> YuvToYuy2Navigation {
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
-    let dst_chans: YuvSourceChannels = to_channels_layout(DST_CHANNELS);
+    let dst_chans: YuvSourceChannels = DST_CHANNELS.into();
 
     let mut _cx = nav.cx;
     let mut _yuy2_x = nav.x;

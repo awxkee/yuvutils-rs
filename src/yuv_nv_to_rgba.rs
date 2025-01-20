@@ -68,8 +68,8 @@ fn yuv_nv12_to_rgbx<
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
-    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(YUV_CHROMA_SAMPLING);
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
 
     image.check_constraints(chroma_subsampling)?;
     check_rgba_destination(

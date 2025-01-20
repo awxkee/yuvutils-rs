@@ -29,7 +29,7 @@
 use crate::avx2::avx2_utils::{
     _mm256_expand8_unordered_to_10, _mm256_store_interleave_rgb_for_yuv,
 };
-use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
+use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -61,7 +61,7 @@ unsafe fn avx_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
 ) -> usize {
     let mut cx = start_cx;
 
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
@@ -117,7 +117,7 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
 ) -> usize {
     let mut cx = start_cx;
 
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
 

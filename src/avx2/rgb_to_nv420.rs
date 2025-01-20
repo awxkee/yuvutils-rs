@@ -32,9 +32,7 @@ use crate::avx2::avx2_utils::{
     avx_pairwise_avg_epi16_epi8_j,
 };
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{
-    to_channels_layout, CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -223,7 +221,7 @@ unsafe fn avx2_rgba_to_nv_impl<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
     let mut cx = start_cx;

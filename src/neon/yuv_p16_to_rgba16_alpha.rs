@@ -32,8 +32,7 @@ use std::arch::aarch64::*;
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::{neon_store_rgb16, vexpand_high_bp_by_2, vld_s16_endian, vldq_s16_endian};
 use crate::yuv_support::{
-    to_channels_layout, to_subsampling, CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling,
-    YuvSourceChannels,
+    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 
 pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
@@ -55,14 +54,14 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     if destination_channels == YuvSourceChannels::Rgb
         || destination_channels == YuvSourceChannels::Bgr
     {
         unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);
@@ -363,14 +362,14 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     if destination_channels == YuvSourceChannels::Rgb
         || destination_channels == YuvSourceChannels::Bgr
     {
         unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
     }
     let channels = destination_channels.get_channels_count();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_s16(range.bias_uv as i16);

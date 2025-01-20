@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
+use crate::yuv_support::YuvSourceChannels;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -391,16 +391,16 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgb_for_yuv<const CHANS: u8>(
 ) -> (__m128i, __m128i, __m128i) {
     let (r_values0, g_values0, b_values0);
 
-    let src_cn: YuvSourceChannels = to_channels_layout(CHANS);
+    let source_channels: YuvSourceChannels = CHANS.into();
 
-    match src_cn {
+    match source_channels {
         YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
             let row_1 = _mm_loadu_si128(ptr as *const __m128i);
             let row_2 = _mm_loadu_si128(ptr.add(16) as *const __m128i);
             let row_3 = _mm_loadu_si128(ptr.add(32) as *const __m128i);
 
             let (it1, it2, it3) = sse_deinterleave_rgb(row_1, row_2, row_3);
-            if src_cn == YuvSourceChannels::Rgb {
+            if source_channels == YuvSourceChannels::Rgb {
                 r_values0 = it1;
                 g_values0 = it2;
                 b_values0 = it3;
@@ -417,7 +417,7 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgb_for_yuv<const CHANS: u8>(
             let row_4 = _mm_loadu_si128(ptr.add(48) as *const __m128i);
 
             let (it1, it2, it3, _) = sse_deinterleave_rgba(row_1, row_2, row_3, row_4);
-            if src_cn == YuvSourceChannels::Rgba {
+            if source_channels == YuvSourceChannels::Rgba {
                 r_values0 = it1;
                 g_values0 = it2;
                 b_values0 = it3;
@@ -437,7 +437,7 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgbx<const CHANS: u8>(
 ) -> (__m128i, __m128i, __m128i, __m128i) {
     let (r_values0, g_values0, b_values0, a_values0);
 
-    let source_channels: YuvSourceChannels = to_channels_layout(CHANS);
+    let source_channels: YuvSourceChannels = CHANS.into();
 
     match source_channels {
         YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
@@ -486,7 +486,7 @@ pub(crate) unsafe fn _mm_load_deinterleave_half_rgb_for_yuv<const CHANS: u8>(
 ) -> (__m128i, __m128i, __m128i) {
     let (r_values0, g_values0, b_values0);
 
-    let source_channels: YuvSourceChannels = to_channels_layout(CHANS);
+    let source_channels: YuvSourceChannels = CHANS.into();
 
     match source_channels {
         YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
@@ -530,7 +530,7 @@ pub(crate) unsafe fn _mm_load_deinterleave_half_rgbx<const CHANS: u8>(
 ) -> (__m128i, __m128i, __m128i, __m128i) {
     let (r_values0, g_values0, b_values0, a_values0);
 
-    let source_channels: YuvSourceChannels = to_channels_layout(CHANS);
+    let source_channels: YuvSourceChannels = CHANS.into();
 
     match source_channels {
         YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
@@ -579,7 +579,7 @@ pub(crate) unsafe fn _mm_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
     let g_values;
     let b_values;
 
-    let source_channels: YuvSourceChannels = to_channels_layout(CHANS);
+    let source_channels: YuvSourceChannels = CHANS.into();
 
     let row0 = _mm_loadu_si128(ptr as *const __m128i);
     let row1 = _mm_loadu_si128(ptr.add(8) as *const __m128i);
@@ -624,7 +624,7 @@ pub(crate) unsafe fn _mm_store_interleave_rgb16_for_yuv<const CHANS: u8>(
     b: __m128i,
     a: __m128i,
 ) {
-    let destination_channels: YuvSourceChannels = to_channels_layout(CHANS);
+    let destination_channels: YuvSourceChannels = CHANS.into();
 
     match destination_channels {
         YuvSourceChannels::Rgb => {
@@ -664,7 +664,7 @@ pub(crate) unsafe fn _mm_store_interleave_rgb_for_yuv<const CHANS: u8>(
     b: __m128i,
     a: __m128i,
 ) {
-    let destination_channels: YuvSourceChannels = to_channels_layout(CHANS);
+    let destination_channels: YuvSourceChannels = CHANS.into();
 
     match destination_channels {
         YuvSourceChannels::Rgb => {
@@ -690,7 +690,7 @@ pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CHANS: u8>(
     b: __m128i,
     a: __m128i,
 ) {
-    let destination_channels: YuvSourceChannels = to_channels_layout(CHANS);
+    let destination_channels: YuvSourceChannels = CHANS.into();
 
     match destination_channels {
         YuvSourceChannels::Rgb => {

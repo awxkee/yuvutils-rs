@@ -32,9 +32,7 @@ use crate::neon::utils::{
     neon_store_half_rgb8, neon_store_rgb8, vaddn_dot, vdotl_laneq_s16, vexpand8_to_10,
     vexpand_high_8_to_10, vmullq_laneq_s16, vweight_laneq_x2, xvld1q_u8_x2,
 };
-use crate::yuv_support::{
-    to_channels_layout, CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 use std::arch::aarch64::*;
 
 #[target_feature(enable = "rdm")]
@@ -55,7 +53,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     width: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
     let uv_ptr = uv_plane.as_ptr();
@@ -536,7 +534,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
     width: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
     let uv_ptr = uv_plane.as_ptr();

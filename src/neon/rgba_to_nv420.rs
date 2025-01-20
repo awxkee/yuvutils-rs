@@ -31,9 +31,7 @@ use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::neon_vld_rgb_for_yuv;
-use crate::yuv_support::{
-    to_channels_layout, CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 
 #[target_feature(enable = "rdm")]
 /// Special path for BiPlanar YUV 4:2:0 for aarch64 with RDM available
@@ -54,7 +52,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     start_ux: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
     const V_SCALE: i32 = 4;
@@ -254,7 +252,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
     start_ux: usize,
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
-    let source_channels: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;

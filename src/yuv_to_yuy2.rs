@@ -32,7 +32,7 @@ use crate::avx2::yuv_to_yuy2_avx2_row;
 use crate::neon::yuv_to_yuy2_neon_impl;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use crate::sse::yuv_to_yuy2_sse;
-use crate::yuv_support::{to_subsampling, YuvChromaSubsampling, Yuy2Description};
+use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::{YuvError, YuvPackedImageMut, YuvPlanarImage};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
@@ -161,7 +161,7 @@ pub(crate) fn yuv_to_yuy2_impl<
     image: &mut YuvPackedImageMut<V>,
 ) -> Result<(), YuvError> {
     let yuy2_target: Yuy2Description = YUY2_TARGET.into();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
     planar_image.check_constraints(chroma_subsampling)?;
     image.check_constraints()?;

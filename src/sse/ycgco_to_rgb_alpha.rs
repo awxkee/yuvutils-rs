@@ -29,9 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::sse::utils::{sse_div_by255, sse_store_rgb_u8, sse_store_rgba};
-use crate::yuv_support::{
-    to_channels_layout, to_subsampling, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
-};
+use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -58,8 +56,8 @@ pub(crate) unsafe fn sse_ycgco_to_rgb_alpha_row<
     width: usize,
     premultiply_alpha: bool,
 ) -> ProcessedOffset {
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let destination_channels: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;

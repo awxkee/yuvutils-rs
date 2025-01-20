@@ -28,7 +28,7 @@
  */
 use crate::neon::utils::{neon_store_half_rgb8, neon_store_rgb8, neon_vld_h_rgb, neon_vld_rgb};
 use crate::shuffle::ShuffleConverter;
-use crate::yuv_support::{to_channels_layout, YuvSourceChannels};
+use crate::yuv_support::YuvSourceChannels;
 
 /// This is default shuffling with interleaving and de-interleaving.
 ///
@@ -54,8 +54,8 @@ unsafe fn shuffle_channels8_impl<const SRC: u8, const DST: u8>(
     dst: &mut [u8],
     _: usize,
 ) {
-    let src_channels: YuvSourceChannels = to_channels_layout(SRC);
-    let dst_channels: YuvSourceChannels = to_channels_layout(DST);
+    let src_channels: YuvSourceChannels = SRC.into();
+    let dst_channels: YuvSourceChannels = DST.into();
     for (src, dst) in src
         .chunks_exact(16 * src_channels.get_channels_count())
         .zip(dst.chunks_exact_mut(16 * dst_channels.get_channels_count()))

@@ -59,8 +59,8 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let dst_chans: YuvSourceChannels = to_channels_layout(DESTINATION_CHANNELS);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
 
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;

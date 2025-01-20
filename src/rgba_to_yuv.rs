@@ -174,7 +174,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     for RgbEncoder420<ORIGIN_CHANNELS, SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
+        let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
             return RgbEncoder420 { handler: None };
         }
@@ -273,8 +273,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(SAMPLING);
-    let src_chans: YuvSourceChannels = to_channels_layout(ORIGIN_CHANNELS);
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
 
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
