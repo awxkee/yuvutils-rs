@@ -238,7 +238,7 @@ unsafe fn avx2_rgba_to_yuv_impl<
     while cx + 32 < width {
         let px = cx * channels;
 
-        encode_32_part(
+        encode_32_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
             rgba.get_unchecked(px..),
             y_plane.get_unchecked_mut(cx..),
             u_plane.get_unchecked_mut(uv_x..),
@@ -272,7 +272,7 @@ unsafe fn avx2_rgba_to_yuv_impl<
             diff * channels,
         );
 
-        encode_32_part(
+        encode_32_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
             src_buffer.as_slice(),
             y_buffer.as_mut_slice(),
             u_buffer.as_mut_slice(),
