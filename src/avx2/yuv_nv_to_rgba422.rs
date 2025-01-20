@@ -107,9 +107,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl422<const UV_ORDER: u8, const DESTINATION_
         );
 
         if order == YuvNVOrder::VU {
-            let j = u_values;
-            u_values = v_values;
-            v_values = j;
+            std::mem::swap(&mut u_values, &mut v_values);
         }
 
         let v_u = _mm256_mulhrs_epi16(u_values, v_cb_coeff);

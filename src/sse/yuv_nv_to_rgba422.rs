@@ -98,9 +98,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
         v = _mm_sub_epi16(_mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v)), uv_corr);
 
         if order == YuvNVOrder::VU {
-            let j = u;
-            u = v;
-            v = j;
+            std::mem::swap(&mut u, &mut v);
         }
 
         let v_u = _mm_mulhrs_epi16(u, v_cb_coeff);
@@ -167,9 +165,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
         );
 
         if order == YuvNVOrder::VU {
-            let j = u;
-            u = v;
-            v = j;
+            std::mem::swap(&mut u, &mut v);
         }
 
         let v_u = _mm_mulhrs_epi16(u, v_cb_coeff);
