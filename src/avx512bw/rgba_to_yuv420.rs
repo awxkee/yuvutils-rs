@@ -123,9 +123,6 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let u_ptr = u_plane.as_mut_ptr();
-    let v_ptr = v_plane.as_mut_ptr();
-
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
@@ -143,14 +140,17 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
     let v_cr_g = _mm512_set1_epi16(transform.cr_g as i16);
     let v_cr_b = _mm512_set1_epi16(transform.cr_b as i16);
 
-    while cx + 64 < width {
-        let px = cx * channels;
-
+    let encode_64_part = |src0: &[u8],
+                          src1: &[u8],
+                          y_dst0: &mut [u8],
+                          y_dst1: &mut [u8],
+                          u_dst: &mut [u8],
+                          v_dst: &mut [u8]| {
         let (r_values0, g_values0, b_values0) =
-            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba0.get_unchecked(px..).as_ptr());
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(src0.as_ptr());
 
         let (r_values1, g_values1, b_values1) =
-            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba1.get_unchecked(px..).as_ptr());
+            avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(src1.as_ptr());
 
         let r0_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values0, r_values0));
         let r0_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values0, r_values0));
@@ -182,10 +182,7 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
         ));
 
         let y_yuv0 = _mm512_packus_epi16(y_l0, y_h0);
-        _mm512_storeu_si512(
-            y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
-            y_yuv0,
-        );
+        _mm512_storeu_si512(y_dst0.as_mut_ptr() as *mut _, y_yuv0);
 
         let r1_lo16 = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values1, r_values1));
         let r1_hi16 = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values1, r_values1));
@@ -216,10 +213,7 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
         ));
 
         let y_yuv1 = _mm512_packus_epi16(y_l1, y_h1);
-        _mm512_storeu_si512(
-            y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
-            y_yuv1,
-        );
+        _mm512_storeu_si512(y_dst1.as_mut_ptr() as *mut _, y_yuv1);
 
         let r1 = avx512_pairwise_avg_epi16_epi8(r_values0, r_values1, 1 << (16 - V_S - 8 - 1));
         let g1 = avx512_pairwise_avg_epi16_epi8(g_values0, g_values1, 1 << (16 - V_S - 8 - 1));
@@ -251,16 +245,88 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
         let cr = avx512_pack_u16(crk, crk);
 
         _mm256_storeu_si256(
-            u_ptr.add(uv_x) as *mut _ as *mut __m256i,
+            u_dst.as_mut_ptr() as *mut _ as *mut __m256i,
             _mm512_castsi512_si256(cb),
         );
         _mm256_storeu_si256(
-            v_ptr.add(uv_x) as *mut _ as *mut __m256i,
+            v_dst.as_mut_ptr() as *mut _ as *mut __m256i,
             _mm512_castsi512_si256(cr),
         );
-        uv_x += 32;
+    };
 
+    while cx + 64 < width {
+        let px = cx * channels;
+
+        encode_64_part(
+            rgba0.get_unchecked(px..),
+            rgba1.get_unchecked(px..),
+            y_plane0.get_unchecked_mut(cx..),
+            y_plane1.get_unchecked_mut(cx..),
+            u_plane.get_unchecked_mut(uv_x..),
+            v_plane.get_unchecked_mut(uv_x..),
+        );
+
+        uv_x += 32;
         cx += 64;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 64);
+        let mut src_buffer0: [u8; 64 * 4] = [0; 64 * 4];
+        let mut src_buffer1: [u8; 64 * 4] = [0; 64 * 4];
+        let mut y_buffer0: [u8; 64] = [0; 64];
+        let mut y_buffer1: [u8; 64] = [0; 64];
+        let mut u_buffer: [u8; 64] = [0; 64];
+        let mut v_buffer: [u8; 64] = [0; 64];
+
+        std::ptr::copy_nonoverlapping(
+            rgba0.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer0.as_mut_ptr(),
+            diff * channels,
+        );
+        std::ptr::copy_nonoverlapping(
+            rgba1.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer1.as_mut_ptr(),
+            diff * channels,
+        );
+
+        encode_64_part(
+            src_buffer0.as_slice(),
+            src_buffer1.as_slice(),
+            y_buffer0.as_mut_slice(),
+            y_buffer1.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer0.as_ptr(),
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+        std::ptr::copy_nonoverlapping(
+            y_buffer1.as_ptr(),
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+
+        let hv = diff.div_ceil(2);
+
+        std::ptr::copy_nonoverlapping(
+            u_buffer.as_ptr(),
+            u_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+            hv,
+        );
+        std::ptr::copy_nonoverlapping(
+            v_buffer.as_ptr(),
+            v_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+            hv,
+        );
+
+        uv_x += hv;
     }
 
     ProcessedOffset { cx, ux: uv_x }

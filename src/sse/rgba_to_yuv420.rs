@@ -205,14 +205,16 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         cx += 16;
     }
 
-    while cx + 8 < width {
-        let px = cx * channels;
-        let row_start0 = rgba0.get_unchecked(px..).as_ptr();
+    let encode_8_part = |src0: &[u8],
+                         src1: &[u8],
+                         y_dst0: &mut [u8],
+                         y_dst1: &mut [u8],
+                         u_dst: &mut [u8],
+                         v_dst: &mut [u8]| {
         let (r_values0, g_values0, b_values0) =
-            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start0);
-        let row_start1 = rgba1.get_unchecked(px..).as_ptr();
+            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src0.as_ptr());
         let (r_values1, g_values1, b_values1) =
-            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start1);
+            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src1.as_ptr());
 
         let r0_lo16 = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values0, r_values0));
         let g0_lo16 = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values0, g_values0));
@@ -230,7 +232,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         ));
 
         let y0_yuv = _mm_packus_epi16(y0_l, _mm_setzero_si128());
-        _mm_storeu_si64(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0_yuv);
+        _mm_storeu_si64(y_dst0.as_mut_ptr(), y0_yuv);
 
         let r1_lo = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values1, r_values1));
         let g1_lo = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values1, g_values1));
@@ -246,7 +248,7 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
 
         let y1_yuv = _mm_packus_epi16(y1_l, _mm_setzero_si128());
 
-        _mm_storeu_si64(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1_yuv);
+        _mm_storeu_si64(y_dst1.as_mut_ptr(), y1_yuv);
 
         let r1 =
             sse_pairwise_avg_epi8_j(_mm_avg_epu8(r_values0, r_values1), 1 << (16 - V_S - 8 - 1));
@@ -281,11 +283,81 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let cb = _mm_packus_epi16(cbk, cbk);
         let cr = _mm_packus_epi16(crk, crk);
 
-        _mm_storeu_si32(u_ptr.add(uv_x), cb);
-        _mm_storeu_si32(v_ptr.add(uv_x), cr);
+        _mm_storeu_si32(u_dst.as_mut_ptr(), cb);
+        _mm_storeu_si32(v_dst.as_mut_ptr(), cr);
+    };
+
+    while cx + 8 < width {
+        encode_8_part(
+            rgba0.get_unchecked(cx * channels..),
+            rgba1.get_unchecked(cx * channels..),
+            y_plane0.get_unchecked_mut(cx..),
+            y_plane1.get_unchecked_mut(cx..),
+            u_plane.get_unchecked_mut(uv_x..),
+            v_plane.get_unchecked_mut(uv_x..),
+        );
 
         uv_x += 4;
         cx += 8;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+        let mut src_buffer0: [u8; 8 * 4] = [0; 8 * 4];
+        let mut src_buffer1: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer0: [u8; 8] = [0; 8];
+        let mut y_buffer1: [u8; 8] = [0; 8];
+        let mut u_buffer: [u8; 8] = [0; 8];
+        let mut v_buffer: [u8; 8] = [0; 8];
+
+        std::ptr::copy_nonoverlapping(
+            rgba0.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer0.as_mut_ptr(),
+            diff * channels,
+        );
+        std::ptr::copy_nonoverlapping(
+            rgba1.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer1.as_mut_ptr(),
+            diff * channels,
+        );
+
+        encode_8_part(
+            src_buffer0.as_slice(),
+            src_buffer1.as_slice(),
+            y_buffer0.as_mut_slice(),
+            y_buffer1.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer0.as_ptr(),
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+        std::ptr::copy_nonoverlapping(
+            y_buffer1.as_ptr(),
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+
+        let hv = diff.div_ceil(2);
+
+        std::ptr::copy_nonoverlapping(
+            u_buffer.as_ptr(),
+            u_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+            hv,
+        );
+        std::ptr::copy_nonoverlapping(
+            v_buffer.as_ptr(),
+            v_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+            hv,
+        );
+
+        uv_x += hv;
     }
 
     ProcessedOffset { cx, ux: uv_x }

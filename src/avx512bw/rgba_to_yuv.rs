@@ -275,11 +275,9 @@ unsafe fn avx512_rgba_to_yuv_impl<
         cx += 64;
     }
 
-    while cx + 32 < width {
-        let px = cx * channels;
-
+    let encode_32_part = |src: &[u8], y_dst: &mut [u8], u_dst: &mut [u8], v_dst: &mut [u8]| {
         let (r_values, g_values, b_values) =
-            avx512_load_half_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba_ptr.add(px));
+            avx512_load_half_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(src.as_ptr());
 
         let mask = _mm512_setr_epi64(0, 0, 1, 0, 2, 0, 3, 0);
 
@@ -303,7 +301,10 @@ unsafe fn avx512_rgba_to_yuv_impl<
         ));
 
         let y_yuv = avx512_pack_u16(y_l, _mm512_setzero_si512());
-        _mm256_storeu_si256(y_ptr.add(cx) as *mut __m256i, _mm512_castsi512_si256(y_yuv));
+        _mm256_storeu_si256(
+            y_dst.as_mut_ptr() as *mut __m256i,
+            _mm512_castsi512_si256(y_yuv),
+        );
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
@@ -330,9 +331,14 @@ unsafe fn avx512_rgba_to_yuv_impl<
             let cb = avx512_pack_u16(cb_l, _mm512_setzero_si512());
             let cr = avx512_pack_u16(cr_l, _mm512_setzero_si512());
 
-            _mm256_storeu_si256(u_ptr.add(uv_x) as *mut __m256i, _mm512_castsi512_si256(cb));
-            _mm256_storeu_si256(v_ptr.add(uv_x) as *mut __m256i, _mm512_castsi512_si256(cr));
-            uv_x += 32;
+            _mm256_storeu_si256(
+                u_dst.as_mut_ptr() as *mut __m256i,
+                _mm512_castsi512_si256(cb),
+            );
+            _mm256_storeu_si256(
+                v_dst.as_mut_ptr() as *mut __m256i,
+                _mm512_castsi512_si256(cr),
+            );
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
@@ -366,17 +372,95 @@ unsafe fn avx512_rgba_to_yuv_impl<
             let cr = avx512_pack_u16(crk, crk);
 
             _mm_storeu_si128(
-                u_ptr.add(uv_x) as *mut _ as *mut __m128i,
+                u_dst.as_mut() as *mut _ as *mut __m128i,
                 _mm512_castsi512_si128(cb),
             );
             _mm_storeu_si128(
-                v_ptr.add(uv_x) as *mut _ as *mut __m128i,
+                v_dst.as_mut_ptr() as *mut _ as *mut __m128i,
                 _mm512_castsi512_si128(cr),
             );
+        }
+    };
+
+    while cx + 32 < width {
+        let px = cx * channels;
+
+        encode_32_part(
+            rgba.get_unchecked(px..),
+            y_plane.get_unchecked_mut(cx..),
+            u_plane.get_unchecked_mut(uv_x..),
+            v_plane.get_unchecked_mut(uv_x..),
+        );
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            uv_x += 32;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+        {
             uv_x += 16;
         }
 
         cx += 32;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 32);
+        let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
+        let mut y_buffer: [u8; 32] = [0; 32];
+        let mut u_buffer: [u8; 32] = [0; 32];
+        let mut v_buffer: [u8; 32] = [0; 32];
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        encode_32_part(
+            src_buffer.as_slice(),
+            y_buffer.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                diff,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                diff,
+            );
+
+            uv_x += diff;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let hv = diff.div_ceil(2);
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                hv,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                hv,
+            );
+
+            uv_x += hv;
+        }
     }
 
     ProcessedOffset { cx, ux: uv_x }
