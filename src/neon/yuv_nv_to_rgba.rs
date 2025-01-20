@@ -342,15 +342,18 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
     let shuffle_u = vld1_u8([0, 0, 2, 2, 4, 4, 6, 6].as_ptr());
     let shuffle_v = vld1_u8([1, 1, 3, 3, 5, 5, 7, 7].as_ptr());
 
-    let decode_8_part = |dst: &mut [u8], y_src: &[u8], uv_src: &[u8]| {
-        let y_values = vqsub_u8(vld1_u8(y_src.as_ptr()), vget_low_u8(y_corr));
+
+    while cx + 8 < width {
+        let dst_shift = cx * channels;
+
+        let y_values = vqsub_u8(vld1_u8(y_plane.get_unchecked(cx..).as_ptr()), vget_low_u8(y_corr));
 
         let mut u_low_u8: uint8x8_t;
         let mut v_low_u8: uint8x8_t;
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let uv_values = vld1_u8(uv_src.as_ptr());
+                let uv_values = vld1_u8(uv_plane.get_unchecked(ux..).as_ptr());
 
                 u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
                 v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
@@ -363,7 +366,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
                 }
             }
             YuvChromaSubsampling::Yuv444 => {
-                let mut uv_values = vld2_u8(uv_src.as_ptr());
+                let mut uv_values = vld2_u8(uv_plane.get_unchecked(ux..).as_ptr());
                 if order == YuvNVOrder::VU {
                     uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
                 }
@@ -396,20 +399,11 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
         let b_values = b_low;
 
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst.as_mut_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values,
             g_values,
             b_values,
             vget_low_u8(v_alpha),
-        );
-    };
-
-    while cx + 8 < width {
-        let dst_shift = cx * channels;
-        decode_8_part(
-            rgba.get_unchecked_mut(dst_shift..),
-            y_plane.get_unchecked(cx..),
-            uv_plane.get_unchecked(ux..),
         );
 
         cx += 8;
@@ -425,9 +419,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
     }
 
     if cx < width {
-        let diff = width - cx;
+        let mut diff = width - cx;
 
         assert!(diff <= 8);
+
+        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+
         let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];
         let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
@@ -449,10 +446,64 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
             ux_size,
         );
 
-        decode_8_part(
-            dst_buffer.as_mut_slice(),
-            y_buffer.as_slice(),
-            uv_buffer.as_slice(),
+        let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr()), vget_low_u8(y_corr));
+
+        let mut u_low_u8: uint8x8_t;
+        let mut v_low_u8: uint8x8_t;
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                let uv_values = vld1_u8(uv_buffer.as_ptr());
+
+                u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
+                v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
+
+                #[allow(clippy::manual_swap)]
+                if order == YuvNVOrder::VU {
+                    let new_v = u_low_u8;
+                    u_low_u8 = v_low_u8;
+                    v_low_u8 = new_v;
+                }
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                let mut uv_values = vld2_u8(uv_buffer.as_ptr());
+                if order == YuvNVOrder::VU {
+                    uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
+                }
+                u_low_u8 = uv_values.0;
+                v_low_u8 = uv_values.1;
+            }
+        }
+
+        let u_low = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(u_low_u8)),
+            uv_corr,
+        );
+        let v_low = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_low_u8)),
+            uv_corr,
+        );
+        let y_low =
+            vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(vexpand8_to_10(y_values)), v_weights);
+
+        let r_low = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights));
+        let b_low = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights));
+        let g_low = vqmovun_s16(vqrdmlahq_laneq_s16::<4>(
+            vqrdmlahq_laneq_s16::<3>(y_low, v_low, v_weights),
+            u_low,
+            v_weights,
+        ));
+
+        let r_values = r_low;
+        let g_values = g_low;
+        let b_values = b_low;
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            vget_low_u8(v_alpha),
         );
 
         let dst_shift = cx * channels;
@@ -669,9 +720,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row<
     }
 
     if cx < width {
-        let diff = width - cx;
+        let mut diff = width - cx;
 
         assert!(diff <= 8);
+
+        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+
         let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];
         let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];

@@ -372,20 +372,18 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     let shuffle_u = vld1_u8([0, 0, 2, 2, 4, 4, 6, 6].as_ptr());
     let shuffle_v = vld1_u8([1, 1, 3, 3, 5, 5, 7, 7].as_ptr());
 
-    let decode_8_part = |dst0: &mut [u8],
-                         dst1: &mut [u8],
-                         y_src0: &[u8],
-                         y_src1: &[u8],
-                         uv_src: &[u8]| {
-        let vl0 = vld1_u8(y_src0.as_ptr());
-        let vl1 = vld1_u8(y_src1.as_ptr());
+    while cx + 8 < width {
+        let dst_shift = cx * channels;
+
+        let vl0 = vld1_u8(y_plane0.get_unchecked(cx..).as_ptr());
+        let vl1 = vld1_u8(y_plane1.get_unchecked(cx..).as_ptr());
         let y_values0 = vqsub_u8(vl0, vget_low_u8(y_corr));
         let y_values1 = vqsub_u8(vl1, vget_low_u8(y_corr));
 
         let mut u_low_u8: uint8x8_t;
         let mut v_low_u8: uint8x8_t;
 
-        let uv_values = vld1_u8(uv_src.as_ptr());
+        let uv_values = vld1_u8(uv_plane.get_unchecked(ux..).as_ptr());
 
         u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
         v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
@@ -430,30 +428,18 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
         let b_values1 = b_low1;
 
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst0.as_mut_ptr(),
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values0,
             g_values0,
             b_values0,
             vget_low_u8(v_alpha),
         );
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst1.as_mut_ptr(),
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values1,
             g_values1,
             b_values1,
             vget_low_u8(v_alpha),
-        );
-    };
-
-    while cx + 8 < width {
-        let dst_shift = cx * channels;
-
-        decode_8_part(
-            rgba0.get_unchecked_mut(dst_shift..),
-            rgba1.get_unchecked_mut(dst_shift..),
-            y_plane0.get_unchecked(cx..),
-            y_plane1.get_unchecked(cx..),
-            uv_plane.get_unchecked(ux..),
         );
 
         cx += 8;
@@ -461,9 +447,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     }
 
     if cx < width {
-        let diff = width - cx;
+        let mut diff = width - cx;
 
         assert!(diff <= 8);
+
+        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+
         let mut dst_buffer0: [u8; 8 * 4] = [0; 8 * 4];
         let mut dst_buffer1: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer0: [u8; 8] = [0; 8];
@@ -488,12 +477,71 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
             diff,
         );
 
-        decode_8_part(
-            dst_buffer0.as_mut_slice(),
-            dst_buffer1.as_mut_slice(),
-            y_buffer0.as_slice(),
-            y_buffer1.as_slice(),
-            uv_buffer.as_slice(),
+        let vl0 = vld1_u8(y_buffer0.as_ptr());
+        let vl1 = vld1_u8(y_buffer1.as_ptr());
+        let y_values0 = vqsub_u8(vl0, vget_low_u8(y_corr));
+        let y_values1 = vqsub_u8(vl1, vget_low_u8(y_corr));
+
+        let mut u_low_u8: uint8x8_t;
+        let mut v_low_u8: uint8x8_t;
+
+        let uv_values = vld1_u8(uv_buffer.as_ptr());
+
+        u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
+        v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
+
+        #[allow(clippy::manual_swap)]
+        if order == YuvNVOrder::VU {
+            let new_v = u_low_u8;
+            u_low_u8 = v_low_u8;
+            v_low_u8 = new_v;
+        }
+
+        let u_low = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(u_low_u8)),
+            uv_corr,
+        );
+        let v_low = vsubq_s16(
+            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_low_u8)),
+            uv_corr,
+        );
+        let y_v_shl0 = vexpand8_to_10(y_values0);
+        let y_v_shl1 = vexpand8_to_10(y_values1);
+        let y_low0 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl0), v_weights);
+        let y_low1 = vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(y_v_shl1), v_weights);
+
+        let g_coeff_lo =
+            vqrdmlahq_laneq_s16::<4>(vqrdmulhq_laneq_s16::<3>(v_low, v_weights), u_low, v_weights);
+
+        let r_low0 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low0, v_low, v_weights));
+        let b_low0 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low0, u_low, v_weights));
+        let g_low0 = vqmovun_s16(vsubq_s16(y_low0, g_coeff_lo));
+
+        let r_low1 = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low1, v_low, v_weights));
+        let b_low1 = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low1, u_low, v_weights));
+        let g_low1 = vqmovun_s16(vsubq_s16(y_low1, g_coeff_lo));
+
+        let r_values0 = r_low0;
+        let g_values0 = g_low0;
+        let b_values0 = b_low0;
+
+        let r_values1 = r_low1;
+        let g_values1 = g_low1;
+        let b_values1 = b_low1;
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer0.as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            vget_low_u8(v_alpha),
+        );
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer1.as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            vget_low_u8(v_alpha),
         );
 
         let dst_shift = cx * channels;
@@ -723,9 +771,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
     }
 
     if cx < width {
-        let diff = width - cx;
+        let mut diff = width - cx;
 
         assert!(diff <= 8);
+
+        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+
         let mut dst_buffer0: [u8; 8 * 4] = [0; 8 * 4];
         let mut dst_buffer1: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer0: [u8; 8] = [0; 8];

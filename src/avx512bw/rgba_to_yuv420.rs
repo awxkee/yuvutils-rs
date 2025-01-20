@@ -278,8 +278,10 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
     }
 
     if cx < width {
-        let diff = width - cx;
+        let mut diff = width - cx;
         assert!(diff <= 64);
+        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+
         let mut src_buffer0: [u8; 64 * 4] = [0; 64 * 4];
         let mut src_buffer1: [u8; 64 * 4] = [0; 64 * 4];
         let mut y_buffer0: [u8; 64] = [0; 64];

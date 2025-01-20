@@ -241,8 +241,10 @@ unsafe fn avx2_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const PRECISION: i
     }
 
     if cx < width {
-        let diff = width - cx;
+        let mut diff = width - cx;
         assert!(diff <= 32);
+        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+
         let mut src_buffer0: [u8; 32 * 4] = [0; 32 * 4];
         let mut src_buffer1: [u8; 32 * 4] = [0; 32 * 4];
         let mut y_buffer0: [u8; 32] = [0; 32];
