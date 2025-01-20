@@ -307,64 +307,67 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             &transform,
         );
         let cx = processed_offset.cx;
+        if cx != image.width as usize {
+            for (((y_dst, u_dst), v_dst), rgba) in y_plane
+                .chunks_exact_mut(2)
+                .zip(u_plane.iter_mut())
+                .zip(v_plane.iter_mut())
+                .zip(rgba.chunks_exact(channels * 2))
+                .skip(cx / 2)
+            {
+                let src0 = &rgba[0..channels];
 
-        for (((y_dst, u_dst), v_dst), rgba) in y_plane
-            .chunks_exact_mut(2)
-            .zip(u_plane.iter_mut())
-            .zip(v_plane.iter_mut())
-            .zip(rgba.chunks_exact(channels * 2))
-            .skip(cx / 2)
-        {
-            let src0 = &rgba[0..channels];
+                let r0 = src0[src_chans.get_r_channel_offset()] as i32;
+                let g0 = src0[src_chans.get_g_channel_offset()] as i32;
+                let b0 = src0[src_chans.get_b_channel_offset()] as i32;
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[0] = y_0 as u8;
 
-            let r0 = src0[src_chans.get_r_channel_offset()] as i32;
-            let g0 = src0[src_chans.get_g_channel_offset()] as i32;
-            let b0 = src0[src_chans.get_b_channel_offset()] as i32;
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0 as u8;
+                let src1 = &rgba[channels..channels * 2];
 
-            let src1 = &rgba[channels..channels * 2];
+                let r1 = src1[src_chans.get_r_channel_offset()] as i32;
+                let g1 = src1[src_chans.get_g_channel_offset()] as i32;
+                let b1 = src1[src_chans.get_b_channel_offset()] as i32;
+                let y_1 = (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[1] = y_1 as u8;
 
-            let r1 = src1[src_chans.get_r_channel_offset()] as i32;
-            let g1 = src1[src_chans.get_g_channel_offset()] as i32;
-            let b1 = src1[src_chans.get_b_channel_offset()] as i32;
-            let y_1 =
-                (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = y_1 as u8;
+                let r = (r0 + r1 + 1) >> 1;
+                let g = (g0 + g1 + 1) >> 1;
+                let b = (b0 + b1 + 1) >> 1;
 
-            let r = (r0 + r1 + 1) >> 1;
-            let g = (g0 + g1 + 1) >> 1;
-            let b = (b0 + b1 + 1) >> 1;
+                let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                    >> PRECISION;
+                let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                    >> PRECISION;
+                *u_dst = cb as u8;
+                *v_dst = cr as u8;
+            }
 
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
-                >> PRECISION;
-            *u_dst = cb as u8;
-            *v_dst = cr as u8;
-        }
+            if image.width & 1 != 0 {
+                let rgb_last = rgba.chunks_exact(channels * 2).remainder();
+                let r0 = rgb_last[src_chans.get_r_channel_offset()] as i32;
+                let g0 = rgb_last[src_chans.get_g_channel_offset()] as i32;
+                let b0 = rgb_last[src_chans.get_b_channel_offset()] as i32;
 
-        if image.width & 1 != 0 {
-            let rgb_last = rgba.chunks_exact(channels * 2).remainder();
-            let r0 = rgb_last[src_chans.get_r_channel_offset()] as i32;
-            let g0 = rgb_last[src_chans.get_g_channel_offset()] as i32;
-            let b0 = rgb_last[src_chans.get_b_channel_offset()] as i32;
+                let y_last = y_plane.last_mut().unwrap();
+                let u_last = u_plane.last_mut().unwrap();
+                let v_last = v_plane.last_mut().unwrap();
 
-            let y_last = y_plane.last_mut().unwrap();
-            let u_last = u_plane.last_mut().unwrap();
-            let v_last = v_plane.last_mut().unwrap();
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                *y_last = y_0 as u8;
 
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y_last = y_0 as u8;
-
-            let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                >> PRECISION;
-            *u_last = cb as u8;
-            *v_last = cr as u8;
+                let cb =
+                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                        >> PRECISION;
+                let cr =
+                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                        >> PRECISION;
+                *u_last = cb as u8;
+                *v_last = cr as u8;
+            }
         }
     };
 

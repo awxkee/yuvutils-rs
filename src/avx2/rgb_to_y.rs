@@ -115,10 +115,9 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         cx += 32;
     }
 
-    while cx + 16 < width {
-        let px = cx * channels;
+    let encode_16_part = |src: &[u8], y_dst: &mut [u8]| {
         let (r_values, g_values, b_values) =
-            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
+            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
 
         let r_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values, r_values));
         let g_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values, g_values));
@@ -136,9 +135,38 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         ));
 
         let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
-        _mm_storeu_si128(y_ptr.add(cx) as *mut __m128i, _mm256_castsi256_si128(y_yuv));
+        _mm_storeu_si128(
+            y_dst.as_mut_ptr() as *mut __m128i,
+            _mm256_castsi256_si128(y_yuv),
+        );
+    };
 
+    while cx + 16 < width {
+        let px = cx * channels;
+        encode_16_part(rgba.get_unchecked(px..), y_plane.get_unchecked_mut(cx..));
         cx += 16;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 16);
+        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer: [u8; 16] = [0; 16];
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        encode_16_part(src_buffer.as_slice(), y_buffer.as_mut_slice());
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+        cx += diff;
     }
 
     cx
