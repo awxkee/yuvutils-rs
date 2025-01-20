@@ -73,7 +73,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            return if is_rdm_available {
+            if is_rdm_available {
                 RgbEncoder {
                     handler: Some(neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
                 }
@@ -81,7 +81,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                 RgbEncoder {
                     handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
                 }
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -182,7 +182,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            return if is_rdm_available {
+            if is_rdm_available {
                 RgbEncoder420 {
                     handler: Some(neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS, PRECISION>),
                 }
@@ -190,7 +190,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                 RgbEncoder420 {
                     handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
                 }
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {

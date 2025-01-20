@@ -320,17 +320,6 @@ pub enum YuvChromaSubsampling {
     Yuv444 = 2,
 }
 
-pub(crate) const fn to_subsampling(subsampling: u8) -> YuvChromaSubsampling {
-    match subsampling {
-        0 => YuvChromaSubsampling::Yuv420,
-        1 => YuvChromaSubsampling::Yuv422,
-        2 => YuvChromaSubsampling::Yuv444,
-        _ => {
-            unimplemented!("Unknown value")
-        }
-    }
-}
-
 impl From<u8> for YuvChromaSubsampling {
     #[inline(always)]
     fn from(value: u8) -> Self {
