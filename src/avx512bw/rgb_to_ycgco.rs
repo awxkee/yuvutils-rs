@@ -32,7 +32,7 @@ use crate::avx512bw::avx512_utils::{
     avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_widen_avg,
 };
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{to_subsampling, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
+use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]

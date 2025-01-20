@@ -33,8 +33,7 @@ use crate::avx512bw::avx512_utils::{
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    to_subsampling, CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder,
-    YuvSourceChannels,
+    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -127,7 +126,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
 ) -> ProcessedOffset {
     let order: YuvNVOrder = UV_ORDER.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let chroma_subsampling: YuvChromaSubsampling = to_subsampling(YUV_CHROMA_SAMPLING);
+    let chroma_subsampling: YuvChromaSubsampling = YUV_CHROMA_to_subsampling(SAMPLING);
     let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;
