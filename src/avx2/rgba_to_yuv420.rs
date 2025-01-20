@@ -104,8 +104,11 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     let y0_l_k = _mm256_add_epi16(y0_l_s, y0_l_b);
     let y0_h_k = _mm256_add_epi16(y0_h_s, y0_h_b);
 
-    let y0_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(y_bias, y0_l_k));
-    let y0_h = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(y_bias, y0_h_k));
+    let y0_l_m = _mm256_add_epi16(y_bias, y0_l_k);
+    let y0_h_m = _mm256_add_epi16(y_bias, y0_h_k);
+
+    let y0_l = _mm256_srli_epi16::<A_E>(y0_l_m);
+    let y0_h = _mm256_srli_epi16::<A_E>(y0_h_m);
 
     let r1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values1, r_values1));
     let r1_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(r_values1, r_values1));
@@ -160,27 +163,24 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     let v_cr_g = _mm256_set1_epi16(transform.cr_g as i16);
     let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
-    let cb = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        uv_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r_uv, v_cb_r),
-                _mm256_mulhrs_epi16(g_uv, v_cb_g),
-            ),
-            _mm256_mulhrs_epi16(b_uv, v_cb_b),
-        ),
-    ));
+    let cb_r = _mm256_mulhrs_epi16(r_uv, v_cb_r);
+    let cr_r = _mm256_mulhrs_epi16(r_uv, v_cr_r);
+    let cb_g = _mm256_mulhrs_epi16(g_uv, v_cb_g);
+    let cr_g = _mm256_mulhrs_epi16(g_uv, v_cr_g);
+    let cb_b = _mm256_mulhrs_epi16(b_uv, v_cb_b);
+    let cr_b = _mm256_mulhrs_epi16(b_uv, v_cr_b);
 
-    let cr = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        uv_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r_uv, v_cr_r),
-                _mm256_mulhrs_epi16(g_uv, v_cr_g),
-            ),
-            _mm256_mulhrs_epi16(b_uv, v_cr_b),
-        ),
-    ));
+    let cb_s0 = _mm256_add_epi16(cb_r, cb_g);
+    let cr_s0 = _mm256_add_epi16(cr_r, cr_g);
+
+    let cb_s1 = _mm256_add_epi16(cb_s0, cb_b);
+    let cr_s1 = _mm256_add_epi16(cr_s0, cr_b);
+
+    let cb_s2 = _mm256_add_epi16(uv_bias, cb_s1);
+    let cr_s2 = _mm256_add_epi16(uv_bias, cr_s1);
+
+    let cb = _mm256_srli_epi16::<A_E>(cb_s2);
+    let cr = _mm256_srli_epi16::<A_E>(cr_s2);
 
     let cb = avx2_pack_u16(cb, cb);
     let cr = avx2_pack_u16(cr, cr);
