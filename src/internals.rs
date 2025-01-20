@@ -61,3 +61,15 @@ pub(crate) trait WideRowForwardBiPlanar420Handler<V, K> {
         transform: &CbCrForwardTransform<K>,
     ) -> ProcessedOffset;
 }
+
+pub(crate) trait WideRowForwardBiPlanarHandler<V, K> {
+    fn handle_row(
+        &self,
+        rgba: &[V],
+        y_plane: &mut [V],
+        uv_plane: &mut [V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<K>,
+    ) -> ProcessedOffset;
+}
