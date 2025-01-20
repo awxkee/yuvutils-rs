@@ -114,6 +114,7 @@ unsafe fn avx512_rgba_to_nv_vbmi_impl<
     )
 }
 
+#[inline(always)]
 unsafe fn encode_64_part<
     const ORIGIN_CHANNELS: u8,
     const UV_ORDER: u8,

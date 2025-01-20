@@ -102,17 +102,6 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
         {
             #[cfg(feature = "nightly_avx512")]
             {
-                let cn: YuvSourceChannels = ORIGIN_CHANNELS.into();
-                let has_vnni = std::arch::is_x86_feature_detected!("avxvnni");
-                if has_vnni && (cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra) {
-                    use crate::avx2::avx2_rgba_to_nv420_vnni;
-                    assert!(cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra);
-                    return SemiPlanar420Encoder {
-                        handler: Some(
-                            avx2_rgba_to_nv420_vnni::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
-                        ),
-                    };
-                }
                 let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
                 if use_avx512 {
                     let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
