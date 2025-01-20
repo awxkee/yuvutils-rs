@@ -33,7 +33,7 @@ use crate::avx512bw::avx512_utils::{
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
-    CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
+    to_subsampling, CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use crate::{YuvBytesPacking, YuvEndianness};
 #[cfg(target_arch = "x86")]
