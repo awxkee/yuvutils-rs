@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange};
+use crate::yuv_support::{CbCrForwardTransform, CbCrInverseTransform, YuvChromaRange};
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -58,6 +58,6 @@ pub(crate) trait WideRowForwardBiPlanar420Handler<V, K> {
         uv_plane: &mut [V],
         width: u32,
         chroma: YuvChromaRange,
-        transform: &CbCrInverseTransform<K>,
+        transform: &CbCrForwardTransform<K>,
     ) -> ProcessedOffset;
 }
