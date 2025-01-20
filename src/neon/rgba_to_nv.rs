@@ -271,9 +271,14 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     }
 
     if cx < width as usize {
-        let diff = width as usize - cx;
+        let mut diff = width as usize - cx;
 
         assert!(diff <= 8);
+
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
+
         let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer0: [u8; 8] = [0; 8];
         let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
@@ -589,7 +594,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
     if cx < width as usize {
         let mut diff = width as usize - cx;
         assert!(diff <= 16);
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];

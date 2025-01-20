@@ -348,7 +348,9 @@ unsafe fn sse_rgba_to_yuv_row_impl<
     if cx < width {
         let mut diff = width - cx;
         assert!(diff <= 8);
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];
