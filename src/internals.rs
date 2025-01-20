@@ -48,6 +48,34 @@ pub(crate) trait WideRowInversionHandler<V, K> {
     ) -> ProcessedOffset;
 }
 
+pub(crate) trait WideRowForwardHandler<V, K> {
+    fn handle_row(
+        &self,
+        y_plane: &mut [V],
+        u_plane: &mut [V],
+        v_plane: &mut [V],
+        rgba: &[V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<K>,
+    ) -> ProcessedOffset;
+}
+
+pub(crate) trait WideRowForward420Handler<V, K> {
+    fn handle_row(
+        &self,
+        y_plane0: &mut [V],
+        y_plane1: &mut [V],
+        u_plane: &mut [V],
+        v_plane: &mut [V],
+        rgba0: &[V],
+        rgba1: &[V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<K>,
+    ) -> ProcessedOffset;
+}
+
 pub(crate) trait WideRowForwardBiPlanar420Handler<V, K> {
     fn handle_rows(
         &self,
