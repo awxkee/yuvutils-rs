@@ -730,7 +730,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
         let mut dst_buffer1: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer0: [u8; 8] = [0; 8];
         let mut y_buffer1: [u8; 8] = [0; 8];
-        let mut uv_buffer: [u8; 8] = [0; 8];
+        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane0.get_unchecked(cx..).as_ptr(),

@@ -430,7 +430,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
         assert!(diff <= 8);
         let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];
-        let mut uv_buffer: [u8; 8] = [0; 8];
+        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
@@ -679,7 +679,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row<
         assert!(diff <= 8);
         let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];
-        let mut uv_buffer: [u8; 8] = [0; 8];
+        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),

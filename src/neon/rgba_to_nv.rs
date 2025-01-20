@@ -280,7 +280,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
         assert!(diff <= 8);
         let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer0: [u8; 8] = [0; 8];
-        let mut uv_buffer: [u8; 8] = [0; 8];
+        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
