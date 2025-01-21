@@ -56,7 +56,7 @@ use core::f16;
 fn main() {
     let j = (1. / u16::MAX as f32) as f16;
     println!("{}, j {}", j.to_bits(), j as f32);
-    let mut img = ImageReader::open("./assets/bench.png")
+    let mut img = ImageReader::open("./assets/yuv_grad.png")
         .unwrap()
         .decode()
         .unwrap();

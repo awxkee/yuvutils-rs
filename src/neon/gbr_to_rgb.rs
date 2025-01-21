@@ -70,44 +70,27 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
     let vy_bias = vdupq_n_u8(y_bias as u8);
 
     while cx + 16 < width {
-        let g_values0 = vqsubq_u8(
-            vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
-        let b_values0 = vqsubq_u8(
-            vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
-        let r_values0 = vqsubq_u8(
-            vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
+        let g0 = vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let b0 = vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let r0 = vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let g_values0 = vqsubq_u8(g0, vy_bias);
+        let b_values0 = vqsubq_u8(b0, vy_bias);
+        let r_values0 = vqsubq_u8(r0, vy_bias);
 
-        let rl_lo = vqrdmulhq_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(r_values0))),
-            vy_coeff,
-        );
-        let gl_lo = vqrdmulhq_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(g_values0))),
-            vy_coeff,
-        );
-        let bl_lo = vqrdmulhq_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(vget_low_u8(b_values0))),
-            vy_coeff,
-        );
+        let rllo0 = vshll_n_u8::<V_SCALE>(vget_low_u8(r_values0));
+        let gllo0 = vshll_n_u8::<V_SCALE>(vget_low_u8(g_values0));
+        let bllo0 = vshll_n_u8::<V_SCALE>(vget_low_u8(b_values0));
+        let rlhi0 = vshll_high_n_u8::<V_SCALE>(r_values0);
+        let glhi0 = vshll_high_n_u8::<V_SCALE>(g_values0);
+        let blhi0 = vshll_high_n_u8::<V_SCALE>(b_values0);
 
-        let rl_hi = vqrdmulhq_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(r_values0)),
-            vy_coeff,
-        );
-        let gl_hi = vqrdmulhq_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(g_values0)),
-            vy_coeff,
-        );
-        let bl_hi = vqrdmulhq_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(b_values0)),
-            vy_coeff,
-        );
+        let rl_lo = vqrdmulhq_s16(vreinterpretq_s16_u16(rllo0), vy_coeff);
+        let gl_lo = vqrdmulhq_s16(vreinterpretq_s16_u16(gllo0), vy_coeff);
+        let bl_lo = vqrdmulhq_s16(vreinterpretq_s16_u16(bllo0), vy_coeff);
+
+        let rl_hi = vqrdmulhq_s16(vreinterpretq_s16_u16(rlhi0), vy_coeff);
+        let gl_hi = vqrdmulhq_s16(vreinterpretq_s16_u16(glhi0), vy_coeff);
+        let bl_hi = vqrdmulhq_s16(vreinterpretq_s16_u16(blhi0), vy_coeff);
 
         let r_values = vcombine_u8(vqmovun_s16(rl_lo), vqmovun_s16(rl_hi));
         let g_values = vcombine_u8(vqmovun_s16(gl_lo), vqmovun_s16(gl_hi));

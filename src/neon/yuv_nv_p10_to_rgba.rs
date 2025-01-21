@@ -158,24 +158,22 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         }
 
         let y_high = vmull_high_laneq_s16::<0>(y_values, v_weights);
-
-        let r_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
-        let b_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
-        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_high, v_high, v_weights),
-            u_high,
-            v_weights,
-        ));
-
         let y_low = vmull_laneq_s16::<0>(vget_low_s16(y_values), v_weights);
 
-        let r_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_low, v_low, v_weights),
-            u_low,
-            v_weights,
-        ));
+        let rh = vmlal_laneq_s16::<1>(y_high, v_high, v_weights);
+        let bh = vmlal_laneq_s16::<2>(y_high, u_high, v_weights);
+        let gh = vmlal_laneq_s16::<3>(y_high, v_high, v_weights);
+        let rl = vmlal_laneq_s16::<1>(y_low, v_low, v_weights);
+        let bl = vmlal_laneq_s16::<2>(y_low, u_low, v_weights);
+        let gl = vmlal_laneq_s16::<3>(y_low, v_low, v_weights);
+
+        let r_high = vrshrn_n_s32::<PRECISION>(rh);
+        let b_high = vrshrn_n_s32::<PRECISION>(bh);
+        let g_high = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gh, u_high, v_weights));
+
+        let r_low = vrshrn_n_s32::<PRECISION>(rl);
+        let b_low = vrshrn_n_s32::<PRECISION>(bl);
+        let g_low = vrshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gl, u_low, v_weights));
 
         let r_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(r_low, r_high));
         let g_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(g_low, g_high));

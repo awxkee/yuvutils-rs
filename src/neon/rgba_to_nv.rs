@@ -109,15 +109,15 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             cb_high = vqrdmlahq_laneq_s16::<5>(cb_high, b_high, v_weights);
             cr_high = vqrdmlahq_laneq_s16::<0>(cr_high, b_high, v_cr_b);
 
-            let cb_high = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(cb_high));
-            let cr_high = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(cr_high));
-
             let mut cb_low = vqrdmlahq_laneq_s16::<3>(uv_bias, r_low, v_weights);
             let mut cr_low = vqrdmlahq_laneq_s16::<6>(uv_bias, r_low, v_weights);
             cb_low = vqrdmlahq_laneq_s16::<4>(cb_low, g_low, v_weights);
             cr_low = vqrdmlahq_laneq_s16::<7>(cr_low, g_low, v_weights);
             cb_low = vqrdmlahq_laneq_s16::<5>(cb_low, b_low, v_weights);
             cr_low = vqrdmlahq_laneq_s16::<0>(cr_low, b_low, v_cr_b);
+
+            let cb_high = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(cb_high));
+            let cr_high = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(cr_high));
 
             let cb_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(cb_low));
             let cr_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(cr_low));
@@ -446,16 +446,28 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
             let mut cb_h_low = vmlal_laneq_s16::<3>(uv_bias, vget_low_s16(r_high), v_weights);
             let mut cr_h_high = vmlal_high_laneq_s16::<6>(uv_bias, r_high, v_weights);
             let mut cr_h_low = vmlal_laneq_s16::<6>(uv_bias, vget_low_s16(r_high), v_weights);
+            let mut cb_l_high = vmlal_high_laneq_s16::<3>(uv_bias, r_low, v_weights);
+            let mut cb_l_low = vmlal_laneq_s16::<3>(uv_bias, vget_low_s16(r_low), v_weights);
+            let mut cr_l_high = vmlal_high_laneq_s16::<6>(uv_bias, r_low, v_weights);
+            let mut cr_l_low = vmlal_laneq_s16::<6>(uv_bias, vget_low_s16(r_low), v_weights);
 
             cb_h_high = vmlal_high_laneq_s16::<4>(cb_h_high, g_high, v_weights);
             cb_h_low = vmlal_laneq_s16::<4>(cb_h_low, vget_low_s16(g_high), v_weights);
             cr_h_high = vmlal_high_laneq_s16::<7>(cr_h_high, g_high, v_weights);
             cr_h_low = vmlal_laneq_s16::<7>(cr_h_low, vget_low_s16(g_high), v_weights);
+            cb_l_high = vmlal_high_laneq_s16::<4>(cb_l_high, g_low, v_weights);
+            cb_l_low = vmlal_laneq_s16::<4>(cb_l_low, vget_low_s16(g_low), v_weights);
+            cr_l_high = vmlal_high_laneq_s16::<7>(cr_l_high, g_low, v_weights);
+            cr_l_low = vmlal_laneq_s16::<7>(cr_l_low, vget_low_s16(g_low), v_weights);
 
             cb_h_high = vmlal_high_laneq_s16::<5>(cb_h_high, b_high, v_weights);
             cb_h_low = vmlal_laneq_s16::<5>(cb_h_low, vget_low_s16(b_high), v_weights);
             cr_h_high = vmlal_high_laneq_s16::<0>(cr_h_high, b_high, v_cr_b);
             cr_h_low = vmlal_laneq_s16::<0>(cr_h_low, vget_low_s16(b_high), v_cr_b);
+            cb_l_high = vmlal_high_laneq_s16::<5>(cb_l_high, b_low, v_weights);
+            cb_l_low = vmlal_laneq_s16::<5>(cb_l_low, vget_low_s16(b_low), v_weights);
+            cr_l_high = vmlal_high_laneq_s16::<0>(cr_l_high, b_low, v_cr_b);
+            cr_l_low = vmlal_laneq_s16::<0>(cr_l_low, vget_low_s16(b_low), v_cr_b);
 
             let cb_high = vreinterpretq_u16_s16(vcombine_s16(
                 vshrn_n_s32::<PRECISION>(cb_h_low),
@@ -466,22 +478,6 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
                 vshrn_n_s32::<PRECISION>(cr_h_low),
                 vshrn_n_s32::<PRECISION>(cr_h_high),
             ));
-
-            let mut cb_l_high = vmlal_high_laneq_s16::<3>(uv_bias, r_low, v_weights);
-            let mut cb_l_low = vmlal_laneq_s16::<3>(uv_bias, vget_low_s16(r_low), v_weights);
-            let mut cr_l_high = vmlal_high_laneq_s16::<6>(uv_bias, r_low, v_weights);
-            let mut cr_l_low = vmlal_laneq_s16::<6>(uv_bias, vget_low_s16(r_low), v_weights);
-
-            cb_l_high = vmlal_high_laneq_s16::<4>(cb_l_high, g_low, v_weights);
-            cb_l_low = vmlal_laneq_s16::<4>(cb_l_low, vget_low_s16(g_low), v_weights);
-            cr_l_high = vmlal_high_laneq_s16::<7>(cr_l_high, g_low, v_weights);
-            cr_l_low = vmlal_laneq_s16::<7>(cr_l_low, vget_low_s16(g_low), v_weights);
-
-            cb_l_high = vmlal_high_laneq_s16::<5>(cb_l_high, b_low, v_weights);
-            cb_l_low = vmlal_laneq_s16::<5>(cb_l_low, vget_low_s16(b_low), v_weights);
-            cr_l_high = vmlal_high_laneq_s16::<0>(cr_l_high, b_low, v_cr_b);
-            cr_l_low = vmlal_laneq_s16::<0>(cr_l_low, vget_low_s16(b_low), v_cr_b);
-
             let cb_low = vreinterpretq_u16_s16(vcombine_s16(
                 vshrn_n_s32::<PRECISION>(cb_l_low),
                 vshrn_n_s32::<PRECISION>(cb_l_high),
@@ -577,7 +573,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
     if cx < width as usize {
         let mut diff = width as usize - cx;
         assert!(diff <= 16);
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];

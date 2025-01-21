@@ -226,19 +226,23 @@ unsafe fn avx_yuv_p16_to_rgba_row8_impl<
         let y_vals0 = _mm256_mulhrs_epi16(y_values0, v_luma_coeff);
         let y_vals1 = _mm256_mulhrs_epi16(y_values1, v_luma_coeff);
 
-        let r_vals0 = _mm256_add_epi16(y_vals0, _mm256_mulhrs_epi16(v_values0, v_cr_coeff));
-        let b_vals0 = _mm256_add_epi16(y_vals0, _mm256_mulhrs_epi16(u_values0, v_cb_coeff));
-        let g_vals0 = _mm256_add_epi16(
-            _mm256_add_epi16(y_vals0, _mm256_mulhrs_epi16(v_values0, v_g_coeff_1)),
-            _mm256_mulhrs_epi16(u_values0, v_g_coeff_2),
-        );
+        let rvl0 = _mm256_mulhrs_epi16(v_values0, v_cr_coeff);
+        let bvl0 = _mm256_mulhrs_epi16(u_values0, v_cb_coeff);
+        let gvl0 = _mm256_mulhrs_epi16(v_values0, v_g_coeff_1);
+        let gvl1 = _mm256_mulhrs_epi16(u_values0, v_g_coeff_2);
 
-        let r_vals1 = _mm256_add_epi16(y_vals1, _mm256_mulhrs_epi16(v_values1, v_cr_coeff));
-        let b_vals1 = _mm256_add_epi16(y_vals1, _mm256_mulhrs_epi16(u_values1, v_cb_coeff));
-        let g_vals1 = _mm256_add_epi16(
-            _mm256_add_epi16(y_vals1, _mm256_mulhrs_epi16(v_values1, v_g_coeff_1)),
-            _mm256_mulhrs_epi16(u_values1, v_g_coeff_2),
-        );
+        let r_vals0 = _mm256_add_epi16(y_vals0, rvl0);
+        let b_vals0 = _mm256_add_epi16(y_vals0, bvl0);
+        let g_vals0 = _mm256_add_epi16(_mm256_add_epi16(y_vals0, gvl0), gvl1);
+
+        let rvl1 = _mm256_mulhrs_epi16(v_values1, v_cr_coeff);
+        let bvl1 = _mm256_mulhrs_epi16(u_values1, v_cb_coeff);
+        let gvl10 = _mm256_mulhrs_epi16(v_values1, v_g_coeff_1);
+        let gvl11 = _mm256_mulhrs_epi16(u_values1, v_g_coeff_2);
+
+        let r_vals1 = _mm256_add_epi16(y_vals1, rvl1);
+        let b_vals1 = _mm256_add_epi16(y_vals1, bvl1);
+        let g_vals1 = _mm256_add_epi16(_mm256_add_epi16(y_vals1, gvl10), gvl11);
 
         let r_values0 = avx2_pack_u16(
             _mm256_store_shr_epi16_epi8::<BIT_DEPTH>(r_vals0),
