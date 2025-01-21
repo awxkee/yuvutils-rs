@@ -81,12 +81,19 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let (r_values1, g_values1, b_values1) =
         _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src1.as_ptr());
 
-    let r0_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values0, r_values0));
-    let r0_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(r_values0, r_values0));
-    let g0_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values0, g_values0));
-    let g0_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(g_values0, g_values0));
-    let b0_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(b_values0, b_values0));
-    let b0_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(b_values0, b_values0));
+    let rl0 = _mm256_unpacklo_epi8(r_values0, r_values0);
+    let rh0 = _mm256_unpackhi_epi8(r_values0, r_values0);
+    let gl0 = _mm256_unpacklo_epi8(g_values0, g_values0);
+    let gh0 = _mm256_unpackhi_epi8(g_values0, g_values0);
+    let bl0 = _mm256_unpacklo_epi8(b_values0, b_values0);
+    let bh0 = _mm256_unpackhi_epi8(b_values0, b_values0);
+
+    let r0_low = _mm256_srli_epi16::<V_S>(rl0);
+    let r0_high = _mm256_srli_epi16::<V_S>(rh0);
+    let g0_low = _mm256_srli_epi16::<V_S>(gl0);
+    let g0_high = _mm256_srli_epi16::<V_S>(gh0);
+    let b0_low = _mm256_srli_epi16::<V_S>(bl0);
+    let b0_high = _mm256_srli_epi16::<V_S>(bh0);
 
     let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E));
     let v_yr = _mm256_set1_epi16(transform.yr as i16);
@@ -97,12 +104,19 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
         r0_low, r0_high, g0_low, g0_high, b0_low, b0_high, y_bias, v_yr, v_yg, v_yb,
     );
 
-    let r1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values1, r_values1));
-    let r1_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(r_values1, r_values1));
-    let g1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values1, g_values1));
-    let g1_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(g_values1, g_values1));
-    let b1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(b_values1, b_values1));
-    let b1_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(b_values1, b_values1));
+    let rl1 = _mm256_unpacklo_epi8(r_values1, r_values1);
+    let rh1 = _mm256_unpackhi_epi8(r_values1, r_values1);
+    let gl1 = _mm256_unpacklo_epi8(g_values1, g_values1);
+    let gh1 = _mm256_unpackhi_epi8(g_values1, g_values1);
+    let bl1 = _mm256_unpacklo_epi8(b_values1, b_values1);
+    let bh1 = _mm256_unpackhi_epi8(b_values1, b_values1);
+
+    let r1_low = _mm256_srli_epi16::<V_S>(rl1);
+    let r1_high = _mm256_srli_epi16::<V_S>(rh1);
+    let g1_low = _mm256_srli_epi16::<V_S>(gl1);
+    let g1_high = _mm256_srli_epi16::<V_S>(gh1);
+    let b1_low = _mm256_srli_epi16::<V_S>(bl1);
+    let b1_high = _mm256_srli_epi16::<V_S>(bh1);
 
     let y1_yuv = _mm256_sqrdmlah_dot::<A_E>(
         r1_low, r1_high, g1_low, g1_high, b1_low, b1_high, y_bias, v_yr, v_yg, v_yb,
@@ -132,27 +146,24 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
         1 << (16 - V_S - 8 - 1),
     );
 
-    let cb = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        uv_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r1, v_cb_r),
-                _mm256_mulhrs_epi16(g1, v_cb_g),
-            ),
-            _mm256_mulhrs_epi16(b1, v_cb_b),
-        ),
-    ));
+    let cb_r = _mm256_mulhrs_epi16(r1, v_cb_r);
+    let cr_r = _mm256_mulhrs_epi16(r1, v_cr_r);
+    let cb_g = _mm256_mulhrs_epi16(g1, v_cb_g);
+    let cr_g = _mm256_mulhrs_epi16(g1, v_cr_g);
+    let cb_b = _mm256_mulhrs_epi16(b1, v_cb_b);
+    let cr_b = _mm256_mulhrs_epi16(b1, v_cr_b);
 
-    let cr = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        uv_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r1, v_cr_r),
-                _mm256_mulhrs_epi16(g1, v_cr_g),
-            ),
-            _mm256_mulhrs_epi16(b1, v_cr_b),
-        ),
-    ));
+    let cb_s0 = _mm256_add_epi16(cb_r, cb_g);
+    let cr_s0 = _mm256_add_epi16(cr_r, cr_g);
+
+    let cb_s1 = _mm256_add_epi16(cb_s0, cb_b);
+    let cr_s1 = _mm256_add_epi16(cr_s0, cr_b);
+
+    let cb_s2 = _mm256_add_epi16(uv_bias, cb_s1);
+    let cr_s2 = _mm256_add_epi16(uv_bias, cr_s1);
+
+    let cb = _mm256_srli_epi16::<A_E>(cb_s2);
+    let cr = _mm256_srli_epi16::<A_E>(cr_s2);
 
     let cb = avx2_pack_u16(cb, cb);
     let cr = avx2_pack_u16(cr, cr);

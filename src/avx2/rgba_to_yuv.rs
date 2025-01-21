@@ -79,12 +79,19 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
     let (r_values, g_values, b_values) =
         _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
 
-    let r_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values, r_values));
-    let r_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(r_values, r_values));
-    let g_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values, g_values));
-    let g_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(g_values, g_values));
-    let b_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(b_values, b_values));
-    let b_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(b_values, b_values));
+    let rl = _mm256_unpacklo_epi8(r_values, r_values);
+    let rh = _mm256_unpackhi_epi8(r_values, r_values);
+    let gl = _mm256_unpacklo_epi8(g_values, g_values);
+    let gh = _mm256_unpackhi_epi8(g_values, g_values);
+    let bl = _mm256_unpacklo_epi8(b_values, b_values);
+    let bh = _mm256_unpackhi_epi8(b_values, b_values);
+
+    let r_low = _mm256_srli_epi16::<V_S>(rl);
+    let r_high = _mm256_srli_epi16::<V_S>(rh);
+    let g_low = _mm256_srli_epi16::<V_S>(gl);
+    let g_high = _mm256_srli_epi16::<V_S>(gh);
+    let b_low = _mm256_srli_epi16::<V_S>(bl);
+    let b_high = _mm256_srli_epi16::<V_S>(bh);
 
     let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E));
     let v_yr = _mm256_set1_epi16(transform.yr as i16);
