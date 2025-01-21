@@ -268,9 +268,7 @@ unsafe fn avx2_rgba_to_nv_impl<
     if cx < width as usize {
         let mut diff = width as usize - cx;
         assert!(diff <= 32);
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
+        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
         let mut y_buffer0: [u8; 32] = [0; 32];

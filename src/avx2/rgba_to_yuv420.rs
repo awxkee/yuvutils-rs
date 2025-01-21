@@ -110,6 +110,8 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     let y0_l = _mm256_srli_epi16::<A_E>(y0_l_m);
     let y0_h = _mm256_srli_epi16::<A_E>(y0_h_m);
 
+    let y0_yuv = _mm256_packus_epi16(y0_l, y0_h);
+
     let r1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values1, r_values1));
     let r1_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(r_values1, r_values1));
     let g1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(g_values1, g_values1));
@@ -136,7 +138,6 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     let y1_l = _mm256_srli_epi16::<A_E>(y1_v0_k_l);
     let y1_h = _mm256_srli_epi16::<A_E>(y1_v0_k_h);
 
-    let y0_yuv = _mm256_packus_epi16(y0_l, y0_h);
     let y1_yuv = _mm256_packus_epi16(y1_l, y1_h);
 
     _mm256_storeu_si256(y_dst0.as_mut_ptr() as *mut __m256i, y0_yuv);
