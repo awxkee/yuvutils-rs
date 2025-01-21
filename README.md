@@ -143,23 +143,23 @@ cargo +nightly bench --bench yuv16 --manifest-path ./app/Cargo.toml --features n
 | libyuv RGB10->YUV10 4:2:0  |     x      |       x        |     x      |       x       |
 | utils RGBA10->YUV10 4:2:0  |  605.45µs  |    807.89µs    |   2.03ms   |    1.57ms     |
 | libyuv RGBA10->YUV10 4:2:0 |     x      |       x        |     x      |       x       |
-| utils RGBA10->YUV10 4:2:2  |  769.08µs  |     1.04ms     |   2.65ms   |    1.83ms     |
+| utils RGBA10->YUV10 4:2:2  |  769.08µs  |     1.04ms     |   2.51ms   |    1.83ms     |
 | libyuv RGBA10->YUV10 4:2:2 |     x      |       x        |     x      |       x       |
-| utils RGBA10->YUV10 4:4:4  |  600.56µs  |     1.12ms     |   3.07ms   |    2.03ms     |
+| utils RGBA10->YUV10 4:4:4  |  600.56µs  |     1.12ms     |   2.82ms   |    2.03ms     |
 
 ### Decoding 10-bit
 
 |                           | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) |
 |---------------------------|:----------:|:--------------:|:----------:|:-------------:|
-| utils YUV10 4:2:0->RGB10  |  596.78µs  |    662.38µs    |   1.78ms   |    1.23ms     |
+| utils YUV10 4:2:0->RGB10  |  596.78µs  |    662.38µs    |   1.76ms   |    1.23ms     |
 | libyuv YUV10 4:2:0->RGB10 |     x      |       x        |     x      |       x       |
-| utils YUV10 4:2:0->RGBA10 |  727.52µs  |    670.15µs    |   1.97ms   |    1.59ms     |
+| utils YUV10 4:2:0->RGBA10 |  727.52µs  |    670.15µs    |   1.92ms   |    1.59ms     |
 | utils YUV10 4:2:0->RGBA8  |  765.23µs  |    492.63µs    |   1.36ms   |   900.10µs    |
-| libyuv YUV10 4:2:0->RGBA8 |   1.54ms   |    6.8641ms    |   1.14ms   |   966.94µs    |
+| libyuv YUV10 4:2:0->RGBA8 |   1.54ms   |    6.8641ms    |   1.16ms   |   966.94µs    |
 | utils YUV10 4:2:2->RGBA10 |  746.51µs  |    787.41µs    |   2.02ms   |    1.61ms     |
 | utils YUV10 4:2:2->RGBA8  |  799.25µs  |    438.14µs    |   1.23ms   |   972.19µs    |
 | libyuv YUV10 4:2:2->RGBA8 |   1.55ms   |    6.8374ms    |   1.21ms   |   991.23µs    |
-| utils YUV10 4:4:4->RGBA10 |  953.73µs  |    848.02µs    |   2.34ms   |   1.8639ms    |
+| utils YUV10 4:4:4->RGBA10 |  953.73µs  |    848.02µs    |   2.26ms   |   1.8639ms    |
 
 ### Geometry and mirroring
 

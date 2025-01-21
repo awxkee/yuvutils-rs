@@ -142,14 +142,14 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
         cb_h = vmlal_laneq_s16::<5>(cb_h, vreinterpret_s16_u16(b_values), v_weights);
         cr_h = vmlal_laneq_s16::<0>(cr_h, vreinterpret_s16_u16(b_values), v_cr_b);
 
-        let mut cb_vl = vmin_u16(
-            vmax_u16(vqshrun_n_s32::<PRECISION>(cb_h), i_bias_y),
-            i_cap_uv,
-        );
-        let mut cr_vl = vmin_u16(
-            vmax_u16(vqshrun_n_s32::<PRECISION>(cr_h), i_bias_y),
-            i_cap_uv,
-        );
+        let qcb = vqshrun_n_s32::<PRECISION>(cb_h);
+        let qcr = vqshrun_n_s32::<PRECISION>(cr_h);
+
+        let cb_max = vmax_u16(qcb, i_bias_y);
+        let cr_max = vmax_u16(qcr, i_bias_y);
+
+        let mut cb_vl = vmin_u16(cb_max, i_cap_uv);
+        let mut cr_vl = vmin_u16(cr_max, i_cap_uv);
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             cb_vl = vtomsb_u16::<BIT_DEPTH>(cb_vl);
@@ -272,15 +272,16 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
         vst1q_u16(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0_vl);
         vst1q_u16(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1_vl);
 
-        let r1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(vhaddq_u16(
-            r_values0, r_values1,
-        ))));
-        let g1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(vhaddq_u16(
-            g_values0, g_values1,
-        ))));
-        let b1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(vhaddq_u16(
-            b_values0, b_values1,
-        ))));
+        let hvr = vhaddq_u16(r_values0, r_values1);
+        let hvg = vhaddq_u16(g_values0, g_values1);
+        let hvb = vhaddq_u16(b_values0, b_values1);
+        let pvr = vpaddlq_u16(hvr);
+        let pvg = vpaddlq_u16(hvg);
+        let pvb = vpaddlq_u16(hvb);
+
+        let r1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(pvr));
+        let g1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(pvg));
+        let b1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(pvb));
 
         let mut cbk = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
         let mut crk = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);
@@ -289,15 +290,11 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
         cbk = vqrdmlah_laneq_s16::<5>(cbk, b1, v_weights);
         crk = vqrdmlah_laneq_s16::<0>(crk, b1, v_cr_b);
 
-        let mut cb = vreinterpret_u16_s16(vmin_s16(
-            vmax_s16(cbk, vget_low_s16(i_bias_y)),
-            vget_low_s16(i_cap_uv),
-        ));
+        let cb_max = vmax_s16(cbk, vget_low_s16(i_bias_y));
+        let cr_max = vmax_s16(crk, vget_low_s16(i_bias_y));
 
-        let mut cr = vreinterpret_u16_s16(vmin_s16(
-            vmax_s16(crk, vget_low_s16(i_bias_y)),
-            vget_low_s16(i_cap_uv),
-        ));
+        let mut cb = vreinterpret_u16_s16(vmin_s16(cb_max, vget_low_s16(i_cap_uv)));
+        let mut cr = vreinterpret_u16_s16(vmin_s16(cr_max, vget_low_s16(i_cap_uv)));
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             cb = vtomsb_u16::<BIT_DEPTH>(cb);
