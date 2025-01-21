@@ -83,12 +83,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     while cx + 32 < width {
         let y_values_0 = xvld1q_u8_x2(y_plane0.get_unchecked(cx..).as_ptr());
         let y_values_1 = xvld1q_u8_x2(y_plane1.get_unchecked(cx..).as_ptr());
+        let mut uv_values = vld2q_u8(uv_ptr.add(ux));
+
         let y_values00 = vqsubq_u8(y_values_0.0, y_corr);
         let y_values01 = vqsubq_u8(y_values_0.1, y_corr);
         let y_values10 = vqsubq_u8(y_values_1.0, y_corr);
         let y_values11 = vqsubq_u8(y_values_1.1, y_corr);
 
-        let mut uv_values = vld2q_u8(uv_ptr.add(ux));
         if order == YuvNVOrder::VU {
             uv_values = uint8x16x2_t(uv_values.1, uv_values.0);
         }
@@ -276,10 +277,10 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     while cx + 16 < width {
         let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
         let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let mut uv_values = vld2_u8(uv_ptr.add(ux));
+
         let y_values0 = vqsubq_u8(vl0, y_corr);
         let y_values1 = vqsubq_u8(vl1, y_corr);
-
-        let mut uv_values = vld2_u8(uv_ptr.add(ux));
         if order == YuvNVOrder::VU {
             uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
         }
@@ -611,10 +612,11 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
     while cx + 16 < width {
         let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
         let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
+        let mut uv_values = vld2_u8(uv_ptr.add(ux));
+
         let y_values0 = vqsubq_u8(vl0, y_corr);
         let y_values1 = vqsubq_u8(vl1, y_corr);
 
-        let mut uv_values = vld2_u8(uv_ptr.add(ux));
         if order == YuvNVOrder::VU {
             uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
         }

@@ -114,11 +114,11 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 | libyuv YUV 4:2:0->RGB  |  747.18µs  |    5.8231ms    |   1.42ms   |    1.16ms     | 
 | utils YUV 4:2:0->RGBA  |  396.58µs  |    380.13µs    |  942.92µs  |   733.88µs    | 
 | libyuv YUV 4:2:0->RGBA |  710.88µs  |    557.44µs    |   1.03ms   |   870.64µs    | 
-| utils YUV 4:2:2->RGBA  |  471.54µs  |    410.71µs    |   1.10ms   |   824.69µs    | 
+| utils YUV 4:2:2->RGBA  |  469.54µs  |    410.71µs    |   1.10ms   |   824.69µs    | 
 | libyuv YUV 4:2:2->RGBA |  734.25µs  |    579.24µs    |   1.04ms   |   851.24µs    | 
-| utils YUV 4:4:4->RGBA  |  458.71µs  |    366.85µs    |   1.13ms   |   819.17µs    | 
+| utils YUV 4:4:4->RGBA  |  453.80µs  |    366.85µs    |   1.10ms   |   819.17µs    | 
 | libyuv YUV 4:4:4->RGBA |  596.55µs  |    525.90µs    |  963.66µs  |   803.62µs    | 
-| utils YUV 4:0:0->RGBA  |  220.67µs  |    254.83µs    |  676.04µs  |   600.43µs    | 
+| utils YUV 4:0:0->RGBA  |  220.67µs  |    254.83µs    |  651.88µs  |   600.43µs    | 
 | libyuv YUV 4:0:0->RGBA |  522.71µs  |    1.8204ms    |  635.61µs  |   525.56µs    | 
 
 YUV 16 bit-depth conversion

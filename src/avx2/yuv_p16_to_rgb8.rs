@@ -139,6 +139,7 @@ unsafe fn avx_yuv_p16_to_rgba_row8_impl<
         let mut y_vl0 = _mm256_loadu_si256(y_plane.get_unchecked(cx..).as_ptr() as *const __m256i);
         let mut y_vl1 =
             _mm256_loadu_si256(y_plane.get_unchecked((cx + 16)..).as_ptr() as *const __m256i);
+
         if endianness == YuvEndianness::BigEndian {
             y_vl0 = _mm256_shuffle_epi8(y_vl0, big_endian_shuffle_flag);
             y_vl1 = _mm256_shuffle_epi8(y_vl1, big_endian_shuffle_flag);
