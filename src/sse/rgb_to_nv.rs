@@ -85,12 +85,19 @@ unsafe fn encode_16_part<
     let v_yg = _mm_set1_epi16(transform.yg as i16);
     let v_yb = _mm_set1_epi16(transform.yb as i16);
 
-    let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
-    let r_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(r_values, r_values));
-    let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
-    let g_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(g_values, g_values));
-    let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
-    let b_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(b_values, b_values));
+    let rl = _mm_unpacklo_epi8(r_values, r_values);
+    let rh = _mm_unpackhi_epi8(r_values, r_values);
+    let gl = _mm_unpacklo_epi8(g_values, g_values);
+    let gh = _mm_unpackhi_epi8(g_values, g_values);
+    let bl = _mm_unpacklo_epi8(b_values, b_values);
+    let bh = _mm_unpackhi_epi8(b_values, b_values);
+
+    let r_low = _mm_srli_epi16::<V_S>(rl);
+    let r_high = _mm_srli_epi16::<V_S>(rh);
+    let g_low = _mm_srli_epi16::<V_S>(gl);
+    let g_high = _mm_srli_epi16::<V_S>(gh);
+    let b_low = _mm_srli_epi16::<V_S>(bl);
+    let b_high = _mm_srli_epi16::<V_S>(bh);
 
     let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
         y_bias,

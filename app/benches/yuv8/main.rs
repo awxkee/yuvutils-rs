@@ -42,6 +42,10 @@ use yuvutils_rs::{
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
+    let mut c = c.benchmark_group("YUV 8");
+    c.sample_size(400); // Increase the number of samples
+    c.measurement_time(std::time::Duration::from_secs(7)); // Increase the duration
+
     let img = ImageReader::open("../assets/bench.jpg")
         .unwrap()
         .decode()
@@ -575,6 +579,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             );
         })
     });
+
+    c.finish();
 }
 
 criterion_group!(benches, criterion_benchmark);

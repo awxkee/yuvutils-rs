@@ -832,10 +832,10 @@ pub(crate) unsafe fn _mm512_affine_transform<const PRECISION: u32, const HAS_DOT
         ));
         avx512_pack_u32(j, j)
     } else {
-        let j = _mm512_srli_epi32::<PRECISION>(_mm512_add_epi32(
-            slope,
-            _mm512_add_epi32(_mm512_madd_epi16(v0, w0), _mm512_madd_epi16(v1, w1)),
-        ));
+        let v0w0 = _mm512_madd_epi16(v0, w0);
+        let v1w1 = _mm512_madd_epi16(v1, w1);
+        let j =
+            _mm512_srli_epi32::<PRECISION>(_mm512_add_epi32(slope, _mm512_add_epi32(v0w0, v1w1)));
         avx512_pack_u32(j, j)
     }
 }

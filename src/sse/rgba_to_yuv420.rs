@@ -189,12 +189,19 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let (r_values0, g_values0, b_values0) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start0);
 
-        let r0_lo16 = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values0, r_values0));
-        let r0_hi16 = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(r_values0, r_values0));
-        let g0_lo16 = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values0, g_values0));
-        let g0_hi16 = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(g_values0, g_values0));
-        let b0_lo16 = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values0, b_values0));
-        let b0_hi16 = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(b_values0, b_values0));
+        let r0lw = _mm_unpacklo_epi8(r_values0, r_values0);
+        let r0hw = _mm_unpackhi_epi8(r_values0, r_values0);
+        let g0lw = _mm_unpacklo_epi8(g_values0, g_values0);
+        let g0hw = _mm_unpackhi_epi8(g_values0, g_values0);
+        let b0lw = _mm_unpacklo_epi8(b_values0, b_values0);
+        let b0hw = _mm_unpackhi_epi8(b_values0, b_values0);
+
+        let r0_lo16 = _mm_srli_epi16::<V_S>(r0lw);
+        let r0_hi16 = _mm_srli_epi16::<V_S>(r0hw);
+        let g0_lo16 = _mm_srli_epi16::<V_S>(g0lw);
+        let g0_hi16 = _mm_srli_epi16::<V_S>(g0hw);
+        let b0_lo16 = _mm_srli_epi16::<V_S>(b0lw);
+        let b0_hi16 = _mm_srli_epi16::<V_S>(b0hw);
 
         let y0_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
             y_bias,
@@ -228,12 +235,19 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
         let (r_values1, g_values1, b_values1) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(row_start1);
 
-        let r1_lo = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values1, r_values1));
-        let r1_hi = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(r_values1, r_values1));
-        let g1_lo = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values1, g_values1));
-        let g1_hi = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(g_values1, g_values1));
-        let b1_lo = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values1, b_values1));
-        let b1_hi = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(b_values1, b_values1));
+        let r1lw = _mm_unpacklo_epi8(r_values1, r_values1);
+        let r1hw = _mm_unpackhi_epi8(r_values1, r_values1);
+        let g1lw = _mm_unpacklo_epi8(g_values1, g_values1);
+        let g1hw = _mm_unpackhi_epi8(g_values1, g_values1);
+        let b1lw = _mm_unpacklo_epi8(b_values1, b_values1);
+        let b1hw = _mm_unpackhi_epi8(b_values1, b_values1);
+
+        let r1_lo = _mm_srli_epi16::<V_S>(r1lw);
+        let r1_hi = _mm_srli_epi16::<V_S>(r1hw);
+        let g1_lo = _mm_srli_epi16::<V_S>(g1lw);
+        let g1_hi = _mm_srli_epi16::<V_S>(g1hw);
+        let b1_lo = _mm_srli_epi16::<V_S>(b1lw);
+        let b1_hi = _mm_srli_epi16::<V_S>(b1hw);
 
         let y1_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
             y_bias,
@@ -257,12 +271,13 @@ unsafe fn sse_rgba_to_yuv_row_impl420<const ORIGIN_CHANNELS: u8, const PRECISION
             y1_yuv,
         );
 
-        let r1 =
-            sse_pairwise_avg_epi8_j(_mm_avg_epu8(r_values0, r_values1), 1 << (16 - V_S - 8 - 1));
-        let g1 =
-            sse_pairwise_avg_epi8_j(_mm_avg_epu8(g_values0, g_values1), 1 << (16 - V_S - 8 - 1));
-        let b1 =
-            sse_pairwise_avg_epi8_j(_mm_avg_epu8(b_values0, b_values1), 1 << (16 - V_S - 8 - 1));
+        let r_avg = _mm_avg_epu8(r_values0, r_values1);
+        let g_avg = _mm_avg_epu8(g_values0, g_values1);
+        let b_avg = _mm_avg_epu8(b_values0, b_values1);
+
+        let r1 = sse_pairwise_avg_epi8_j(r_avg, 1 << (16 - V_S - 8 - 1));
+        let g1 = sse_pairwise_avg_epi8_j(g_avg, 1 << (16 - V_S - 8 - 1));
+        let b1 = sse_pairwise_avg_epi8_j(b_avg, 1 << (16 - V_S - 8 - 1));
 
         let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
         let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);

@@ -157,18 +157,13 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     _mm256_storeu_si256(y_dst0.as_mut_ptr() as *mut __m256i, y0_yuv);
     _mm256_storeu_si256(y_dst1.as_mut_ptr() as *mut __m256i, y1_yuv);
 
-    let r_uv = avx_pairwise_avg_epi16_epi8_j(
-        _mm256_avg_epu8(r_values0, r_values1),
-        1 << (16 - V_S - 8 - 1),
-    );
-    let g_uv = avx_pairwise_avg_epi16_epi8_j(
-        _mm256_avg_epu8(g_values0, g_values1),
-        1 << (16 - V_S - 8 - 1),
-    );
-    let b_uv = avx_pairwise_avg_epi16_epi8_j(
-        _mm256_avg_epu8(b_values0, b_values1),
-        1 << (16 - V_S - 8 - 1),
-    );
+    let r_avg = _mm256_avg_epu8(r_values0, r_values1);
+    let g_avg = _mm256_avg_epu8(g_values0, g_values1);
+    let b_avg = _mm256_avg_epu8(b_values0, b_values1);
+
+    let r_uv = avx_pairwise_avg_epi16_epi8_j(r_avg, 1 << (16 - V_S - 8 - 1));
+    let g_uv = avx_pairwise_avg_epi16_epi8_j(g_avg, 1 << (16 - V_S - 8 - 1));
+    let b_uv = avx_pairwise_avg_epi16_epi8_j(b_avg, 1 << (16 - V_S - 8 - 1));
 
     let uv_bias = _mm256_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let v_cb_r = _mm256_set1_epi16(transform.cb_r as i16);

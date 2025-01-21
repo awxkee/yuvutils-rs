@@ -94,17 +94,16 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     let reshuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
 
     while cx + 16 < width {
-        let y_values0 = _mm_subs_epu8(
-            _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i),
-            y_corr,
-        );
-        let y_values1 = _mm_subs_epu8(
-            _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i),
-            y_corr,
-        );
+        let yvl0 = _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i);
+        let yvl1 = _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i);
+        let uvl0 = _xx_load_si64(u_ptr.add(uv_x));
+        let uvl1 = _xx_load_si64(v_ptr.add(uv_x));
 
-        let u_values = _mm_shuffle_epi8(_xx_load_si64(u_ptr.add(uv_x)), reshuffle);
-        let v_values = _mm_shuffle_epi8(_xx_load_si64(v_ptr.add(uv_x)), reshuffle);
+        let y_values0 = _mm_subs_epu8(yvl0, y_corr);
+        let y_values1 = _mm_subs_epu8(yvl1, y_corr);
+
+        let u_values = _mm_shuffle_epi8(uvl0, reshuffle);
+        let v_values = _mm_shuffle_epi8(uvl1, reshuffle);
 
         let u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u_values, u_values));
         let v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v_values, v_values));

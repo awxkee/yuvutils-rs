@@ -133,18 +133,13 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let v_cr_g = _mm256_set1_epi16(transform.cr_g as i16);
     let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
-    let r1 = avx_pairwise_avg_epi16_epi8_j(
-        _mm256_avg_epu8(r_values0, r_values1),
-        1 << (16 - V_S - 8 - 1),
-    );
-    let g1 = avx_pairwise_avg_epi16_epi8_j(
-        _mm256_avg_epu8(g_values0, g_values1),
-        1 << (16 - V_S - 8 - 1),
-    );
-    let b1 = avx_pairwise_avg_epi16_epi8_j(
-        _mm256_avg_epu8(b_values0, b_values1),
-        1 << (16 - V_S - 8 - 1),
-    );
+    let r_avg = _mm256_avg_epu8(r_values0, r_values1);
+    let g_avg = _mm256_avg_epu8(g_values0, g_values1);
+    let b_avg = _mm256_avg_epu8(b_values0, b_values1);
+
+    let r1 = avx_pairwise_avg_epi16_epi8_j(r_avg, 1 << (16 - V_S - 8 - 1));
+    let g1 = avx_pairwise_avg_epi16_epi8_j(g_avg, 1 << (16 - V_S - 8 - 1));
+    let b1 = avx_pairwise_avg_epi16_epi8_j(b_avg, 1 << (16 - V_S - 8 - 1));
 
     let cb_r = _mm256_mulhrs_epi16(r1, v_cb_r);
     let cr_r = _mm256_mulhrs_epi16(r1, v_cr_r);
