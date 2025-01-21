@@ -86,11 +86,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 32 < width {
-        let y_values =
-            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
-
+        let yvl0 = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);
         let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
         let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
+
+        let y_values = _mm256_subs_epu8(yvl0, y_corr);
 
         let u_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(u_values));
         let v_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(v_values));
@@ -158,15 +158,13 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 16 < width {
-        let y_values = _mm256_subs_epu8(
-            _mm256_castsi128_si256(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i)),
-            y_corr,
-        );
-
-        let (u_low_u16, v_low_u16);
-
+        let yvl0 = _mm256_castsi128_si256(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i));
         let u_values = _xx_load_si64(u_ptr.add(uv_x));
         let v_values = _xx_load_si64(v_ptr.add(uv_x));
+
+        let y_values = _mm256_subs_epu8(yvl0, y_corr);
+
+        let (u_low_u16, v_low_u16);
 
         let u_k_w = _mm_unpacklo_epi8(u_values, u_values);
         let v_k_w = _mm_unpacklo_epi8(v_values, v_values);

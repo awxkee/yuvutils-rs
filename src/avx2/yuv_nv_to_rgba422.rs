@@ -83,10 +83,10 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl422<const UV_ORDER: u8, const DESTINATION_
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 32 < width {
-        let y_values =
-            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
-
+        let yvl0 = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);
         let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const __m256i);
+
+        let y_values = _mm256_subs_epu8(yvl0, y_corr);
 
         let sh_e = _mm256_setr_epi8(
             0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10,
