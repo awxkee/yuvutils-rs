@@ -28,8 +28,8 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_interleave_x2_epi8, _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16,
-    avx_pairwise_avg_epi16_epi8_j,
+    _mm256_interleave_x2_epi8, _mm256_load_deinterleave_rgb_for_yuv, _mm256_sqrdmlah_dot,
+    avx2_pack_u16, avx_pairwise_avg_epi16_epi8_j,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
@@ -93,27 +93,9 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let v_yg = _mm256_set1_epi16(transform.yg as i16);
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
-    let y0_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        y_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r0_low, v_yr),
-                _mm256_mulhrs_epi16(g0_low, v_yg),
-            ),
-            _mm256_mulhrs_epi16(b0_low, v_yb),
-        ),
-    ));
-
-    let y0_h = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        y_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r0_high, v_yr),
-                _mm256_mulhrs_epi16(g0_high, v_yg),
-            ),
-            _mm256_mulhrs_epi16(b0_high, v_yb),
-        ),
-    ));
+    let y0_yuv = _mm256_sqrdmlah_dot::<A_E>(
+        r0_low, r0_high, g0_low, g0_high, b0_low, b0_high, y_bias, v_yr, v_yg, v_yb,
+    );
 
     let r1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(r_values1, r_values1));
     let r1_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(r_values1, r_values1));
@@ -122,30 +104,9 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let b1_low = _mm256_srli_epi16::<V_S>(_mm256_unpacklo_epi8(b_values1, b_values1));
     let b1_high = _mm256_srli_epi16::<V_S>(_mm256_unpackhi_epi8(b_values1, b_values1));
 
-    let y1_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        y_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r1_low, v_yr),
-                _mm256_mulhrs_epi16(g1_low, v_yg),
-            ),
-            _mm256_mulhrs_epi16(b1_low, v_yb),
-        ),
-    ));
-
-    let y1_h = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-        y_bias,
-        _mm256_add_epi16(
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(r1_high, v_yr),
-                _mm256_mulhrs_epi16(g1_high, v_yg),
-            ),
-            _mm256_mulhrs_epi16(b1_high, v_yb),
-        ),
-    ));
-
-    let y0_yuv = _mm256_packus_epi16(y0_l, y0_h);
-    let y1_yuv = _mm256_packus_epi16(y1_l, y1_h);
+    let y1_yuv = _mm256_sqrdmlah_dot::<A_E>(
+        r1_low, r1_high, g1_low, g1_high, b1_low, b1_high, y_bias, v_yr, v_yg, v_yb,
+    );
 
     _mm256_storeu_si256(y_dst0.as_mut_ptr() as *mut __m256i, y0_yuv);
     _mm256_storeu_si256(y_dst1.as_mut_ptr() as *mut __m256i, y1_yuv);

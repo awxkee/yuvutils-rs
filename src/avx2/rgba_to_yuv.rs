@@ -107,10 +107,10 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let cb = _mm256_sqrdmlah_dot::<A_E>(
-            r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_cb_r, v_cb_g, v_cb_b,
+            r_low, r_high, g_low, g_high, b_low, b_high, uv_bias, v_cb_r, v_cb_g, v_cb_b,
         );
         let cr = _mm256_sqrdmlah_dot::<A_E>(
-            r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_cr_r, v_cr_g, v_cr_b,
+            r_low, r_high, g_low, g_high, b_low, b_high, uv_bias, v_cr_r, v_cr_g, v_cr_b,
         );
 
         _mm256_storeu_si256(u_dst.as_mut_ptr() as *mut __m256i, cb);

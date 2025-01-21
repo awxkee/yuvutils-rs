@@ -112,10 +112,10 @@ unsafe fn encode_32_part<
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let cb = _mm256_sqrdmlah_dot::<A_E>(
-            r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_cb_r, v_cb_g, v_cb_b,
+            r_low, r_high, g_low, g_high, b_low, b_high, uv_bias, v_cb_r, v_cb_g, v_cb_b,
         );
         let cr = _mm256_sqrdmlah_dot::<A_E>(
-            r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_cr_r, v_cr_g, v_cr_b,
+            r_low, r_high, g_low, g_high, b_low, b_high, uv_bias, v_cr_r, v_cr_g, v_cr_b,
         );
 
         let (row0, row1) = match order {
@@ -210,7 +210,9 @@ unsafe fn avx2_rgba_to_nv_impl<
     if cx < width as usize {
         let mut diff = width as usize - cx;
         assert!(diff <= 32);
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
         let mut y_buffer0: [u8; 32] = [0; 32];

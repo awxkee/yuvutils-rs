@@ -64,24 +64,21 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
             vreinterpretq_s16_u16(vexpand_high_8_to_10(y_values0)),
             transform.y_coef as i16,
         );
-
+        let y_low0 = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values0))),
+            transform.y_coef as i16,
+        );
         let y_high1 = vqrdmulhq_n_s16(
             vreinterpretq_s16_u16(vexpand_high_8_to_10(y_values1)),
+            transform.y_coef as i16,
+        );
+        let y_low1 = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values1))),
             transform.y_coef as i16,
         );
 
         let r_high0 = vqmovun_s16(y_high0);
         let r_high1 = vqmovun_s16(y_high1);
-
-        let y_low0 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values0))),
-            transform.y_coef as i16,
-        );
-
-        let y_low1 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values1))),
-            transform.y_coef as i16,
-        );
 
         let r_low0 = vqmovun_s16(y_low0);
         let r_low1 = vqmovun_s16(y_low1);
