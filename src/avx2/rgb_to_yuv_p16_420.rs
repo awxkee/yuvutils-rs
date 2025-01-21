@@ -233,9 +233,13 @@ unsafe fn avx_rgba_to_yuv_impl<
             y1_vl,
         );
 
-        let r_values = _mm256_havg_epi16_epi32(_mm256_avg_epu16(r_values0, r_values1));
-        let g_values = _mm256_havg_epi16_epi32(_mm256_avg_epu16(g_values0, g_values1));
-        let b_values = _mm256_havg_epi16_epi32(_mm256_avg_epu16(b_values0, b_values1));
+        let rhv = _mm256_avg_epu16(r_values0, r_values1);
+        let ghv = _mm256_avg_epu16(g_values0, g_values1);
+        let bhv = _mm256_avg_epu16(b_values0, b_values1);
+
+        let r_values = _mm256_havg_epi16_epi32(rhv);
+        let g_values = _mm256_havg_epi16_epi32(ghv);
+        let b_values = _mm256_havg_epi16_epi32(bhv);
 
         let r_g_values = _mm256_or_si256(r_values, _mm256_slli_epi32::<16>(g_values));
 

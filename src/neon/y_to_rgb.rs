@@ -60,22 +60,15 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
         let y_values0 = vqsubq_u8(y_vals.0, y_corr);
         let y_values1 = vqsubq_u8(y_vals.1, y_corr);
 
-        let y_high0 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vexpand_high_8_to_10(y_values0)),
-            transform.y_coef as i16,
-        );
-        let y_low0 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values0))),
-            transform.y_coef as i16,
-        );
-        let y_high1 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vexpand_high_8_to_10(y_values1)),
-            transform.y_coef as i16,
-        );
-        let y_low1 = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values1))),
-            transform.y_coef as i16,
-        );
+        let yh0 = vexpand_high_8_to_10(y_values0);
+        let yl0 = vexpand8_to_10(vget_low_u8(y_values0));
+        let yh1 = vexpand_high_8_to_10(y_values1);
+        let yl1 = vexpand8_to_10(vget_low_u8(y_values1));
+
+        let y_high0 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yh0), transform.y_coef as i16);
+        let y_low0 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yl0), transform.y_coef as i16);
+        let y_high1 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yh1), transform.y_coef as i16);
+        let y_low1 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yl1), transform.y_coef as i16);
 
         let r_high0 = vqmovun_s16(y_high0);
         let r_high1 = vqmovun_s16(y_high1);
@@ -110,17 +103,13 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
     while cx + 16 < width {
         let y_values = vqsubq_u8(vld1q_u8(y_plane.get_unchecked(cx..).as_ptr()), y_corr);
 
-        let y_high = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vshll_high_n_u8::<V_SCALE>(y_values)),
-            transform.y_coef as i16,
-        );
+        let yh = vshll_high_n_u8::<V_SCALE>(y_values);
+        let yl = vexpand8_to_10(vget_low_u8(y_values));
+
+        let y_high = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yh), transform.y_coef as i16);
+        let y_low = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yl), transform.y_coef as i16);
 
         let r_high = vqmovun_s16(y_high);
-
-        let y_low = vqrdmulhq_n_s16(
-            vreinterpretq_s16_u16(vexpand8_to_10(vget_low_u8(y_values))),
-            transform.y_coef as i16,
-        );
 
         let r_low = vqmovun_s16(y_low);
 

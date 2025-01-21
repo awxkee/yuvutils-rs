@@ -583,19 +583,14 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
 
         let r_vals0 = vqrdmlahq_laneq_s16::<1>(y_high0, v_values0, v_weights);
         let b_vals0 = vqrdmlahq_laneq_s16::<2>(y_high0, u_values0, v_weights);
-        let g_vals0 = vqrdmlahq_laneq_s16::<4>(
-            vqrdmlahq_laneq_s16::<3>(y_high0, v_values0, v_weights),
-            u_values0,
-            v_weights,
-        );
-
         let r_vals1 = vqrdmlahq_laneq_s16::<1>(y_high1, v_values1, v_weights);
         let b_vals1 = vqrdmlahq_laneq_s16::<2>(y_high1, u_values1, v_weights);
-        let g_vals1 = vqrdmlahq_laneq_s16::<4>(
-            vqrdmlahq_laneq_s16::<3>(y_high1, v_values1, v_weights),
-            u_values1,
-            v_weights,
-        );
+
+        let gc0 = vqrdmlahq_laneq_s16::<3>(y_high0, v_values0, v_weights);
+        let gc1 = vqrdmlahq_laneq_s16::<3>(y_high1, v_values1, v_weights);
+
+        let g_vals0 = vqrdmlahq_laneq_s16::<4>(gc0, u_values0, v_weights);
+        let g_vals1 = vqrdmlahq_laneq_s16::<4>(gc1, u_values1, v_weights);
 
         let r_values0 = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(r_vals0, zeros)), v_alpha);
         let g_values0 = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(g_vals0, zeros)), v_alpha);

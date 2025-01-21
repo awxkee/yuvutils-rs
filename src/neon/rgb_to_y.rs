@@ -150,18 +150,6 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISIO
         let g_h_low = vget_low_s16(g_high);
         let b_h_low = vget_low_s16(b_high);
 
-        let mut y_h_high = vmlal_high_lane_s16::<0>(y_bias, r_high, v_weights);
-        let mut y_h_low = vmlal_lane_s16::<0>(y_bias, r_h_low, v_weights);
-        y_h_high = vmlal_high_lane_s16::<1>(y_h_high, g_high, v_weights);
-        y_h_low = vmlal_lane_s16::<1>(y_h_low, g_h_low, v_weights);
-        y_h_high = vmlal_high_lane_s16::<2>(y_h_high, b_high, v_weights);
-        y_h_low = vmlal_lane_s16::<2>(y_h_low, b_h_low, v_weights);
-
-        let y_high = vreinterpretq_u16_s16(vcombine_s16(
-            vshrn_n_s32::<PRECISION>(y_h_low),
-            vshrn_n_s32::<PRECISION>(y_h_high),
-        ));
-
         let r_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values_u8)));
         let g_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values_u8)));
         let b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values_u8)));
@@ -170,12 +158,25 @@ pub(crate) unsafe fn neon_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISIO
         let g_l_low = vget_low_s16(g_low);
         let b_l_low = vget_low_s16(b_low);
 
+        let mut y_h_high = vmlal_high_lane_s16::<0>(y_bias, r_high, v_weights);
+        let mut y_h_low = vmlal_lane_s16::<0>(y_bias, r_h_low, v_weights);
         let mut y_l_high = vmlal_high_lane_s16::<0>(y_bias, r_low, v_weights);
         let mut y_l_low = vmlal_lane_s16::<0>(y_bias, r_l_low, v_weights);
+
+        y_h_high = vmlal_high_lane_s16::<1>(y_h_high, g_high, v_weights);
+        y_h_low = vmlal_lane_s16::<1>(y_h_low, g_h_low, v_weights);
         y_l_high = vmlal_high_lane_s16::<1>(y_l_high, g_low, v_weights);
         y_l_low = vmlal_lane_s16::<1>(y_l_low, g_l_low, v_weights);
+
+        y_h_high = vmlal_high_lane_s16::<2>(y_h_high, b_high, v_weights);
+        y_h_low = vmlal_lane_s16::<2>(y_h_low, b_h_low, v_weights);
         y_l_high = vmlal_high_lane_s16::<2>(y_l_high, b_low, v_weights);
         y_l_low = vmlal_lane_s16::<2>(y_l_low, b_l_low, v_weights);
+
+        let y_high = vreinterpretq_u16_s16(vcombine_s16(
+            vshrn_n_s32::<PRECISION>(y_h_low),
+            vshrn_n_s32::<PRECISION>(y_h_high),
+        ));
 
         let y_low = vreinterpretq_u16_s16(vcombine_s16(
             vshrn_n_s32::<PRECISION>(y_l_low),

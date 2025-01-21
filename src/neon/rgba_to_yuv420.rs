@@ -123,12 +123,19 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         let y1 = vcombine_u8(y1_low, y1_high);
         vst1q_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1);
 
-        let box_r_values = vaddq_u16(vpaddlq_u8(r_values0), vpaddlq_u8(r_values1));
-        let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(box_r_values));
-        let box_g_values = vaddq_u16(vpaddlq_u8(g_values0), vpaddlq_u8(g_values1));
-        let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(box_g_values));
-        let box_b_values = vaddq_u16(vpaddlq_u8(b_values0), vpaddlq_u8(b_values1));
-        let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(box_b_values));
+        let r1l = vpaddlq_u8(r_values0);
+        let r1h = vpaddlq_u8(r_values1);
+        let g1l = vpaddlq_u8(g_values0);
+        let g1h = vpaddlq_u8(g_values1);
+        let b1l = vpaddlq_u8(b_values0);
+        let b1h = vpaddlq_u8(b_values1);
+        let r1hv = vaddq_u16(r1l, r1h);
+        let g1hv = vaddq_u16(g1l, g1h);
+        let b1hv = vaddq_u16(b1l, b1h);
+
+        let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(r1hv));
+        let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(g1hv));
+        let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(b1hv));
 
         let mut cbl = vqrdmlahq_laneq_s16::<3>(uv_bias, r1, v_weights);
         let mut crl = vqrdmlahq_laneq_s16::<6>(uv_bias, r1, v_weights);

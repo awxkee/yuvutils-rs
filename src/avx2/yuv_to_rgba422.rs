@@ -110,6 +110,8 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
         let v_w_cg1 = _mm256_mulhrs_epi16(u_vl, v_g_coeff_2);
         let v_w_cg = _mm256_add_epi16(v_w_cg0, v_w_cg1);
 
+        let y0_10 = _mm256_expand8_unordered_to_10(y_values);
+
         let (u_lo, u_hi) = (
             _mm256_unpacklo_epi16(v_w_cb, v_w_cb),
             _mm256_unpackhi_epi16(v_w_cb, v_w_cb),
@@ -122,8 +124,6 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
             _mm256_unpacklo_epi16(v_w_cg, v_w_cg),
             _mm256_unpackhi_epi16(v_w_cg, v_w_cg),
         );
-
-        let y0_10 = _mm256_expand8_unordered_to_10(y_values);
 
         let y_high = _mm256_mulhrs_epi16(y0_10.1, v_luma_coeff);
 

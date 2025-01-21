@@ -123,9 +123,17 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
         vst1q_u16(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0_vl);
         vst1q_u16(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1_vl);
 
-        let r_values = vrshrn_n_u32::<1>(vpaddlq_u16(vhaddq_u16(r_values0, r_values1)));
-        let g_values = vrshrn_n_u32::<1>(vpaddlq_u16(vhaddq_u16(g_values0, g_values1)));
-        let b_values = vrshrn_n_u32::<1>(vpaddlq_u16(vhaddq_u16(b_values0, b_values1)));
+        let hr = vhaddq_u16(r_values0, r_values1);
+        let hg = vhaddq_u16(g_values0, g_values1);
+        let hb = vhaddq_u16(b_values0, b_values1);
+
+        let rv = vpaddlq_u16(hr);
+        let rg = vpaddlq_u16(hg);
+        let rb = vpaddlq_u16(hb);
+
+        let r_values = vrshrn_n_u32::<1>(rv);
+        let g_values = vrshrn_n_u32::<1>(rg);
+        let b_values = vrshrn_n_u32::<1>(rb);
 
         let mut cb_h = vmlal_laneq_s16::<3>(uv_bias, vreinterpret_s16_u16(r_values), v_weights);
         let mut cr_h = vmlal_laneq_s16::<6>(uv_bias, vreinterpret_s16_u16(r_values), v_weights);

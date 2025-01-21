@@ -123,16 +123,14 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
 
         let u_high = _mm256_sub_epi16(u_high_u16, uv_corr);
         let v_high = _mm256_sub_epi16(v_high_u16, uv_corr);
+        let g_lc_hi = _mm256_mulhrs_epi16(v_high, v_g_coeff_1);
+        let g_lc1_hi = _mm256_mulhrs_epi16(u_high, v_g_coeff_2);
         let y_high0 = _mm256_mulhrs_epi16(y0_10.1, v_luma_coeff);
         let y_high1 = _mm256_mulhrs_epi16(y1_10.1, v_luma_coeff);
 
-        let g_coeff_hi = _mm256_add_epi16(
-            _mm256_mulhrs_epi16(v_high, v_g_coeff_1),
-            _mm256_mulhrs_epi16(u_high, v_g_coeff_2),
-        );
-
         let v_cr_hi = _mm256_mulhrs_epi16(v_high, v_cr_coeff);
         let v_cb_hi = _mm256_mulhrs_epi16(u_high, v_cb_coeff);
+        let g_coeff_hi = _mm256_add_epi16(g_lc_hi, g_lc1_hi);
 
         let r_high0 = _mm256_add_epi16(y_high0, v_cr_hi);
         let b_high0 = _mm256_add_epi16(y_high0, v_cb_hi);
@@ -144,16 +142,14 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
 
         let u_low = _mm256_sub_epi16(u_low_u16, uv_corr);
         let v_low = _mm256_sub_epi16(v_low_u16, uv_corr);
+        let g_lc0_lo = _mm256_mulhrs_epi16(v_low, v_g_coeff_1);
+        let g_lc1_lo = _mm256_mulhrs_epi16(u_low, v_g_coeff_2);
         let y_low0 = _mm256_mulhrs_epi16(y0_10.0, v_luma_coeff);
         let y_low1 = _mm256_mulhrs_epi16(y1_10.0, v_luma_coeff);
 
-        let g_coeff_lo = _mm256_add_epi16(
-            _mm256_mulhrs_epi16(v_low, v_g_coeff_1),
-            _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
-        );
-
         let v_cr_lo = _mm256_mulhrs_epi16(v_low, v_cr_coeff);
         let v_cb_lo = _mm256_mulhrs_epi16(u_low, v_cb_coeff);
+        let g_coeff_lo = _mm256_add_epi16(g_lc0_lo, g_lc1_lo);
 
         let r_low0 = _mm256_add_epi16(y_low0, v_cr_lo);
         let b_low0 = _mm256_add_epi16(y_low0, v_cb_lo);
