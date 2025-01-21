@@ -27,7 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{_mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8_j};
+use crate::avx2::avx2_utils::{
+    _mm256_load_deinterleave_rgb_for_yuv, _mm256_sqrdmlah_dot, avx2_pack_u16,
+    avx_pairwise_avg_epi16_epi8_j,
+};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -88,26 +91,9 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
     let v_yg = _mm256_set1_epi16(transform.yg as i16);
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
-    let y0_l_r = _mm256_mulhrs_epi16(r_low, v_yr);
-    let y0_h_r = _mm256_mulhrs_epi16(r_high, v_yr);
-    let y0_l_g = _mm256_mulhrs_epi16(g_low, v_yg);
-    let y0_h_g = _mm256_mulhrs_epi16(g_high, v_yg);
-    let y0_l_b = _mm256_mulhrs_epi16(b_low, v_yb);
-    let y0_h_b = _mm256_mulhrs_epi16(b_high, v_yb);
-
-    let y0_l_s = _mm256_add_epi16(y0_l_r, y0_l_g);
-    let y0_h_s = _mm256_add_epi16(y0_h_r, y0_h_g);
-
-    let y0_l_k = _mm256_add_epi16(y0_l_s, y0_l_b);
-    let y0_h_k = _mm256_add_epi16(y0_h_s, y0_h_b);
-
-    let y0_l_m = _mm256_add_epi16(y_bias, y0_l_k);
-    let y0_h_m = _mm256_add_epi16(y_bias, y0_h_k);
-
-    let y0_l = _mm256_srli_epi16::<A_E>(y0_l_m);
-    let y0_h = _mm256_srli_epi16::<A_E>(y0_h_m);
-
-    let y0_yuv = _mm256_packus_epi16(y0_l, y0_h);
+    let y0_yuv = _mm256_sqrdmlah_dot::<A_E>(
+        r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_yr, v_yg, v_yb,
+    );
 
     _mm256_storeu_si256(y_dst.as_mut_ptr() as *mut __m256i, y0_yuv);
 
@@ -120,49 +106,12 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
     let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-        let cb_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-            uv_bias,
-            _mm256_add_epi16(
-                _mm256_add_epi16(
-                    _mm256_mulhrs_epi16(r_low, v_cb_r),
-                    _mm256_mulhrs_epi16(g_low, v_cb_g),
-                ),
-                _mm256_mulhrs_epi16(b_low, v_cb_b),
-            ),
-        ));
-        let cr_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-            uv_bias,
-            _mm256_add_epi16(
-                _mm256_add_epi16(
-                    _mm256_mulhrs_epi16(r_low, v_cr_r),
-                    _mm256_mulhrs_epi16(g_low, v_cr_g),
-                ),
-                _mm256_mulhrs_epi16(b_low, v_cr_b),
-            ),
-        ));
-        let cb_h = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-            uv_bias,
-            _mm256_add_epi16(
-                _mm256_add_epi16(
-                    _mm256_mulhrs_epi16(r_high, v_cb_r),
-                    _mm256_mulhrs_epi16(g_high, v_cb_g),
-                ),
-                _mm256_mulhrs_epi16(b_high, v_cb_b),
-            ),
-        ));
-        let cr_h = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-            uv_bias,
-            _mm256_add_epi16(
-                _mm256_add_epi16(
-                    _mm256_mulhrs_epi16(r_high, v_cr_r),
-                    _mm256_mulhrs_epi16(g_high, v_cr_g),
-                ),
-                _mm256_mulhrs_epi16(b_high, v_cr_b),
-            ),
-        ));
-
-        let cb = _mm256_packus_epi16(cb_l, cb_h);
-        let cr = _mm256_packus_epi16(cr_l, cr_h);
+        let cb = _mm256_sqrdmlah_dot::<A_E>(
+            r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_cb_r, v_cb_g, v_cb_b,
+        );
+        let cr = _mm256_sqrdmlah_dot::<A_E>(
+            r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_cr_r, v_cr_g, v_cr_b,
+        );
 
         _mm256_storeu_si256(u_dst.as_mut_ptr() as *mut __m256i, cb);
         _mm256_storeu_si256(v_dst.as_mut_ptr() as *mut __m256i, cr);
