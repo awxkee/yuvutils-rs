@@ -137,9 +137,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpaddlq_u8(r_values0)));
-            let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpaddlq_u8(g_values0)));
-            let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpaddlq_u8(b_values0)));
+            let vpr1 = vpaddlq_u8(r_values0);
+            let vpg1 = vpaddlq_u8(g_values0);
+            let vpb1 = vpaddlq_u8(b_values0);
+            let r1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpr1));
+            let g1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpg1));
+            let b1 = vreinterpretq_s16_u16(vshlq_n_u16::<V_HALF_SCALE>(vpb1));
 
             let mut cbl = vqrdmlahq_laneq_s16::<3>(uv_bias, r1, v_weights);
             let mut crl = vqrdmlahq_laneq_s16::<6>(uv_bias, r1, v_weights);
@@ -197,9 +200,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpaddl_u8(r_values0)));
-            let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpaddl_u8(g_values0)));
-            let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpaddl_u8(b_values0)));
+            let vpr1 = vpaddl_u8(r_values0);
+            let vpg1 = vpaddl_u8(g_values0);
+            let vpb1 = vpaddl_u8(b_values0);
+            let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpr1));
+            let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpg1));
+            let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpb1));
 
             let mut cbl = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
             let mut crl = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);
@@ -282,9 +288,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpaddl_u8(r_values0)));
-            let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpaddl_u8(g_values0)));
-            let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpaddl_u8(b_values0)));
+            let vpr1 = vpaddl_u8(r_values0);
+            let vpg1 = vpaddl_u8(g_values0);
+            let vpb1 = vpaddl_u8(b_values0);
+            let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpr1));
+            let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpg1));
+            let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(vpb1));
 
             let mut cbl = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
             let mut crl = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);

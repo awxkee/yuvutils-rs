@@ -89,14 +89,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 32 < width {
-        let y_values0 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i),
-            y_corr,
-        );
-        let y_values1 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i),
-            y_corr,
-        );
+        let yvl0 = _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i);
+        let yvl1 = _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i);
+
+        let y_values0 = _mm256_subs_epu8(yvl0, y_corr);
+        let y_values1 = _mm256_subs_epu8(yvl1, y_corr);
 
         let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
         let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
@@ -115,10 +112,15 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             shuf_expand,
         );
 
-        let u_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(u_vl, u_vl));
-        let v_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(v_vl, v_vl));
-        let u_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(u_vl, u_vl));
-        let v_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(v_vl, v_vl));
+        let u_hw0 = _mm256_unpackhi_epi8(u_vl, u_vl);
+        let v_hw0 = _mm256_unpackhi_epi8(v_vl, v_vl);
+        let u_hw1 = _mm256_unpacklo_epi8(u_vl, u_vl);
+        let v_hw1 = _mm256_unpacklo_epi8(v_vl, v_vl);
+
+        let u_high_u16 = _mm256_srli_epi16::<6>(u_hw0);
+        let v_high_u16 = _mm256_srli_epi16::<6>(v_hw0);
+        let u_low_u16 = _mm256_srli_epi16::<6>(u_hw1);
+        let v_low_u16 = _mm256_srli_epi16::<6>(v_hw1);
 
         let y0_10 = _mm256_expand8_unordered_to_10(y_values0);
         let y1_10 = _mm256_expand8_unordered_to_10(y_values1);
@@ -197,18 +199,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 16 < width {
-        let y_values0 = _mm256_subs_epu8(
-            _mm256_castsi128_si256(_mm_loadu_si128(
-                y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i
-            )),
-            y_corr,
-        );
-        let y_values1 = _mm256_subs_epu8(
-            _mm256_castsi128_si256(_mm_loadu_si128(
-                y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i
-            )),
-            y_corr,
-        );
+        let yvl0 = _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i);
+        let yvl1 = _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i);
+
+        let y_values0 = _mm256_subs_epu8(_mm256_castsi128_si256(yvl0), y_corr);
+        let y_values1 = _mm256_subs_epu8(_mm256_castsi128_si256(yvl1), y_corr);
 
         let u_values = _xx_load_si64(u_ptr.add(uv_x));
         let v_values = _xx_load_si64(v_ptr.add(uv_x));
