@@ -70,6 +70,47 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     for RgbEncoder<ORIGIN_CHANNELS, SAMPLING, PRECISION>
 {
     fn default() -> Self {
+        if PRECISION == 7 {
+            assert_eq!(PRECISION, 7);
+            #[cfg(all(
+                target_arch = "aarch64",
+                target_feature = "neon",
+                feature = "nightly_i8mm"
+            ))]
+            {
+                if std::arch::is_aarch64_feature_detected!("i8mm") {
+                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    use crate::neon::neon_rgba_to_yuv_dot_rgba;
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoder {
+                            handler: Some(neon_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    }
+                }
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_yuv_dot_rgba;
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoder {
+                            handler: Some(avx2_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    }
+                }
+            }
+        }
+        if PRECISION != 13 {
+            return RgbEncoder { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
@@ -178,6 +219,34 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
             return RgbEncoder420 { handler: None };
         }
+
+        if PRECISION == 7 {
+            assert_eq!(PRECISION, 7);
+            #[cfg(all(
+                target_arch = "aarch64",
+                target_feature = "neon",
+                feature = "nightly_i8mm"
+            ))]
+            {
+                if std::arch::is_aarch64_feature_detected!("i8mm") {
+                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    use crate::neon::neon_rgba_to_yuv_dot_rgba420;
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoder420 {
+                            handler: Some(neon_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                        };
+                    }
+                }
+            }
+        }
+
+        if PRECISION != 13 {
+            return RgbEncoder420 { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
@@ -266,7 +335,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
     }
 }
 
-fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>(
     image: &mut YuvPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
@@ -282,13 +351,12 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
-    const PRECISION: i32 = 13;
 
     let transform = search_forward_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
 
-    const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
-    let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
-    let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
+    let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
+    let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
     let row_encoder = RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, PRECISION>::default();
     let row_encoder420 = RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, PRECISION>::default();
@@ -623,6 +691,63 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     Ok(())
 }
 
+fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+    image: &mut YuvPlanarImageMut<u8>,
+    rgba: &[u8],
+    rgba_stride: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    _accuracy: YuvAccuracy,
+) -> Result<(), YuvError> {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        #[cfg(feature = "nightly_i8mm")]
+        {
+            let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+            if _accuracy == YuvAccuracy::Low
+                && (chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra)
+                && std::arch::is_aarch64_feature_detected!("i8mm")
+            {
+                return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 7>(
+                    image,
+                    rgba,
+                    rgba_stride,
+                    range,
+                    matrix,
+                );
+            }
+            rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+            )
+        }
+        #[cfg(not(feature = "nightly_i8mm"))]
+        rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(image, rgba, rgba_stride, range, matrix)
+    }
+    #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+    {
+        match _accuracy {
+            YuvAccuracy::Low => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 7>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+            ),
+            YuvAccuracy::Balanced => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+            ),
+        }
+    }
+}
+
 /// Convert RGB image data to YUV 422 planar format.
 ///
 /// This function performs RGB to YUV conversion and stores the result in YUV422 planar format,
@@ -647,6 +772,7 @@ pub fn rgb_to_yuv422(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         planar_image,
@@ -654,6 +780,7 @@ pub fn rgb_to_yuv422(
         rgb_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -681,6 +808,7 @@ pub fn bgr_to_yuv422(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         planar_image,
@@ -688,6 +816,7 @@ pub fn bgr_to_yuv422(
         bgr_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -715,6 +844,7 @@ pub fn rgba_to_yuv422(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         planar_image,
@@ -722,6 +852,7 @@ pub fn rgba_to_yuv422(
         rgba_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -749,6 +880,7 @@ pub fn bgra_to_yuv422(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
         planar_image,
@@ -756,6 +888,7 @@ pub fn bgra_to_yuv422(
         bgra_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -783,6 +916,7 @@ pub fn rgb_to_yuv420(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         planar_image,
@@ -790,6 +924,7 @@ pub fn rgb_to_yuv420(
         rgb_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -817,6 +952,7 @@ pub fn bgr_to_yuv420(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         planar_image,
@@ -824,6 +960,7 @@ pub fn bgr_to_yuv420(
         bgr_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -851,6 +988,7 @@ pub fn rgba_to_yuv420(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         planar_image,
@@ -858,6 +996,7 @@ pub fn rgba_to_yuv420(
         rgba_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -885,6 +1024,7 @@ pub fn bgra_to_yuv420(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
         planar_image,
@@ -892,6 +1032,7 @@ pub fn bgra_to_yuv420(
         bgra_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -919,6 +1060,7 @@ pub fn rgb_to_yuv444(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         planar_image,
@@ -926,6 +1068,7 @@ pub fn rgb_to_yuv444(
         rgb_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -953,6 +1096,7 @@ pub fn bgr_to_yuv444(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         planar_image,
@@ -960,6 +1104,7 @@ pub fn bgr_to_yuv444(
         bgr_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -987,6 +1132,7 @@ pub fn rgba_to_yuv444(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         planar_image,
@@ -994,6 +1140,7 @@ pub fn rgba_to_yuv444(
         rgba_stride,
         range,
         matrix,
+        accuracy,
     )
 }
 
@@ -1021,6 +1168,7 @@ pub fn bgra_to_yuv444(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    accuracy: YuvAccuracy,
 ) -> Result<(), YuvError> {
     rgbx_to_yuv8::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
         planar_image,
@@ -1028,5 +1176,6 @@ pub fn bgra_to_yuv444(
         bgra_stride,
         range,
         matrix,
+        accuracy,
     )
 }

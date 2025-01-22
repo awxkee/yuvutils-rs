@@ -13,6 +13,7 @@ yuvutils-rs = { path = "..", features = ["nightly_f16"] }
 
 [features]
 nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
+nightly_i8mm = ["yuvutils-rs/nightly_i8mm"]
 
 [[bin]]
 name = "yuv_to_rgb"

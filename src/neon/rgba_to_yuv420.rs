@@ -183,7 +183,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         y_low1 = vqrdmlahq_laneq_s16::<2>(y_low1, b_low1, v_weights);
 
         let y0_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(y_low0));
-
         let y1_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(y_low1));
 
         vst1_u8(y_dst0.as_mut_ptr(), y0_low);
@@ -228,15 +227,30 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
         assert!(diff <= 8);
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
         let mut src_buffer0: [u8; 8 * 4] = [0; 8 * 4];
         let mut src_buffer1: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer0: [u8; 8] = [0; 8];
         let mut y_buffer1: [u8; 8] = [0; 8];
         let mut u_buffer: [u8; 8] = [0; 8];
         let mut v_buffer: [u8; 8] = [0; 8];
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
@@ -275,12 +289,19 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm420<const ORIGIN_CHANNELS: u8, const PR
         vst1_u8(y_buffer0.as_mut_ptr(), y0_low);
         vst1_u8(y_buffer1.as_mut_ptr(), y1_low);
 
-        let box_r_values = vadd_u16(vpaddl_u8(r_values0), vpaddl_u8(r_values1));
-        let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(box_r_values));
-        let box_g_values = vadd_u16(vpaddl_u8(g_values0), vpaddl_u8(g_values1));
-        let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(box_g_values));
-        let box_b_values = vadd_u16(vpaddl_u8(b_values0), vpaddl_u8(b_values1));
-        let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(box_b_values));
+        let r1l = vpaddl_u8(r_values0);
+        let r1h = vpaddl_u8(r_values1);
+        let g1l = vpaddl_u8(g_values0);
+        let g1h = vpaddl_u8(g_values1);
+        let b1l = vpaddl_u8(b_values0);
+        let b1h = vpaddl_u8(b_values1);
+        let r1hv = vadd_u16(r1l, r1h);
+        let g1hv = vadd_u16(g1l, g1h);
+        let b1hv = vadd_u16(b1l, b1h);
+
+        let r1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(r1hv));
+        let g1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(g1hv));
+        let b1 = vreinterpret_s16_u16(vshl_n_u16::<V_HALF_SCALE>(b1hv));
 
         let mut cbl = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
         let mut crl = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);
@@ -461,18 +482,20 @@ pub(crate) unsafe fn neon_rgba_to_yuv420<const ORIGIN_CHANNELS: u8, const PRECIS
         let y1 = vcombine_u8(vmovn_u16(y1_low), vmovn_u16(y1_high));
         vst1q_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1);
 
-        let r1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vhaddq_u16(
-            vpaddlq_u8(r_values0),
-            vpaddlq_u8(r_values1),
-        )));
-        let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vhaddq_u16(
-            vpaddlq_u8(g_values0),
-            vpaddlq_u8(g_values1),
-        )));
-        let b1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(vhaddq_u16(
-            vpaddlq_u8(b_values0),
-            vpaddlq_u8(b_values1),
-        )));
+        let r1l = vpaddlq_u8(r_values0);
+        let r1h = vpaddlq_u8(r_values1);
+        let g1l = vpaddlq_u8(g_values0);
+        let g1h = vpaddlq_u8(g_values1);
+        let b1l = vpaddlq_u8(b_values0);
+        let b1h = vpaddlq_u8(b_values1);
+
+        let r1hv = vrhaddq_u16(r1l, r1h);
+        let g1hv = vrhaddq_u16(g1l, g1h);
+        let b1hv = vrhaddq_u16(b1l, b1h);
+
+        let r1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(r1hv));
+        let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(g1hv));
+        let b1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(b1hv));
 
         let mut cb_h = vmlal_high_laneq_s16::<3>(uv_bias, r1, v_weights);
         let mut cb_l = vmlal_laneq_s16::<3>(uv_bias, vget_low_s16(r1), v_weights);

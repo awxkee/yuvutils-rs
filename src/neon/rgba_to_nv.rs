@@ -261,15 +261,24 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
 
         assert!(diff <= 8);
-
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer0: [u8; 8] = [0; 8];
         let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
@@ -571,15 +580,23 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
         assert!(diff <= 16);
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];
         let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),

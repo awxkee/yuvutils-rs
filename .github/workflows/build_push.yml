@@ -97,7 +97,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
-      - run: cargo fuzz run rgb_to_yuv -- -max_total_time=15
+      - name: Run macOS-specific fuzzer with feature flag
+        if: runner.os == 'macOS'
+        run: cargo fuzz run rgb_to_yuv --features "nightly_i8mm" -- -max_total_time=15
+      - name: Run Ubuntu-specific fuzzer with feature flag
+        if: runner.os == 'Ubuntu'
+        run: cargo fuzz run rgb_to_yuv -- -max_total_time=15
       - run: cargo fuzz run rgb_to_nv -- -max_total_time=15
       - run: cargo fuzz run rgb_to_y -- -max_total_time=15
       - run: cargo fuzz run rgb16_to_yuv16 -- -max_total_time=15

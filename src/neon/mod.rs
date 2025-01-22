@@ -41,6 +41,10 @@ mod rgba_to_nv;
 mod rgba_to_nv420;
 mod rgba_to_yuv;
 mod rgba_to_yuv420;
+#[cfg(feature = "nightly_i8mm")]
+mod rgba_to_yuv_dot;
+#[cfg(feature = "nightly_i8mm")]
+mod rgba_to_yuv_dot420;
 mod shuffle;
 mod utils;
 mod y_p16_to_rgba16;
@@ -80,6 +84,10 @@ pub(crate) use rgba_to_nv::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row_rdm};
 pub(crate) use rgba_to_nv420::{neon_rgbx_to_nv_row420, neon_rgbx_to_nv_row_rdm420};
 pub(crate) use rgba_to_yuv::{neon_rgba_to_yuv, neon_rgba_to_yuv_rdm};
 pub(crate) use rgba_to_yuv420::{neon_rgba_to_yuv420, neon_rgba_to_yuv_rdm420};
+#[cfg(feature = "nightly_i8mm")]
+pub(crate) use rgba_to_yuv_dot::neon_rgba_to_yuv_dot_rgba;
+#[cfg(feature = "nightly_i8mm")]
+pub(crate) use rgba_to_yuv_dot420::neon_rgba_to_yuv_dot_rgba420;
 pub(crate) use shuffle::ShuffleConverterNeon;
 pub(crate) use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;
 pub(crate) use y_to_rgb::{neon_y_to_rgb_row, neon_y_to_rgb_row_rdm};

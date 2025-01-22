@@ -193,17 +193,31 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
 
         assert!(diff <= 16);
-
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer0: [u8; 16 * 4] = [0; 16 * 4];
         let mut src_buffer1: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];
         let mut y_buffer1: [u8; 16] = [0; 16];
         let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
@@ -380,9 +394,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
             let b1l = vpaddlq_u8(b_values_0);
             let b1h = vpaddlq_u8(b_values_1);
 
-            let r1hv = vhaddq_u16(r1l, r1h);
-            let g1hv = vhaddq_u16(g1l, g1h);
-            let b1hv = vhaddq_u16(b1l, b1h);
+            let r1hv = vrhaddq_u16(r1l, r1h);
+            let g1hv = vrhaddq_u16(g1l, g1h);
+            let b1hv = vrhaddq_u16(b1l, b1h);
 
             let r1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(r1hv));
             let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(g1hv));
@@ -439,17 +453,31 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
 
         assert!(diff <= 16);
-
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer0: [u8; 16 * 4] = [0; 16 * 4];
         let mut src_buffer1: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];
         let mut y_buffer1: [u8; 16] = [0; 16];
         let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
