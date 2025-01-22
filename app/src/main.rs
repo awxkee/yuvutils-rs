@@ -47,8 +47,8 @@ use yuvutils_rs::{
     yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16,
     yuv444_to_rgb, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba,
     yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv24_to_rgb, yuv_nv24_to_rgba, yuyv422_to_rgb,
-    yuyv422_to_yuv420, MirrorMode, RotationMode, SharpYuvGammaTransfer, YuvAccuracy,
-    YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvGrayImageMut,
+    yuyv422_to_yuv420, MirrorMode, RotationMode, SharpYuvGammaTransfer, YuvBiPlanarImageMut,
+    YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvGrayImageMut,
     YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
@@ -121,7 +121,7 @@ fn main() {
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvAccuracy::Low,
+        YuvConversionMode::Fast,
     )
     .unwrap();
     // bytes_16.fill(0);

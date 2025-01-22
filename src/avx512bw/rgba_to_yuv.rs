@@ -429,11 +429,8 @@ unsafe fn avx512_rgba_to_yuv_impl<
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
         assert!(diff <= 32);
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
         let mut y_buffer: [u8; 32] = [0; 32];
@@ -445,6 +442,17 @@ unsafe fn avx512_rgba_to_yuv_impl<
             src_buffer.as_mut_ptr(),
             diff * channels,
         );
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
 
         encode_32_part::<ORIGIN_CHANNELS, SAMPLING, HAS_VBMI>(
             src_buffer.as_slice(),

@@ -920,6 +920,39 @@ pub(crate) unsafe fn _mm512_expand_bp_by2<const BIT_DEPTH: usize>(v: __m512i) ->
     }
 }
 
+#[inline(always)]
+pub(crate) unsafe fn _mm512_set4r_epi8(a0: i8, a1: i8, a2: i8, a3: i8) -> __m512i {
+    _mm512_set_epi8(
+        a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1,
+        a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2,
+        a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0,
+    )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_deinterleave_epi16(a0: __m512i, a1: __m512i) -> (__m512i, __m512i) {
+    let mask0 = _v512_set_epu16(
+        62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 18,
+        16, 14, 12, 10, 8, 6, 4, 2, 0,
+    );
+    let mask1 = _v512_set_epu16(
+        63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 33, 31, 29, 27, 25, 23, 21, 19,
+        17, 15, 13, 11, 9, 7, 5, 3, 1,
+    );
+    let a = _mm512_permutex2var_epi16(a0, mask0, a1);
+    let b = _mm512_permutex2var_epi16(a0, mask1, a1);
+    (a, b)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_deinterleave_epi32(a0: __m512i, a1: __m512i) -> (__m512i, __m512i) {
+    let mask0 = _v512_set_epu32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    let mask1 = _v512_set_epu32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
+    let a = _mm512_permutex2var_epi32(a0, mask0, a1);
+    let b = _mm512_permutex2var_epi32(a0, mask1, a1);
+    (a, b)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

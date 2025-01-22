@@ -32,36 +32,57 @@
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
     rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
-    BufferStoreMut, YuvAccuracy, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    BufferStoreMut, YuvConversionMode, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
-    fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4, YuvAccuracy::Low);
     fuzz_yuv_420(
         data.0,
         data.1,
         data.2,
         data.3,
         data.4,
-        YuvAccuracy::Balanced,
+        YuvConversionMode::Fast,
     );
-    fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4, YuvAccuracy::Low);
+    fuzz_yuv_420(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        YuvConversionMode::Balanced,
+    );
     fuzz_yuv_422(
         data.0,
         data.1,
         data.2,
         data.3,
         data.4,
-        YuvAccuracy::Balanced,
+        YuvConversionMode::Fast,
     );
-    fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4, YuvAccuracy::Low);
+    fuzz_yuv_422(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        YuvConversionMode::Balanced,
+    );
     fuzz_yuv_444(
         data.0,
         data.1,
         data.2,
         data.3,
         data.4,
-        YuvAccuracy::Balanced,
+        YuvConversionMode::Fast,
+    );
+    fuzz_yuv_444(
+        data.0,
+        data.1,
+        data.2,
+        data.3,
+        data.4,
+        YuvConversionMode::Balanced,
     );
 });
 
@@ -71,7 +92,7 @@ fn fuzz_yuv_420(
     y_value: u8,
     u_value: u8,
     v_value: u8,
-    yuv_accuracy: YuvAccuracy,
+    yuv_accuracy: YuvConversionMode,
 ) {
     if i_height == 0 || i_width == 0 {
         return;
@@ -122,7 +143,7 @@ fn fuzz_yuv_422(
     y_value: u8,
     u_value: u8,
     v_value: u8,
-    accuracy: YuvAccuracy,
+    accuracy: YuvConversionMode,
 ) {
     if i_height == 0 || i_width == 0 {
         return;
@@ -173,7 +194,7 @@ fn fuzz_yuv_444(
     y_value: u8,
     u_value: u8,
     v_value: u8,
-    yuv_accuracy: YuvAccuracy,
+    yuv_accuracy: YuvConversionMode,
 ) {
     if i_height == 0 || i_width == 0 {
         return;

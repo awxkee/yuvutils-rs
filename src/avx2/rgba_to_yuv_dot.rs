@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{avx2_pack_u16, shuffle};
+use crate::avx2::avx2_utils::{_mm256_set4r_epi8, avx2_pack_u16, shuffle};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -91,70 +91,14 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
     let uv_bias = _mm256_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let y_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm256_setr_epi8(
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.yr as i8,
             transform.yg as i8,
             transform.yb as i8,
             0,
         )
     } else {
-        _mm256_setr_epi8(
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.yb as i8,
             transform.yg as i8,
             transform.yr as i8,
@@ -162,70 +106,14 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
         )
     };
     let cb_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm256_setr_epi8(
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cb_r as i8,
             transform.cb_g as i8,
             transform.cb_b as i8,
             0,
         )
     } else {
-        _mm256_setr_epi8(
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cb_b as i8,
             transform.cb_g as i8,
             transform.cb_r as i8,
@@ -233,70 +121,14 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
         )
     };
     let cr_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm256_setr_epi8(
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cr_r as i8,
             transform.cr_g as i8,
             transform.cr_b as i8,
             0,
         )
     } else {
-        _mm256_setr_epi8(
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cr_b as i8,
             transform.cr_g as i8,
             transform.cr_r as i8,
@@ -683,70 +515,14 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
     let uv_bias = _mm256_set1_epi32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let y_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm256_setr_epi8(
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.yr as i8,
             transform.yg as i8,
             transform.yb as i8,
             0,
         )
     } else {
-        _mm256_setr_epi8(
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.yb as i8,
             transform.yg as i8,
             transform.yr as i8,
@@ -754,70 +530,14 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
         )
     };
     let cb_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm256_setr_epi8(
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cb_r as i8,
             transform.cb_g as i8,
             transform.cb_b as i8,
             0,
         )
     } else {
-        _mm256_setr_epi8(
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cb_b as i8,
             transform.cb_g as i8,
             transform.cb_r as i8,
@@ -825,70 +545,14 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
         )
     };
     let cr_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm256_setr_epi8(
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cr_r as i8,
             transform.cr_g as i8,
             transform.cr_b as i8,
             0,
         )
     } else {
-        _mm256_setr_epi8(
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
+        _mm256_set4r_epi8(
             transform.cr_b as i8,
             transform.cr_g as i8,
             transform.cr_r as i8,
@@ -936,8 +600,6 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
         } else {
             _mm256_setzero_si256()
         };
-
-        const MASK: i32 = shuffle(3, 1, 2, 0);
 
         let mut y0m = avx2_pack_u32(y0s, y1s);
         let mut y1m = avx2_pack_u32(y2s, y3s);
@@ -1081,8 +743,6 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
             _mm256_setzero_si256()
         };
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
         let mut y0m = avx2_pack_u32(y0s, y1s);
         let mut y1m = avx2_pack_u32(y2s, y3s);
 
@@ -1091,7 +751,7 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
 
         let y_vl = avx2_pack_u16(y0m, y1m);
 
-        _mm256_storeu_si256(y_plane.as_mut_ptr() as *mut _, y_vl);
+        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb0 = _mm256_dpbusds_avx_epi32(uv_bias, v0, cb_weights);

@@ -1102,7 +1102,7 @@ mod tests {
 
     #[test]
     fn test_yuv444_round_trip_full_range() {
-        fn matrix(yuv_accuracy: YuvAccuracy, max_diff: i32) {
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
             let image_width = 256usize;
             let image_height = 256usize;
 
@@ -1198,13 +1198,13 @@ mod tests {
                 );
             }
         }
-        matrix(YuvAccuracy::Balanced, 3);
-        matrix(YuvAccuracy::Low, 6);
+        matrix(YuvConversionMode::Balanced, 3);
+        matrix(YuvConversionMode::Fast, 6);
     }
 
     #[test]
     fn test_yuv444_round_trip_limited_range() {
-        fn matrix(yuv_accuracy: YuvAccuracy, max_diff: i32) {
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
             let image_width = 256usize;
             let image_height = 256usize;
 
@@ -1303,13 +1303,13 @@ mod tests {
                 );
             }
         }
-        matrix(YuvAccuracy::Balanced, 20);
-        matrix(YuvAccuracy::Low, 30);
+        matrix(YuvConversionMode::Balanced, 20);
+        matrix(YuvConversionMode::Fast, 30);
     }
 
     #[test]
     fn test_yuv422_round_trip_full_range() {
-        fn matrix(yuv_accuracy: YuvAccuracy, max_diff: i32) {
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
             let image_width = 256usize;
             let image_height = 256usize;
 
@@ -1427,13 +1427,13 @@ mod tests {
                 );
             }
         }
-        matrix(YuvAccuracy::Balanced, 3);
-        matrix(YuvAccuracy::Low, 7);
+        matrix(YuvConversionMode::Balanced, 3);
+        matrix(YuvConversionMode::Fast, 7);
     }
 
     #[test]
     fn test_yuv422_round_trip_limited_range() {
-        fn matrix(yuv_accuracy: YuvAccuracy, max_diff: i32) {
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
             let image_width = 256usize;
             let image_height = 256usize;
 
@@ -1552,13 +1552,13 @@ mod tests {
             }
         }
 
-        matrix(YuvAccuracy::Low, 15);
-        matrix(YuvAccuracy::Balanced, 10);
+        matrix(YuvConversionMode::Fast, 15);
+        matrix(YuvConversionMode::Balanced, 10);
     }
 
     #[test]
     fn test_yuv420_round_trip_full_range() {
-        fn matrix(yuv_accuracy: YuvAccuracy, max_diff: i32) {
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
             let image_width = 256usize;
             let image_height = 256usize;
 
@@ -1701,13 +1701,13 @@ mod tests {
                 );
             }
         }
-        matrix(YuvAccuracy::Balanced, 47);
-        matrix(YuvAccuracy::Low, 50);
+        matrix(YuvConversionMode::Balanced, 47);
+        matrix(YuvConversionMode::Fast, 50);
     }
 
     #[test]
     fn test_yuv420_round_trip_limited_range() {
-        fn matrix(yuv_accuracy: YuvAccuracy, max_diff: i32) {
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
             let image_width = 256usize;
             let image_height = 256usize;
 
@@ -1853,7 +1853,7 @@ mod tests {
                 );
             }
         }
-        matrix(YuvAccuracy::Balanced, 55);
-        matrix(YuvAccuracy::Low, 60);
+        matrix(YuvConversionMode::Balanced, 55);
+        matrix(YuvConversionMode::Fast, 60);
     }
 }

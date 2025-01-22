@@ -388,8 +388,6 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             _mm_setzero_si128()
         };
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
         let mut y0m = _mm_hadd_epi16(y0s, y1s);
         let mut y1m = _mm_hadd_epi16(y2s, y3s);
 

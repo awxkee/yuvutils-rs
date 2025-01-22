@@ -1078,3 +1078,11 @@ pub(crate) unsafe fn _mm256_sqrdmlah_dot<const A_E: i32>(
     let y0_yuv = _mm256_packus_epi16(y0_l, y0_h);
     y0_yuv
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_set4r_epi8(e00: i8, e01: i8, e02: i8, e03: i8) -> __m256i {
+    _mm256_setr_epi8(
+        e00, e01, e02, e03, e00, e01, e02, e03, e00, e01, e02, e03, e00, e01, e02, e03, e00, e01,
+        e02, e03, e00, e01, e02, e03, e00, e01, e02, e03, e00, e01, e02, e03,
+    )
+}

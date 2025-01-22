@@ -707,13 +707,13 @@ pub(crate) fn search_inverse_transform(
 }
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
-pub enum YuvAccuracy {
+pub enum YuvConversionMode {
     /// Minimal precision, but fastest option.
     /// This may encode with notable changes in the image,
     /// consider using this when you're migrating from libyuv and want same,
     /// or fastest performance, or you just need the fastest available performance.
     /// On aarch64 without `i8mm` feature activated this does nothing.
-    Low,
+    Fast,
     /// Mixed, but high precision, very good performance.
     /// This is still a VERY fast method, with much more precise encoding.
     /// This option is more suitable for common encoding, where fast speed is critical along the
@@ -722,11 +722,11 @@ pub enum YuvAccuracy {
     Balanced,
 }
 
-impl Display for YuvAccuracy {
+impl Display for YuvConversionMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            YuvAccuracy::Low => f.write_str("YuvAccuracy::Low"),
-            YuvAccuracy::Balanced => f.write_str("YuvAccuracy::Balanced"),
+            YuvConversionMode::Fast => f.write_str("YuvAccuracy::Fast"),
+            YuvConversionMode::Balanced => f.write_str("YuvAccuracy::Balanced"),
         }
     }
 }

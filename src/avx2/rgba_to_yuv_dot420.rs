@@ -880,8 +880,6 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
         let v2_s = _mm256_permutevar8x32_epi32(uh2, v422_shuffle);
         let v3_s = _mm256_permutevar8x32_epi32(uh3, v422_shuffle);
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
         let mut y0m = avx2_pack_u32(y0s, y1s);
         let mut y1m = avx2_pack_u32(y2s, y3s);
         let mut y2m = avx2_pack_u32(y4s, y5s);
@@ -1013,8 +1011,6 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
         let v1_s = _mm256_permutevar8x32_epi32(uh1, v422_shuffle);
         let v2_s = _mm256_permutevar8x32_epi32(uh2, v422_shuffle);
         let v3_s = _mm256_permutevar8x32_epi32(uh3, v422_shuffle);
-
-        const MASK: i32 = shuffle(3, 1, 2, 0);
 
         let mut y0m = avx2_pack_u32(y0s, y1s);
         let mut y1m = avx2_pack_u32(y2s, y3s);
