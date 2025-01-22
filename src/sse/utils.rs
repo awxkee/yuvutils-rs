@@ -34,6 +34,11 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[inline(always)]
+pub(crate) const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
+    ((z << 6) | (y << 4) | (x << 2) | w) as i32
+}
+
+#[inline(always)]
 pub(crate) unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
     #[rustfmt::skip]
     let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
