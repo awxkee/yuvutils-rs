@@ -60,6 +60,7 @@ mod yuv_to_yuv2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 mod rgba_to_yuv_dot;
+mod rgba_to_yuv_dot420;
 
 #[cfg(feature = "nightly_avx512")]
 pub(crate) use avx2_utils::{
@@ -96,3 +97,4 @@ pub(crate) use yuv_to_yuv2::yuv_to_yuy2_avx2_row;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_avx;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_avx;
 pub(crate) use rgba_to_yuv_dot::avx2_rgba_to_yuv_dot_rgba;
+pub(crate) use rgba_to_yuv_dot420::avx2_rgba_to_yuv_dot_rgba420;

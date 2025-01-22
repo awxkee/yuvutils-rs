@@ -241,6 +241,21 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     }
                 }
             }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_yuv_dot_rgba420;
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoder420 {
+                            handler: Some(avx2_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                        };
+                    }
+                }
+            }
         }
 
         if PRECISION != 13 {
