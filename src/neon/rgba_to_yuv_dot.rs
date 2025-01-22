@@ -441,6 +441,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
             vst1_u8(u_buffer.as_mut_ptr(), cb_vl);
             vst1_u8(v_buffer.as_mut_ptr(), cr_vl);
         }
+
         std::ptr::copy_nonoverlapping(
             y_buffer.as_ptr(),
             y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),

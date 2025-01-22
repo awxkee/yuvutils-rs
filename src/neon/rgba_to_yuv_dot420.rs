@@ -291,6 +291,17 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
         let mut u_buffer: [u8; 16] = [0; 16];
         let mut v_buffer: [u8; 16] = [0; 16];
 
+        std::ptr::copy_nonoverlapping(
+            rgba0.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer0.as_mut_ptr(),
+            diff * channels,
+        );
+        std::ptr::copy_nonoverlapping(
+            rgba1.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer1.as_mut_ptr(),
+            diff * channels,
+        );
+
         // Replicate last item to one more position for subsampling
         if diff % 2 != 0 {
             let lst = (width - 1) * channels;

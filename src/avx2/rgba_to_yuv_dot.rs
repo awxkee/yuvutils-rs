@@ -603,6 +603,12 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
             );
         }
 
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
         cx += diff;
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
