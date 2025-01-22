@@ -746,7 +746,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     {
         let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
         if _accuracy == YuvAccuracy::Low
-            && (chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra)
+            && (chans == YuvSourceChannels::Rgb || chans == YuvSourceChannels::Bgr)
         {
             return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
                 image,
