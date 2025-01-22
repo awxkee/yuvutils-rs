@@ -444,14 +444,14 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
         cx += 32;
     }
 
-    /*if cx < width {
+    if cx < width {
         let diff = width - cx;
-        assert!(diff <= 16);
+        assert!(diff <= 32);
 
-        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
-        let mut y_buffer: [u8; 16] = [0; 16];
-        let mut u_buffer: [u8; 16] = [0; 16];
-        let mut v_buffer: [u8; 16] = [0; 16];
+        let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
+        let mut y_buffer: [u8; 32] = [0; 32];
+        let mut u_buffer: [u8; 32] = [0; 32];
+        let mut v_buffer: [u8; 32] = [0; 32];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
@@ -470,116 +470,138 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
             }
         }
 
-        let v0 = vld1q_u8(src_buffer.as_ptr());
-        let v1 = vld1q_u8(src_buffer.as_ptr().add(16));
-        let v2 = vld1q_u8(src_buffer.as_ptr().add(32));
-        let v3 = vld1q_u8(src_buffer.as_ptr().add(48));
+        let v0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const __m256i);
+        let v1 = _mm256_loadu_si256(src_buffer.as_ptr().add(32) as *const __m256i);
+        let v2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
+        let v3 = _mm256_loadu_si256(src_buffer.as_ptr().add(96) as *const __m256i);
 
-        let y0 = vusdotq_s32(y_bias, v0, y_weights);
-        let y1 = vusdotq_s32(y_bias, v1, y_weights);
-        let y2 = vusdotq_s32(y_bias, v2, y_weights);
-        let y3 = vusdotq_s32(y_bias, v3, y_weights);
+        let y0s = _mm256_maddubs_epi16(v0, y_weights);
+        let y1s = _mm256_maddubs_epi16(v1, y_weights);
+        let y2s = _mm256_maddubs_epi16(v2, y_weights);
+        let y3s = _mm256_maddubs_epi16(v3, y_weights);
 
         let v0_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v0, v422_shuffle)
+            _mm256_permutevar8x32_epi32(v0, v422_shuffle)
         } else {
-            vdupq_n_u8(0)
+            _mm256_setzero_si256()
         };
         let v1_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v1, v422_shuffle)
+            _mm256_permutevar8x32_epi32(v1, v422_shuffle)
         } else {
-            vdupq_n_u8(0)
+            _mm256_setzero_si256()
         };
         let v2_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v2, v422_shuffle)
+            _mm256_permutevar8x32_epi32(v2, v422_shuffle)
         } else {
-            vdupq_n_u8(0)
+            _mm256_setzero_si256()
         };
         let v3_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v3, v422_shuffle)
+            _mm256_permutevar8x32_epi32(v3, v422_shuffle)
         } else {
-            vdupq_n_u8(0)
+            _mm256_setzero_si256()
         };
 
-        let yn_0 = vqshrun_n_s32::<A_E>(y0);
-        let yn_1 = vqshrun_n_s32::<A_E>(y1);
-        let yn_2 = vqshrun_n_s32::<A_E>(y2);
-        let yn_3 = vqshrun_n_s32::<A_E>(y3);
+        const MASK: i32 = shuffle(3, 1, 2, 0);
 
-        let y_vl = vcombine_u8(
-            vqmovn_u16(vcombine_u16(yn_0, yn_1)),
-            vqmovn_u16(vcombine_u16(yn_2, yn_3)),
-        );
+        let mut y0m = _mm256_hadd_epi16(y0s, y1s);
+        let mut y1m = _mm256_hadd_epi16(y2s, y3s);
 
-        vst1q_u8(y_buffer.as_mut_ptr(), y_vl);
+        y0m = _mm256_add_epi16(y0m, y_bias);
+        y1m = _mm256_add_epi16(y1m, y_bias);
+
+        y0m = _mm256_srai_epi16::<A_E>(y0m);
+        y1m = _mm256_srai_epi16::<A_E>(y1m);
+
+        y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
+        y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
+
+        let y_vl = avx2_pack_u16(y0m, y1m);
+
+        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb0 = vusdotq_s32(uv_bias, v0, cb_weights);
-            let cb1 = vusdotq_s32(uv_bias, v1, cb_weights);
-            let cb2 = vusdotq_s32(uv_bias, v2, cb_weights);
-            let cb3 = vusdotq_s32(uv_bias, v3, cb_weights);
+            let cb0 = _mm256_maddubs_epi16(v0, cb_weights);
+            let cb1 = _mm256_maddubs_epi16(v1, cb_weights);
+            let cb2 = _mm256_maddubs_epi16(v2, cb_weights);
+            let cb3 = _mm256_maddubs_epi16(v3, cb_weights);
 
-            let cr0 = vusdotq_s32(uv_bias, v0, cr_weights);
-            let cr1 = vusdotq_s32(uv_bias, v1, cr_weights);
-            let cr2 = vusdotq_s32(uv_bias, v2, cr_weights);
-            let cr3 = vusdotq_s32(uv_bias, v3, cr_weights);
+            let cr0 = _mm256_maddubs_epi16(v0, cr_weights);
+            let cr1 = _mm256_maddubs_epi16(v1, cr_weights);
+            let cr2 = _mm256_maddubs_epi16(v2, cr_weights);
+            let cr3 = _mm256_maddubs_epi16(v3, cr_weights);
 
-            let cb_0 = vqshrun_n_s32::<A_E>(cb0);
-            let cb_1 = vqshrun_n_s32::<A_E>(cb1);
-            let cb_2 = vqshrun_n_s32::<A_E>(cb2);
-            let cb_3 = vqshrun_n_s32::<A_E>(cb3);
+            let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
+            let mut cb01 = _mm256_hadd_epi16(cb2, cb3);
 
-            let cr_0 = vqshrun_n_s32::<A_E>(cr0);
-            let cr_1 = vqshrun_n_s32::<A_E>(cr1);
-            let cr_2 = vqshrun_n_s32::<A_E>(cr2);
-            let cr_3 = vqshrun_n_s32::<A_E>(cr3);
+            let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
+            let mut cr01 = _mm256_hadd_epi16(cr2, cr3);
 
-            let cb_vl = vcombine_u8(
-                vqmovn_u16(vcombine_u16(cb_0, cb_1)),
-                vqmovn_u16(vcombine_u16(cb_2, cb_3)),
-            );
+            cb00 = _mm256_add_epi16(cb00, uv_bias);
+            cb01 = _mm256_add_epi16(cb01, uv_bias);
+            cr00 = _mm256_add_epi16(cr00, uv_bias);
+            cr01 = _mm256_add_epi16(cr01, uv_bias);
 
-            let cr_vl = vcombine_u8(
-                vqmovn_u16(vcombine_u16(cr_0, cr_1)),
-                vqmovn_u16(vcombine_u16(cr_2, cr_3)),
-            );
+            cb00 = _mm256_srai_epi16::<A_E>(cb00);
+            cb01 = _mm256_srai_epi16::<A_E>(cb01);
+            cr00 = _mm256_srai_epi16::<A_E>(cr00);
+            cr01 = _mm256_srai_epi16::<A_E>(cr01);
 
-            vst1q_u8(u_buffer.as_mut_ptr(), cb_vl);
-            vst1q_u8(v_buffer.as_mut_ptr(), cr_vl);
+            cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
+            cb01 = _mm256_permute4x64_epi64::<MASK>(cb01);
+            cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
+            cr01 = _mm256_permute4x64_epi64::<MASK>(cr01);
+
+            let cb_vl = avx2_pack_u16(cb00, cb01);
+            let cr_vl = avx2_pack_u16(cr00, cr01);
+
+            _mm256_storeu_si256(u_buffer.as_mut_ptr() as *mut _, cb_vl);
+            _mm256_storeu_si256(v_buffer.as_mut_ptr() as *mut _, cr_vl);
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let v0 = vhadd_u8(vget_low_u8(v0_s), vget_high_u8(v0_s));
-            let v1 = vhadd_u8(vget_low_u8(v1_s), vget_high_u8(v1_s));
-            let v2 = vhadd_u8(vget_low_u8(v2_s), vget_high_u8(v2_s));
-            let v3 = vhadd_u8(vget_low_u8(v3_s), vget_high_u8(v3_s));
+            let h0 = _mm256_extracti128_si256::<1>(v0_s);
+            let h1 = _mm256_extracti128_si256::<1>(v1_s);
+            let h2 = _mm256_extracti128_si256::<1>(v2_s);
+            let h3 = _mm256_extracti128_si256::<1>(v3_s);
 
-            let v0_f = vcombine_u8(v0, v1);
-            let v1_f = vcombine_u8(v2, v3);
+            let vh0 = _mm_avg_epu8(_mm256_castsi256_si128(v0_s), h0);
+            let vh1 = _mm_avg_epu8(_mm256_castsi256_si128(v1_s), h1);
+            let vh2 = _mm_avg_epu8(_mm256_castsi256_si128(v2_s), h2);
+            let vh3 = _mm_avg_epu8(_mm256_castsi256_si128(v3_s), h3);
 
-            let cb0 = vusdotq_s32(uv_bias, v0_f, cb_weights);
-            let cb1 = vusdotq_s32(uv_bias, v1_f, cb_weights);
+            let v0_f = _mm256_set_m128i(vh1, vh0);
+            let v1_f = _mm256_set_m128i(vh3, vh2);
 
-            let cr0 = vusdotq_s32(uv_bias, v0_f, cr_weights);
-            let cr1 = vusdotq_s32(uv_bias, v1_f, cr_weights);
+            let cb0 = _mm256_maddubs_epi16(v0_f, cb_weights);
+            let cb1 = _mm256_maddubs_epi16(v1_f, cb_weights);
 
-            let cb_0 = vqshrun_n_s32::<A_E>(cb0);
-            let cb_1 = vqshrun_n_s32::<A_E>(cb1);
+            let cr0 = _mm256_maddubs_epi16(v0_f, cr_weights);
+            let cr1 = _mm256_maddubs_epi16(v1_f, cr_weights);
 
-            let cr_0 = vqshrun_n_s32::<A_E>(cr0);
-            let cr_1 = vqshrun_n_s32::<A_E>(cr1);
+            let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
+            let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
 
-            let cb_vl = vqmovn_u16(vcombine_u16(cb_0, cb_1));
-            let cr_vl = vqmovn_u16(vcombine_u16(cr_0, cr_1));
+            cb00 = _mm256_add_epi16(cb00, uv_bias);
+            cr00 = _mm256_add_epi16(cr00, uv_bias);
 
-            vst1_u8(u_buffer.as_mut_ptr(), cb_vl);
-            vst1_u8(v_buffer.as_mut_ptr(), cr_vl);
+            cb00 = _mm256_srai_epi16::<A_E>(cb00);
+            cr00 = _mm256_srai_epi16::<A_E>(cr00);
+
+            cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
+            cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
+
+            let cb_vl = avx2_pack_u16(cb00, cb00);
+            let cr_vl = avx2_pack_u16(cr00, cr00);
+
+            _mm_storeu_si128(
+                u_buffer.as_mut_ptr() as *mut _,
+                _mm256_castsi256_si128(cb_vl),
+            );
+            _mm_storeu_si128(
+                v_buffer.as_mut_ptr() as *mut _,
+                _mm256_castsi256_si128(cr_vl),
+            );
         }
-        std::ptr::copy_nonoverlapping(
-            y_buffer.as_ptr(),
-            y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),
-            diff,
-        );
 
         cx += diff;
 
@@ -613,7 +635,7 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
 
             ux += hv;
         }
-    }*/
+    }
 
     ProcessedOffset { cx, ux }
 }
