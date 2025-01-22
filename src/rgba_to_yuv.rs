@@ -744,6 +744,18 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     }
     #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
     {
+        let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+        if _accuracy == YuvAccuracy::Low
+            && (chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra)
+        {
+            return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+            );
+        }
         match _accuracy {
             YuvAccuracy::Low => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 7>(
                 image,

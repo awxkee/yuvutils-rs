@@ -40,6 +40,8 @@ mod rgb_to_yuv_p16;
 mod rgb_to_yuv_p16_420;
 mod rgba_to_yuv;
 mod rgba_to_yuv420;
+mod rgba_to_yuv_dot;
+mod rgba_to_yuv_dot420;
 mod shuffle;
 mod y_to_rgba;
 mod y_to_rgba_alpha;
@@ -59,8 +61,6 @@ mod yuv_to_rgba_alpha;
 mod yuv_to_yuv2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
-mod rgba_to_yuv_dot;
-mod rgba_to_yuv_dot420;
 
 #[cfg(feature = "nightly_avx512")]
 pub(crate) use avx2_utils::{
@@ -77,6 +77,8 @@ pub(crate) use rgb_to_yuv_p16::avx_rgba_to_yuv_p16;
 pub(crate) use rgb_to_yuv_p16_420::avx_rgba_to_yuv_p16_420;
 pub(crate) use rgba_to_yuv::avx2_rgba_to_yuv;
 pub(crate) use rgba_to_yuv420::avx2_rgba_to_yuv420;
+pub(crate) use rgba_to_yuv_dot::avx2_rgba_to_yuv_dot_rgba;
+pub(crate) use rgba_to_yuv_dot420::avx2_rgba_to_yuv_dot_rgba420;
 pub(crate) use shuffle::{ShuffleConverterAvx2, ShuffleQTableConverterAvx2};
 pub(crate) use y_to_rgba::avx2_y_to_rgba_row;
 pub(crate) use y_to_rgba_alpha::avx2_y_to_rgba_alpha_row;
@@ -96,5 +98,3 @@ pub(crate) use yuv_to_rgba_alpha::avx2_yuv_to_rgba_alpha;
 pub(crate) use yuv_to_yuv2::yuv_to_yuy2_avx2_row;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_avx;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_avx;
-pub(crate) use rgba_to_yuv_dot::avx2_rgba_to_yuv_dot_rgba;
-pub(crate) use rgba_to_yuv_dot420::avx2_rgba_to_yuv_dot_rgba420;
