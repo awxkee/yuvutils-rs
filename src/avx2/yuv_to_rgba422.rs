@@ -86,29 +86,31 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 32 < width {
-        let y_values =
-            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
-
+        let yvl0 = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);
         let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
         let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
 
+        let y_values = _mm256_subs_epu8(yvl0, y_corr);
+
         let u_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(u_values));
         let v_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(v_values));
-        let u_vl = _mm256_sub_epi16(
-            _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(u_k, u_k)),
-            uv_corr,
-        );
-        let v_vl = _mm256_sub_epi16(
-            _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(v_k, v_k)),
-            uv_corr,
-        );
+
+        let u_k_w = _mm256_unpacklo_epi8(u_k, u_k);
+        let v_k_w = _mm256_unpacklo_epi8(v_k, v_k);
+
+        let u_k_k = _mm256_srli_epi16::<6>(u_k_w);
+        let v_k_k = _mm256_srli_epi16::<6>(v_k_w);
+
+        let u_vl = _mm256_sub_epi16(u_k_k, uv_corr);
+        let v_vl = _mm256_sub_epi16(v_k_k, uv_corr);
 
         let v_w_cb = _mm256_mulhrs_epi16(u_vl, v_cb_coeff);
         let v_w_cr = _mm256_mulhrs_epi16(v_vl, v_cr_coeff);
-        let v_w_cg = _mm256_add_epi16(
-            _mm256_mulhrs_epi16(v_vl, v_g_coeff_1),
-            _mm256_mulhrs_epi16(u_vl, v_g_coeff_2),
-        );
+        let v_w_cg0 = _mm256_mulhrs_epi16(v_vl, v_g_coeff_1);
+        let v_w_cg1 = _mm256_mulhrs_epi16(u_vl, v_g_coeff_2);
+        let v_w_cg = _mm256_add_epi16(v_w_cg0, v_w_cg1);
+
+        let y0_10 = _mm256_expand8_unordered_to_10(y_values);
 
         let (u_lo, u_hi) = (
             _mm256_unpacklo_epi16(v_w_cb, v_w_cb),
@@ -122,8 +124,6 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
             _mm256_unpacklo_epi16(v_w_cg, v_w_cg),
             _mm256_unpackhi_epi16(v_w_cg, v_w_cg),
         );
-
-        let y0_10 = _mm256_expand8_unordered_to_10(y_values);
 
         let y_high = _mm256_mulhrs_epi16(y0_10.1, v_luma_coeff);
 
@@ -158,25 +158,25 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 16 < width {
-        let y_values = _mm256_subs_epu8(
-            _mm256_castsi128_si256(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i)),
-            y_corr,
-        );
-
-        let (u_low_u16, v_low_u16);
-
+        let yvl0 = _mm256_castsi128_si256(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i));
         let u_values = _xx_load_si64(u_ptr.add(uv_x));
         let v_values = _xx_load_si64(v_ptr.add(uv_x));
 
-        let u_vl = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(_mm_unpacklo_epi8(
-            u_values, u_values,
-        )));
-        let v_vl = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(_mm_unpacklo_epi8(
-            v_values, v_values,
-        )));
+        let y_values = _mm256_subs_epu8(yvl0, y_corr);
 
-        u_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(u_vl, u_vl));
-        v_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(v_vl, v_vl));
+        let (u_low_u16, v_low_u16);
+
+        let u_k_w = _mm_unpacklo_epi8(u_values, u_values);
+        let v_k_w = _mm_unpacklo_epi8(v_values, v_values);
+
+        let u_vl = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(u_k_w));
+        let v_vl = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(v_k_w));
+
+        let u_vl0 = _mm256_unpacklo_epi8(u_vl, u_vl);
+        let v_vl0 = _mm256_unpacklo_epi8(v_vl, v_vl);
+
+        u_low_u16 = _mm256_srli_epi16::<6>(u_vl0);
+        v_low_u16 = _mm256_srli_epi16::<6>(v_vl0);
 
         let y0_10 = _mm256_expand8_unordered_to_10(_mm256_permute4x64_epi64::<0x50>(y_values));
 
@@ -184,15 +184,14 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
         let v_low = _mm256_sub_epi16(v_low_u16, uv_corr);
         let y_low = _mm256_mulhrs_epi16(y0_10.0, v_luma_coeff);
 
-        let r_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(v_low, v_cr_coeff));
-        let b_low = _mm256_add_epi16(y_low, _mm256_mulhrs_epi16(u_low, v_cb_coeff));
-        let g_low = _mm256_sub_epi16(
-            y_low,
-            _mm256_add_epi16(
-                _mm256_mulhrs_epi16(v_low, v_g_coeff_1),
-                _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
-            ),
-        );
+        let r_c = _mm256_mulhrs_epi16(v_low, v_cr_coeff);
+        let b_c = _mm256_mulhrs_epi16(u_low, v_cb_coeff);
+        let g_c0 = _mm256_mulhrs_epi16(v_low, v_g_coeff_1);
+        let g_c1 = _mm256_mulhrs_epi16(u_low, v_g_coeff_2);
+
+        let r_low = _mm256_add_epi16(y_low, r_c);
+        let b_low = _mm256_add_epi16(y_low, b_c);
+        let g_low = _mm256_sub_epi16(y_low, _mm256_add_epi16(g_c0, g_c1));
 
         let r_values = avx2_pack_u16(r_low, _mm256_setzero_si256());
         let g_values = avx2_pack_u16(g_low, _mm256_setzero_si256());

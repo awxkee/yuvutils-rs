@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange};
+use crate::yuv_support::{CbCrForwardTransform, CbCrInverseTransform, YuvChromaRange};
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -45,5 +45,59 @@ pub(crate) trait WideRowInversionHandler<V, K> {
         width: u32,
         chroma: YuvChromaRange,
         transform: &CbCrInverseTransform<K>,
+    ) -> ProcessedOffset;
+}
+
+pub(crate) trait WideRowForwardHandler<V, K> {
+    fn handle_row(
+        &self,
+        y_plane: &mut [V],
+        u_plane: &mut [V],
+        v_plane: &mut [V],
+        rgba: &[V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<K>,
+    ) -> ProcessedOffset;
+}
+
+pub(crate) trait WideRowForward420Handler<V, K> {
+    fn handle_row(
+        &self,
+        y_plane0: &mut [V],
+        y_plane1: &mut [V],
+        u_plane: &mut [V],
+        v_plane: &mut [V],
+        rgba0: &[V],
+        rgba1: &[V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<K>,
+    ) -> ProcessedOffset;
+}
+
+pub(crate) trait WideRowForwardBiPlanar420Handler<V, K> {
+    fn handle_rows(
+        &self,
+        rgba0: &[V],
+        rgba1: &[V],
+        y_plane0: &mut [V],
+        y_plane1: &mut [V],
+        uv_plane: &mut [V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<K>,
+    ) -> ProcessedOffset;
+}
+
+pub(crate) trait WideRowForwardBiPlanarHandler<V, K> {
+    fn handle_row(
+        &self,
+        rgba: &[V],
+        y_plane: &mut [V],
+        uv_plane: &mut [V],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<K>,
     ) -> ProcessedOffset;
 }

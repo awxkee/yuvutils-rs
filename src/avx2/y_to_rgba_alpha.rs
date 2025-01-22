@@ -71,16 +71,14 @@ unsafe fn avx2_y_to_rgba_alpha_row_impl<const DESTINATION_CHANNELS: u8>(
     let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
 
     while cx + 64 < width {
-        let y_values0 =
-            _mm256_subs_epu8(_mm256_loadu_si256(y_ptr.add(cx) as *const __m256i), y_corr);
-        let y_values1 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_ptr.add(cx + 32) as *const __m256i),
-            y_corr,
-        );
-
+        let yvl0 = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);
+        let yvl1 = _mm256_loadu_si256(y_ptr.add(cx + 32) as *const __m256i);
         let a_values0 = _mm256_loadu_si256(a_plane.get_unchecked(cx..).as_ptr() as *const __m256i);
         let a_values1 =
             _mm256_loadu_si256(a_plane.get_unchecked((cx + 32)..).as_ptr() as *const __m256i);
+
+        let y_values0 = _mm256_subs_epu8(yvl0, y_corr);
+        let y_values1 = _mm256_subs_epu8(yvl1, y_corr);
 
         let y0 = _mm256_expand8_unordered_to_10(y_values0);
         let y1 = _mm256_expand8_unordered_to_10(y_values1);

@@ -216,8 +216,11 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
     }
 
     if cx < width as usize {
-        let diff = width as usize - cx;
+        let mut diff = width as usize - cx;
         assert!(diff <= 8);
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mut y_buffer: [u16; 8] = [0; 8];
         let mut u_buffer: [u16; 8] = [0; 8];

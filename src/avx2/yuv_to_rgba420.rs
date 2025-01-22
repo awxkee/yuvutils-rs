@@ -89,52 +89,48 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 32 < width {
-        let y_values0 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i),
-            y_corr,
-        );
-        let y_values1 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i),
-            y_corr,
-        );
-
+        let yvl0 = _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i);
+        let yvl1 = _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i);
         let u_values = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
         let v_values = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
+
+        let y_values0 = _mm256_subs_epu8(yvl0, y_corr);
+        let y_values1 = _mm256_subs_epu8(yvl1, y_corr);
 
         let shuf_expand = _mm256_setr_epi8(
             0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13,
             13, 14, 14, 15, 15,
         );
 
-        let u_vl = _mm256_shuffle_epi8(
-            _mm256_inserti128_si256::<1>(_mm256_castsi128_si256(u_values), u_values),
-            shuf_expand,
-        );
-        let v_vl = _mm256_shuffle_epi8(
-            _mm256_inserti128_si256::<1>(_mm256_castsi128_si256(v_values), v_values),
-            shuf_expand,
-        );
+        let u_cr = _mm256_inserti128_si256::<1>(_mm256_castsi128_si256(u_values), u_values);
+        let v_cr = _mm256_inserti128_si256::<1>(_mm256_castsi128_si256(v_values), v_values);
 
-        let u_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(u_vl, u_vl));
-        let v_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(v_vl, v_vl));
-        let u_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(u_vl, u_vl));
-        let v_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(v_vl, v_vl));
+        let u_vl = _mm256_shuffle_epi8(u_cr, shuf_expand);
+        let v_vl = _mm256_shuffle_epi8(v_cr, shuf_expand);
+
+        let u_hw0 = _mm256_unpackhi_epi8(u_vl, u_vl);
+        let v_hw0 = _mm256_unpackhi_epi8(v_vl, v_vl);
+        let u_hw1 = _mm256_unpacklo_epi8(u_vl, u_vl);
+        let v_hw1 = _mm256_unpacklo_epi8(v_vl, v_vl);
+
+        let u_high_u16 = _mm256_srli_epi16::<6>(u_hw0);
+        let v_high_u16 = _mm256_srli_epi16::<6>(v_hw0);
+        let u_low_u16 = _mm256_srli_epi16::<6>(u_hw1);
+        let v_low_u16 = _mm256_srli_epi16::<6>(v_hw1);
 
         let y0_10 = _mm256_expand8_unordered_to_10(y_values0);
         let y1_10 = _mm256_expand8_unordered_to_10(y_values1);
 
         let u_high = _mm256_sub_epi16(u_high_u16, uv_corr);
         let v_high = _mm256_sub_epi16(v_high_u16, uv_corr);
+        let g_lc_hi = _mm256_mulhrs_epi16(v_high, v_g_coeff_1);
+        let g_lc1_hi = _mm256_mulhrs_epi16(u_high, v_g_coeff_2);
         let y_high0 = _mm256_mulhrs_epi16(y0_10.1, v_luma_coeff);
         let y_high1 = _mm256_mulhrs_epi16(y1_10.1, v_luma_coeff);
 
-        let g_coeff_hi = _mm256_add_epi16(
-            _mm256_mulhrs_epi16(v_high, v_g_coeff_1),
-            _mm256_mulhrs_epi16(u_high, v_g_coeff_2),
-        );
-
         let v_cr_hi = _mm256_mulhrs_epi16(v_high, v_cr_coeff);
         let v_cb_hi = _mm256_mulhrs_epi16(u_high, v_cb_coeff);
+        let g_coeff_hi = _mm256_add_epi16(g_lc_hi, g_lc1_hi);
 
         let r_high0 = _mm256_add_epi16(y_high0, v_cr_hi);
         let b_high0 = _mm256_add_epi16(y_high0, v_cb_hi);
@@ -146,16 +142,14 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
 
         let u_low = _mm256_sub_epi16(u_low_u16, uv_corr);
         let v_low = _mm256_sub_epi16(v_low_u16, uv_corr);
+        let g_lc0_lo = _mm256_mulhrs_epi16(v_low, v_g_coeff_1);
+        let g_lc1_lo = _mm256_mulhrs_epi16(u_low, v_g_coeff_2);
         let y_low0 = _mm256_mulhrs_epi16(y0_10.0, v_luma_coeff);
         let y_low1 = _mm256_mulhrs_epi16(y1_10.0, v_luma_coeff);
 
-        let g_coeff_lo = _mm256_add_epi16(
-            _mm256_mulhrs_epi16(v_low, v_g_coeff_1),
-            _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
-        );
-
         let v_cr_lo = _mm256_mulhrs_epi16(v_low, v_cr_coeff);
         let v_cb_lo = _mm256_mulhrs_epi16(u_low, v_cb_coeff);
+        let g_coeff_lo = _mm256_add_epi16(g_lc0_lo, g_lc1_lo);
 
         let r_low0 = _mm256_add_epi16(y_low0, v_cr_lo);
         let b_low0 = _mm256_add_epi16(y_low0, v_cb_lo);
@@ -197,21 +191,13 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 16 < width {
-        let y_values0 = _mm256_subs_epu8(
-            _mm256_castsi128_si256(_mm_loadu_si128(
-                y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i
-            )),
-            y_corr,
-        );
-        let y_values1 = _mm256_subs_epu8(
-            _mm256_castsi128_si256(_mm_loadu_si128(
-                y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i
-            )),
-            y_corr,
-        );
-
+        let yvl0 = _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i);
+        let yvl1 = _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i);
         let u_values = _xx_load_si64(u_ptr.add(uv_x));
         let v_values = _xx_load_si64(v_ptr.add(uv_x));
+
+        let y_values0 = _mm256_subs_epu8(_mm256_castsi128_si256(yvl0), y_corr);
+        let y_values1 = _mm256_subs_epu8(_mm256_castsi128_si256(yvl1), y_corr);
 
         let u_vl = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(_mm_unpacklo_epi8(
             u_values, u_values,

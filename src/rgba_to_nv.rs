@@ -34,7 +34,9 @@ use crate::avx2::{avx2_rgba_to_nv, avx2_rgba_to_nv420};
 ))]
 use crate::avx512bw::avx512_rgba_to_nv420;
 use crate::images::YuvBiPlanarImageMut;
-use crate::internals::ProcessedOffset;
+use crate::internals::{
+    ProcessedOffset, WideRowForwardBiPlanar420Handler, WideRowForwardBiPlanarHandler,
+};
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{
     neon_rgbx_to_nv_row, neon_rgbx_to_nv_row420, neon_rgbx_to_nv_row_rdm,
@@ -49,6 +51,206 @@ use crate::YuvError;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+
+struct SemiPlanar420Encoder<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: Option<
+        unsafe fn(
+            y_plane0: &mut [u8],
+            y_plane1: &mut [u8],
+            uv_plane: &mut [u8],
+            rgba0: &[u8],
+            rgba1: &[u8],
+            width: u32,
+            range: &YuvChromaRange,
+            transform: &CbCrForwardTransform<i32>,
+            start_cx: usize,
+            start_ux: usize,
+        ) -> ProcessedOffset,
+    >,
+}
+
+impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
+    Default for SemiPlanar420Encoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+        if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
+            return SemiPlanar420Encoder { handler: None };
+        }
+        assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+            if is_rdm_available {
+                SemiPlanar420Encoder {
+                    handler: Some(
+                        neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
+                    ),
+                }
+            } else {
+                SemiPlanar420Encoder {
+                    handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+                }
+            }
+        }
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            #[cfg(feature = "nightly_avx512")]
+            {
+                let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+                if use_avx512 {
+                    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                    return if use_vbmi {
+                        SemiPlanar420Encoder {
+                            handler: Some(
+                                avx512_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, true>,
+                            ),
+                        }
+                    } else {
+                        SemiPlanar420Encoder {
+                            handler: Some(
+                                avx512_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, false>,
+                            ),
+                        }
+                    };
+                }
+            }
+
+            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+            if use_avx2 {
+                return SemiPlanar420Encoder {
+                    handler: Some(avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+                };
+            }
+            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+            if use_sse {
+                return SemiPlanar420Encoder {
+                    handler: Some(sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+                };
+            }
+        }
+        #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+        SemiPlanar420Encoder { handler: None }
+    }
+}
+
+impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
+    WideRowForwardBiPlanar420Handler<u8, i32>
+    for SemiPlanar420Encoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+{
+    fn handle_rows(
+        &self,
+        rgba0: &[u8],
+        rgba1: &[u8],
+        y_plane0: &mut [u8],
+        y_plane1: &mut [u8],
+        uv_plane: &mut [u8],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<i32>,
+    ) -> ProcessedOffset {
+        if let Some(handler) = self.handler {
+            unsafe {
+                return handler(
+                    y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, &chroma, transform, 0, 0,
+                );
+            }
+        }
+        ProcessedOffset { cx: 0, ux: 0 }
+    }
+}
+
+struct SemiPlanarEncoder<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: Option<
+        unsafe fn(
+            y_plane: &mut [u8],
+            uv_plane: &mut [u8],
+            rgba0: &[u8],
+            width: u32,
+            range: &YuvChromaRange,
+            transform: &CbCrForwardTransform<i32>,
+            start_cx: usize,
+            start_ux: usize,
+        ) -> ProcessedOffset,
+    >,
+}
+
+impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
+    Default for SemiPlanarEncoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+            if is_rdm_available {
+                SemiPlanarEncoder {
+                    handler: Some(
+                        neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                    ),
+                }
+            } else {
+                SemiPlanarEncoder {
+                    handler: Some(
+                        neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                    ),
+                }
+            }
+        }
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+            if use_avx2 {
+                return SemiPlanarEncoder {
+                    handler: Some(
+                        avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                    ),
+                };
+            }
+            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+            if use_sse {
+                return SemiPlanarEncoder {
+                    handler: Some(
+                        sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                    ),
+                };
+            }
+        }
+        #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+        SemiPlanarEncoder { handler: None }
+    }
+}
+
+impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
+    WideRowForwardBiPlanarHandler<u8, i32>
+    for SemiPlanarEncoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+{
+    fn handle_row(
+        &self,
+        rgba: &[u8],
+        y_plane: &mut [u8],
+        uv_plane: &mut [u8],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrForwardTransform<i32>,
+    ) -> ProcessedOffset {
+        if let Some(handler) = self.handler {
+            unsafe {
+                return handler(y_plane, uv_plane, rgba, width, &chroma, transform, 0, 0);
+            }
+        }
+        ProcessedOffset { cx: 0, ux: 0 }
+    }
+}
 
 fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
     image: &mut YuvBiPlanarImageMut<u8>,
@@ -75,99 +277,20 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_row_handler = if is_rdm_available {
-        neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
-    } else {
-        neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
-    };
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_row420_handler = if is_rdm_available {
-        neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>
-    } else {
-        neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>
-    };
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let avx512_double_row_handler = if use_vbmi {
-        avx512_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, true>
-    } else {
-        avx512_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION, false>
-    };
-
     let width = image.width;
 
-    let process_wide_row =
-        |_y_plane: &mut [u8], _uv_plane: &mut [u8], _rgba: &[u8], _compute_uv_row| {
-            let mut _offset: ProcessedOffset = ProcessedOffset { cx: 0, ux: 0 };
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if use_avx2 {
-                let offset = avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
-                    _y_plane,
-                    _uv_plane,
-                    _rgba,
-                    width,
-                    &chroma_range,
-                    &transform,
-                    _offset.cx,
-                    _offset.ux,
-                    _compute_uv_row,
-                );
-                _offset = offset;
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if use_sse {
-                let offset = sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
-                    _y_plane,
-                    _uv_plane,
-                    _rgba,
-                    width,
-                    &chroma_range,
-                    &transform,
-                    _offset.cx,
-                    _offset.ux,
-                    _compute_uv_row,
-                );
-                _offset = offset;
-            }
-
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            unsafe {
-                let offset = neon_wide_row_handler(
-                    _y_plane,
-                    _uv_plane,
-                    _rgba,
-                    width,
-                    &chroma_range,
-                    &transform,
-                    _offset.cx,
-                    _offset.ux,
-                );
-                _offset = offset
-            }
-            _offset
-        };
+    let semi_planar_handler =
+        SemiPlanarEncoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>::default();
 
     let process_halved_row = |y_dst: &mut [u8], uv_dst: &mut [u8], rgba: &[u8]| {
-        let offset = process_wide_row(y_dst, uv_dst, rgba, true);
+        let offset = semi_planar_handler.handle_row(
+            rgba,
+            y_dst,
+            uv_dst,
+            image.width,
+            chroma_range,
+            &transform,
+        );
 
         for ((y_dst, uv_dst), rgba) in y_dst
             .chunks_exact_mut(2)
@@ -227,83 +350,21 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         }
     };
 
-    let process_wide_row420 = |_y_plane0: &mut [u8],
-                               _y_plane1: &mut [u8],
-                               _uv_plane: &mut [u8],
-                               _rgba0: &[u8],
-                               _rgba1: &[u8]| {
-        let mut _offset: ProcessedOffset = ProcessedOffset { cx: 0, ux: 0 };
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
-            let offset = neon_wide_row420_handler(
-                _y_plane0,
-                _y_plane1,
-                _uv_plane,
-                _rgba0,
-                _rgba1,
-                width,
-                &chroma_range,
-                &transform,
-                _offset.cx,
-                _offset.ux,
-            );
-            _offset = offset;
-        }
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        {
-            #[cfg(feature = "nightly_avx512")]
-            if use_avx512 {
-                let offset = avx512_double_row_handler(
-                    _y_plane0,
-                    _y_plane1,
-                    _uv_plane,
-                    _rgba0,
-                    _rgba1,
-                    width,
-                    &chroma_range,
-                    &transform,
-                    _offset.cx,
-                    _offset.ux,
-                );
-                _offset = offset;
-            }
-            if use_avx2 {
-                let offset = avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
-                    _y_plane0,
-                    _y_plane1,
-                    _uv_plane,
-                    _rgba0,
-                    _rgba1,
-                    width,
-                    &chroma_range,
-                    &transform,
-                    _offset.cx,
-                    _offset.ux,
-                );
-                _offset = offset;
-            }
-            if use_sse {
-                let offset = sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
-                    _y_plane0,
-                    _y_plane1,
-                    _uv_plane,
-                    _rgba0,
-                    _rgba1,
-                    width,
-                    &chroma_range,
-                    &transform,
-                    _offset.cx,
-                    _offset.ux,
-                );
-                _offset = offset;
-            }
-        }
-        _offset
-    };
+    let semi_planar_handler420 =
+        SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>::default();
 
     let process_double_row =
         |y_dst0: &mut [u8], y_dst1: &mut [u8], uv_dst: &mut [u8], rgba0: &[u8], rgba1: &[u8]| {
-            let offset = process_wide_row420(y_dst0, y_dst1, uv_dst, rgba0, rgba1);
+            let offset = semi_planar_handler420.handle_rows(
+                rgba0,
+                rgba1,
+                y_dst0,
+                y_dst1,
+                uv_dst,
+                image.width,
+                chroma_range,
+                &transform,
+            );
 
             for ((((y_dst0, y_dst1), uv_dst), rgba0), rgba1) in y_dst0
                 .chunks_exact_mut(2)
@@ -418,7 +479,14 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
             let y_dst = &mut y_dst[0..image.width as usize];
-            let offset = process_wide_row(y_dst, uv_dst, rgba, true);
+            let offset = semi_planar_handler.handle_row(
+                rgba,
+                y_dst,
+                uv_dst,
+                image.width,
+                chroma_range,
+                &transform,
+            );
 
             for ((y_dst, uv_dst), rgba) in y_dst
                 .iter_mut()

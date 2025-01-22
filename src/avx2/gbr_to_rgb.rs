@@ -125,18 +125,12 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
     let vy_bias = _mm256_set1_epi8(y_bias as i8);
 
     while cx + 32 < width {
-        let g_values0 = _mm256_subs_epu8(
-            _mm256_loadu_si256(g_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
-        let b_values0 = _mm256_subs_epu8(
-            _mm256_loadu_si256(b_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
-        let r_values0 = _mm256_subs_epu8(
-            _mm256_loadu_si256(r_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
+        let g0 = _mm256_loadu_si256(g_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let b0 = _mm256_loadu_si256(b_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let r0 = _mm256_loadu_si256(r_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let g_values0 = _mm256_subs_epu8(g0, vy_bias);
+        let b_values0 = _mm256_subs_epu8(b0, vy_bias);
+        let r_values0 = _mm256_subs_epu8(r0, vy_bias);
 
         let (r_y_lo, r_y_hi) = _mm256_expand8_unordered_to_10(r_values0);
         let (g_y_lo, g_y_hi) = _mm256_expand8_unordered_to_10(g_values0);

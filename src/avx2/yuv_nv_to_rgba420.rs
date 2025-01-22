@@ -85,36 +85,31 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 32 < width {
-        let y_values0 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i),
-            y_corr,
-        );
-        let y_values1 = _mm256_subs_epu8(
-            _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i),
-            y_corr,
-        );
+        let yvl0 = _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i);
+        let yvl1 = _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i);
+        let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const __m256i);
+
+        let y_values0 = _mm256_subs_epu8(yvl0, y_corr);
+        let y_values1 = _mm256_subs_epu8(yvl1, y_corr);
 
         let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
 
-        let uv_values = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const __m256i);
+        let mut u_values = avx2_interleave_even(uv_values);
+        let mut v_values = avx2_interleave_odd(uv_values);
 
-        let u_values = avx2_interleave_even(uv_values);
-        let v_values = avx2_interleave_odd(uv_values);
-
-        match order {
-            YuvNVOrder::UV => {
-                u_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(u_values, u_values));
-                v_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(v_values, v_values));
-                u_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(u_values, u_values));
-                v_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(v_values, v_values));
-            }
-            YuvNVOrder::VU => {
-                u_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(v_values, v_values));
-                v_high_u16 = _mm256_srli_epi16::<6>(_mm256_unpackhi_epi8(u_values, u_values));
-                u_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(v_values, v_values));
-                v_low_u16 = _mm256_srli_epi16::<6>(_mm256_unpacklo_epi8(u_values, u_values));
-            }
+        if order == YuvNVOrder::VU {
+            std::mem::swap(&mut u_values, &mut v_values);
         }
+
+        let uh0 = _mm256_unpackhi_epi8(u_values, u_values);
+        let vh0 = _mm256_unpackhi_epi8(v_values, v_values);
+        let uh1 = _mm256_unpacklo_epi8(u_values, u_values);
+        let vh1 = _mm256_unpacklo_epi8(v_values, v_values);
+
+        u_high_u16 = _mm256_srli_epi16::<6>(uh0);
+        v_high_u16 = _mm256_srli_epi16::<6>(vh0);
+        u_low_u16 = _mm256_srli_epi16::<6>(uh1);
+        v_low_u16 = _mm256_srli_epi16::<6>(vh1);
 
         let y0_10 = _mm256_expand8_unordered_to_10(y_values0);
         let y1_10 = _mm256_expand8_unordered_to_10(y_values1);

@@ -147,57 +147,46 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         let y_high0 = vmull_high_laneq_s16::<0>(y_values0, v_weights);
         let y_high1 = vmull_high_laneq_s16::<0>(y_values1, v_weights);
 
-        let r_high0 =
-            vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<1>(y_high0, v_values0, v_weights));
-        let b_high0 =
-            vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<2>(y_high0, u_values0, v_weights));
-        let g_high0 = vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<4>(
-            vmlal_high_laneq_s16::<3>(y_high0, v_values0, v_weights),
-            u_values0,
-            v_weights,
-        ));
+        let rh0 = vmlal_high_laneq_s16::<1>(y_high0, v_values0, v_weights);
+        let bh0 = vmlal_high_laneq_s16::<2>(y_high0, u_values0, v_weights);
+        let gh0 = vmlal_high_laneq_s16::<3>(y_high0, v_values0, v_weights);
 
-        let r_high1 =
-            vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<1>(y_high1, v_values1, v_weights));
-        let b_high1 =
-            vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<2>(y_high1, u_values1, v_weights));
-        let g_high1 = vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<4>(
-            vmlal_high_laneq_s16::<3>(y_high1, v_values1, v_weights),
-            u_values1,
-            v_weights,
-        ));
+        let rh1 = vmlal_high_laneq_s16::<1>(y_high1, v_values1, v_weights);
+        let bh1 = vmlal_high_laneq_s16::<2>(y_high1, u_values1, v_weights);
+        let gh1 = vmlal_high_laneq_s16::<3>(y_high1, v_values1, v_weights);
+
+        let r_high0 = vqrshrun_n_s32::<PRECISION>(rh0);
+        let b_high0 = vqrshrun_n_s32::<PRECISION>(bh0);
+        let g_high0 =
+            vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<4>(gh0, u_values0, v_weights));
+
+        let r_high1 = vqrshrun_n_s32::<PRECISION>(rh1);
+        let b_high1 = vqrshrun_n_s32::<PRECISION>(bh1);
+        let g_high1 =
+            vqrshrun_n_s32::<PRECISION>(vmlal_high_laneq_s16::<4>(gh1, u_values1, v_weights));
 
         let y_low0 = vmull_laneq_s16::<0>(vget_low_s16(y_values0), v_weights);
         let y_low1 = vmull_laneq_s16::<0>(vget_low_s16(y_values1), v_weights);
 
-        let r_low0 = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(
-            y_low0,
-            vget_low_s16(v_values0),
-            v_weights,
-        ));
-        let b_low0 = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(
-            y_low0,
-            vget_low_s16(u_values0),
-            v_weights,
-        ));
+        let rl0 = vmlal_laneq_s16::<1>(y_low0, vget_low_s16(v_values0), v_weights);
+        let bl0 = vmlal_laneq_s16::<2>(y_low0, vget_low_s16(u_values0), v_weights);
+        let gl0 = vmlal_laneq_s16::<3>(y_low0, vget_low_s16(v_values0), v_weights);
+        let rl1 = vmlal_laneq_s16::<1>(y_low1, vget_low_s16(v_values1), v_weights);
+        let bl1 = vmlal_laneq_s16::<2>(y_low1, vget_low_s16(u_values1), v_weights);
+        let gl1 = vmlal_laneq_s16::<3>(y_low1, vget_low_s16(v_values1), v_weights);
+
+        let r_low0 = vqrshrun_n_s32::<PRECISION>(rl0);
+        let b_low0 = vqrshrun_n_s32::<PRECISION>(bl0);
         let g_low0 = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_low0, vget_low_s16(v_values0), v_weights),
+            gl0,
             vget_low_s16(u_values0),
             v_weights,
         ));
 
-        let r_low1 = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(
-            y_low1,
-            vget_low_s16(v_values1),
-            v_weights,
-        ));
-        let b_low1 = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(
-            y_low1,
-            vget_low_s16(u_values1),
-            v_weights,
-        ));
+        let r_low1 = vqrshrun_n_s32::<PRECISION>(rl1);
+        let b_low1 = vqrshrun_n_s32::<PRECISION>(bl1);
         let g_low1 = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_low1, vget_low_s16(v_values1), v_weights),
+            gl1,
             vget_low_s16(u_values1),
             v_weights,
         ));
@@ -286,24 +275,22 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         }
 
         let y_high = vmull_high_laneq_s16::<0>(y_values, v_weights);
-
-        let r_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
-        let b_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
-        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_high, v_high, v_weights),
-            u_high,
-            v_weights,
-        ));
-
         let y_low = vmull_laneq_s16::<0>(vget_low_s16(y_values), v_weights);
 
-        let r_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_low, v_low, v_weights),
-            u_low,
-            v_weights,
-        ));
+        let rh = vmlal_laneq_s16::<1>(y_high, v_high, v_weights);
+        let bh = vmlal_laneq_s16::<2>(y_high, u_high, v_weights);
+        let gh = vmlal_laneq_s16::<3>(y_high, v_high, v_weights);
+        let rl = vmlal_laneq_s16::<1>(y_low, v_low, v_weights);
+        let bl = vmlal_laneq_s16::<2>(y_low, u_low, v_weights);
+        let gl = vmlal_laneq_s16::<3>(y_low, v_low, v_weights);
+
+        let r_high = vqrshrun_n_s32::<PRECISION>(rh);
+        let b_high = vqrshrun_n_s32::<PRECISION>(bh);
+        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gh, u_high, v_weights));
+
+        let r_low = vqrshrun_n_s32::<PRECISION>(rl);
+        let b_low = vqrshrun_n_s32::<PRECISION>(bl);
+        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gl, u_low, v_weights));
 
         let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_alpha);
         let g_values = vminq_u16(vcombine_u16(g_low, g_high), v_alpha);
@@ -330,8 +317,12 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
     }
 
     if cx < width as usize {
-        let diff = width as usize - cx;
+        let mut diff = width as usize - cx;
         assert!(diff <= 8);
+
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mut y_buffer: [u16; 8] = [0; 8];
         let mut u_buffer: [u16; 8] = [0; 8];
@@ -406,24 +397,22 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         }
 
         let y_high = vmull_high_laneq_s16::<0>(y_values, v_weights);
-
-        let r_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_high, v_high, v_weights));
-        let b_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_high, u_high, v_weights));
-        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_high, v_high, v_weights),
-            u_high,
-            v_weights,
-        ));
-
         let y_low = vmull_laneq_s16::<0>(vget_low_s16(y_values), v_weights);
 
-        let r_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(
-            vmlal_laneq_s16::<3>(y_low, v_low, v_weights),
-            u_low,
-            v_weights,
-        ));
+        let rh = vmlal_laneq_s16::<1>(y_high, v_high, v_weights);
+        let bh = vmlal_laneq_s16::<2>(y_high, u_high, v_weights);
+        let gh = vmlal_laneq_s16::<3>(y_high, v_high, v_weights);
+        let rl = vmlal_laneq_s16::<1>(y_low, v_low, v_weights);
+        let bl = vmlal_laneq_s16::<2>(y_low, u_low, v_weights);
+        let gl = vmlal_laneq_s16::<3>(y_low, v_low, v_weights);
+
+        let r_high = vqrshrun_n_s32::<PRECISION>(rh);
+        let b_high = vqrshrun_n_s32::<PRECISION>(bh);
+        let g_high = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gh, u_high, v_weights));
+
+        let r_low = vqrshrun_n_s32::<PRECISION>(rl);
+        let b_low = vqrshrun_n_s32::<PRECISION>(bl);
+        let g_low = vqrshrun_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gl, u_low, v_weights));
 
         let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_alpha);
         let g_values = vminq_u16(vcombine_u16(g_low, g_high), v_alpha);
@@ -579,19 +568,14 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
 
         let r_vals0 = vqrdmlahq_laneq_s16::<1>(y_high0, v_values0, v_weights);
         let b_vals0 = vqrdmlahq_laneq_s16::<2>(y_high0, u_values0, v_weights);
-        let g_vals0 = vqrdmlahq_laneq_s16::<4>(
-            vqrdmlahq_laneq_s16::<3>(y_high0, v_values0, v_weights),
-            u_values0,
-            v_weights,
-        );
-
         let r_vals1 = vqrdmlahq_laneq_s16::<1>(y_high1, v_values1, v_weights);
         let b_vals1 = vqrdmlahq_laneq_s16::<2>(y_high1, u_values1, v_weights);
-        let g_vals1 = vqrdmlahq_laneq_s16::<4>(
-            vqrdmlahq_laneq_s16::<3>(y_high1, v_values1, v_weights),
-            u_values1,
-            v_weights,
-        );
+
+        let gc0 = vqrdmlahq_laneq_s16::<3>(y_high0, v_values0, v_weights);
+        let gc1 = vqrdmlahq_laneq_s16::<3>(y_high1, v_values1, v_weights);
+
+        let g_vals0 = vqrdmlahq_laneq_s16::<4>(gc0, u_values0, v_weights);
+        let g_vals1 = vqrdmlahq_laneq_s16::<4>(gc1, u_values1, v_weights);
 
         let r_values0 = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(r_vals0, zeros)), v_alpha);
         let g_values0 = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(g_vals0, zeros)), v_alpha);
@@ -709,8 +693,12 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
     }
 
     if cx < width as usize {
-        let diff = width as usize - cx;
+        let mut diff = width as usize - cx;
         assert!(diff <= 8);
+
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mut y_buffer: [u16; 8] = [0; 8];
         let mut u_buffer: [u16; 8] = [0; 8];

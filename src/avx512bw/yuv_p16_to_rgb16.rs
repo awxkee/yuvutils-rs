@@ -232,9 +232,13 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
     if cx < width as usize {
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
-        let diff = width as usize - cx;
+        let mut diff = width as usize - cx;
 
         assert!(diff <= 32);
+
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
 
         let mask = 0xffff_ffffu32 >> (32 - diff as u32);
 

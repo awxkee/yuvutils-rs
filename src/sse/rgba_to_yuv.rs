@@ -62,6 +62,112 @@ pub(crate) fn sse_rgba_to_yuv_row<
     }
 }
 
+#[inline(always)]
+unsafe fn encode_8_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>(
+    src: &[u8],
+    y_dst: &mut [u8],
+    u_dst: &mut [u8],
+    v_dst: &mut [u8],
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+) {
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    const V_S: i32 = 4;
+    const A_E: i32 = 2;
+
+    let (r_values, g_values, b_values) =
+        _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
+
+    let rl = _mm_unpacklo_epi8(r_values, r_values);
+    let gl = _mm_unpacklo_epi8(g_values, g_values);
+    let bl = _mm_unpacklo_epi8(b_values, b_values);
+
+    let r_low = _mm_srli_epi16::<V_S>(rl);
+    let g_low = _mm_srli_epi16::<V_S>(gl);
+    let b_low = _mm_srli_epi16::<V_S>(bl);
+
+    let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E));
+    let v_yr = _mm_set1_epi16(transform.yr as i16);
+    let v_yg = _mm_set1_epi16(transform.yg as i16);
+    let v_yb = _mm_set1_epi16(transform.yb as i16);
+
+    let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+        y_bias,
+        _mm_add_epi16(
+            _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
+            _mm_mulhrs_epi16(b_low, v_yb),
+        ),
+    ));
+
+    let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
+    _mm_storeu_si64(y_dst.as_mut_ptr(), y_yuv);
+
+    let uv_bias = _mm_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
+    let v_cb_r = _mm_set1_epi16(transform.cb_r as i16);
+    let v_cb_g = _mm_set1_epi16(transform.cb_g as i16);
+    let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
+    let v_cr_r = _mm_set1_epi16(transform.cr_r as i16);
+    let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
+    let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
+
+    if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+        let cb_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            uv_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(
+                    _mm_mulhrs_epi16(r_low, v_cb_r),
+                    _mm_mulhrs_epi16(g_low, v_cb_g),
+                ),
+                _mm_mulhrs_epi16(b_low, v_cb_b),
+            ),
+        ));
+        let cr_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            uv_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(
+                    _mm_mulhrs_epi16(r_low, v_cr_r),
+                    _mm_mulhrs_epi16(g_low, v_cr_g),
+                ),
+                _mm_mulhrs_epi16(b_low, v_cr_b),
+            ),
+        ));
+
+        let cb = _mm_packus_epi16(cb_l, _mm_setzero_si128());
+        let cr = _mm_packus_epi16(cr_l, _mm_setzero_si128());
+
+        _mm_storeu_si64(u_dst.as_mut_ptr(), cb);
+        _mm_storeu_si64(v_dst.as_mut_ptr(), cr);
+    } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+        || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+    {
+        let r1 = sse_pairwise_avg_epi8_j(r_values, 1 << (16 - V_S - 8 - 1));
+        let g1 = sse_pairwise_avg_epi8_j(g_values, 1 << (16 - V_S - 8 - 1));
+        let b1 = sse_pairwise_avg_epi8_j(b_values, 1 << (16 - V_S - 8 - 1));
+
+        let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            uv_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
+                _mm_mulhrs_epi16(b1, v_cb_b),
+            ),
+        ));
+
+        let crk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
+            uv_bias,
+            _mm_add_epi16(
+                _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
+                _mm_mulhrs_epi16(b1, v_cr_b),
+            ),
+        ));
+
+        let cb = _mm_packus_epi16(cbk, cbk);
+        let cr = _mm_packus_epi16(crk, crk);
+
+        _mm_storeu_si32(u_dst.as_mut_ptr(), cb);
+        _mm_storeu_si32(v_dst.as_mut_ptr(), cr);
+    }
+}
+
 #[target_feature(enable = "sse4.1")]
 unsafe fn sse_rgba_to_yuv_row_impl<
     const ORIGIN_CHANNELS: u8,
@@ -110,12 +216,19 @@ unsafe fn sse_rgba_to_yuv_row_impl<
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
-        let r_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(r_values, r_values));
-        let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
-        let g_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(g_values, g_values));
-        let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
-        let b_high = _mm_srli_epi16::<V_S>(_mm_unpackhi_epi8(b_values, b_values));
+        let rl = _mm_unpacklo_epi8(r_values, r_values);
+        let rh = _mm_unpackhi_epi8(r_values, r_values);
+        let gl = _mm_unpacklo_epi8(g_values, g_values);
+        let gh = _mm_unpackhi_epi8(g_values, g_values);
+        let bl = _mm_unpacklo_epi8(b_values, b_values);
+        let bh = _mm_unpackhi_epi8(b_values, b_values);
+
+        let r_low = _mm_srli_epi16::<V_S>(rl);
+        let r_high = _mm_srli_epi16::<V_S>(rh);
+        let g_low = _mm_srli_epi16::<V_S>(gl);
+        let g_high = _mm_srli_epi16::<V_S>(gh);
+        let b_low = _mm_srli_epi16::<V_S>(bl);
+        let b_high = _mm_srli_epi16::<V_S>(bh);
 
         let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
             y_bias,
@@ -222,85 +335,91 @@ unsafe fn sse_rgba_to_yuv_row_impl<
 
     while cx + 8 < width {
         let px = cx * channels;
-        let (r_values, g_values, b_values) =
-            _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
 
-        let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
-        let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
-        let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
-
-        let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-            y_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
-                _mm_mulhrs_epi16(b_low, v_yb),
-            ),
-        ));
-
-        let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
-        _mm_storeu_si64(y_ptr.add(cx), y_yuv);
+        encode_8_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
+            rgba.get_unchecked(px..),
+            y_plane.get_unchecked_mut(cx..),
+            u_plane.get_unchecked_mut(uv_x..),
+            v_plane.get_unchecked_mut(uv_x..),
+            transform,
+            range,
+        );
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-                uv_bias,
-                _mm_add_epi16(
-                    _mm_add_epi16(
-                        _mm_mulhrs_epi16(r_low, v_cb_r),
-                        _mm_mulhrs_epi16(g_low, v_cb_g),
-                    ),
-                    _mm_mulhrs_epi16(b_low, v_cb_b),
-                ),
-            ));
-            let cr_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-                uv_bias,
-                _mm_add_epi16(
-                    _mm_add_epi16(
-                        _mm_mulhrs_epi16(r_low, v_cr_r),
-                        _mm_mulhrs_epi16(g_low, v_cr_g),
-                    ),
-                    _mm_mulhrs_epi16(b_low, v_cr_b),
-                ),
-            ));
-
-            let cb = _mm_packus_epi16(cb_l, _mm_setzero_si128());
-            let cr = _mm_packus_epi16(cr_l, _mm_setzero_si128());
-
-            _mm_storeu_si64(u_ptr.add(uv_x), cb);
-            _mm_storeu_si64(v_ptr.add(uv_x), cr);
-
             uv_x += 8;
         } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
             || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
         {
-            let r1 = sse_pairwise_avg_epi8_j(r_values, 1 << (16 - V_S - 8 - 1));
-            let g1 = sse_pairwise_avg_epi8_j(g_values, 1 << (16 - V_S - 8 - 1));
-            let b1 = sse_pairwise_avg_epi8_j(b_values, 1 << (16 - V_S - 8 - 1));
-
-            let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-                uv_bias,
-                _mm_add_epi16(
-                    _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
-                    _mm_mulhrs_epi16(b1, v_cb_b),
-                ),
-            ));
-
-            let crk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-                uv_bias,
-                _mm_add_epi16(
-                    _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
-                    _mm_mulhrs_epi16(b1, v_cr_b),
-                ),
-            ));
-
-            let cb = _mm_packus_epi16(cbk, cbk);
-            let cr = _mm_packus_epi16(crk, crk);
-
-            _mm_storeu_si32(u_ptr.add(uv_x), cb);
-            _mm_storeu_si32(v_ptr.add(uv_x), cr);
             uv_x += 4;
         }
 
         cx += 8;
+    }
+
+    if cx < width {
+        let mut diff = width - cx;
+        assert!(diff <= 8);
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
+        }
+
+        let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut u_buffer: [u8; 8] = [0; 8];
+        let mut v_buffer: [u8; 8] = [0; 8];
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        encode_8_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
+            src_buffer.as_slice(),
+            y_buffer.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
+            transform,
+            range,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                diff,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                diff,
+            );
+
+            uv_x += diff;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let hv = diff.div_ceil(2);
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                hv,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+                hv,
+            );
+
+            uv_x += hv;
+        }
     }
 
     ProcessedOffset { cx, ux: uv_x }

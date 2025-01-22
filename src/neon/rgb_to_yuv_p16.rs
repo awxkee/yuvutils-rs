@@ -114,63 +114,55 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_h =
                 vmlal_high_laneq_s16::<3>(uv_bias, vreinterpretq_s16_u16(r_values), v_weights);
-            cb_h = vmlal_high_laneq_s16::<4>(cb_h, vreinterpretq_s16_u16(g_values), v_weights);
-            cb_h = vmlal_high_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
-
             let mut cb_l = vmlal_laneq_s16::<3>(
                 uv_bias,
                 vreinterpret_s16_u16(vget_low_u16(r_values)),
                 v_weights,
             );
-            cb_l = vmlal_laneq_s16::<4>(
-                cb_l,
-                vreinterpret_s16_u16(vget_low_u16(g_values)),
-                v_weights,
-            );
-            cb_l = vmlal_laneq_s16::<5>(
-                cb_l,
-                vreinterpret_s16_u16(vget_low_u16(b_values)),
-                v_weights,
-            );
-
-            let mut cb_vl = vminq_u16(
-                vmaxq_u16(
-                    vcombine_u16(
-                        vqshrun_n_s32::<PRECISION>(cb_l),
-                        vqshrun_n_s32::<PRECISION>(cb_h),
-                    ),
-                    i_bias_y,
-                ),
-                i_cap_uv,
-            );
-
             let mut cr_h =
                 vmlal_high_laneq_s16::<6>(uv_bias, vreinterpretq_s16_u16(r_values), v_weights);
-            cr_h = vmlal_high_laneq_s16::<7>(cr_h, vreinterpretq_s16_u16(g_values), v_weights);
-            cr_h = vmlal_high_laneq_s16::<0>(cr_h, vreinterpretq_s16_u16(b_values), v_cr_b);
-
             let mut cr_l = vmlal_laneq_s16::<6>(
                 uv_bias,
                 vreinterpret_s16_u16(vget_low_u16(r_values)),
                 v_weights,
             );
+
+            cb_h = vmlal_high_laneq_s16::<4>(cb_h, vreinterpretq_s16_u16(g_values), v_weights);
+            cb_l = vmlal_laneq_s16::<4>(
+                cb_l,
+                vreinterpret_s16_u16(vget_low_u16(g_values)),
+                v_weights,
+            );
+            cr_h = vmlal_high_laneq_s16::<7>(cr_h, vreinterpretq_s16_u16(g_values), v_weights);
             cr_l = vmlal_laneq_s16::<7>(
                 cr_l,
                 vreinterpret_s16_u16(vget_low_u16(g_values)),
                 v_weights,
             );
+
+            cb_h = vmlal_high_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
+            cb_l = vmlal_laneq_s16::<5>(
+                cb_l,
+                vreinterpret_s16_u16(vget_low_u16(b_values)),
+                v_weights,
+            );
+            cr_h = vmlal_high_laneq_s16::<0>(cr_h, vreinterpretq_s16_u16(b_values), v_cr_b);
             cr_l = vmlal_laneq_s16::<0>(cr_l, vreinterpret_s16_u16(vget_low_u16(b_values)), v_cr_b);
 
-            let mut cr_vl = vminq_u16(
-                vmaxq_u16(
-                    vcombine_u16(
-                        vqshrun_n_s32::<PRECISION>(cr_l),
-                        vqshrun_n_s32::<PRECISION>(cr_h),
-                    ),
-                    i_bias_y,
-                ),
-                i_cap_uv,
+            let cb_cc = vcombine_u16(
+                vqshrun_n_s32::<PRECISION>(cb_l),
+                vqshrun_n_s32::<PRECISION>(cb_h),
             );
+            let cr_cc = vcombine_u16(
+                vqshrun_n_s32::<PRECISION>(cr_l),
+                vqshrun_n_s32::<PRECISION>(cr_h),
+            );
+
+            let cb_max = vmaxq_u16(cb_cc, i_bias_y);
+            let cr_max = vmaxq_u16(cr_cc, i_bias_y);
+
+            let mut cb_vl = vminq_u16(cb_max, i_cap_uv);
+            let mut cr_vl = vminq_u16(cr_max, i_cap_uv);
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_vl = vtomsbq_u16::<BIT_DEPTH>(cb_vl);
@@ -192,22 +184,20 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
             let b1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(b_values)));
 
             let mut cb_h = vmlal_laneq_s16::<3>(uv_bias, r1, v_weights);
-            cb_h = vmlal_laneq_s16::<4>(cb_h, g1, v_weights);
-            cb_h = vmlal_laneq_s16::<5>(cb_h, b1, v_weights);
-
-            let mut cb_s = vmin_u16(
-                vmax_u16(vqshrun_n_s32::<PRECISION>(cb_h), vget_low_u16(i_bias_y)),
-                vget_low_u16(i_cap_uv),
-            );
-
             let mut cr_h = vmlal_laneq_s16::<6>(uv_bias, r1, v_weights);
+            cb_h = vmlal_laneq_s16::<4>(cb_h, g1, v_weights);
             cr_h = vmlal_laneq_s16::<7>(cr_h, g1, v_weights);
+            cb_h = vmlal_laneq_s16::<5>(cb_h, b1, v_weights);
             cr_h = vmlal_laneq_s16::<0>(cr_h, b1, v_cr_b);
 
-            let mut cr_s = vmin_u16(
-                vmax_u16(vqshrun_n_s32::<PRECISION>(cr_h), vget_low_u16(i_bias_y)),
-                vget_low_u16(i_cap_uv),
-            );
+            let qcb = vqshrun_n_s32::<PRECISION>(cb_h);
+            let qcr = vqshrun_n_s32::<PRECISION>(cr_h);
+
+            let cb_max = vmax_u16(qcb, vget_low_u16(i_bias_y));
+            let cr_max = vmax_u16(qcr, vget_low_u16(i_bias_y));
+
+            let mut cb_s = vmin_u16(cb_max, vget_low_u16(i_cap_uv));
+            let mut cr_s = vmin_u16(cr_max, vget_low_u16(i_cap_uv));
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_s = vtomsb_u16::<BIT_DEPTH>(cb_s);
@@ -315,17 +305,18 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_h =
                 vqrdmlahq_laneq_s16::<3>(uv_bias, vreinterpretq_s16_u16(r_values), v_weights);
-            cb_h = vqrdmlahq_laneq_s16::<4>(cb_h, vreinterpretq_s16_u16(g_values), v_weights);
-            cb_h = vqrdmlahq_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
-
-            let mut cb_vl = vreinterpretq_u16_s16(vminq_s16(vmaxq_s16(cb_h, i_bias_y), i_cap_uv));
-
             let mut cr_h =
                 vqrdmlahq_laneq_s16::<6>(uv_bias, vreinterpretq_s16_u16(r_values), v_weights);
+            cb_h = vqrdmlahq_laneq_s16::<4>(cb_h, vreinterpretq_s16_u16(g_values), v_weights);
             cr_h = vqrdmlahq_laneq_s16::<7>(cr_h, vreinterpretq_s16_u16(g_values), v_weights);
+            cb_h = vqrdmlahq_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
             cr_h = vqrdmlahq_laneq_s16::<0>(cr_h, vreinterpretq_s16_u16(b_values), v_cr_b);
 
-            let mut cr_vl = vreinterpretq_u16_s16(vminq_s16(vmaxq_s16(cr_h, i_bias_y), i_cap_uv));
+            let cb_max = vmaxq_s16(cb_h, i_bias_y);
+            let cr_max = vmaxq_s16(cr_h, i_bias_y);
+
+            let mut cb_vl = vreinterpretq_u16_s16(vminq_s16(cb_max, i_cap_uv));
+            let mut cr_vl = vreinterpretq_u16_s16(vminq_s16(cr_max, i_cap_uv));
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb_vl = vtomsbq_u16::<BIT_DEPTH>(cb_vl);
@@ -349,22 +340,17 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             let b1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(b_values)));
 
             let mut cbk = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
-            cbk = vqrdmlah_laneq_s16::<4>(cbk, g1, v_weights);
-            cbk = vqrdmlah_laneq_s16::<5>(cbk, b1, v_weights);
-
-            let mut cb = vreinterpret_u16_s16(vmin_s16(
-                vmax_s16(cbk, vget_low_s16(i_bias_y)),
-                vget_low_s16(i_cap_uv),
-            ));
-
             let mut crk = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);
+            cbk = vqrdmlah_laneq_s16::<4>(cbk, g1, v_weights);
             crk = vqrdmlah_laneq_s16::<7>(crk, g1, v_weights);
+            cbk = vqrdmlah_laneq_s16::<5>(cbk, b1, v_weights);
             crk = vqrdmlah_laneq_s16::<0>(crk, b1, v_cr_b);
 
-            let mut cr = vreinterpret_u16_s16(vmin_s16(
-                vmax_s16(crk, vget_low_s16(i_bias_y)),
-                vget_low_s16(i_cap_uv),
-            ));
+            let cb_max = vmax_s16(cbk, vget_low_s16(i_bias_y));
+            let cr_max = vmax_s16(crk, vget_low_s16(i_bias_y));
+
+            let mut cb = vreinterpret_u16_s16(vmin_s16(cb_max, vget_low_s16(i_cap_uv)));
+            let mut cr = vreinterpret_u16_s16(vmin_s16(cr_max, vget_low_s16(i_cap_uv)));
 
             if bytes_position == YuvBytesPacking::MostSignificantBytes {
                 cb = vtomsb_u16::<BIT_DEPTH>(cb);

@@ -67,11 +67,9 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         ));
 
         let y_high = vmull_high_s16(y_values, v_luma_coeff);
-
-        let r_high = vqmovun_s32(vminq_s32(vrshrq_n_s32::<PRECISION>(y_high), v_max_values));
-
         let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
 
+        let r_high = vqmovun_s32(vminq_s32(vrshrq_n_s32::<PRECISION>(y_high), v_max_values));
         let r_low = vqmovun_s32(vminq_s32(vrshrq_n_s32::<PRECISION>(y_low), v_max_values));
 
         let r_values = vcombine_u16(r_low, r_high);
