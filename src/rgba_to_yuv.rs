@@ -72,12 +72,9 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     fn default() -> Self {
         if PRECISION == 7 {
             assert_eq!(PRECISION, 7);
-            #[cfg(all(
-                target_arch = "aarch64",
-                target_feature = "neon",
-                feature = "nightly_i8mm"
-            ))]
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon",))]
             {
+                #[cfg(feature = "nightly_i8mm")]
                 if std::arch::is_aarch64_feature_detected!("i8mm") {
                     let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
                     use crate::neon::neon_rgba_to_yuv_dot_rgba;
@@ -90,6 +87,11 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                         };
                     }
                 }
+
+                use crate::neon::neon_rgbx_to_yuv_fast;
+                return RgbEncoder {
+                    handler: Some(neon_rgbx_to_yuv_fast::<ORIGIN_CHANNELS, SAMPLING>),
+                };
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
@@ -248,24 +250,28 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
 
         if PRECISION == 7 {
             assert_eq!(PRECISION, 7);
-            #[cfg(all(
-                target_arch = "aarch64",
-                target_feature = "neon",
-                feature = "nightly_i8mm"
-            ))]
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon",))]
             {
-                if std::arch::is_aarch64_feature_detected!("i8mm") {
-                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
-                    use crate::neon::neon_rgba_to_yuv_dot_rgba420;
-                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
-                        assert!(
-                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
-                        );
-                        return RgbEncoder420 {
-                            handler: Some(neon_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
-                        };
+                #[cfg(feature = "nightly_i8mm")]
+                {
+                    if std::arch::is_aarch64_feature_detected!("i8mm") {
+                        let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                        use crate::neon::neon_rgba_to_yuv_dot_rgba420;
+                        if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                            assert!(
+                                chans == YuvSourceChannels::Rgba
+                                    || chans == YuvSourceChannels::Bgra
+                            );
+                            return RgbEncoder420 {
+                                handler: Some(neon_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                            };
+                        }
                     }
                 }
+                use crate::neon::neon_rgbx_to_yuv_fast420;
+                return RgbEncoder420 {
+                    handler: Some(neon_rgbx_to_yuv_fast420::<ORIGIN_CHANNELS>),
+                };
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
@@ -754,33 +760,24 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 ) -> Result<(), YuvError> {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     {
-        #[cfg(feature = "nightly_i8mm")]
-        {
-            let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
-            if _mode == YuvConversionMode::Fast
-                && (chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra)
-                && std::arch::is_aarch64_feature_detected!("i8mm")
-            {
-                return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 7>(
-                    image,
-                    rgba,
-                    rgba_stride,
-                    range,
-                    matrix,
-                );
-            }
-            rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
+        if _mode == YuvConversionMode::Fast {
+            return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 7>(
                 image,
                 rgba,
                 rgba_stride,
                 range,
                 matrix,
-            )
+            );
         }
-        #[cfg(not(feature = "nightly_i8mm"))]
-        rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(image, rgba, rgba_stride, range, matrix)
+        return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
+            image,
+            rgba,
+            rgba_stride,
+            range,
+            matrix,
+        );
     }
-    #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
         if _mode == YuvConversionMode::Fast
@@ -810,6 +807,13 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 matrix,
             ),
         }
+    }
+    #[cfg(not(any(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        all(target_arch = "aarch64", target_feature = "neon")
+    )))]
+    {
+        rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(image, rgba, rgba_stride, range, matrix)
     }
 }
 

@@ -119,7 +119,7 @@ fn main() {
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::Limited,
+        YuvRange::Full,
         YuvStandardMatrix::Bt601,
         YuvConversionMode::Fast,
     )
@@ -280,7 +280,7 @@ fn main() {
         &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
-        YuvRange::Limited,
+        YuvRange::Full,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();

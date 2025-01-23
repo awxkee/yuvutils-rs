@@ -56,7 +56,6 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
 
     let mut cx = nav.cx;
     let mut uv_x = nav.uv_x;
-    let mut yuy2_x = nav.x;
     unsafe {
         let v_shuffle = vld1q_u8(shuffle_table.as_ptr());
 
@@ -147,13 +146,11 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
             cx += 16;
             uv_x += chroma_small_step_size;
         }
-
-        yuy2_x = cx;
     }
 
     YuvToYuy2Navigation {
         cx,
         uv_x,
-        x: yuy2_x,
+        x: cx,
     }
 }

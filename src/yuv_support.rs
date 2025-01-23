@@ -712,7 +712,7 @@ pub enum YuvConversionMode {
     /// This may encode with notable changes in the image,
     /// consider using this when you're migrating from libyuv and want same,
     /// or fastest performance, or you just need the fastest available performance.
-    /// On aarch64 without `i8mm` feature activated this does nothing.
+    /// On aarch64 `i8mm` activated features is preferred.
     Fast,
     /// Mixed, but high precision, very good performance.
     /// This is still a VERY fast method, with much more precise encoding.
