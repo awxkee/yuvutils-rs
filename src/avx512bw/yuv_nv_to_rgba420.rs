@@ -140,39 +140,32 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 64 < width {
-        let y_values0 = _mm512_subs_epu8(
-            _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const i32),
-            y_corr,
-        );
-        let y_values1 = _mm512_subs_epu8(
-            _mm512_loadu_si512(y_plane1.get_unchecked(cx..).as_ptr() as *const i32),
-            y_corr,
-        );
-
-        let (u_high, v_high0, u_low0, v_low0);
+        let yl0 = _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const i32);
+        let yl1 = _mm512_loadu_si512(y_plane1.get_unchecked(cx..).as_ptr() as *const i32);
 
         let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const i32);
+
+        let y_values0 = _mm512_subs_epu8(yl0, y_corr);
+        let y_values1 = _mm512_subs_epu8(yl1, y_corr);
 
         let (u_values0, v_values0) =
             avx512_unzip_epi8::<HAS_VBMI>(uv_values, _mm512_setzero_si512());
 
-        let (u_values, _) = avx512_zip_epi8::<HAS_VBMI>(u_values0, u_values0);
-        let (v_values, _) = avx512_zip_epi8::<HAS_VBMI>(v_values0, v_values0);
+        let (mut u_values, _) = avx512_zip_epi8::<HAS_VBMI>(u_values0, u_values0);
+        let (mut v_values, _) = avx512_zip_epi8::<HAS_VBMI>(v_values0, v_values0);
 
-        match order {
-            YuvNVOrder::UV => {
-                u_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(u_values, u_values));
-                v_high0 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(v_values, v_values));
-                u_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(u_values, u_values));
-                v_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(v_values, v_values));
-            }
-            YuvNVOrder::VU => {
-                u_high = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(v_values, v_values));
-                v_high0 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(u_values, u_values));
-                u_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(v_values, v_values));
-                v_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(u_values, u_values));
-            }
+        if order == YuvNVOrder::VU {
+            std::mem::swap(&mut u_values, &mut v_values);
         }
+        let uh = _mm512_unpackhi_epi8(u_values, u_values);
+        let vh = _mm512_unpackhi_epi8(v_values, v_values);
+        let ul = _mm512_unpacklo_epi8(u_values, u_values);
+        let vl = _mm512_unpacklo_epi8(v_values, v_values);
+
+        let u_high = _mm512_srli_epi16::<6>(uh);
+        let v_high0 = _mm512_srli_epi16::<6>(vh);
+        let u_low0 = _mm512_srli_epi16::<6>(ul);
+        let v_low0 = _mm512_srli_epi16::<6>(vl);
 
         let y0_10 = _mm512_expand8_unordered_to_10(y_values0);
         let y1_10 = _mm512_expand8_unordered_to_10(y_values1);

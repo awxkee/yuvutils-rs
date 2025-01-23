@@ -28,6 +28,7 @@
  */
 
 use crate::internals::ProcessedOffset;
+use crate::sse::_mm_set4r_epi;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -83,38 +84,14 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
     let uv_bias = _mm_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let y_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm_setr_epi8(
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
-            transform.yr as i8,
-            transform.yg as i8,
-            transform.yb as i8,
-            0,
+        _mm_set4r_epi(
             transform.yr as i8,
             transform.yg as i8,
             transform.yb as i8,
             0,
         )
     } else {
-        _mm_setr_epi8(
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
-            transform.yb as i8,
-            transform.yg as i8,
-            transform.yr as i8,
-            0,
+        _mm_set4r_epi(
             transform.yb as i8,
             transform.yg as i8,
             transform.yr as i8,
@@ -122,38 +99,14 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         )
     };
     let cb_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm_setr_epi8(
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
-            transform.cb_r as i8,
-            transform.cb_g as i8,
-            transform.cb_b as i8,
-            0,
+        _mm_set4r_epi(
             transform.cb_r as i8,
             transform.cb_g as i8,
             transform.cb_b as i8,
             0,
         )
     } else {
-        _mm_setr_epi8(
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
-            transform.cb_b as i8,
-            transform.cb_g as i8,
-            transform.cb_r as i8,
-            0,
+        _mm_set4r_epi(
             transform.cb_b as i8,
             transform.cb_g as i8,
             transform.cb_r as i8,
@@ -161,38 +114,14 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         )
     };
     let cr_weights = if source_channels == YuvSourceChannels::Rgba {
-        _mm_setr_epi8(
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
-            transform.cr_r as i8,
-            transform.cr_g as i8,
-            transform.cr_b as i8,
-            0,
+        _mm_set4r_epi(
             transform.cr_r as i8,
             transform.cr_g as i8,
             transform.cr_b as i8,
             0,
         )
     } else {
-        _mm_setr_epi8(
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
-            transform.cr_b as i8,
-            transform.cr_g as i8,
-            transform.cr_r as i8,
-            0,
+        _mm_set4r_epi(
             transform.cr_b as i8,
             transform.cr_g as i8,
             transform.cr_r as i8,

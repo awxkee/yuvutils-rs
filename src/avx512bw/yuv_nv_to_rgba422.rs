@@ -141,31 +141,29 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
     );
 
     while cx + 64 < width {
-        let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
-
+        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
         let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const i32);
 
-        let mut u_values = _mm512_sub_epi16(
-            _mm512_srli_epi16::<6>(_mm512_shuffle_epi8(uv_values, sh_e)),
-            uv_corr,
-        );
-        let mut v_values = _mm512_sub_epi16(
-            _mm512_srli_epi16::<6>(_mm512_shuffle_epi8(uv_values, sh_o)),
-            uv_corr,
-        );
+        let y_values = _mm512_subs_epu8(y_vl0, y_corr);
+
+        let sh_uu = _mm512_shuffle_epi8(uv_values, sh_e);
+        let sh_vv = _mm512_shuffle_epi8(uv_values, sh_o);
+
+        let ss_uu = _mm512_srli_epi16::<6>(sh_uu);
+        let ss_vv = _mm512_srli_epi16::<6>(sh_vv);
+
+        let mut u_values = _mm512_sub_epi16(ss_uu, uv_corr);
+        let mut v_values = _mm512_sub_epi16(ss_vv, uv_corr);
 
         if order == YuvNVOrder::VU {
-            let j = u_values;
-            u_values = v_values;
-            v_values = j;
+            std::mem::swap(&mut u_values, &mut v_values);
         }
 
+        let g_c0 = _mm512_mulhrs_epi16(v_values, v_g_coeff_1);
+        let g_c1 = _mm512_mulhrs_epi16(u_values, v_g_coeff_2);
         let v_u = _mm512_mulhrs_epi16(u_values, v_cb_coeff);
         let v_v = _mm512_mulhrs_epi16(v_values, v_cr_coeff);
-        let v_g = _mm512_add_epi16(
-            _mm512_mulhrs_epi16(v_values, v_g_coeff_1),
-            _mm512_mulhrs_epi16(u_values, v_g_coeff_2),
-        );
+        let v_g = _mm512_add_epi16(g_c0, g_c1);
 
         let (v_u_l, v_u_h) = (
             _mm512_unpacklo_epi16(v_u, v_u),

@@ -865,3 +865,10 @@ pub(crate) unsafe fn _mm_expand_bp_by2<const BIT_DEPTH: usize>(v: __m128i) -> __
         v
     }
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_set4r_epi(e0: i8, e1: i8, e2: i8, e3: i8) -> __m128i {
+    _mm_setr_epi8(
+        e0, e1, e2, e3, e0, e1, e2, e3, e0, e1, e2, e3, e0, e1, e2, e3,
+    )
+}

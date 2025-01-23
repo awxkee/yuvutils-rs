@@ -138,9 +138,10 @@ unsafe fn avx512_yuv_to_rgba_impl<
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 128 < width {
-        let y_values0 = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
-        let y_values1 =
-            _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx + 64) as *const i32), y_corr);
+        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
+        let y_vl1 = _mm512_loadu_si512(y_ptr.add(cx + 64) as *const i32);
+        let y_values0 = _mm512_subs_epu8(y_vl0, y_corr);
+        let y_values1 = _mm512_subs_epu8(y_vl1, y_corr);
 
         let (u_high00, v_high00, u_low00, v_low00, u_high10, v_high10, u_low10, v_low10);
 

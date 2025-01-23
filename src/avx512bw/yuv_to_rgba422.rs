@@ -129,16 +129,21 @@ unsafe fn avx512_yuv_to_rgba_impl422<const DESTINATION_CHANNELS: u8, const HAS_V
     let uv_mask = _mm512_setr_epi64(0, 0, 1, 0, 2, 0, 3, 0);
 
     while cx + 64 < width {
-        let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
+        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
 
         let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
         let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
 
+        let y_values = _mm512_subs_epu8(y_vl0, y_corr);
+
         let mut lu = _mm512_permutexvar_epi64(uv_mask, _mm512_castsi256_si512(u_values));
         let mut lv = _mm512_permutexvar_epi64(uv_mask, _mm512_castsi256_si512(v_values));
 
-        lu = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(lu, lu));
-        lv = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(lv, lv));
+        lu = _mm512_unpacklo_epi8(lu, lu);
+        lv = _mm512_unpacklo_epi8(lv, lv);
+
+        lu = _mm512_srli_epi16::<6>(lu);
+        lv = _mm512_srli_epi16::<6>(lv);
 
         lu = _mm512_sub_epi16(lu, uv_corr);
         lv = _mm512_sub_epi16(lv, uv_corr);
@@ -146,13 +151,13 @@ unsafe fn avx512_yuv_to_rgba_impl422<const DESTINATION_CHANNELS: u8, const HAS_V
         let v_cr_c = _mm512_mulhrs_epi16(lv, v_cr_coeff);
         let v_cb_c = _mm512_mulhrs_epi16(lu, v_cb_coeff);
 
+        let l_gc0 = _mm512_mulhrs_epi16(lv, v_g_coeff_1);
+        let l_gc1 = _mm512_mulhrs_epi16(lu, v_g_coeff_2);
+
         let (u_l, u_h) = avx512_zip_u_epi16(v_cb_c, v_cb_c);
         let (v_l, v_h) = avx512_zip_u_epi16(v_cr_c, v_cr_c);
 
-        let l_g = _mm512_add_epi16(
-            _mm512_mulhrs_epi16(lv, v_g_coeff_1),
-            _mm512_mulhrs_epi16(lu, v_g_coeff_2),
-        );
+        let l_g = _mm512_add_epi16(l_gc0, l_gc1);
 
         let (g_l, g_h) = avx512_zip_u_epi16(l_g, l_g);
 
