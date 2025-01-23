@@ -337,11 +337,8 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
                 u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
                 v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
 
-                #[allow(clippy::manual_swap)]
                 if order == YuvNVOrder::VU {
-                    let new_v = u_low_u8;
-                    u_low_u8 = v_low_u8;
-                    v_low_u8 = new_v;
+                    std::mem::swap(&mut u_low_u8, &mut v_low_u8);
                 }
             }
             YuvChromaSubsampling::Yuv444 => {
@@ -398,13 +395,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
 
         assert!(diff <= 8);
-
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];
@@ -439,11 +432,8 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm<
                 u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
                 v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
 
-                #[allow(clippy::manual_swap)]
                 if order == YuvNVOrder::VU {
-                    let new_v = u_low_u8;
-                    u_low_u8 = v_low_u8;
-                    v_low_u8 = new_v;
+                    std::mem::swap(&mut u_low_u8, &mut v_low_u8);
                 }
             }
             YuvChromaSubsampling::Yuv444 => {
@@ -701,13 +691,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row<
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
 
         assert!(diff <= 8);
-
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];

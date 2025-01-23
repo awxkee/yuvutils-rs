@@ -188,9 +188,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
         weights_cr_bgra.as_ptr()
     });
 
-    let v422_shuffle_table: [u8; 16] = [0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15];
-    let v422_shuffle = vld1q_u8(v422_shuffle_table.as_ptr());
-
     let mut cx = start_cx;
     let mut ux = start_ux;
 
@@ -207,25 +204,15 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
         let y2 = vusdotq_s32(y_bias, v2, y_weights);
         let y3 = vusdotq_s32(y_bias, v3, y_weights);
 
-        let v0_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v0, v422_shuffle)
+        let uzp0 = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            vuzpq_u32(vreinterpretq_u32_u8(v0), vreinterpretq_u32_u8(v1))
         } else {
-            vdupq_n_u8(0)
+            uint32x4x2_t(vdupq_n_u32(0), vdupq_n_u32(0))
         };
-        let v1_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v1, v422_shuffle)
+        let uzp1 = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            vuzpq_u32(vreinterpretq_u32_u8(v2), vreinterpretq_u32_u8(v3))
         } else {
-            vdupq_n_u8(0)
-        };
-        let v2_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v2, v422_shuffle)
-        } else {
-            vdupq_n_u8(0)
-        };
-        let v3_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v3, v422_shuffle)
-        } else {
-            vdupq_n_u8(0)
+            uint32x4x2_t(vdupq_n_u32(0), vdupq_n_u32(0))
         };
 
         let yn_0 = vqshrun_n_s32::<A_E>(y0);
@@ -261,15 +248,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
             let cr_2 = vqshrun_n_s32::<A_E>(cr2);
             let cr_3 = vqshrun_n_s32::<A_E>(cr3);
 
-            let cb_vl = vcombine_u8(
-                vqmovn_u16(vcombine_u16(cb_0, cb_1)),
-                vqmovn_u16(vcombine_u16(cb_2, cb_3)),
-            );
+            let cb_vl0 = vqmovn_u16(vcombine_u16(cb_0, cb_1));
+            let cb_vl1 = vqmovn_u16(vcombine_u16(cb_2, cb_3));
+            let cr_vl0 = vqmovn_u16(vcombine_u16(cr_0, cr_1));
+            let cr_vl1 = vqmovn_u16(vcombine_u16(cr_2, cr_3));
 
-            let cr_vl = vcombine_u8(
-                vqmovn_u16(vcombine_u16(cr_0, cr_1)),
-                vqmovn_u16(vcombine_u16(cr_2, cr_3)),
-            );
+            let cb_vl = vcombine_u8(cb_vl0, cb_vl1);
+            let cr_vl = vcombine_u8(cr_vl0, cr_vl1);
 
             vst1q_u8(u_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cb_vl);
             vst1q_u8(v_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cr_vl);
@@ -278,13 +263,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let v0 = vhadd_u8(vget_low_u8(v0_s), vget_high_u8(v0_s));
-            let v1 = vhadd_u8(vget_low_u8(v1_s), vget_high_u8(v1_s));
-            let v2 = vhadd_u8(vget_low_u8(v2_s), vget_high_u8(v2_s));
-            let v3 = vhadd_u8(vget_low_u8(v3_s), vget_high_u8(v3_s));
+            let v0_s = vreinterpretq_u8_u32(uzp0.0);
+            let v1_s = vreinterpretq_u8_u32(uzp0.1);
+            let v2_s = vreinterpretq_u8_u32(uzp1.0);
+            let v3_s = vreinterpretq_u8_u32(uzp1.1);
 
-            let v0_f = vcombine_u8(v0, v1);
-            let v1_f = vcombine_u8(v2, v3);
+            let v0_f = vhaddq_u8(v0_s, v1_s);
+            let v1_f = vhaddq_u8(v2_s, v3_s);
 
             let cb0 = vusdotq_s32(uv_bias, v0_f, cb_weights);
             let cb1 = vusdotq_s32(uv_bias, v1_f, cb_weights);
@@ -346,25 +331,15 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
         let y2 = vusdotq_s32(y_bias, v2, y_weights);
         let y3 = vusdotq_s32(y_bias, v3, y_weights);
 
-        let v0_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v0, v422_shuffle)
+        let uzp0 = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            vuzpq_u32(vreinterpretq_u32_u8(v0), vreinterpretq_u32_u8(v1))
         } else {
-            vdupq_n_u8(0)
+            uint32x4x2_t(vdupq_n_u32(0), vdupq_n_u32(0))
         };
-        let v1_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v1, v422_shuffle)
+        let uzp1 = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
+            vuzpq_u32(vreinterpretq_u32_u8(v2), vreinterpretq_u32_u8(v3))
         } else {
-            vdupq_n_u8(0)
-        };
-        let v2_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v2, v422_shuffle)
-        } else {
-            vdupq_n_u8(0)
-        };
-        let v3_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            vqtbl1q_u8(v3, v422_shuffle)
-        } else {
-            vdupq_n_u8(0)
+            uint32x4x2_t(vdupq_n_u32(0), vdupq_n_u32(0))
         };
 
         let yn_0 = vqshrun_n_s32::<A_E>(y0);
@@ -400,28 +375,26 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
             let cr_2 = vqshrun_n_s32::<A_E>(cr2);
             let cr_3 = vqshrun_n_s32::<A_E>(cr3);
 
-            let cb_vl = vcombine_u8(
-                vqmovn_u16(vcombine_u16(cb_0, cb_1)),
-                vqmovn_u16(vcombine_u16(cb_2, cb_3)),
-            );
+            let cb_vl0 = vqmovn_u16(vcombine_u16(cb_0, cb_1));
+            let cb_vl1 = vqmovn_u16(vcombine_u16(cb_2, cb_3));
+            let cr_vl0 = vqmovn_u16(vcombine_u16(cr_0, cr_1));
+            let cr_vl1 = vqmovn_u16(vcombine_u16(cr_2, cr_3));
 
-            let cr_vl = vcombine_u8(
-                vqmovn_u16(vcombine_u16(cr_0, cr_1)),
-                vqmovn_u16(vcombine_u16(cr_2, cr_3)),
-            );
+            let cb_vl = vcombine_u8(cb_vl0, cb_vl1);
+            let cr_vl = vcombine_u8(cr_vl0, cr_vl1);
 
             vst1q_u8(u_buffer.as_mut_ptr(), cb_vl);
             vst1q_u8(v_buffer.as_mut_ptr(), cr_vl);
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
-            let v0 = vhadd_u8(vget_low_u8(v0_s), vget_high_u8(v0_s));
-            let v1 = vhadd_u8(vget_low_u8(v1_s), vget_high_u8(v1_s));
-            let v2 = vhadd_u8(vget_low_u8(v2_s), vget_high_u8(v2_s));
-            let v3 = vhadd_u8(vget_low_u8(v3_s), vget_high_u8(v3_s));
+            let v0_s = vreinterpretq_u8_u32(uzp0.0);
+            let v1_s = vreinterpretq_u8_u32(uzp0.1);
+            let v2_s = vreinterpretq_u8_u32(uzp1.0);
+            let v3_s = vreinterpretq_u8_u32(uzp1.1);
 
-            let v0_f = vcombine_u8(v0, v1);
-            let v1_f = vcombine_u8(v2, v3);
+            let v0_f = vhaddq_u8(v0_s, v1_s);
+            let v1_f = vhaddq_u8(v2_s, v3_s);
 
             let cb0 = vusdotq_s32(uv_bias, v0_f, cb_weights);
             let cb1 = vusdotq_s32(uv_bias, v1_f, cb_weights);

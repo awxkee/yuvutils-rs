@@ -54,16 +54,16 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
         YuvChromaSubsampling::Yuv444 => 16,
     };
 
-    let mut _cx = nav.cx;
-    let mut _uv_x = nav.uv_x;
-    let mut _yuy2_x = nav.x;
+    let mut cx = nav.cx;
+    let mut uv_x = nav.uv_x;
+    let mut yuy2_x = nav.x;
     unsafe {
         let v_shuffle = vld1q_u8(shuffle_table.as_ptr());
 
-        while _cx + 32 < width as usize {
-            let u_pos = _uv_x;
-            let v_pos = _uv_x;
-            let y_pos = _cx;
+        while cx + 32 < width as usize {
+            let u_pos = uv_x;
+            let v_pos = uv_x;
+            let y_pos = cx;
 
             let u_pixels;
             let v_pixels;
@@ -73,8 +73,8 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 let full_u = xvld1q_u8_x2(u_plane.as_ptr().add(u_pos));
                 let full_v = xvld1q_u8_x2(v_plane.as_ptr().add(v_pos));
 
-                u_pixels = vhaddq_u8(full_u.0, full_u.1);
-                v_pixels = vhaddq_u8(full_v.0, full_v.1);
+                u_pixels = vrhaddq_u8(full_u.0, full_u.1);
+                v_pixels = vrhaddq_u8(full_v.0, full_v.1);
             } else {
                 u_pixels = vld1q_u8(u_plane.as_ptr().add(u_pos));
                 v_pixels = vld1q_u8(v_plane.as_ptr().add(v_pos));
@@ -93,17 +93,17 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 Yuy2Description::VYUY => uint8x16x4_t(v_pixels, low_y, u_pixels, high_y),
             };
 
-            let dst_offset = _cx * 2;
+            let dst_offset = cx * 2;
 
             vst4q_u8(yuy2_store.as_mut_ptr().add(dst_offset), storage);
-            _cx += 32;
-            _uv_x += chroma_big_step_size;
+            cx += 32;
+            uv_x += chroma_big_step_size;
         }
 
-        while _cx + 16 < width as usize {
-            let u_pos = _uv_x;
-            let v_pos = _uv_x;
-            let y_pos = _cx;
+        while cx + 16 < width as usize {
+            let u_pos = uv_x;
+            let v_pos = uv_x;
+            let y_pos = cx;
 
             let u_pixels;
             let v_pixels;
@@ -117,12 +117,12 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
 
                 let low_u = vget_low_u8(full_u);
                 let high_u = vget_high_u8(full_u);
-                u_pixels = vhadd_u8(low_u, high_u);
+                u_pixels = vrhadd_u8(low_u, high_u);
 
                 let low_v = vget_low_u8(full_v);
                 let high_v = vget_high_u8(full_v);
 
-                v_pixels = vhadd_u8(low_v, high_v);
+                v_pixels = vrhadd_u8(low_v, high_v);
             } else {
                 u_pixels = vld1_u8(u_plane.as_ptr().add(u_pos));
                 v_pixels = vld1_u8(v_plane.as_ptr().add(v_pos));
@@ -140,20 +140,20 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
                 Yuy2Description::VYUY => uint8x8x4_t(v_pixels, low_y, u_pixels, high_y),
             };
 
-            let dst_offset = _cx * 2;
+            let dst_offset = cx * 2;
 
             vst4_u8(yuy2_store.as_mut_ptr().add(dst_offset), storage);
 
-            _cx += 16;
-            _uv_x += chroma_small_step_size;
+            cx += 16;
+            uv_x += chroma_small_step_size;
         }
 
-        _yuy2_x = _cx;
+        yuy2_x = cx;
     }
 
     YuvToYuy2Navigation {
-        cx: _cx,
-        uv_x: _uv_x,
-        x: _yuy2_x,
+        cx,
+        uv_x,
+        x: yuy2_x,
     }
 }

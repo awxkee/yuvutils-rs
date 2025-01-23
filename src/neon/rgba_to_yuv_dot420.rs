@@ -186,9 +186,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
         weights_cr_bgra.as_ptr()
     });
 
-    let v422_shuffle_table: [u8; 16] = [0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15];
-    let v422_shuffle = vld1q_u8(v422_shuffle_table.as_ptr());
-
     let mut cx = start_cx;
     let mut ux = start_ux;
 
@@ -226,15 +223,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
         let yn_6 = vqshrun_n_s32::<A_E>(y6);
         let yn_7 = vqshrun_n_s32::<A_E>(y7);
 
-        let y_vl0 = vcombine_u8(
-            vqmovn_u16(vcombine_u16(yn_0, yn_1)),
-            vqmovn_u16(vcombine_u16(yn_2, yn_3)),
-        );
+        let j0 = vqmovn_u16(vcombine_u16(yn_0, yn_1));
+        let j1 = vqmovn_u16(vcombine_u16(yn_2, yn_3));
+        let j2 = vqmovn_u16(vcombine_u16(yn_4, yn_5));
+        let j3 = vqmovn_u16(vcombine_u16(yn_6, yn_7));
 
-        let y_vl1 = vcombine_u8(
-            vqmovn_u16(vcombine_u16(yn_4, yn_5)),
-            vqmovn_u16(vcombine_u16(yn_6, yn_7)),
-        );
+        let y_vl0 = vcombine_u8(j0, j1);
+        let y_vl1 = vcombine_u8(j2, j3);
 
         vst1q_u8(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y_vl0);
         vst1q_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y_vl1);
@@ -244,18 +239,16 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
         let v2 = vhaddq_u8(v2, v6);
         let v3 = vhaddq_u8(v3, v7);
 
-        let v0_s = vqtbl1q_u8(v0, v422_shuffle);
-        let v1_s = vqtbl1q_u8(v1, v422_shuffle);
-        let v2_s = vqtbl1q_u8(v2, v422_shuffle);
-        let v3_s = vqtbl1q_u8(v3, v422_shuffle);
+        let uzp0 = vuzpq_u32(vreinterpretq_u32_u8(v0), vreinterpretq_u32_u8(v1));
+        let uzp1 = vuzpq_u32(vreinterpretq_u32_u8(v2), vreinterpretq_u32_u8(v3));
 
-        let v0 = vhadd_u8(vget_low_u8(v0_s), vget_high_u8(v0_s));
-        let v1 = vhadd_u8(vget_low_u8(v1_s), vget_high_u8(v1_s));
-        let v2 = vhadd_u8(vget_low_u8(v2_s), vget_high_u8(v2_s));
-        let v3 = vhadd_u8(vget_low_u8(v3_s), vget_high_u8(v3_s));
+        let v0_s = vreinterpretq_u8_u32(uzp0.0);
+        let v1_s = vreinterpretq_u8_u32(uzp0.1);
+        let v2_s = vreinterpretq_u8_u32(uzp1.0);
+        let v3_s = vreinterpretq_u8_u32(uzp1.1);
 
-        let v0_f = vcombine_u8(v0, v1);
-        let v1_f = vcombine_u8(v2, v3);
+        let v0_f = vhaddq_u8(v0_s, v1_s);
+        let v1_f = vhaddq_u8(v2_s, v3_s);
 
         let cb0 = vusdotq_s32(uv_bias, v0_f, cb_weights);
         let cb1 = vusdotq_s32(uv_bias, v1_f, cb_weights);
@@ -348,15 +341,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
         let yn_6 = vqshrun_n_s32::<A_E>(y6);
         let yn_7 = vqshrun_n_s32::<A_E>(y7);
 
-        let y_vl0 = vcombine_u8(
-            vqmovn_u16(vcombine_u16(yn_0, yn_1)),
-            vqmovn_u16(vcombine_u16(yn_2, yn_3)),
-        );
+        let j0 = vqmovn_u16(vcombine_u16(yn_0, yn_1));
+        let j1 = vqmovn_u16(vcombine_u16(yn_2, yn_3));
+        let j2 = vqmovn_u16(vcombine_u16(yn_4, yn_5));
+        let j3 = vqmovn_u16(vcombine_u16(yn_6, yn_7));
 
-        let y_vl1 = vcombine_u8(
-            vqmovn_u16(vcombine_u16(yn_4, yn_5)),
-            vqmovn_u16(vcombine_u16(yn_6, yn_7)),
-        );
+        let y_vl0 = vcombine_u8(j0, j1);
+        let y_vl1 = vcombine_u8(j2, j3);
 
         vst1q_u8(y_buffer0.as_mut_ptr(), y_vl0);
         vst1q_u8(y_buffer1.as_mut_ptr(), y_vl1);
@@ -366,18 +357,16 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
         let v2 = vhaddq_u8(v2, v6);
         let v3 = vhaddq_u8(v3, v7);
 
-        let v0_s = vqtbl1q_u8(v0, v422_shuffle);
-        let v1_s = vqtbl1q_u8(v1, v422_shuffle);
-        let v2_s = vqtbl1q_u8(v2, v422_shuffle);
-        let v3_s = vqtbl1q_u8(v3, v422_shuffle);
+        let uzp0 = vuzpq_u32(vreinterpretq_u32_u8(v0), vreinterpretq_u32_u8(v1));
+        let uzp1 = vuzpq_u32(vreinterpretq_u32_u8(v2), vreinterpretq_u32_u8(v3));
 
-        let v0 = vhadd_u8(vget_low_u8(v0_s), vget_high_u8(v0_s));
-        let v1 = vhadd_u8(vget_low_u8(v1_s), vget_high_u8(v1_s));
-        let v2 = vhadd_u8(vget_low_u8(v2_s), vget_high_u8(v2_s));
-        let v3 = vhadd_u8(vget_low_u8(v3_s), vget_high_u8(v3_s));
+        let v0_s = vreinterpretq_u8_u32(uzp0.0);
+        let v1_s = vreinterpretq_u8_u32(uzp0.1);
+        let v2_s = vreinterpretq_u8_u32(uzp1.0);
+        let v3_s = vreinterpretq_u8_u32(uzp1.1);
 
-        let v0_f = vcombine_u8(v0, v1);
-        let v1_f = vcombine_u8(v2, v3);
+        let v0_f = vhaddq_u8(v0_s, v1_s);
+        let v1_f = vhaddq_u8(v2_s, v3_s);
 
         let cb0 = vusdotq_s32(uv_bias, v0_f, cb_weights);
         let cb1 = vusdotq_s32(uv_bias, v1_f, cb_weights);

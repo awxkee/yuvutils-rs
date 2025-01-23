@@ -55,11 +55,11 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     start_ux: usize,
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    if destination_channels == YuvSourceChannels::Rgb
-        || destination_channels == YuvSourceChannels::Bgr
-    {
-        unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
-    }
+    assert!(
+        destination_channels == YuvSourceChannels::Rgba
+            || destination_channels == YuvSourceChannels::Bgra,
+        "Cannot call YUV p16 to Rgb8 with alpha without real alpha"
+    );
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
@@ -350,11 +350,11 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
     start_ux: usize,
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    if destination_channels == YuvSourceChannels::Rgb
-        || destination_channels == YuvSourceChannels::Bgr
-    {
-        unreachable!("Cannot call YUV p16 to Rgb8 with alpha without real alpha");
-    }
+    assert!(
+        destination_channels == YuvSourceChannels::Rgba
+            || destination_channels == YuvSourceChannels::Bgra,
+        "Cannot call YUV p16 to Rgb8 with alpha without real alpha"
+    );
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 

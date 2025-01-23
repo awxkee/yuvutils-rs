@@ -145,18 +145,12 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
         let vy_bias = vdupq_n_u8(y_bias as u8);
 
         while cx + 16 < width {
-            let g_values0 = vqsubq_u8(
-                vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _),
-                vy_bias,
-            );
-            let b_values0 = vqsubq_u8(
-                vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _),
-                vy_bias,
-            );
-            let r_values0 = vqsubq_u8(
-                vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _),
-                vy_bias,
-            );
+            let g0 = vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _);
+            let b0 = vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _);
+            let r0 = vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _);
+            let g_values0 = vqsubq_u8(g0, vy_bias);
+            let b_values0 = vqsubq_u8(b0, vy_bias);
+            let r_values0 = vqsubq_u8(r0, vy_bias);
 
             let rl_lo = vmullnq_s16::<PRECISION>(vmovl_u8(vget_low_u8(r_values0)), vy_coeff);
             let gl_lo = vmullnq_s16::<PRECISION>(vmovl_u8(vget_low_u8(g_values0)), vy_coeff);

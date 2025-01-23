@@ -738,6 +738,7 @@ mod tests {
             image_width as u32 * CHANNELS as u32,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
+            YuvConversionMode::Balanced,
         )
         .unwrap();
 
@@ -858,6 +859,7 @@ mod tests {
             image_width as u32 * CHANNELS as u32,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
+            YuvConversionMode::Balanced,
         )
         .unwrap();
 

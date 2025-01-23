@@ -477,9 +477,13 @@ pub(crate) unsafe fn neon_rgba_to_yuv420<const ORIGIN_CHANNELS: u8, const PRECIS
             vshrn_n_s32::<PRECISION>(y1_l_high),
         ));
 
-        let y0 = vcombine_u8(vmovn_u16(y0_low), vmovn_u16(y0_high));
+        let y00q = vmovn_u16(y0_low);
+        let y01q = vmovn_u16(y0_high);
+        let y10q = vmovn_u16(y1_low);
+        let y11q = vmovn_u16(y1_high);
+        let y0 = vcombine_u8(y00q, y01q);
+        let y1 = vcombine_u8(y10q, y11q);
         vst1q_u8(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0);
-        let y1 = vcombine_u8(vmovn_u16(y1_low), vmovn_u16(y1_high));
         vst1q_u8(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1);
 
         let r1l = vpaddlq_u8(r_values0);

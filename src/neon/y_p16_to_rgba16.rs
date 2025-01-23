@@ -55,6 +55,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
     let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
     let v_max_values = vdupq_n_s32((1 << BIT_DEPTH) - 1);
+    let rnd_base = vdupq_n_s32((1 << (PRECISION - 1)) - 1);
 
     let mut cx = start_cx;
 
@@ -66,11 +67,17 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
             y_corr,
         ));
 
-        let y_high = vmull_high_s16(y_values, v_luma_coeff);
-        let y_low = vmull_s16(vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
+        let y_high = vmlal_high_s16(rnd_base, y_values, v_luma_coeff);
+        let y_low = vmlal_s16(rnd_base, vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
 
-        let r_high = vqmovun_s32(vminq_s32(vrshrq_n_s32::<PRECISION>(y_high), v_max_values));
-        let r_low = vqmovun_s32(vminq_s32(vrshrq_n_s32::<PRECISION>(y_low), v_max_values));
+        let rhm = vshrq_n_s32::<PRECISION>(y_high);
+        let rlm = vshrq_n_s32::<PRECISION>(y_low);
+
+        let rhim = vminq_s32(rhm, v_max_values);
+        let rlim = vminq_s32(rlm, v_max_values);
+
+        let r_high = vqmovun_s32(rhim);
+        let r_low = vqmovun_s32(rlim);
 
         let r_values = vcombine_u16(r_low, r_high);
 

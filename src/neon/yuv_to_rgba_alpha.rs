@@ -56,6 +56,11 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    assert!(
+        destination_channels == YuvSourceChannels::Rgba
+            || destination_channels == YuvSourceChannels::Bgra,
+        "Cannot call YUV to Rgb with alpha without real alpha"
+    );
     let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;
@@ -387,6 +392,11 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha<
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    assert!(
+        destination_channels == YuvSourceChannels::Rgba
+            || destination_channels == YuvSourceChannels::Bgra,
+        "Cannot call YUV p16 to Rgb8 with alpha without real alpha"
+    );
     let channels = destination_channels.get_channels_count();
 
     let mut cx = start_cx;
@@ -415,8 +425,6 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha<
 
     while cx + 32 < width {
         let mut y_set = xvld1q_u8_x2(y_ptr.add(cx));
-        y_set.0 = vqsubq_u8(y_set.0, y_corr);
-        y_set.1 = vqsubq_u8(y_set.1, y_corr);
 
         let u_high_u8: uint8x16_t;
         let v_high_u8: uint8x16_t;
@@ -443,6 +451,9 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha<
                 v_low_u8 = v_values.0;
             }
         }
+
+        y_set.0 = vqsubq_u8(y_set.0, y_corr);
+        y_set.1 = vqsubq_u8(y_set.1, y_corr);
 
         let u_high0 = vsubq_s16(
             vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(u_high_u8))),

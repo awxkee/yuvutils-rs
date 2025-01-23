@@ -231,7 +231,6 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             crl = vqrdmlah_laneq_s16::<0>(crl, b1, v_cr_b);
 
             let cb = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(vcombine_s16(cbl, cbl)));
-
             let cr = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(vcombine_s16(crl, crl)));
 
             match order {
