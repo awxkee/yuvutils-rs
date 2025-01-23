@@ -575,10 +575,10 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
         let v2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
         let v3 = _mm256_loadu_si256(src.add(96) as *const __m256i);
 
-        let y0s = _mm256_dpbusds_avx_epi32(y_bias, v0, y_weights);
-        let y1s = _mm256_dpbusds_avx_epi32(y_bias, v1, y_weights);
-        let y2s = _mm256_dpbusds_avx_epi32(y_bias, v2, y_weights);
-        let y3s = _mm256_dpbusds_avx_epi32(y_bias, v3, y_weights);
+        let y0s = _mm256_dpbusd_avx_epi32(y_bias, v0, y_weights);
+        let y1s = _mm256_dpbusd_avx_epi32(y_bias, v1, y_weights);
+        let y2s = _mm256_dpbusd_avx_epi32(y_bias, v2, y_weights);
+        let y3s = _mm256_dpbusd_avx_epi32(y_bias, v3, y_weights);
 
         let v0_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
             _mm256_permutevar8x32_epi32(v0, v422_shuffle)
@@ -612,15 +612,15 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
         _mm256_storeu_si256(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb0 = _mm256_dpbusds_avx_epi32(uv_bias, v0, cb_weights);
-            let cb1 = _mm256_dpbusds_avx_epi32(uv_bias, v1, cb_weights);
-            let cb2 = _mm256_dpbusds_avx_epi32(uv_bias, v2, cb_weights);
-            let cb3 = _mm256_dpbusds_avx_epi32(uv_bias, v3, cb_weights);
+            let cb0 = _mm256_dpbusd_avx_epi32(uv_bias, v0, cb_weights);
+            let cb1 = _mm256_dpbusd_avx_epi32(uv_bias, v1, cb_weights);
+            let cb2 = _mm256_dpbusd_avx_epi32(uv_bias, v2, cb_weights);
+            let cb3 = _mm256_dpbusd_avx_epi32(uv_bias, v3, cb_weights);
 
-            let cr0 = _mm256_dpbusds_avx_epi32(uv_bias, v0, cr_weights);
-            let cr1 = _mm256_dpbusds_avx_epi32(uv_bias, v1, cr_weights);
-            let cr2 = _mm256_dpbusds_avx_epi32(uv_bias, v2, cr_weights);
-            let cr3 = _mm256_dpbusds_avx_epi32(uv_bias, v3, cr_weights);
+            let cr0 = _mm256_dpbusd_avx_epi32(uv_bias, v0, cr_weights);
+            let cr1 = _mm256_dpbusd_avx_epi32(uv_bias, v1, cr_weights);
+            let cr2 = _mm256_dpbusd_avx_epi32(uv_bias, v2, cr_weights);
+            let cr3 = _mm256_dpbusd_avx_epi32(uv_bias, v3, cr_weights);
 
             let mut cb00 = avx2_pack_u32(cb0, cb1);
             let mut cb01 = avx2_pack_u32(cb2, cb3);
@@ -656,11 +656,11 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
             let v0_f = _mm256_set_m128i(vh1, vh0);
             let v1_f = _mm256_set_m128i(vh3, vh2);
 
-            let cb0 = _mm256_dpbusds_avx_epi32(uv_bias, v0_f, cb_weights);
-            let cb1 = _mm256_dpbusds_avx_epi32(uv_bias, v1_f, cb_weights);
+            let cb0 = _mm256_dpbusd_avx_epi32(uv_bias, v0_f, cb_weights);
+            let cb1 = _mm256_dpbusd_avx_epi32(uv_bias, v1_f, cb_weights);
 
-            let cr0 = _mm256_dpbusds_avx_epi32(uv_bias, v0_f, cr_weights);
-            let cr1 = _mm256_dpbusds_avx_epi32(uv_bias, v1_f, cr_weights);
+            let cr0 = _mm256_dpbusd_avx_epi32(uv_bias, v0_f, cr_weights);
+            let cr1 = _mm256_dpbusd_avx_epi32(uv_bias, v1_f, cr_weights);
 
             let mut cb00 = avx2_pack_u32(cb0, cb1);
             let mut cr00 = avx2_pack_u32(cr0, cr1);
@@ -717,10 +717,10 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
         let v2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
         let v3 = _mm256_loadu_si256(src_buffer.as_ptr().add(96) as *const __m256i);
 
-        let y0s = _mm256_dpbusds_avx_epi32(y_bias, v0, y_weights);
-        let y1s = _mm256_dpbusds_avx_epi32(y_bias, v1, y_weights);
-        let y2s = _mm256_dpbusds_avx_epi32(y_bias, v2, y_weights);
-        let y3s = _mm256_dpbusds_avx_epi32(y_bias, v3, y_weights);
+        let y0s = _mm256_dpbusd_avx_epi32(y_bias, v0, y_weights);
+        let y1s = _mm256_dpbusd_avx_epi32(y_bias, v1, y_weights);
+        let y2s = _mm256_dpbusd_avx_epi32(y_bias, v2, y_weights);
+        let y3s = _mm256_dpbusd_avx_epi32(y_bias, v3, y_weights);
 
         let v0_s = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
             _mm256_permutevar8x32_epi32(v0, v422_shuffle)
@@ -754,15 +754,15 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
         _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb0 = _mm256_dpbusds_avx_epi32(uv_bias, v0, cb_weights);
-            let cb1 = _mm256_dpbusds_avx_epi32(uv_bias, v1, cb_weights);
-            let cb2 = _mm256_dpbusds_avx_epi32(uv_bias, v2, cb_weights);
-            let cb3 = _mm256_dpbusds_avx_epi32(uv_bias, v3, cb_weights);
+            let cb0 = _mm256_dpbusd_avx_epi32(uv_bias, v0, cb_weights);
+            let cb1 = _mm256_dpbusd_avx_epi32(uv_bias, v1, cb_weights);
+            let cb2 = _mm256_dpbusd_avx_epi32(uv_bias, v2, cb_weights);
+            let cb3 = _mm256_dpbusd_avx_epi32(uv_bias, v3, cb_weights);
 
-            let cr0 = _mm256_dpbusds_avx_epi32(uv_bias, v0, cr_weights);
-            let cr1 = _mm256_dpbusds_avx_epi32(uv_bias, v1, cr_weights);
-            let cr2 = _mm256_dpbusds_avx_epi32(uv_bias, v2, cr_weights);
-            let cr3 = _mm256_dpbusds_avx_epi32(uv_bias, v3, cr_weights);
+            let cr0 = _mm256_dpbusd_avx_epi32(uv_bias, v0, cr_weights);
+            let cr1 = _mm256_dpbusd_avx_epi32(uv_bias, v1, cr_weights);
+            let cr2 = _mm256_dpbusd_avx_epi32(uv_bias, v2, cr_weights);
+            let cr3 = _mm256_dpbusd_avx_epi32(uv_bias, v3, cr_weights);
 
             let mut cb00 = avx2_pack_u32(cb0, cb1);
             let mut cb01 = avx2_pack_u32(cb2, cb3);
@@ -796,11 +796,11 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
             let v0_f = _mm256_set_m128i(vh1, vh0);
             let v1_f = _mm256_set_m128i(vh3, vh2);
 
-            let cb0 = _mm256_dpbusds_avx_epi32(uv_bias, v0_f, cb_weights);
-            let cb1 = _mm256_dpbusds_avx_epi32(uv_bias, v1_f, cb_weights);
+            let cb0 = _mm256_dpbusd_avx_epi32(uv_bias, v0_f, cb_weights);
+            let cb1 = _mm256_dpbusd_avx_epi32(uv_bias, v1_f, cb_weights);
 
-            let cr0 = _mm256_dpbusds_avx_epi32(uv_bias, v0_f, cr_weights);
-            let cr1 = _mm256_dpbusds_avx_epi32(uv_bias, v1_f, cr_weights);
+            let cr0 = _mm256_dpbusd_avx_epi32(uv_bias, v0_f, cr_weights);
+            let cr1 = _mm256_dpbusd_avx_epi32(uv_bias, v1_f, cr_weights);
 
             let mut cb00 = avx2_pack_u32(cb0, cb1);
             let mut cr00 = avx2_pack_u32(cr0, cr1);

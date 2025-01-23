@@ -50,6 +50,7 @@ mod yuv_to_rgba;
 mod yuv_to_rgba420;
 mod yuv_to_rgba422;
 mod yuv_to_rgba_alpha;
+mod rgba_to_yuv_dot420;
 
 pub(crate) use rgb_to_nv420::avx512_rgba_to_nv420;
 pub(crate) use rgb_to_y::avx512_row_rgb_to_y;
@@ -71,3 +72,4 @@ pub(crate) use yuv_to_rgba::avx512_yuv_to_rgba;
 pub(crate) use yuv_to_rgba420::avx512_yuv_to_rgba420;
 pub(crate) use yuv_to_rgba422::avx512_yuv_to_rgba422;
 pub(crate) use yuv_to_rgba_alpha::avx512_yuv_to_rgba_alpha;
+pub(crate) use rgba_to_yuv_dot420::avx512_rgba_to_yuv_dot_rgba420;

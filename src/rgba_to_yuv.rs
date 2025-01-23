@@ -247,6 +247,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
             return RgbEncoder420 { handler: None };
         }
+        assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
 
         if PRECISION == 7 {
             assert_eq!(PRECISION, 7);
@@ -276,6 +277,20 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+
+                #[cfg(feature = "nightly_avx512")]
+                if std::arch::is_x86_feature_detected!("avx512bw") {
+                    use crate::avx512bw::avx512_rgba_to_yuv_dot_rgba420;
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoder420 {
+                            handler: Some(avx512_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                        };
+                    }
+                }
+
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_yuv_dot_rgba420;
                     if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
@@ -306,7 +321,6 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
             return RgbEncoder420 { handler: None };
         }
         assert_eq!(PRECISION, 13);
-        assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");

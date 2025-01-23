@@ -523,10 +523,10 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const 
         let v2 = _mm512_loadu_si512(src.add(64 * 2) as *const _);
         let v3 = _mm512_loadu_si512(src.add(64 * 3) as *const _);
 
-        let y0s = _mm512_dpbusds_epi32(y_bias, v0, y_weights);
-        let y1s = _mm512_dpbusds_epi32(y_bias, v1, y_weights);
-        let y2s = _mm512_dpbusds_epi32(y_bias, v2, y_weights);
-        let y3s = _mm512_dpbusds_epi32(y_bias, v3, y_weights);
+        let y0s = _mm512_dpbusd_epi32(y_bias, v0, y_weights);
+        let y1s = _mm512_dpbusd_epi32(y_bias, v1, y_weights);
+        let y2s = _mm512_dpbusd_epi32(y_bias, v2, y_weights);
+        let y3s = _mm512_dpbusd_epi32(y_bias, v3, y_weights);
 
         let (v0_s, v1_s) = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
             _mm512_deinterleave_epi32(v0, v1)
@@ -553,15 +553,15 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const 
         _mm512_storeu_si512(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb0 = _mm512_dpbusds_epi32(uv_bias, v0, cb_weights);
-            let cb1 = _mm512_dpbusds_epi32(uv_bias, v1, cb_weights);
-            let cb2 = _mm512_dpbusds_epi32(uv_bias, v2, cb_weights);
-            let cb3 = _mm512_dpbusds_epi32(uv_bias, v3, cb_weights);
+            let cb0 = _mm512_dpbusd_epi32(uv_bias, v0, cb_weights);
+            let cb1 = _mm512_dpbusd_epi32(uv_bias, v1, cb_weights);
+            let cb2 = _mm512_dpbusd_epi32(uv_bias, v2, cb_weights);
+            let cb3 = _mm512_dpbusd_epi32(uv_bias, v3, cb_weights);
 
-            let cr0 = _mm512_dpbusds_epi32(uv_bias, v0, cr_weights);
-            let cr1 = _mm512_dpbusds_epi32(uv_bias, v1, cr_weights);
-            let cr2 = _mm512_dpbusds_epi32(uv_bias, v2, cr_weights);
-            let cr3 = _mm512_dpbusds_epi32(uv_bias, v3, cr_weights);
+            let cr0 = _mm512_dpbusd_epi32(uv_bias, v0, cr_weights);
+            let cr1 = _mm512_dpbusd_epi32(uv_bias, v1, cr_weights);
+            let cr2 = _mm512_dpbusd_epi32(uv_bias, v2, cr_weights);
+            let cr3 = _mm512_dpbusd_epi32(uv_bias, v3, cr_weights);
 
             let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
             let (cb2, cb3) = _mm512_deinterleave_epi16(cb2, cb3);
@@ -592,11 +592,11 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const 
             let v0_f = _mm512_avg_epu8(v0_s, v1_s);
             let v1_f = _mm512_avg_epu8(v2_s, v3_s);
 
-            let cb0 = _mm512_dpbusds_epi32(uv_bias, v0_f, cb_weights);
-            let cb1 = _mm512_dpbusds_epi32(uv_bias, v1_f, cb_weights);
+            let cb0 = _mm512_dpbusd_epi32(uv_bias, v0_f, cb_weights);
+            let cb1 = _mm512_dpbusd_epi32(uv_bias, v1_f, cb_weights);
 
-            let cr0 = _mm512_dpbusds_epi32(uv_bias, v0_f, cr_weights);
-            let cr1 = _mm512_dpbusds_epi32(uv_bias, v1_f, cr_weights);
+            let cr0 = _mm512_dpbusd_epi32(uv_bias, v0_f, cr_weights);
+            let cr1 = _mm512_dpbusd_epi32(uv_bias, v1_f, cr_weights);
 
             let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
             let (cr0, cr1) = _mm512_deinterleave_epi16(cr0, cr1);
@@ -656,10 +656,10 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const 
         let v2 = _mm512_loadu_si512(src_buffer.as_ptr().add(64 * 2) as *const _);
         let v3 = _mm512_loadu_si512(src_buffer.as_ptr().add(64 * 3) as *const _);
 
-        let y0s = _mm512_dpbusds_epi32(y_bias, v0, y_weights);
-        let y1s = _mm512_dpbusds_epi32(y_bias, v1, y_weights);
-        let y2s = _mm512_dpbusds_epi32(y_bias, v2, y_weights);
-        let y3s = _mm512_dpbusds_epi32(y_bias, v3, y_weights);
+        let y0s = _mm512_dpbusd_epi32(y_bias, v0, y_weights);
+        let y1s = _mm512_dpbusd_epi32(y_bias, v1, y_weights);
+        let y2s = _mm512_dpbusd_epi32(y_bias, v2, y_weights);
+        let y3s = _mm512_dpbusd_epi32(y_bias, v3, y_weights);
 
         let (v0_s, v1_s) = if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
             _mm512_deinterleave_epi32(v0, v1)
@@ -686,15 +686,15 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const 
         _mm512_storeu_si512(y_buffer.as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-            let cb0 = _mm512_dpbusds_epi32(uv_bias, v0, cb_weights);
-            let cb1 = _mm512_dpbusds_epi32(uv_bias, v1, cb_weights);
-            let cb2 = _mm512_dpbusds_epi32(uv_bias, v2, cb_weights);
-            let cb3 = _mm512_dpbusds_epi32(uv_bias, v3, cb_weights);
+            let cb0 = _mm512_dpbusd_epi32(uv_bias, v0, cb_weights);
+            let cb1 = _mm512_dpbusd_epi32(uv_bias, v1, cb_weights);
+            let cb2 = _mm512_dpbusd_epi32(uv_bias, v2, cb_weights);
+            let cb3 = _mm512_dpbusd_epi32(uv_bias, v3, cb_weights);
 
-            let cr0 = _mm512_dpbusds_epi32(uv_bias, v0, cr_weights);
-            let cr1 = _mm512_dpbusds_epi32(uv_bias, v1, cr_weights);
-            let cr2 = _mm512_dpbusds_epi32(uv_bias, v2, cr_weights);
-            let cr3 = _mm512_dpbusds_epi32(uv_bias, v3, cr_weights);
+            let cr0 = _mm512_dpbusd_epi32(uv_bias, v0, cr_weights);
+            let cr1 = _mm512_dpbusd_epi32(uv_bias, v1, cr_weights);
+            let cr2 = _mm512_dpbusd_epi32(uv_bias, v2, cr_weights);
+            let cr3 = _mm512_dpbusd_epi32(uv_bias, v3, cr_weights);
 
             let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
             let (cb2, cb3) = _mm512_deinterleave_epi16(cb2, cb3);
@@ -723,11 +723,11 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const 
             let v0_f = _mm512_avg_epu8(v0_s, v1_s);
             let v1_f = _mm512_avg_epu8(v2_s, v3_s);
 
-            let cb0 = _mm512_dpbusds_epi32(uv_bias, v0_f, cb_weights);
-            let cb1 = _mm512_dpbusds_epi32(uv_bias, v1_f, cb_weights);
+            let cb0 = _mm512_dpbusd_epi32(uv_bias, v0_f, cb_weights);
+            let cb1 = _mm512_dpbusd_epi32(uv_bias, v1_f, cb_weights);
 
-            let cr0 = _mm512_dpbusds_epi32(uv_bias, v0_f, cr_weights);
-            let cr1 = _mm512_dpbusds_epi32(uv_bias, v1_f, cr_weights);
+            let cr0 = _mm512_dpbusd_epi32(uv_bias, v0_f, cr_weights);
+            let cr1 = _mm512_dpbusd_epi32(uv_bias, v1_f, cr_weights);
 
             let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
             let (cr0, cr1) = _mm512_deinterleave_epi16(cr0, cr1);
