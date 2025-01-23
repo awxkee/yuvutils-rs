@@ -71,9 +71,6 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
     width: usize,
 ) -> ProcessedOffset {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    assert!(
-        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
-    );
     let channels = source_channels.get_channels_count();
 
     let u_ptr = u_plane;
@@ -83,7 +80,9 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
     let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = _mm_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let y_weights = if source_channels == YuvSourceChannels::Rgba {
+    let y_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm_set4r_epi(
             transform.yr as i8,
             transform.yg as i8,
@@ -98,7 +97,9 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             0,
         )
     };
-    let cb_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cb_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm_set4r_epi(
             transform.cb_r as i8,
             transform.cb_g as i8,
@@ -113,7 +114,9 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             0,
         )
     };
-    let cr_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cr_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm_set4r_epi(
             transform.cr_r as i8,
             transform.cr_g as i8,

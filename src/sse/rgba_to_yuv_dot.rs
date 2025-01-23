@@ -69,9 +69,6 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    assert!(
-        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
-    );
     let channels = source_channels.get_channels_count();
 
     let y_ptr = y_plane;
@@ -82,7 +79,7 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
     let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = _mm_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let y_weights = if source_channels == YuvSourceChannels::Rgba {
+    let y_weights = if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb{
         _mm_set4r_epi(
             transform.yr as i8,
             transform.yg as i8,
@@ -97,7 +94,7 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             0,
         )
     };
-    let cb_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cb_weights =  if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb{
         _mm_set4r_epi(
             transform.cb_r as i8,
             transform.cb_g as i8,
@@ -112,7 +109,7 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             0,
         )
     };
-    let cr_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cr_weights =  if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb{
         _mm_set4r_epi(
             transform.cr_r as i8,
             transform.cr_g as i8,
@@ -127,6 +124,8 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             0,
         )
     };
+
+    let rgb_shuffle = _mm_setr_epi8(0, 1, 2, -1, 3, 4, 5, -1, 6, 7, 8, -1, 9, 10, 11, -1);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -134,10 +133,31 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
     while cx + 16 < width {
         let src = rgba.get_unchecked(cx * channels..).as_ptr();
 
-        let v0 = _mm_loadu_si128(src as *const _);
-        let v1 = _mm_loadu_si128(src.add(16) as *const _);
-        let v2 = _mm_loadu_si128(src.add(32) as *const _);
-        let v3 = _mm_loadu_si128(src.add(48) as *const _);
+        let (v0, v1, v2, v3);
+
+        if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
+        {
+            v0 = _mm_loadu_si128(src as *const _);
+            v1 = _mm_loadu_si128(src.add(16) as *const _);
+            v2 = _mm_loadu_si128(src.add(32) as *const _);
+            v3 = _mm_loadu_si128(src.add(48) as *const _);
+        } else if source_channels == YuvSourceChannels::Bgr
+            || source_channels == YuvSourceChannels::Rgb
+        {
+            let j0 = _mm_loadu_si128(src as *const _);
+            let j1 = _mm_loadu_si128(src.add(16) as *const _);
+            let j2 = _mm_loadu_si128(src.add(32) as *const _);
+
+            v0 = _mm_shuffle_epi8(j0, rgb_shuffle);
+            let m0 = _mm_alignr_epi8::<12>(j1, j0);
+            let m1 = _mm_alignr_epi8::<8>(j2, j1);
+            let m2 = _mm_srli_si128::<4>(j2);
+            v1 = _mm_shuffle_epi8(m0, rgb_shuffle);
+            v2 = _mm_shuffle_epi8(m1, rgb_shuffle);
+            v3 = _mm_shuffle_epi8(m2, rgb_shuffle);
+        } else {
+            unimplemented!()
+        }
 
         let y0s = _mm_maddubs_epi16(v0, y_weights);
         let y1s = _mm_maddubs_epi16(v1, y_weights);
@@ -283,10 +303,31 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             }
         }
 
-        let v0 = _mm_loadu_si128(src_buffer.as_ptr() as *const _);
-        let v1 = _mm_loadu_si128(src_buffer.as_ptr().add(16) as *const _);
-        let v2 = _mm_loadu_si128(src_buffer.as_ptr().add(32) as *const _);
-        let v3 = _mm_loadu_si128(src_buffer.as_ptr().add(48) as *const _);
+        let (v0, v1, v2, v3);
+
+        if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
+        {
+            v0 = _mm_loadu_si128(src_buffer.as_ptr() as *const _);
+            v1 = _mm_loadu_si128(src_buffer.as_ptr().add(16) as *const _);
+            v2 = _mm_loadu_si128(src_buffer.as_ptr().add(32) as *const _);
+            v3 = _mm_loadu_si128(src_buffer.as_ptr().add(48) as *const _);
+        } else if source_channels == YuvSourceChannels::Bgr
+            || source_channels == YuvSourceChannels::Rgb
+        {
+            let j0 = _mm_loadu_si128(src_buffer.as_ptr() as *const _);
+            let j1 = _mm_loadu_si128(src_buffer.as_ptr().add(16) as *const _);
+            let j2 = _mm_loadu_si128(src_buffer.as_ptr().add(32) as *const _);
+
+            v0 = _mm_shuffle_epi8(j0, rgb_shuffle);
+            let m0 = _mm_alignr_epi8::<12>(j1, j0);
+            let m1 = _mm_alignr_epi8::<8>(j2, j1);
+            let m2 = _mm_srli_si128::<4>(j2);
+            v1 = _mm_shuffle_epi8(m0, rgb_shuffle);
+            v2 = _mm_shuffle_epi8(m1, rgb_shuffle);
+            v3 = _mm_shuffle_epi8(m2, rgb_shuffle);
+        } else {
+            unimplemented!()
+        }
 
         let y0s = _mm_maddubs_epi16(v0, y_weights);
         let y1s = _mm_maddubs_epi16(v1, y_weights);
