@@ -27,7 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{_mm256_set4r_epi8, avx2_pack_u16, shuffle};
+use crate::avx2::avx2_utils::{
+    _mm256_expand_rgb_to_rgba, _mm256_set4r_epi8, avx2_pack_u16, shuffle,
+};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
@@ -77,9 +79,6 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    assert!(
-        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
-    );
     let channels = source_channels.get_channels_count();
 
     let y_ptr = y_plane;
@@ -90,7 +89,9 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
     let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = _mm256_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let y_weights = if source_channels == YuvSourceChannels::Rgba {
+    let y_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm256_set4r_epi8(
             transform.yr as i8,
             transform.yg as i8,
@@ -105,7 +106,9 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
             0,
         )
     };
-    let cb_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cb_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm256_set4r_epi8(
             transform.cb_r as i8,
             transform.cb_g as i8,
@@ -120,7 +123,9 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
             0,
         )
     };
-    let cr_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cr_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm256_set4r_epi8(
             transform.cr_r as i8,
             transform.cr_g as i8,
@@ -144,10 +149,23 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
     while cx + 32 < width {
         let src = rgba.get_unchecked(cx * channels..).as_ptr();
 
-        let v0 = _mm256_loadu_si256(src as *const __m256i);
-        let v1 = _mm256_loadu_si256(src.add(32) as *const __m256i);
-        let v2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
-        let v3 = _mm256_loadu_si256(src.add(96) as *const __m256i);
+        let (v0, v1, v2, v3);
+        if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
+        {
+            v0 = _mm256_loadu_si256(src as *const __m256i);
+            v1 = _mm256_loadu_si256(src.add(32) as *const __m256i);
+            v2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
+            v3 = _mm256_loadu_si256(src.add(96) as *const __m256i);
+        } else if source_channels == YuvSourceChannels::Bgr
+            || source_channels == YuvSourceChannels::Rgb
+        {
+            let m0 = _mm256_loadu_si256(src as *const __m256i);
+            let m1 = _mm256_loadu_si256(src.add(32) as *const __m256i);
+            let m2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
+            (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(m0, m1, m2);
+        } else {
+            unimplemented!()
+        }
 
         let y0s = _mm256_maddubs_epi16(v0, y_weights);
         let y1s = _mm256_maddubs_epi16(v1, y_weights);
@@ -310,10 +328,23 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
             }
         }
 
-        let v0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const __m256i);
-        let v1 = _mm256_loadu_si256(src_buffer.as_ptr().add(32) as *const __m256i);
-        let v2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
-        let v3 = _mm256_loadu_si256(src_buffer.as_ptr().add(96) as *const __m256i);
+        let (v0, v1, v2, v3);
+        if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
+        {
+            v0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const __m256i);
+            v1 = _mm256_loadu_si256(src_buffer.as_ptr().add(32) as *const __m256i);
+            v2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
+            v3 = _mm256_loadu_si256(src_buffer.as_ptr().add(96) as *const __m256i);
+        } else if source_channels == YuvSourceChannels::Bgr
+            || source_channels == YuvSourceChannels::Rgb
+        {
+            let m0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const __m256i);
+            let m1 = _mm256_loadu_si256(src_buffer.as_ptr().add(32) as *const __m256i);
+            let m2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
+            (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(m0, m1, m2);
+        } else {
+            unimplemented!()
+        }
 
         let y0s = _mm256_maddubs_epi16(v0, y_weights);
         let y1s = _mm256_maddubs_epi16(v1, y_weights);
@@ -501,9 +532,6 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    assert!(
-        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
-    );
     let channels = source_channels.get_channels_count();
 
     let y_ptr = y_plane;
@@ -514,7 +542,9 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
     let y_bias = _mm256_set1_epi32(range.bias_y as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = _mm256_set1_epi32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let y_weights = if source_channels == YuvSourceChannels::Rgba {
+    let y_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm256_set4r_epi8(
             transform.yr as i8,
             transform.yg as i8,
@@ -529,7 +559,9 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
             0,
         )
     };
-    let cb_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cb_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm256_set4r_epi8(
             transform.cb_r as i8,
             transform.cb_g as i8,
@@ -544,7 +576,9 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
             0,
         )
     };
-    let cr_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cr_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm256_set4r_epi8(
             transform.cr_r as i8,
             transform.cr_g as i8,
@@ -570,10 +604,23 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
     while cx + 32 < width {
         let src = rgba.get_unchecked(cx * channels..).as_ptr();
 
-        let v0 = _mm256_loadu_si256(src as *const __m256i);
-        let v1 = _mm256_loadu_si256(src.add(32) as *const __m256i);
-        let v2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
-        let v3 = _mm256_loadu_si256(src.add(96) as *const __m256i);
+        let (v0, v1, v2, v3);
+        if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
+        {
+            v0 = _mm256_loadu_si256(src as *const __m256i);
+            v1 = _mm256_loadu_si256(src.add(32) as *const __m256i);
+            v2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
+            v3 = _mm256_loadu_si256(src.add(96) as *const __m256i);
+        } else if source_channels == YuvSourceChannels::Bgr
+            || source_channels == YuvSourceChannels::Rgb
+        {
+            let m0 = _mm256_loadu_si256(src as *const __m256i);
+            let m1 = _mm256_loadu_si256(src.add(32) as *const __m256i);
+            let m2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
+            (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(m0, m1, m2);
+        } else {
+            unimplemented!()
+        }
 
         let y0s = _mm256_dpbusd_avx_epi32(y_bias, v0, y_weights);
         let y1s = _mm256_dpbusd_avx_epi32(y_bias, v1, y_weights);
@@ -712,10 +759,23 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot<const ORIGIN_CHANNELS: u8, const SA
             }
         }
 
-        let v0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const __m256i);
-        let v1 = _mm256_loadu_si256(src_buffer.as_ptr().add(32) as *const __m256i);
-        let v2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
-        let v3 = _mm256_loadu_si256(src_buffer.as_ptr().add(96) as *const __m256i);
+        let (v0, v1, v2, v3);
+        if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
+        {
+            v0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const __m256i);
+            v1 = _mm256_loadu_si256(src_buffer.as_ptr().add(32) as *const __m256i);
+            v2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
+            v3 = _mm256_loadu_si256(src_buffer.as_ptr().add(96) as *const __m256i);
+        } else if source_channels == YuvSourceChannels::Bgr
+            || source_channels == YuvSourceChannels::Rgb
+        {
+            let m0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const __m256i);
+            let m1 = _mm256_loadu_si256(src_buffer.as_ptr().add(32) as *const __m256i);
+            let m2 = _mm256_loadu_si256(src_buffer.as_ptr().add(64) as *const __m256i);
+            (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(m0, m1, m2);
+        } else {
+            unimplemented!()
+        }
 
         let y0s = _mm256_dpbusd_avx_epi32(y_bias, v0, y_weights);
         let y1s = _mm256_dpbusd_avx_epi32(y_bias, v1, y_weights);

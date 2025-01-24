@@ -1086,3 +1086,50 @@ pub(crate) unsafe fn _mm256_set4r_epi8(e00: i8, e01: i8, e02: i8, e03: i8) -> __
         e02, e03, e00, e01, e02, e03, e00, e01, e02, e03, e00, e01, e02, e03,
     )
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_expand_rgb_to_rgba(
+    m0: __m256i,
+    m1: __m256i,
+    m2: __m256i,
+) -> (__m256i, __m256i, __m256i, __m256i) {
+    let shuffle_0 = _mm256_setr_epi32(0, 1, 2, 3, 3, 4, 5, 6);
+    let shuffle_1 = _mm256_setr_epi32(6, 7, 0, 0, 0, 0, 0, 0);
+    let shuffle_1_0 = _mm256_setr_epi32(0, 0, 0, 1, 1, 2, 3, 4);
+    let shuffle_2 = _mm256_setr_epi32(4, 5, 6, 7, 7, 0, 0, 0);
+    let shuffle_2_1 = _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 1, 2);
+    let blend_v1_mask = _mm256_setr_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1,
+    );
+    let rgb_shuffle = _mm256_setr_epi8(
+        0, 1, 2, -1, 3, 4, 5, -1, 6, 7, 8, -1, 9, 10, 11, -1, 0, 1, 2, -1, 3, 4, 5, -1, 6, 7, 8,
+        -1, 9, 10, 11, -1,
+    );
+
+    let blend_v2_mask = _mm256_setr_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1,
+    );
+
+    let shuffle_3 = _mm256_setr_epi32(2, 3, 4, 5, 5, 6, 7, 0);
+
+    let permuted0 = _mm256_permutevar8x32_epi32(m0, shuffle_0);
+    let permuted1 = _mm256_permutevar8x32_epi32(m0, shuffle_1);
+    let permuted1_0 = _mm256_permutevar8x32_epi32(m1, shuffle_1_0);
+    let permuted2 = _mm256_permutevar8x32_epi32(m1, shuffle_2);
+    let permuted2_0 = _mm256_permutevar8x32_epi32(m2, shuffle_2_1);
+
+    let v0 = _mm256_shuffle_epi8(permuted0, rgb_shuffle);
+
+    let n1 = _mm256_blendv_epi8(permuted1, permuted1_0, blend_v1_mask);
+    let v1 = _mm256_shuffle_epi8(n1, rgb_shuffle);
+
+    let n2 = _mm256_blendv_epi8(permuted2, permuted2_0, blend_v2_mask);
+    let v2 = _mm256_shuffle_epi8(n2, rgb_shuffle);
+
+    let n3 = _mm256_permutevar8x32_epi32(m2, shuffle_3);
+    let v3 = _mm256_shuffle_epi8(n3, rgb_shuffle);
+
+    (v0, v1, v2, v3)
+}

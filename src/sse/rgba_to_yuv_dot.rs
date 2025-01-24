@@ -79,7 +79,9 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
     let y_bias = _mm_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = _mm_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let y_weights = if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb{
+    let y_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm_set4r_epi(
             transform.yr as i8,
             transform.yg as i8,
@@ -94,7 +96,9 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             0,
         )
     };
-    let cb_weights =  if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb{
+    let cb_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm_set4r_epi(
             transform.cb_r as i8,
             transform.cb_g as i8,
@@ -109,7 +113,9 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             0,
         )
     };
-    let cr_weights =  if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb{
+    let cr_weights = if source_channels == YuvSourceChannels::Rgba
+        || source_channels == YuvSourceChannels::Rgb
+    {
         _mm_set4r_epi(
             transform.cr_r as i8,
             transform.cr_g as i8,

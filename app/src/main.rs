@@ -274,8 +274,6 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    // bytes_16.fill(0);
-
     yuv420_to_rgb(
         &fixed_planar,
         &mut rgba,

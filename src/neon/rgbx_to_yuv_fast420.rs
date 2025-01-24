@@ -72,10 +72,8 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 
-        let (r_values0, g_values0, b_values0) =
-            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src0);
-        let (r_values1, g_values1, b_values1) =
-            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src1);
+        let (r_values0, g_values0, b_values0) = neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src0);
+        let (r_values1, g_values1, b_values1) = neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src1);
 
         let mut yh0 = vmlal_high_u8(y_bias, r_values0, v_yr);
         let mut yh1 = vmlal_high_u8(y_bias, r_values1, v_yr);

@@ -148,9 +148,5 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
         }
     }
 
-    YuvToYuy2Navigation {
-        cx,
-        uv_x,
-        x: cx,
-    }
+    YuvToYuy2Navigation { cx, uv_x, x: cx }
 }
