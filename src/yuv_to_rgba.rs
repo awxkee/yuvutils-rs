@@ -1199,6 +1199,7 @@ mod tests {
             }
         }
         matrix(YuvConversionMode::Balanced, 3);
+        #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 6);
     }
 
@@ -1304,6 +1305,7 @@ mod tests {
             }
         }
         matrix(YuvConversionMode::Balanced, 20);
+        #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 30);
     }
 
@@ -1428,6 +1430,7 @@ mod tests {
             }
         }
         matrix(YuvConversionMode::Balanced, 3);
+        #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 7);
     }
 
@@ -1551,7 +1554,7 @@ mod tests {
                 );
             }
         }
-
+        #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 15);
         matrix(YuvConversionMode::Balanced, 10);
     }
@@ -1702,6 +1705,7 @@ mod tests {
             }
         }
         matrix(YuvConversionMode::Balanced, 47);
+        #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 50);
     }
 
@@ -1854,6 +1858,7 @@ mod tests {
             }
         }
         matrix(YuvConversionMode::Balanced, 55);
+        #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 60);
     }
 }

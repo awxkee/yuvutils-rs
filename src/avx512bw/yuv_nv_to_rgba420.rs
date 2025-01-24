@@ -174,17 +174,15 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
         let v_high = _mm512_sub_epi16(v_high0, uv_corr);
         let y_high0 = _mm512_mulhrs_epi16(y0_10.1, v_luma_coeff);
         let y_high1 = _mm512_mulhrs_epi16(y1_10.1, v_luma_coeff);
-
-        let g_coeff_hi = _mm512_add_epi16(
-            _mm512_mulhrs_epi16(v_high, v_g_coeff_1),
-            _mm512_mulhrs_epi16(u_high, v_g_coeff_2),
-        );
+        let g_c0_h = _mm512_mulhrs_epi16(v_high, v_g_coeff_1);
+        let g_c1_h = _mm512_mulhrs_epi16(u_high, v_g_coeff_2);
 
         let v_cr_hi = _mm512_mulhrs_epi16(v_high, v_cr_coeff);
         let v_cb_hi = _mm512_mulhrs_epi16(u_high, v_cb_coeff);
 
         let r_high0 = _mm512_add_epi16(y_high0, v_cr_hi);
         let b_high0 = _mm512_add_epi16(y_high0, v_cb_hi);
+        let g_coeff_hi = _mm512_add_epi16(g_c0_h, g_c1_h);
         let g_high0 = _mm512_sub_epi16(y_high0, g_coeff_hi);
 
         let r_high1 = _mm512_add_epi16(y_high1, v_cr_hi);
@@ -195,17 +193,14 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
         let v_low = _mm512_sub_epi16(v_low0, uv_corr);
         let y_low0 = _mm512_mulhrs_epi16(y0_10.0, v_luma_coeff);
         let y_low1 = _mm512_mulhrs_epi16(y1_10.0, v_luma_coeff);
-
-        let g_coeff_lo = _mm512_add_epi16(
-            _mm512_mulhrs_epi16(v_low, v_g_coeff_1),
-            _mm512_mulhrs_epi16(u_low, v_g_coeff_2),
-        );
-
+        let g_c0_l = _mm512_mulhrs_epi16(v_low, v_g_coeff_1);
+        let g_c1_l = _mm512_mulhrs_epi16(u_low, v_g_coeff_2);
         let v_cr_lo = _mm512_mulhrs_epi16(v_low, v_cr_coeff);
         let v_cb_lo = _mm512_mulhrs_epi16(u_low, v_cb_coeff);
 
         let r_low0 = _mm512_add_epi16(y_low0, v_cr_lo);
         let b_low0 = _mm512_add_epi16(y_low0, v_cb_lo);
+        let g_coeff_lo = _mm512_add_epi16(g_c0_l, g_c1_l);
         let g_low0 = _mm512_sub_epi16(y_low0, g_coeff_lo);
 
         let r_low1 = _mm512_add_epi16(y_low1, v_cr_lo);
@@ -242,6 +237,148 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
 
         cx += 64;
         uv_x += 64;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+
+        assert!(diff <= 64);
+
+        let mut dst_buffer0: [u8; 64 * 4] = [0; 64 * 4];
+        let mut dst_buffer1: [u8; 64 * 4] = [0; 64 * 4];
+        let mut y_buffer0: [u8; 64] = [0; 64];
+        let mut y_buffer1: [u8; 64] = [0; 64];
+        let mut uv_buffer: [u8; 64 * 2] = [0; 64 * 2];
+
+        std::ptr::copy_nonoverlapping(
+            y_plane0.get_unchecked(cx..).as_ptr(),
+            y_buffer0.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_plane1.get_unchecked(cx..).as_ptr(),
+            y_buffer1.as_mut_ptr(),
+            diff,
+        );
+
+        let hv = diff.div_ceil(2) * 2;
+
+        std::ptr::copy_nonoverlapping(
+            uv_plane.get_unchecked(uv_x..).as_ptr(),
+            uv_buffer.as_mut_ptr(),
+            hv,
+        );
+
+        let yl0 = _mm512_loadu_si512(y_buffer0.as_ptr() as *const i32);
+        let yl1 = _mm512_loadu_si512(y_buffer1.as_ptr() as *const i32);
+
+        let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const i32);
+
+        let y_values0 = _mm512_subs_epu8(yl0, y_corr);
+        let y_values1 = _mm512_subs_epu8(yl1, y_corr);
+
+        let (u_values0, v_values0) =
+            avx512_unzip_epi8::<HAS_VBMI>(uv_values, _mm512_setzero_si512());
+
+        let (mut u_values, _) = avx512_zip_epi8::<HAS_VBMI>(u_values0, u_values0);
+        let (mut v_values, _) = avx512_zip_epi8::<HAS_VBMI>(v_values0, v_values0);
+
+        if order == YuvNVOrder::VU {
+            std::mem::swap(&mut u_values, &mut v_values);
+        }
+        let uh = _mm512_unpackhi_epi8(u_values, u_values);
+        let vh = _mm512_unpackhi_epi8(v_values, v_values);
+        let ul = _mm512_unpacklo_epi8(u_values, u_values);
+        let vl = _mm512_unpacklo_epi8(v_values, v_values);
+
+        let u_high = _mm512_srli_epi16::<6>(uh);
+        let v_high0 = _mm512_srli_epi16::<6>(vh);
+        let u_low0 = _mm512_srli_epi16::<6>(ul);
+        let v_low0 = _mm512_srli_epi16::<6>(vl);
+
+        let y0_10 = _mm512_expand8_unordered_to_10(y_values0);
+        let y1_10 = _mm512_expand8_unordered_to_10(y_values1);
+
+        let u_high = _mm512_sub_epi16(u_high, uv_corr);
+        let v_high = _mm512_sub_epi16(v_high0, uv_corr);
+        let y_high0 = _mm512_mulhrs_epi16(y0_10.1, v_luma_coeff);
+        let y_high1 = _mm512_mulhrs_epi16(y1_10.1, v_luma_coeff);
+        let g_c0_h = _mm512_mulhrs_epi16(v_high, v_g_coeff_1);
+        let g_c1_h = _mm512_mulhrs_epi16(u_high, v_g_coeff_2);
+
+        let v_cr_hi = _mm512_mulhrs_epi16(v_high, v_cr_coeff);
+        let v_cb_hi = _mm512_mulhrs_epi16(u_high, v_cb_coeff);
+
+        let r_high0 = _mm512_add_epi16(y_high0, v_cr_hi);
+        let b_high0 = _mm512_add_epi16(y_high0, v_cb_hi);
+        let g_coeff_hi = _mm512_add_epi16(g_c0_h, g_c1_h);
+        let g_high0 = _mm512_sub_epi16(y_high0, g_coeff_hi);
+
+        let r_high1 = _mm512_add_epi16(y_high1, v_cr_hi);
+        let b_high1 = _mm512_add_epi16(y_high1, v_cb_hi);
+        let g_high1 = _mm512_sub_epi16(y_high1, g_coeff_hi);
+
+        let u_low = _mm512_sub_epi16(u_low0, uv_corr);
+        let v_low = _mm512_sub_epi16(v_low0, uv_corr);
+        let y_low0 = _mm512_mulhrs_epi16(y0_10.0, v_luma_coeff);
+        let y_low1 = _mm512_mulhrs_epi16(y1_10.0, v_luma_coeff);
+        let g_c0_l = _mm512_mulhrs_epi16(v_low, v_g_coeff_1);
+        let g_c1_l = _mm512_mulhrs_epi16(u_low, v_g_coeff_2);
+        let v_cr_lo = _mm512_mulhrs_epi16(v_low, v_cr_coeff);
+        let v_cb_lo = _mm512_mulhrs_epi16(u_low, v_cb_coeff);
+
+        let r_low0 = _mm512_add_epi16(y_low0, v_cr_lo);
+        let b_low0 = _mm512_add_epi16(y_low0, v_cb_lo);
+        let g_coeff_lo = _mm512_add_epi16(g_c0_l, g_c1_l);
+        let g_low0 = _mm512_sub_epi16(y_low0, g_coeff_lo);
+
+        let r_low1 = _mm512_add_epi16(y_low1, v_cr_lo);
+        let b_low1 = _mm512_add_epi16(y_low1, v_cb_lo);
+        let g_low1 = _mm512_sub_epi16(y_low1, g_coeff_lo);
+
+        let r_values0 = _mm512_packus_epi16(r_low0, r_high0);
+        let g_values0 = _mm512_packus_epi16(g_low0, g_high0);
+        let b_values0 = _mm512_packus_epi16(b_low0, b_high0);
+
+        let r_values1 = _mm512_packus_epi16(r_low1, r_high1);
+        let g_values1 = _mm512_packus_epi16(g_low1, g_high1);
+        let b_values1 = _mm512_packus_epi16(b_low1, b_high1);
+
+        let v_alpha = _mm512_set1_epi8(255u8 as i8);
+
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+            dst_buffer0.as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+            dst_buffer1.as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer0.as_mut_ptr(),
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer1.as_mut_ptr(),
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
+        uv_x += hv;
     }
 
     ProcessedOffset { cx, ux: uv_x }

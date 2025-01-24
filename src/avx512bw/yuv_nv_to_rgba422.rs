@@ -214,5 +214,107 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
         uv_x += 64;
     }
 
+    if cx < width {
+        let diff = width - cx;
+
+        assert!(diff <= 64);
+
+        let mut dst_buffer: [u8; 64 * 4] = [0; 64 * 4];
+        let mut y_buffer0: [u8; 64] = [0; 64];
+        let mut uv_buffer: [u8; 64 * 2] = [0; 64 * 2];
+
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer0.as_mut_ptr(),
+            diff,
+        );
+
+        let hv = diff.div_ceil(2) * 2;
+
+        std::ptr::copy_nonoverlapping(
+            uv_plane.get_unchecked(uv_x..).as_ptr(),
+            uv_buffer.as_mut_ptr(),
+            hv,
+        );
+
+        let y_vl0 = _mm512_loadu_si512(y_buffer0.as_ptr() as *const i32);
+        let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const i32);
+
+        let y_values = _mm512_subs_epu8(y_vl0, y_corr);
+
+        let sh_uu = _mm512_shuffle_epi8(uv_values, sh_e);
+        let sh_vv = _mm512_shuffle_epi8(uv_values, sh_o);
+
+        let ss_uu = _mm512_srli_epi16::<6>(sh_uu);
+        let ss_vv = _mm512_srli_epi16::<6>(sh_vv);
+
+        let mut u_values = _mm512_sub_epi16(ss_uu, uv_corr);
+        let mut v_values = _mm512_sub_epi16(ss_vv, uv_corr);
+
+        if order == YuvNVOrder::VU {
+            std::mem::swap(&mut u_values, &mut v_values);
+        }
+
+        let g_c0 = _mm512_mulhrs_epi16(v_values, v_g_coeff_1);
+        let g_c1 = _mm512_mulhrs_epi16(u_values, v_g_coeff_2);
+        let v_u = _mm512_mulhrs_epi16(u_values, v_cb_coeff);
+        let v_v = _mm512_mulhrs_epi16(v_values, v_cr_coeff);
+        let v_g = _mm512_add_epi16(g_c0, g_c1);
+
+        let (v_u_l, v_u_h) = (
+            _mm512_unpacklo_epi16(v_u, v_u),
+            _mm512_unpackhi_epi16(v_u, v_u),
+        );
+
+        let (v_v_l, v_v_h) = (
+            _mm512_unpacklo_epi16(v_v, v_v),
+            _mm512_unpackhi_epi16(v_v, v_v),
+        );
+
+        let (v_g_l, v_g_h) = (
+            _mm512_unpacklo_epi16(v_g, v_g),
+            _mm512_unpackhi_epi16(v_g, v_g),
+        );
+
+        let y10 = _mm512_expand8_unordered_to_10(y_values);
+
+        let y_high = _mm512_mulhrs_epi16(y10.1, v_luma_coeff);
+
+        let r_high = _mm512_add_epi16(y_high, v_v_h);
+        let b_high = _mm512_add_epi16(y_high, v_u_h);
+        let g_high = _mm512_sub_epi16(y_high, v_g_h);
+
+        let y_low = _mm512_mulhrs_epi16(y10.0, v_luma_coeff);
+
+        let r_low = _mm512_add_epi16(y_low, v_v_l);
+        let b_low = _mm512_add_epi16(y_low, v_u_l);
+        let g_low = _mm512_sub_epi16(y_low, v_g_l);
+
+        let r_values = _mm512_packus_epi16(r_low, r_high);
+        let g_values = _mm512_packus_epi16(g_low, g_high);
+        let b_values = _mm512_packus_epi16(b_low, b_high);
+
+        let v_alpha = _mm512_set1_epi8(255u8 as i8);
+
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_mut_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
+        uv_x += hv;
+    }
+
     ProcessedOffset { cx, ux: uv_x }
 }

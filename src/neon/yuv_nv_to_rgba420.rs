@@ -489,10 +489,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
             diff,
         );
 
+        let hv = diff.div_ceil(2) * 2;
+
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
             uv_buffer.as_mut_ptr(),
-            diff,
+            hv,
         );
 
         let vl0 = vld1_u8(y_buffer0.as_ptr());
@@ -574,7 +576,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
         );
 
         cx += diff;
-        ux += diff;
+        ux += hv;
     }
 
     ProcessedOffset { cx, ux }
@@ -806,10 +808,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
             diff,
         );
 
+        let hv = diff.div_ceil(2) * 2;
+
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
             uv_buffer.as_mut_ptr(),
-            diff,
+            hv,
         );
 
         decode_8_part(
@@ -835,7 +839,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
         );
 
         cx += diff;
-        ux += diff;
+        ux += hv;
     }
 
     ProcessedOffset { cx, ux }

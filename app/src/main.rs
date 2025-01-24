@@ -68,16 +68,6 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 use core::f16;
 
 fn main() {
-    let count = 64 / 4;
-    let mut mask: [i8; 64] = [0; 64];
-    for i in 0..count {
-        let cnt = i * 3 + 16;
-        mask[i * 4] = cnt as i8;
-        mask[i * 4 + 1] = (cnt + 1) as i8;
-        mask[i * 4 + 2] = (cnt + 2) as i8;
-        mask[i * 4 + 3] = -1;
-    }
-    println!("{:?}", mask);
     let j = (1. / u16::MAX as f32) as f16;
     println!("{}, j {}", j.to_bits(), j as f32);
     let mut img = ImageReader::open("./assets/bench.png")
@@ -117,7 +107,7 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut bi_planar_image =
-        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
         YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
@@ -125,11 +115,11 @@ fn main() {
     // let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420(
-        &mut planar_image,
+    rgb_to_yuv_nv12(
+        &mut bi_planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::Full,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt601,
         YuvConversionMode::Fast,
     )
@@ -284,11 +274,11 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv420_to_rgb(
-        &fixed_planar,
+    yuv_nv12_to_rgb(
+        &fixed_biplanar,
         &mut rgba,
         rgba_stride as u32,
-        YuvRange::Full,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
