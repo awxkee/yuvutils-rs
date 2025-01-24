@@ -303,7 +303,7 @@ unsafe fn sse_rgba_to_nv_row_impl<
         );
 
         let ux_size = match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff.div_ceil(2) * 2,
             YuvChromaSubsampling::Yuv444 => diff * 2,
         };
 

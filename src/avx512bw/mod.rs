@@ -64,7 +64,9 @@ pub(crate) use rgba_to_yuv420::avx512_rgba_to_yuv420;
 #[cfg(feature = "fast_mode")]
 pub(crate) use rgba_to_yuv_dot::{avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi};
 #[cfg(feature = "fast_mode")]
-pub(crate) use rgba_to_yuv_dot420::{avx512_rgba_to_yuv_dot_rgba420, avx512_rgba_to_yuv_dot_rgba420_vbmi};
+pub(crate) use rgba_to_yuv_dot420::{
+    avx512_rgba_to_yuv_dot_rgba420, avx512_rgba_to_yuv_dot_rgba420_vbmi,
+};
 pub(crate) use y_to_rgb::avx512_y_to_rgb_row;
 pub(crate) use ycgco_to_rgb::avx512_ycgco_to_rgb_row;
 pub(crate) use ycgco_to_rgba_alpha::avx512_ycgco_to_rgba_alpha;

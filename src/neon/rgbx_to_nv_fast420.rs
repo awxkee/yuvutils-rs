@@ -29,28 +29,25 @@
 
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::neon_vld_rgb_for_yuv;
-use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
+use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 use std::arch::aarch64::*;
 
 #[allow(clippy::cast_abs_to_unsigned)]
-pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
-    transform: &CbCrForwardTransform<i32>,
-    range: &YuvChromaRange,
+pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8>(
     y_plane0: &mut [u8],
     y_plane1: &mut [u8],
-    u_plane: &mut [u8],
-    v_plane: &mut [u8],
+    uv_plane: &mut [u8],
     rgba0: &[u8],
     rgba1: &[u8],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
     start_cx: usize,
     start_ux: usize,
-    width: usize,
 ) -> ProcessedOffset {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let uv_order: YuvNVOrder = UV_ORDER.into();
     let channels = source_channels.get_channels_count();
-
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
 
     const A_E: i32 = 7;
     let y_bias = vdupq_n_u16(range.bias_y as u16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
@@ -69,7 +66,7 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
     let v_cr_g = vdup_n_u8(transform.cr_g.abs() as u8);
     let v_cr_b = vdup_n_u8(transform.cr_b.abs() as u8);
 
-    while cx + 16 < width {
+    while cx + 16 < width as usize {
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 
@@ -110,9 +107,9 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
         let gpv = vpaddlq_u8(ghv);
         let bpv = vpaddlq_u8(bhv);
 
-        let rpv = vqshrn_n_u16::<1>(rpv);
-        let gpv = vqshrn_n_u16::<1>(gpv);
-        let bpv = vqshrn_n_u16::<1>(bpv);
+        let rpv = vqrshrn_n_u16::<1>(rpv);
+        let gpv = vqrshrn_n_u16::<1>(gpv);
+        let bpv = vqrshrn_n_u16::<1>(bpv);
 
         let mut cb_q = vmlal_u8(uv_bias, bpv, v_cb_b);
         let mut cr_q = vmlal_u8(uv_bias, rpv, v_cr_r);
@@ -121,26 +118,31 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
         cb_q = vmlsl_u8(cb_q, gpv, v_cb_g);
         cr_q = vmlsl_u8(cr_q, bpv, v_cr_b);
 
-        let cb = vqshrn_n_u16::<A_E>(cb_q);
-        let cr = vqshrn_n_u16::<A_E>(cr_q);
+        let mut cb = vqshrn_n_u16::<A_E>(cb_q);
+        let mut cr = vqshrn_n_u16::<A_E>(cr_q);
 
-        vst1_u8(u_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cb);
-        vst1_u8(v_ptr.get_unchecked_mut(ux..).as_mut_ptr(), cr);
+        if uv_order == YuvNVOrder::VU {
+            std::mem::swap(&mut cb, &mut cr);
+        }
 
-        ux += 8;
+        vst2_u8(
+            uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            uint8x8x2_t(cb, cr),
+        );
+
+        ux += 16;
         cx += 16;
     }
 
-    if cx < width {
-        let diff = width - cx;
+    if cx < width as usize {
+        let diff = width as usize - cx;
         assert!(diff <= 16);
 
         let mut src_buffer0: [u8; 16 * 4] = [0; 16 * 4];
         let mut src_buffer1: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];
         let mut y_buffer1: [u8; 16] = [0; 16];
-        let mut u_buffer: [u8; 16] = [0; 16];
-        let mut v_buffer: [u8; 16] = [0; 16];
+        let mut uv_buffer: [u8; 32] = [0; 32];
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
@@ -155,7 +157,7 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
 
         // Replicate last item to one more position for subsampling
         if diff % 2 != 0 {
-            let lst = (width - 1) * channels;
+            let lst = (width as usize - 1) * channels;
             let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
             let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
             let dvb = diff * channels;
@@ -208,9 +210,9 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
         let gpv = vpaddlq_u8(ghv);
         let bpv = vpaddlq_u8(bhv);
 
-        let rpv = vqshrn_n_u16::<1>(rpv);
-        let gpv = vqshrn_n_u16::<1>(gpv);
-        let bpv = vqshrn_n_u16::<1>(bpv);
+        let rpv = vqrshrn_n_u16::<1>(rpv);
+        let gpv = vqrshrn_n_u16::<1>(gpv);
+        let bpv = vqrshrn_n_u16::<1>(bpv);
 
         let mut cb_q = vmlal_u8(uv_bias, bpv, v_cb_b);
         let mut cr_q = vmlal_u8(uv_bias, rpv, v_cr_r);
@@ -219,11 +221,14 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
         cb_q = vmlsl_u8(cb_q, gpv, v_cb_g);
         cr_q = vmlsl_u8(cr_q, bpv, v_cr_b);
 
-        let cb = vqshrn_n_u16::<A_E>(cb_q);
-        let cr = vqshrn_n_u16::<A_E>(cr_q);
+        let mut cb = vqshrn_n_u16::<A_E>(cb_q);
+        let mut cr = vqshrn_n_u16::<A_E>(cr_q);
 
-        vst1_u8(u_buffer.as_mut_ptr(), cb);
-        vst1_u8(v_buffer.as_mut_ptr(), cr);
+        if uv_order == YuvNVOrder::VU {
+            std::mem::swap(&mut cb, &mut cr);
+        }
+
+        vst2_u8(uv_buffer.as_mut_ptr(), uint8x8x2_t(cb, cr));
 
         std::ptr::copy_nonoverlapping(
             y_buffer0.as_ptr(),
@@ -236,15 +241,11 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast420<const ORIGIN_CHANNELS: u8>(
             diff,
         );
 
-        let hv = diff.div_ceil(2);
+        let hv = diff.div_ceil(2) * 2;
+
         std::ptr::copy_nonoverlapping(
-            u_buffer.as_ptr(),
-            u_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
-            hv,
-        );
-        std::ptr::copy_nonoverlapping(
-            v_buffer.as_ptr(),
-            v_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
+            uv_buffer.as_ptr(),
+            uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             hv,
         );
 

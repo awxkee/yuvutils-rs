@@ -708,11 +708,15 @@ pub(crate) fn search_inverse_transform(
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
 pub enum YuvConversionMode {
-    /// Minimal precision, but fastest option.
+    /// Minimal precision, but the fastest option. Same as libyuv does use.
     /// This may encode with notable changes in the image,
     /// consider using this when you're migrating from libyuv and want same,
     /// or fastest performance, or you just need the fastest available performance.
-    /// On aarch64 `i8mm` activated feature is preferred.
+    /// On aarch64 `i8mm` activated feature may be preferred, nightly compiler channel is required,
+    /// when encoding RGBA/BGRA only.
+    /// For `x86` consider activating `avx512` feature ( nightly compiler channel is required ),
+    /// it may significantly increase throughout on some modern CPU's,
+    /// even without AVX-512 available. `avxvnni` may be used instead.
     #[cfg(feature = "fast_mode")]
     Fast,
     /// Mixed, but high precision, very good performance.

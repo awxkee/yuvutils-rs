@@ -274,8 +274,8 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             let cb_vl = _mm_packus_epi16(cb00, cb00);
             let cr_vl = _mm_packus_epi16(cr00, cr00);
 
-            _mm_storeu_si128(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cb_vl);
-            _mm_storeu_si128(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cr_vl);
+            _mm_storeu_si64(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cb_vl);
+            _mm_storeu_si64(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cr_vl);
 
             ux += 8;
         }
@@ -442,8 +442,8 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
             let cb_vl = _mm_packus_epi16(cb00, cb00);
             let cr_vl = _mm_packus_epi16(cr00, cr00);
 
-            _mm_storeu_si128(u_buffer.as_mut_ptr() as *mut _, cb_vl);
-            _mm_storeu_si128(v_buffer.as_mut_ptr() as *mut _, cr_vl);
+            _mm_storeu_si64(u_buffer.as_mut_ptr() as *mut _, cb_vl);
+            _mm_storeu_si64(v_buffer.as_mut_ptr() as *mut _, cr_vl);
         }
 
         std::ptr::copy_nonoverlapping(

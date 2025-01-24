@@ -96,13 +96,12 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
-
                 #[cfg(feature = "nightly_avx512")]
                 if std::arch::is_x86_feature_detected!("avx512bw") {
                     use crate::avx512bw::{
                         avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi,
                     };
+                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
                     if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
                         assert!(
                             chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
@@ -281,13 +280,12 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
-
                 #[cfg(feature = "nightly_avx512")]
                 if std::arch::is_x86_feature_detected!("avx512bw") {
                     use crate::avx512bw::{
                         avx512_rgba_to_yuv_dot_rgba420, avx512_rgba_to_yuv_dot_rgba420_vbmi,
                     };
+                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
                     if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
                         assert!(
                             chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra

@@ -65,6 +65,9 @@ pub(crate) fn avx512_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
     }
 }
 
+/// # Safety
+///
+/// - Checking `avx512vbmi` is required before the call
 pub(crate) fn avx512_rgba_to_yuv_dot_rgba420_vbmi<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,

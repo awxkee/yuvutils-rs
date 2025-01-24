@@ -361,7 +361,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
         );
 
         let ux_size = match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff.div_ceil(2) * 2,
             YuvChromaSubsampling::Yuv444 => diff * 2,
         };
 
@@ -616,7 +616,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
         );
 
         let ux_size = match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff.div_ceil(2) * 2,
             YuvChromaSubsampling::Yuv444 => diff * 2,
         };
 

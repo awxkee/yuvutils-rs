@@ -170,14 +170,14 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             let m0 = _mm_alignr_epi8::<12>(j1, j0);
             let m1 = _mm_alignr_epi8::<8>(j2, j1);
             let m2 = _mm_srli_si128::<4>(j2);
-            v1 = _mm_shuffle_epi8(m0, rgb_shuffle);
-            v2 = _mm_shuffle_epi8(m1, rgb_shuffle);
-            v3 = _mm_shuffle_epi8(m2, rgb_shuffle);
 
-            v4 = _mm_shuffle_epi8(j3, rgb_shuffle);
             let m3 = _mm_alignr_epi8::<12>(j4, j3);
             let m4 = _mm_alignr_epi8::<8>(j5, j4);
             let m5 = _mm_srli_si128::<4>(j5);
+            v1 = _mm_shuffle_epi8(m0, rgb_shuffle);
+            v2 = _mm_shuffle_epi8(m1, rgb_shuffle);
+            v3 = _mm_shuffle_epi8(m2, rgb_shuffle);
+            v4 = _mm_shuffle_epi8(j3, rgb_shuffle);
             v5 = _mm_shuffle_epi8(m3, rgb_shuffle);
             v6 = _mm_shuffle_epi8(m4, rgb_shuffle);
             v7 = _mm_shuffle_epi8(m5, rgb_shuffle);
@@ -339,14 +339,14 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             let m0 = _mm_alignr_epi8::<12>(j1, j0);
             let m1 = _mm_alignr_epi8::<8>(j2, j1);
             let m2 = _mm_srli_si128::<4>(j2);
-            v1 = _mm_shuffle_epi8(m0, rgb_shuffle);
-            v2 = _mm_shuffle_epi8(m1, rgb_shuffle);
-            v3 = _mm_shuffle_epi8(m2, rgb_shuffle);
 
-            v4 = _mm_shuffle_epi8(j3, rgb_shuffle);
             let m3 = _mm_alignr_epi8::<12>(j4, j3);
             let m4 = _mm_alignr_epi8::<8>(j5, j4);
             let m5 = _mm_srli_si128::<4>(j5);
+            v1 = _mm_shuffle_epi8(m0, rgb_shuffle);
+            v2 = _mm_shuffle_epi8(m1, rgb_shuffle);
+            v3 = _mm_shuffle_epi8(m2, rgb_shuffle);
+            v4 = _mm_shuffle_epi8(j3, rgb_shuffle);
             v5 = _mm_shuffle_epi8(m3, rgb_shuffle);
             v6 = _mm_shuffle_epi8(m4, rgb_shuffle);
             v7 = _mm_shuffle_epi8(m5, rgb_shuffle);
@@ -428,8 +428,8 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         let cb_vl = _mm_packus_epi16(cb00, cb00);
         let cr_vl = _mm_packus_epi16(cr00, cr00);
 
-        _mm_storeu_si128(u_buffer.as_mut_ptr() as *mut _, cb_vl);
-        _mm_storeu_si128(v_buffer.as_mut_ptr() as *mut _, cr_vl);
+        _mm_storeu_si64(u_buffer.as_mut_ptr() as *mut _, cb_vl);
+        _mm_storeu_si64(v_buffer.as_mut_ptr() as *mut _, cr_vl);
 
         std::ptr::copy_nonoverlapping(
             y_buffer0.as_ptr(),

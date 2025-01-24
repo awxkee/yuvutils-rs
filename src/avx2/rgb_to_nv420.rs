@@ -271,7 +271,7 @@ unsafe fn avx2_rgba_to_nv_impl<
             diff,
         );
 
-        let ux_size = diff;
+        let ux_size = diff.div_ceil(2) * 2;
 
         std::ptr::copy_nonoverlapping(
             uv_buffer.as_mut_ptr(),

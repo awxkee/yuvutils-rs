@@ -258,11 +258,11 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
         std::ptr::copy_nonoverlapping(
             uv_buffer.as_mut_ptr(),
             uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
-            diff,
+            diff.div_ceil(2) * 2,
         );
 
         cx += diff;
-        ux += diff;
+        ux += diff.div_ceil(2) * 2;
     }
 
     ProcessedOffset { cx, ux }
@@ -511,7 +511,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         std::ptr::copy_nonoverlapping(
             uv_buffer.as_mut_ptr(),
             uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
-            diff,
+            diff.div_ceil(2) * 2,
         );
 
         cx += diff;

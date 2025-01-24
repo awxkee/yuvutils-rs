@@ -36,9 +36,10 @@ use yuv_sys::{
 use yuvutils_rs::{
     gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
     rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
-    yuv400_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgba, yuv_nv16_to_rgb, YuvBiPlanarImageMut, YuvChromaSubsampling,
-    YuvConversionMode, YuvGrayImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    rgba_to_yuv_nv12, yuv400_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba,
+    yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb, YuvBiPlanarImageMut,
+    YuvChromaSubsampling, YuvConversionMode, YuvGrayImageMut, YuvPlanarImageMut, YuvRange,
+    YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -96,6 +97,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        YuvConversionMode::Balanced,
     )
     .unwrap();
 
@@ -105,6 +107,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        YuvConversionMode::Balanced,
     )
     .unwrap();
 
@@ -331,6 +334,45 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 stride as u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
+                YuvConversionMode::Fast,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGB -> NV21 Fast", |b| {
+        let mut test_planar = YuvBiPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_yuv_nv12(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Fast,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGB -> NV21 Balanced", |b| {
+        let mut test_planar = YuvBiPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_yuv_nv12(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Balanced,
             )
             .unwrap();
         })
