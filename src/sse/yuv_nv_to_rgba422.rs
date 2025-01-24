@@ -231,7 +231,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
         );
 
         let y_vl0 = _mm_loadu_si64(y_buffer0.as_ptr());
-        let uv_values_ = _mm_loadu_si64(uv_plane.as_ptr());
+        let uv_values_ = _mm_loadu_si64(uv_buffer.as_ptr());
 
         let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 

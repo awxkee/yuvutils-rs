@@ -214,7 +214,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl<
             hv,
         );
 
-        let y_vl = _mm256_loadu_si256(y_plane.as_ptr() as *const __m256i);
+        let y_vl = _mm256_loadu_si256(y_buffer.as_ptr() as *const __m256i);
 
         let (mut u_values, mut v_values);
 
