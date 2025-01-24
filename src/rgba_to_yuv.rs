@@ -110,15 +110,17 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                         return RgbEncoder {
                             handler: Some(avx512_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
                         };
-                    } else if chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb {
+                    }
+                    let has_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                    if (chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb)
+                        && has_vbmi
+                    {
                         assert!(chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb);
                         return RgbEncoder {
                             handler: Some(
                                 avx512_rgba_to_yuv_dot_rgba_bmi::<ORIGIN_CHANNELS, SAMPLING>,
                             ),
                         };
-                    } else {
-                        unimplemented!();
                     }
                 }
 
@@ -281,19 +283,28 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
             {
                 let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
 
-                if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
-                    #[cfg(feature = "nightly_avx512")]
-                    if std::arch::is_x86_feature_detected!("avx512bw") {
-                        use crate::avx512bw::avx512_rgba_to_yuv_dot_rgba420;
-                        if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
-                            assert!(
-                                chans == YuvSourceChannels::Rgba
-                                    || chans == YuvSourceChannels::Bgra
-                            );
-                            return RgbEncoder420 {
-                                handler: Some(avx512_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
-                            };
-                        }
+                #[cfg(feature = "nightly_avx512")]
+                if std::arch::is_x86_feature_detected!("avx512bw") {
+                    use crate::avx512bw::{
+                        avx512_rgba_to_yuv_dot_rgba420, avx512_rgba_to_yuv_dot_rgba420_vbmi,
+                    };
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoder420 {
+                            handler: Some(avx512_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                        };
+                    }
+
+                    let has_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                    if (chans == YuvSourceChannels::Rgb || chans == YuvSourceChannels::Bgr)
+                        && has_vbmi
+                    {
+                        assert!(chans == YuvSourceChannels::Rgb || chans == YuvSourceChannels::Bgr);
+                        return RgbEncoder420 {
+                            handler: Some(avx512_rgba_to_yuv_dot_rgba420_vbmi::<ORIGIN_CHANNELS>),
+                        };
                     }
                 }
 

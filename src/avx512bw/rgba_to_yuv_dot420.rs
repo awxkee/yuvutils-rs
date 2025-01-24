@@ -28,8 +28,8 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    _mm512_deinterleave_epi16, _mm512_deinterleave_epi32, _mm512_set4r_epi8, avx512_pack_u16,
-    avx512_pack_u32,
+    _mm512_deinterleave_epi16, _mm512_deinterleave_epi32, _mm512_expand_rgb_to_rgba,
+    _mm512_set4r_epi8, avx512_pack_u16, avx512_pack_u32,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -53,12 +53,39 @@ pub(crate) fn avx512_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
 ) -> ProcessedOffset {
     unsafe {
         if std::arch::is_x86_feature_detected!("avx512vnni") {
-            return avx512_rgba_to_yuv_dot_rgba_impl_dot420::<ORIGIN_CHANNELS>(
+            return avx512_rgba_to_yuv_dot_rgba_impl_dot420_def::<ORIGIN_CHANNELS>(
                 transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
                 start_ux, width,
             );
         }
-        avx512_rgba_to_yuv_dot_rgba_impl_ubs420::<ORIGIN_CHANNELS>(
+        avx512_rgba_to_yuv_dot_rgba_impl_ubs420_def::<ORIGIN_CHANNELS>(
+            transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+            start_ux, width,
+        )
+    }
+}
+
+pub(crate) fn avx512_rgba_to_yuv_dot_rgba420_vbmi<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u8],
+    y_plane1: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
+    rgba0: &[u8],
+    rgba1: &[u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    unsafe {
+        if std::arch::is_x86_feature_detected!("avx512vnni") {
+            return avx512_rgba_to_yuv_dot_rgba_impl_dot420_vbmi::<ORIGIN_CHANNELS>(
+                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                start_ux, width,
+            );
+        }
+        avx512_rgba_to_yuv_dot_rgba_impl_ubs420_vbmi::<ORIGIN_CHANNELS>(
             transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
             start_ux, width,
         )
@@ -66,7 +93,47 @@ pub(crate) fn avx512_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
 }
 
 #[target_feature(enable = "avx512bw")]
-unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
+unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420_def<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u8],
+    y_plane1: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
+    rgba0: &[u8],
+    rgba1: &[u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_rgba_to_yuv_dot_rgba_impl_ubs420_impl::<ORIGIN_CHANNELS>(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[target_feature(enable = "avx512bw", enable = "avx512vbmi")]
+unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420_vbmi<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u8],
+    y_plane1: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
+    rgba0: &[u8],
+    rgba1: &[u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_rgba_to_yuv_dot_rgba_impl_ubs420_impl::<ORIGIN_CHANNELS>(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[inline(always)]
+unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420_impl<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane0: &mut [u8],
@@ -80,9 +147,6 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
     width: usize,
 ) -> ProcessedOffset {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    assert!(
-        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
-    );
     let channels = source_channels.get_channels_count();
 
     let u_ptr = u_plane;
@@ -92,7 +156,12 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
     let y_bias = _mm512_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = _mm512_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let y_weights = if source_channels == YuvSourceChannels::Rgba {
+    let is_rgbx =
+        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb;
+    let is_rgb =
+        source_channels == YuvSourceChannels::Rgb || source_channels == YuvSourceChannels::Bgr;
+
+    let y_weights = if is_rgbx {
         _mm512_set4r_epi8(
             transform.yr as i8,
             transform.yg as i8,
@@ -107,7 +176,7 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             0,
         )
     };
-    let cb_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cb_weights = if is_rgbx {
         _mm512_set4r_epi8(
             transform.cb_r as i8,
             transform.cb_g as i8,
@@ -122,7 +191,7 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             0,
         )
     };
-    let cr_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cr_weights = if is_rgbx {
         _mm512_set4r_epi8(
             transform.cr_r as i8,
             transform.cr_g as i8,
@@ -145,15 +214,30 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 
-        let v0 = _mm512_loadu_si512(src0 as *const _);
-        let v1 = _mm512_loadu_si512(src0.add(64) as *const _);
-        let v2 = _mm512_loadu_si512(src0.add(64 * 2) as *const _);
-        let v3 = _mm512_loadu_si512(src0.add(64 * 3) as *const _);
+        let (v0, v1, v2, v3);
+        let (v4, v5, v6, v7);
 
-        let v4 = _mm512_loadu_si512(src1 as *const _);
-        let v5 = _mm512_loadu_si512(src1.add(64) as *const _);
-        let v6 = _mm512_loadu_si512(src1.add(64 * 2) as *const _);
-        let v7 = _mm512_loadu_si512(src1.add(64 * 3) as *const _);
+        if !is_rgb {
+            v0 = _mm512_loadu_si512(src0 as *const _);
+            v1 = _mm512_loadu_si512(src0.add(64) as *const _);
+            v2 = _mm512_loadu_si512(src0.add(64 * 2) as *const _);
+            v3 = _mm512_loadu_si512(src0.add(64 * 3) as *const _);
+
+            v4 = _mm512_loadu_si512(src1 as *const _);
+            v5 = _mm512_loadu_si512(src1.add(64) as *const _);
+            v6 = _mm512_loadu_si512(src1.add(64 * 2) as *const _);
+            v7 = _mm512_loadu_si512(src1.add(64 * 3) as *const _);
+        } else {
+            let j0 = _mm512_loadu_si512(src0 as *const _);
+            let j1 = _mm512_loadu_si512(src0.add(64) as *const _);
+            let j2 = _mm512_loadu_si512(src0.add(64 * 2) as *const _);
+
+            let j3 = _mm512_loadu_si512(src1 as *const _);
+            let j4 = _mm512_loadu_si512(src1.add(64) as *const _);
+            let j5 = _mm512_loadu_si512(src1.add(64 * 2) as *const _);
+            (v0, v1, v2, v3) = _mm512_expand_rgb_to_rgba(j0, j1, j2);
+            (v4, v5, v6, v7) = _mm512_expand_rgb_to_rgba(j3, j4, j5);
+        }
 
         let y0s = _mm512_maddubs_epi16(v0, y_weights);
         let y1s = _mm512_maddubs_epi16(v1, y_weights);
@@ -281,15 +365,30 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             }
         }
 
-        let v0 = _mm512_loadu_si512(src_buffer0.as_ptr() as *const _);
-        let v1 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64) as *const _);
-        let v2 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 2) as *const _);
-        let v3 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 3) as *const _);
+        let (v0, v1, v2, v3);
+        let (v4, v5, v6, v7);
 
-        let v4 = _mm512_loadu_si512(src_buffer1.as_ptr() as *const _);
-        let v5 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64) as *const _);
-        let v6 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 2) as *const _);
-        let v7 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 3) as *const _);
+        if !is_rgb {
+            v0 = _mm512_loadu_si512(src_buffer0.as_ptr() as *const _);
+            v1 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64) as *const _);
+            v2 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 2) as *const _);
+            v3 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 3) as *const _);
+
+            v4 = _mm512_loadu_si512(src_buffer1.as_ptr() as *const _);
+            v5 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64) as *const _);
+            v6 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 2) as *const _);
+            v7 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 3) as *const _);
+        } else {
+            let j0 = _mm512_loadu_si512(src_buffer0.as_ptr() as *const _);
+            let j1 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64) as *const _);
+            let j2 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 2) as *const _);
+
+            let j3 = _mm512_loadu_si512(src_buffer1.as_ptr() as *const _);
+            let j4 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64) as *const _);
+            let j5 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 2) as *const _);
+            (v0, v1, v2, v3) = _mm512_expand_rgb_to_rgba(j0, j1, j2);
+            (v4, v5, v6, v7) = _mm512_expand_rgb_to_rgba(j3, j4, j5);
+        }
 
         let y0s = _mm512_maddubs_epi16(v0, y_weights);
         let y1s = _mm512_maddubs_epi16(v1, y_weights);
@@ -401,7 +500,47 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
 }
 
 #[target_feature(enable = "avx512bw", enable = "avx512vnni")]
-unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
+unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420_def<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u8],
+    y_plane1: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
+    rgba0: &[u8],
+    rgba1: &[u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_rgba_to_yuv_dot_rgba_impl_dot420_impl::<ORIGIN_CHANNELS>(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[target_feature(enable = "avx512bw", enable = "avx512vnni", enable = "avx512vbmi")]
+unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420_vbmi<const ORIGIN_CHANNELS: u8>(
+    transform: &CbCrForwardTransform<i32>,
+    range: &YuvChromaRange,
+    y_plane0: &mut [u8],
+    y_plane1: &mut [u8],
+    u_plane: &mut [u8],
+    v_plane: &mut [u8],
+    rgba0: &[u8],
+    rgba1: &[u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+) -> ProcessedOffset {
+    avx512_rgba_to_yuv_dot_rgba_impl_dot420_impl::<ORIGIN_CHANNELS>(
+        transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx, start_ux,
+        width,
+    )
+}
+
+#[inline(always)]
+unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420_impl<const ORIGIN_CHANNELS: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane0: &mut [u8],
@@ -415,9 +554,6 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
     width: usize,
 ) -> ProcessedOffset {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    assert!(
-        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
-    );
     let channels = source_channels.get_channels_count();
 
     let u_ptr = u_plane;
@@ -427,7 +563,12 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
     let y_bias = _mm512_set1_epi32(range.bias_y as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = _mm512_set1_epi32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let y_weights = if source_channels == YuvSourceChannels::Rgba {
+    let is_rgbx =
+        source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Rgb;
+    let is_rgb =
+        source_channels == YuvSourceChannels::Rgb || source_channels == YuvSourceChannels::Bgr;
+
+    let y_weights = if is_rgbx {
         _mm512_set4r_epi8(
             transform.yr as i8,
             transform.yg as i8,
@@ -442,7 +583,7 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
             0,
         )
     };
-    let cb_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cb_weights = if is_rgbx {
         _mm512_set4r_epi8(
             transform.cb_r as i8,
             transform.cb_g as i8,
@@ -457,7 +598,7 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
             0,
         )
     };
-    let cr_weights = if source_channels == YuvSourceChannels::Rgba {
+    let cr_weights = if is_rgbx {
         _mm512_set4r_epi8(
             transform.cr_r as i8,
             transform.cr_g as i8,
@@ -480,15 +621,30 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 
-        let v0 = _mm512_loadu_si512(src0 as *const _);
-        let v1 = _mm512_loadu_si512(src0.add(64) as *const _);
-        let v2 = _mm512_loadu_si512(src0.add(64 * 2) as *const _);
-        let v3 = _mm512_loadu_si512(src0.add(64 * 3) as *const _);
+        let (v0, v1, v2, v3);
+        let (v4, v5, v6, v7);
 
-        let v4 = _mm512_loadu_si512(src1 as *const _);
-        let v5 = _mm512_loadu_si512(src1.add(64) as *const _);
-        let v6 = _mm512_loadu_si512(src1.add(64 * 2) as *const _);
-        let v7 = _mm512_loadu_si512(src1.add(64 * 3) as *const _);
+        if !is_rgb {
+            v0 = _mm512_loadu_si512(src0 as *const _);
+            v1 = _mm512_loadu_si512(src0.add(64) as *const _);
+            v2 = _mm512_loadu_si512(src0.add(64 * 2) as *const _);
+            v3 = _mm512_loadu_si512(src0.add(64 * 3) as *const _);
+
+            v4 = _mm512_loadu_si512(src1 as *const _);
+            v5 = _mm512_loadu_si512(src1.add(64) as *const _);
+            v6 = _mm512_loadu_si512(src1.add(64 * 2) as *const _);
+            v7 = _mm512_loadu_si512(src1.add(64 * 3) as *const _);
+        } else {
+            let j0 = _mm512_loadu_si512(src0 as *const _);
+            let j1 = _mm512_loadu_si512(src0.add(64) as *const _);
+            let j2 = _mm512_loadu_si512(src0.add(64 * 2) as *const _);
+
+            let j3 = _mm512_loadu_si512(src1 as *const _);
+            let j4 = _mm512_loadu_si512(src1.add(64) as *const _);
+            let j5 = _mm512_loadu_si512(src1.add(64 * 2) as *const _);
+            (v0, v1, v2, v3) = _mm512_expand_rgb_to_rgba(j0, j1, j2);
+            (v4, v5, v6, v7) = _mm512_expand_rgb_to_rgba(j3, j4, j5);
+        }
 
         let y0s = _mm512_dpbusd_epi32(y_bias, v0, y_weights);
         let y1s = _mm512_dpbusd_epi32(y_bias, v1, y_weights);
@@ -600,15 +756,30 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
             }
         }
 
-        let v0 = _mm512_loadu_si512(src_buffer0.as_ptr() as *const _);
-        let v1 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64) as *const _);
-        let v2 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 2) as *const _);
-        let v3 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 3) as *const _);
+        let (v0, v1, v2, v3);
+        let (v4, v5, v6, v7);
 
-        let v4 = _mm512_loadu_si512(src_buffer1.as_ptr() as *const _);
-        let v5 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64) as *const _);
-        let v6 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 2) as *const _);
-        let v7 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 3) as *const _);
+        if !is_rgb {
+            v0 = _mm512_loadu_si512(src_buffer0.as_ptr() as *const _);
+            v1 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64) as *const _);
+            v2 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 2) as *const _);
+            v3 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 3) as *const _);
+
+            v4 = _mm512_loadu_si512(src_buffer1.as_ptr() as *const _);
+            v5 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64) as *const _);
+            v6 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 2) as *const _);
+            v7 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 3) as *const _);
+        } else {
+            let j0 = _mm512_loadu_si512(src_buffer0.as_ptr() as *const _);
+            let j1 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64) as *const _);
+            let j2 = _mm512_loadu_si512(src_buffer0.as_ptr().add(64 * 2) as *const _);
+
+            let j3 = _mm512_loadu_si512(src_buffer1.as_ptr() as *const _);
+            let j4 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64) as *const _);
+            let j5 = _mm512_loadu_si512(src_buffer1.as_ptr().add(64 * 2) as *const _);
+            (v0, v1, v2, v3) = _mm512_expand_rgb_to_rgba(j0, j1, j2);
+            (v4, v5, v6, v7) = _mm512_expand_rgb_to_rgba(j3, j4, j5);
+        }
 
         let y0s = _mm512_dpbusd_epi32(y_bias, v0, y_weights);
         let y1s = _mm512_dpbusd_epi32(y_bias, v1, y_weights);
