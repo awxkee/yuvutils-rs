@@ -92,7 +92,7 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 
 | Conversion             | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) |
 |------------------------|:----------:|:--------------:|:----------:|:-------------:|
-| utils RGB->YUV 4:2:0   |  261.66µs  |    369.37µs    |  973.17µs  |   722.87µs    |
+| utils RGB->YUV 4:2:0   |  261.66µs  |    354.25µs    |  973.17µs  |   722.87µs    |
 | libyuv RGB->YUV 4:2:0  |  306.80µs  |     3.62ms     |   1.10ms   |   972.52µs    |
 | utils RGBA->YUV 4:2:0  |  266.66µs  |    367.47µs    |  781.54µs  |   785.93µs    |
 | libyuv RGBA->YUV 4:2:0 |  429.36µs  |     2.70ms     |  846.69µs  |   707.33µs    |

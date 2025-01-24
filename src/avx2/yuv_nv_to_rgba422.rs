@@ -166,5 +166,117 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl422<const UV_ORDER: u8, const DESTINATION_
         uv_x += 32;
     }
 
+    if cx < width {
+        let diff = width - cx;
+
+        assert!(diff <= 32);
+
+        let mut dst_buffer: [u8; 32 * 4] = [0; 32 * 4];
+        let mut y_buffer0: [u8; 32] = [0; 32];
+        let mut uv_buffer: [u8; 32 * 2] = [0; 32 * 2];
+
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer0.as_mut_ptr(),
+            diff,
+        );
+
+        let hv = diff.div_ceil(2) * 2;
+
+        std::ptr::copy_nonoverlapping(
+            uv_plane.get_unchecked(uv_x..).as_ptr(),
+            uv_buffer.as_mut_ptr(),
+            hv,
+        );
+
+        let yvl0 = _mm256_loadu_si256(y_buffer0.as_ptr() as *const __m256i);
+        let uv_values = _mm256_loadu_si256(uv_buffer.as_ptr() as *const __m256i);
+
+        let y_values = _mm256_subs_epu8(yvl0, y_corr);
+
+        let sh_e = _mm256_setr_epi8(
+            0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10,
+            10, 12, 12, 14, 14,
+        );
+        let sh_o = _mm256_setr_epi8(
+            1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11,
+            11, 13, 13, 15, 15,
+        );
+
+        let mut u_values = _mm256_sub_epi16(
+            _mm256_srli_epi16::<6>(_mm256_shuffle_epi8(uv_values, sh_e)),
+            uv_corr,
+        );
+        let mut v_values = _mm256_sub_epi16(
+            _mm256_srli_epi16::<6>(_mm256_shuffle_epi8(uv_values, sh_o)),
+            uv_corr,
+        );
+
+        if order == YuvNVOrder::VU {
+            std::mem::swap(&mut u_values, &mut v_values);
+        }
+
+        let v_u = _mm256_mulhrs_epi16(u_values, v_cb_coeff);
+        let v_v = _mm256_mulhrs_epi16(v_values, v_cr_coeff);
+        let v_g = _mm256_add_epi16(
+            _mm256_mulhrs_epi16(v_values, v_g_coeff_1),
+            _mm256_mulhrs_epi16(u_values, v_g_coeff_2),
+        );
+
+        let (v_u_l, v_u_h) = (
+            _mm256_unpacklo_epi16(v_u, v_u),
+            _mm256_unpackhi_epi16(v_u, v_u),
+        );
+
+        let (v_v_l, v_v_h) = (
+            _mm256_unpacklo_epi16(v_v, v_v),
+            _mm256_unpackhi_epi16(v_v, v_v),
+        );
+
+        let (v_g_l, v_g_h) = (
+            _mm256_unpacklo_epi16(v_g, v_g),
+            _mm256_unpackhi_epi16(v_g, v_g),
+        );
+
+        let y10 = _mm256_expand8_unordered_to_10(y_values);
+
+        let y_high = _mm256_mulhrs_epi16(y10.1, v_luma_coeff);
+
+        let r_high = _mm256_add_epi16(y_high, v_v_h);
+        let b_high = _mm256_add_epi16(y_high, v_u_h);
+        let g_high = _mm256_sub_epi16(y_high, v_g_h);
+
+        let y_low = _mm256_mulhrs_epi16(y10.0, v_luma_coeff);
+
+        let r_low = _mm256_add_epi16(y_low, v_v_l);
+        let b_low = _mm256_add_epi16(y_low, v_u_l);
+        let g_low = _mm256_sub_epi16(y_low, v_g_l);
+
+        let r_values = _mm256_packus_epi16(r_low, r_high);
+        let g_values = _mm256_packus_epi16(g_low, g_high);
+        let b_values = _mm256_packus_epi16(b_low, b_high);
+
+        let v_alpha = _mm256_set1_epi8(255u8 as i8);
+
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_mut_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
+        uv_x += hv;
+    }
+
     ProcessedOffset { cx, ux: uv_x }
 }
