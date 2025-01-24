@@ -40,7 +40,9 @@ mod rgb_to_yuv_p16;
 mod rgb_to_yuv_p16_420;
 mod rgba_to_yuv;
 mod rgba_to_yuv420;
+#[cfg(feature = "fast_mode")]
 mod rgba_to_yuv_dot;
+#[cfg(feature = "fast_mode")]
 mod rgba_to_yuv_dot420;
 mod shuffle;
 mod y_to_rgba;
@@ -77,7 +79,9 @@ pub(crate) use rgb_to_yuv_p16::avx_rgba_to_yuv_p16;
 pub(crate) use rgb_to_yuv_p16_420::avx_rgba_to_yuv_p16_420;
 pub(crate) use rgba_to_yuv::avx2_rgba_to_yuv;
 pub(crate) use rgba_to_yuv420::avx2_rgba_to_yuv420;
+#[cfg(feature = "fast_mode")]
 pub(crate) use rgba_to_yuv_dot::avx2_rgba_to_yuv_dot_rgba;
+#[cfg(feature = "fast_mode")]
 pub(crate) use rgba_to_yuv_dot420::avx2_rgba_to_yuv_dot_rgba420;
 pub(crate) use shuffle::{ShuffleConverterAvx2, ShuffleQTableConverterAvx2};
 pub(crate) use y_to_rgba::avx2_y_to_rgba_row;

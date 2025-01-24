@@ -34,6 +34,7 @@ use crate::yuv_support::{
 };
 use std::arch::aarch64::*;
 
+#[allow(clippy::cast_abs_to_unsigned)]
 pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,

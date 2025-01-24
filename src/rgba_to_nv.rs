@@ -82,6 +82,10 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
             return SemiPlanar420Encoder { handler: None };
         }
+        if PRECISION != 13 {
+            return SemiPlanar420Encoder { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
@@ -189,6 +193,11 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
     Default for SemiPlanarEncoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
 {
     fn default() -> Self {
+        if PRECISION != 13 {
+            return SemiPlanarEncoder { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
+
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
@@ -291,81 +300,87 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             chroma_range,
             &transform,
         );
+        if offset.cx != image.width as usize {
+            for ((y_dst, uv_dst), rgba) in y_dst
+                .chunks_exact_mut(2)
+                .zip(uv_dst.chunks_exact_mut(2))
+                .zip(rgba.chunks_exact(channels * 2))
+                .skip(offset.cx / 2)
+            {
+                let rgba0 = &rgba[0..channels];
+                let r0 = rgba0[src_chans.get_r_channel_offset()] as i32;
+                let g0 = rgba0[src_chans.get_g_channel_offset()] as i32;
+                let b0 = rgba0[src_chans.get_b_channel_offset()] as i32;
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[0] = y_0 as u8;
 
-        for ((y_dst, uv_dst), rgba) in y_dst
-            .chunks_exact_mut(2)
-            .zip(uv_dst.chunks_exact_mut(2))
-            .zip(rgba.chunks_exact(channels * 2))
-            .skip(offset.cx / 2)
-        {
-            let rgba0 = &rgba[0..channels];
-            let r0 = rgba0[src_chans.get_r_channel_offset()] as i32;
-            let g0 = rgba0[src_chans.get_g_channel_offset()] as i32;
-            let b0 = rgba0[src_chans.get_b_channel_offset()] as i32;
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0 as u8;
+                let rgba1 = &rgba[channels..channels * 2];
 
-            let rgba1 = &rgba[channels..channels * 2];
+                let r1 = rgba1[src_chans.get_r_channel_offset()] as i32;
+                let g1 = rgba1[src_chans.get_g_channel_offset()] as i32;
+                let b1 = rgba1[src_chans.get_b_channel_offset()] as i32;
 
-            let r1 = rgba1[src_chans.get_r_channel_offset()] as i32;
-            let g1 = rgba1[src_chans.get_g_channel_offset()] as i32;
-            let b1 = rgba1[src_chans.get_b_channel_offset()] as i32;
+                let y_1 = (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[1] = y_1 as u8;
 
-            let y_1 =
-                (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = y_1 as u8;
+                let r = (r0 + r1 + 1) >> 1;
+                let g = (g0 + g1 + 1) >> 1;
+                let b = (b0 + b1 + 1) >> 1;
 
-            let r = (r0 + r1 + 1) >> 1;
-            let g = (g0 + g1 + 1) >> 1;
-            let b = (b0 + b1 + 1) >> 1;
+                let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                    >> PRECISION;
+                let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                    >> PRECISION;
+                uv_dst[order.get_u_position()] = cb as u8;
+                uv_dst[order.get_v_position()] = cr as u8;
+            }
 
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
-                >> PRECISION;
-            uv_dst[order.get_u_position()] = cb as u8;
-            uv_dst[order.get_v_position()] = cr as u8;
-        }
+            if width & 1 != 0 {
+                let rgba = rgba.chunks_exact(channels * 2).remainder();
+                let rgba = &rgba[0..channels];
+                let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
+                let y_dst = y_dst.chunks_exact_mut(2).into_remainder();
 
-        if width & 1 != 0 {
-            let rgba = rgba.chunks_exact(channels * 2).remainder();
-            let rgba = &rgba[0..channels];
-            let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
-            let y_dst = y_dst.chunks_exact_mut(2).into_remainder();
+                let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
+                let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
+                let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[0] = y_0 as u8;
 
-            let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
-            let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
-            let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0 as u8;
-
-            let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                >> PRECISION;
-            uv_dst[order.get_u_position()] = cb as u8;
-            uv_dst[order.get_v_position()] = cr as u8;
+                let cb =
+                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                        >> PRECISION;
+                let cr =
+                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                        >> PRECISION;
+                uv_dst[order.get_u_position()] = cb as u8;
+                uv_dst[order.get_v_position()] = cr as u8;
+            }
         }
     };
 
     let semi_planar_handler420 =
         SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>::default();
 
-    let process_double_row =
-        |y_dst0: &mut [u8], y_dst1: &mut [u8], uv_dst: &mut [u8], rgba0: &[u8], rgba1: &[u8]| {
-            let offset = semi_planar_handler420.handle_rows(
-                rgba0,
-                rgba1,
-                y_dst0,
-                y_dst1,
-                uv_dst,
-                image.width,
-                chroma_range,
-                &transform,
-            );
-
+    let process_double_row = |y_dst0: &mut [u8],
+                              y_dst1: &mut [u8],
+                              uv_dst: &mut [u8],
+                              rgba0: &[u8],
+                              rgba1: &[u8]| {
+        let offset = semi_planar_handler420.handle_rows(
+            rgba0,
+            rgba1,
+            y_dst0,
+            y_dst1,
+            uv_dst,
+            image.width,
+            chroma_range,
+            &transform,
+        );
+        if offset.cx != image.width as usize {
             for ((((y_dst0, y_dst1), uv_dst), rgba0), rgba1) in y_dst0
                 .chunks_exact_mut(2)
                 .zip(y_dst1.chunks_exact_mut(2))
@@ -454,7 +469,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 uv_dst[order.get_u_position()] = cb as u8;
                 uv_dst[order.get_v_position()] = cr as u8;
             }
-        };
+        }
+    };
 
     let y_plane = image.y_plane.borrow_mut();
     let y_stride = image.y_stride;
@@ -488,26 +504,28 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 &transform,
             );
 
-            for ((y_dst, uv_dst), rgba) in y_dst
-                .iter_mut()
-                .zip(uv_dst.chunks_exact_mut(2))
-                .zip(rgba.chunks_exact(channels))
-                .skip(offset.cx)
-            {
-                let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
-                let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
-                let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
-                    >> PRECISION;
-                *y_dst = y_0 as u8;
-                let cb =
-                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+            if offset.cx != image.width as usize {
+                for ((y_dst, uv_dst), rgba) in y_dst
+                    .iter_mut()
+                    .zip(uv_dst.chunks_exact_mut(2))
+                    .zip(rgba.chunks_exact(channels))
+                    .skip(offset.cx)
+                {
+                    let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
+                    let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
+                    let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
+                    let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                         >> PRECISION;
-                let cr =
-                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                        >> PRECISION;
-                uv_dst[order.get_u_position()] = cb as u8;
-                uv_dst[order.get_v_position()] = cr as u8;
+                    *y_dst = y_0 as u8;
+                    let cb =
+                        (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                            >> PRECISION;
+                    let cr =
+                        (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                            >> PRECISION;
+                    uv_dst[order.get_u_position()] = cb as u8;
+                    uv_dst[order.get_v_position()] = cr as u8;
+                }
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {

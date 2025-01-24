@@ -41,11 +41,13 @@ mod rgba_to_nv;
 mod rgba_to_nv420;
 mod rgba_to_yuv;
 mod rgba_to_yuv420;
-#[cfg(feature = "nightly_i8mm")]
+#[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
 mod rgba_to_yuv_dot;
-#[cfg(feature = "nightly_i8mm")]
+#[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
 mod rgba_to_yuv_dot420;
+#[cfg(feature = "fast_mode")]
 mod rgbx_to_yuv_fast;
+#[cfg(feature = "fast_mode")]
 mod rgbx_to_yuv_fast420;
 mod shuffle;
 mod utils;
@@ -86,11 +88,13 @@ pub(crate) use rgba_to_nv::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row_rdm};
 pub(crate) use rgba_to_nv420::{neon_rgbx_to_nv_row420, neon_rgbx_to_nv_row_rdm420};
 pub(crate) use rgba_to_yuv::{neon_rgba_to_yuv, neon_rgba_to_yuv_rdm};
 pub(crate) use rgba_to_yuv420::{neon_rgba_to_yuv420, neon_rgba_to_yuv_rdm420};
-#[cfg(feature = "nightly_i8mm")]
+#[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
 pub(crate) use rgba_to_yuv_dot::neon_rgba_to_yuv_dot_rgba;
-#[cfg(feature = "nightly_i8mm")]
+#[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
 pub(crate) use rgba_to_yuv_dot420::neon_rgba_to_yuv_dot_rgba420;
+#[cfg(feature = "fast_mode")]
 pub(crate) use rgbx_to_yuv_fast::neon_rgbx_to_yuv_fast;
+#[cfg(feature = "fast_mode")]
 pub(crate) use rgbx_to_yuv_fast420::neon_rgbx_to_yuv_fast420;
 pub(crate) use shuffle::ShuffleConverterNeon;
 pub(crate) use y_p16_to_rgba16::neon_y_p16_to_rgba16_row;

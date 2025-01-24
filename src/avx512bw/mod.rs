@@ -59,7 +59,7 @@ pub(crate) use rgb_to_yuv_p16::avx512_rgba_to_yuv_p16;
 pub(crate) use rgb_to_yuv_p16_420::avx512_rgba_to_yuv_p16_420;
 pub(crate) use rgba_to_yuv::avx512_rgba_to_yuv;
 pub(crate) use rgba_to_yuv420::avx512_rgba_to_yuv420;
-pub(crate) use rgba_to_yuv_dot::avx512_rgba_to_yuv_dot_rgba;
+pub(crate) use rgba_to_yuv_dot::{avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi};
 pub(crate) use rgba_to_yuv_dot420::avx512_rgba_to_yuv_dot_rgba420;
 pub(crate) use y_to_rgb::avx512_y_to_rgb_row;
 pub(crate) use ycgco_to_rgb::avx512_ycgco_to_rgb_row;

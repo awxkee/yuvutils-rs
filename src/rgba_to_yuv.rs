@@ -70,6 +70,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     for RgbEncoder<ORIGIN_CHANNELS, SAMPLING, PRECISION>
 {
     fn default() -> Self {
+        #[cfg(feature = "fast_mode")]
         if PRECISION == 7 {
             assert_eq!(PRECISION, 7);
             #[cfg(all(target_arch = "aarch64", target_feature = "neon",))]
@@ -97,21 +98,27 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
             {
                 let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
 
-                if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
-                    #[cfg(feature = "nightly_avx512")]
-                    if std::arch::is_x86_feature_detected!("avx512bw") {
-                        use crate::avx512bw::avx512_rgba_to_yuv_dot_rgba;
-                        if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
-                            assert!(
-                                chans == YuvSourceChannels::Rgba
-                                    || chans == YuvSourceChannels::Bgra
-                            );
-                            return RgbEncoder {
-                                handler: Some(
-                                    avx512_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>,
-                                ),
-                            };
-                        }
+                #[cfg(feature = "nightly_avx512")]
+                if std::arch::is_x86_feature_detected!("avx512bw") {
+                    use crate::avx512bw::{
+                        avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi,
+                    };
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoder {
+                            handler: Some(avx512_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    } else if chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb {
+                        assert!(chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb);
+                        return RgbEncoder {
+                            handler: Some(
+                                avx512_rgba_to_yuv_dot_rgba_bmi::<ORIGIN_CHANNELS, SAMPLING>,
+                            ),
+                        };
+                    } else {
+                        unimplemented!();
                     }
                 }
 
@@ -244,6 +251,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         }
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
 
+        #[cfg(feature = "fast_mode")]
         if PRECISION == 7 {
             assert_eq!(PRECISION, 7);
             #[cfg(all(target_arch = "aarch64", target_feature = "neon",))]
@@ -760,28 +768,13 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     matrix: YuvStandardMatrix,
     _mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    {
-        if _mode == YuvConversionMode::Fast {
-            return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 7>(
-                image,
-                rgba,
-                rgba_stride,
-                range,
-                matrix,
-            );
-        }
-        return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
-            image,
-            rgba,
-            rgba_stride,
-            range,
-            matrix,
-        );
-    }
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(any(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        all(target_arch = "aarch64", target_feature = "neon")
+    ))]
     {
         match _mode {
+            #[cfg(feature = "fast_mode")]
             YuvConversionMode::Fast => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 7>(
                 image,
                 rgba,
@@ -799,8 +792,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         }
     }
     #[cfg(not(any(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        all(target_arch = "aarch64", target_feature = "neon")
+        all(any(target_arch = "x86", target_arch = "x86_64"),),
+        all(target_arch = "aarch64", target_feature = "neon",),
     )))]
     {
         rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(image, rgba, rgba_stride, range, matrix)
@@ -819,6 +812,7 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 /// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -855,6 +849,7 @@ pub fn rgb_to_yuv422(
 /// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -891,6 +886,7 @@ pub fn bgr_to_yuv422(
 /// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -927,6 +923,7 @@ pub fn rgba_to_yuv422(
 /// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -963,6 +960,7 @@ pub fn bgra_to_yuv422(
 /// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -999,6 +997,7 @@ pub fn rgb_to_yuv420(
 /// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1035,6 +1034,7 @@ pub fn bgr_to_yuv420(
 /// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1071,6 +1071,7 @@ pub fn rgba_to_yuv420(
 /// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1107,6 +1108,7 @@ pub fn bgra_to_yuv420(
 /// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1143,6 +1145,7 @@ pub fn rgb_to_yuv444(
 /// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1179,6 +1182,7 @@ pub fn bgr_to_yuv444(
 /// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1215,6 +1219,7 @@ pub fn rgba_to_yuv444(
 /// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `range` - The YUV range (limited or full).
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///

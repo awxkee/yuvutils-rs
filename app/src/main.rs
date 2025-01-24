@@ -68,6 +68,16 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 use core::f16;
 
 fn main() {
+    let count = 64 / 4;
+    let mut mask: [i8; 64] = [0; 64];
+    for i in 0..count {
+        let cnt = i * 3 + 16;
+        mask[i * 4] = cnt as i8;
+        mask[i * 4 + 1] = (cnt + 1) as i8;
+        mask[i * 4 + 2] = (cnt + 2) as i8;
+        mask[i * 4 + 3] = -1;
+    }
+    println!("{:?}", mask);
     let j = (1. / u16::MAX as f32) as f16;
     println!("{}, j {}", j.to_bits(), j as f32);
     let mut img = ImageReader::open("./assets/bench.png")

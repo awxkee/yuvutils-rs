@@ -29,6 +29,7 @@ default = []
 nightly_avx512 = ["fast_transpose/nightly_avx512"]
 nightly_f16 = []
 nightly_i8mm = []
+fast_mode = []
 rayon = ["dep:rayon"]
 
 [profile.dev.package]

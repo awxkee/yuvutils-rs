@@ -712,7 +712,8 @@ pub enum YuvConversionMode {
     /// This may encode with notable changes in the image,
     /// consider using this when you're migrating from libyuv and want same,
     /// or fastest performance, or you just need the fastest available performance.
-    /// On aarch64 `i8mm` activated features is preferred.
+    /// On aarch64 `i8mm` activated feature is preferred.
+    #[cfg(feature = "fast_mode")]
     Fast,
     /// Mixed, but high precision, very good performance.
     /// This is still a VERY fast method, with much more precise encoding.
@@ -725,6 +726,7 @@ pub enum YuvConversionMode {
 impl Display for YuvConversionMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            #[cfg(feature = "fast_mode")]
             YuvConversionMode::Fast => f.write_str("YuvAccuracy::Fast"),
             YuvConversionMode::Balanced => f.write_str("YuvAccuracy::Balanced"),
         }
