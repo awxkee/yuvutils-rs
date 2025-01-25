@@ -280,6 +280,7 @@ fn main() {
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+        YuvConversionMode::Fast,
     )
     .unwrap();
 

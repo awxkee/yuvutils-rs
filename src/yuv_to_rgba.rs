@@ -235,7 +235,7 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
     for RowHandler420<DESTINATION_CHANNELS, SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        if PRECISION == 13 {
+        if PRECISION != 13 {
             return RowHandler420 { handler: None };
         }
         assert_eq!(PRECISION, 13);

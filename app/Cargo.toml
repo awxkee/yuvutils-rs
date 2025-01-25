@@ -12,6 +12,7 @@ yuv-sys = "0.3.7"
 nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
 nightly_i8mm = ["yuvutils-rs/nightly_i8mm"]
 fast_mode = ["yuvutils-rs/fast_mode"]
+rdm = ["yuvutils-rs/rdm"]
 
 [dev-dependencies]
 criterion = "0.5.1"
