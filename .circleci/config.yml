@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  check_avx512:
+  build:
     docker:
       - image: cimg/rust:1.82.0
     steps:
@@ -38,15 +38,3 @@ jobs:
           key: cargo-{{ checksum "Cargo.lock" }}
           paths:
             - ~/.cargo
-
-workflows:
-  version: 2
-
-  check_avx512:
-    jobs:
-      - check_avx512:
-          filters:
-            branches:
-              only:
-                - dev
-                - main

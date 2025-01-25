@@ -142,9 +142,9 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                 }
             }
 
-            return SemiPlanar420Encoder {
+            SemiPlanar420Encoder {
                 handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -319,11 +319,11 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                 }
             }
 
-            return SemiPlanarEncoder {
+            SemiPlanarEncoder {
                 handler: Some(
                     neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
                 ),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {

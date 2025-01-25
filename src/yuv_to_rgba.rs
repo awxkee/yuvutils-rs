@@ -74,9 +74,9 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
                 }
             }
             use crate::neon::neon_yuv_to_rgba_row;
-            return RowHandler {
+            RowHandler {
                 handler: Some(neon_yuv_to_rgba_row::<PRECISION, DESTINATION_CHANNELS, SAMPLING>),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -257,9 +257,9 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
                 }
             }
             use crate::neon::neon_yuv_to_rgba_row420;
-            return RowHandler420 {
+            RowHandler420 {
                 handler: Some(neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {

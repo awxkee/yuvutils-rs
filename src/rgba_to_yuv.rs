@@ -152,9 +152,9 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
             }
-            return RgbEncoder {
+            RgbEncoder {
                 handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -348,9 +348,9 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
             }
-            return RgbEncoder420 {
+            RgbEncoder420 {
                 handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {

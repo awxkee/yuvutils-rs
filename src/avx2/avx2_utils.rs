@@ -1075,8 +1075,7 @@ pub(crate) unsafe fn _mm256_sqrdmlah_dot<const A_E: i32>(
     let y0_l = _mm256_srli_epi16::<A_E>(y0_l_m);
     let y0_h = _mm256_srli_epi16::<A_E>(y0_h_m);
 
-    let y0_yuv = _mm256_packus_epi16(y0_l, y0_h);
-    y0_yuv
+    _mm256_packus_epi16(y0_l, y0_h)
 }
 
 #[inline(always)]
