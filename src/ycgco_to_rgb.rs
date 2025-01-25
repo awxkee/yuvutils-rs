@@ -37,8 +37,6 @@ use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_ycgco_to_rgb_row;
 use crate::numerics::qrshr;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_ycgco_to_rgb_row;
 use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -88,7 +86,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let range_reduction_uv =
         (max_colors as f32 / range.range_uv as f32 * precision_scale).round() as i32;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
@@ -116,63 +114,71 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         let mut uv_x = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
-                let processed = avx512_ycgco_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane,
-                    cg_plane,
-                    co_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    rgba_offset,
-                    width as usize,
-                );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                unsafe {
+                    let processed = avx512_ycgco_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane,
+                        cg_plane,
+                        co_plane,
+                        rgba,
+                        cx,
+                        uv_x,
+                        y_offset,
+                        u_offset,
+                        v_offset,
+                        rgba_offset,
+                        width as usize,
+                    );
+                    cx = processed.cx;
+                    uv_x = processed.ux;
+                }
             }
             #[cfg(feature = "avx")]
             if _use_avx2 {
-                use crate::avx2::avx2_ycgco_to_rgb_row;
-                let processed = avx2_ycgco_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane,
-                    cg_plane,
-                    co_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    rgba_offset,
-                    width as usize,
-                );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                unsafe {
+                    use crate::avx2::avx2_ycgco_to_rgb_row;
+                    let processed = avx2_ycgco_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane,
+                        cg_plane,
+                        co_plane,
+                        rgba,
+                        cx,
+                        uv_x,
+                        y_offset,
+                        u_offset,
+                        v_offset,
+                        rgba_offset,
+                        width as usize,
+                    );
+                    cx = processed.cx;
+                    uv_x = processed.ux;
+                }
             }
+            #[cfg(feature = "sse")]
             if _use_sse {
-                let processed = sse_ycgco_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane,
-                    cg_plane,
-                    co_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    rgba_offset,
-                    width as usize,
-                );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                unsafe {
+                    use crate::sse::sse_ycgco_to_rgb_row;
+                    let processed = sse_ycgco_to_rgb_row::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane,
+                        cg_plane,
+                        co_plane,
+                        rgba,
+                        cx,
+                        uv_x,
+                        y_offset,
+                        u_offset,
+                        v_offset,
+                        rgba_offset,
+                        width as usize,
+                    );
+                    cx = processed.cx;
+                    uv_x = processed.ux;
+                }
             }
         }
 

@@ -29,8 +29,6 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_y_to_rgb_alpha_row, neon_y_to_rgb_row_alpha_rdm};
 use crate::numerics::qrshr;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_y_to_rgba_alpha_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvGrayAlphaImage};
@@ -126,8 +124,9 @@ impl ProcessRowHandler<u8> for WideRowProcessor<u8> {
             );
             _cx = offset;
         }
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
         if self._use_sse {
+            use crate::sse::sse_y_to_rgba_alpha_row;
             let offset = sse_y_to_rgba_alpha_row::<DESTINATION_CHANNELS>(
                 _range, _transform, _y_plane, _a_plane, _rgba, _cx, _width,
             );

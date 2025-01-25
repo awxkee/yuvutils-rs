@@ -40,8 +40,6 @@ use crate::neon::{
     neon_rgbx_to_nv_row, neon_rgbx_to_nv_row420, neon_rgbx_to_nv_row_rdm,
     neon_rgbx_to_nv_row_rdm420,
 };
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_rgba_to_nv_row, sse_rgba_to_nv_row420};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::YuvError;
@@ -115,11 +113,14 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                     };
                 }
 
-                if std::arch::is_x86_feature_detected!("sse4.1") {
-                    use crate::sse::sse_rgba_to_nv_fast_rgba420;
-                    return SemiPlanar420Encoder {
-                        handler: Some(sse_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
-                    };
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_nv_fast_rgba420;
+                        return SemiPlanar420Encoder {
+                            handler: Some(sse_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
+                        };
+                    }
                 }
             }
         }
@@ -177,11 +178,17 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                     };
                 }
             }
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return SemiPlanar420Encoder {
-                    handler: Some(sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                use crate::sse::sse_rgba_to_nv_row420;
+                if use_sse {
+                    return SemiPlanar420Encoder {
+                        handler: Some(
+                            sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
+                        ),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
@@ -277,13 +284,16 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                     };
                 }
 
-                if std::arch::is_x86_feature_detected!("sse4.1") {
-                    use crate::sse::sse_rgba_to_nv_fast_rgba;
-                    return SemiPlanarEncoder {
-                        handler: Some(
-                            sse_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
-                        ),
-                    };
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_nv_fast_rgba;
+                        return SemiPlanarEncoder {
+                            handler: Some(
+                                sse_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                            ),
+                        };
+                    }
                 }
             }
         }
@@ -324,13 +334,17 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                     };
                 }
             }
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return SemiPlanarEncoder {
-                    handler: Some(
-                        sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                use crate::sse::sse_rgba_to_nv_row;
+                if use_sse {
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]

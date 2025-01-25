@@ -26,12 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_p16_to_rgba_row;
-#[cfg(feature = "rayon")]
-use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-#[cfg(feature = "rayon")]
-use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -40,15 +34,19 @@ use crate::avx512bw::avx512_yuv_p16_to_rgba8_row;
 use crate::built_coefficients::get_built_inverse_transform;
 #[allow(dead_code, unused_imports)]
 use crate::internals::ProcessedOffset;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::neon::neon_yuv_p16_to_rgba_row;
 use crate::numerics::to_ne;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_yuv_p16_to_rgba8_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness,
     YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 use crate::{YuvError, YuvPlanarImage};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn yuv_p16_to_image_ant<
     const DESTINATION_CHANNELS: u8,
@@ -104,7 +102,7 @@ fn yuv_p16_to_image_ant<
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
@@ -159,65 +157,73 @@ fn yuv_p16_to_image_ant<
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 let mut _v_offset = ProcessedOffset { cx: 0, ux: 0 };
-                unsafe {
+                {
                     #[cfg(feature = "nightly_avx512")]
                     if use_avx512 {
-                        let offset = avx512_wide_row_handler(
-                            _y_plane,
-                            _u_plane,
-                            _v_plane,
-                            _rgba,
-                            image.width,
-                            &chroma_range,
-                            &i_transform,
-                            _v_offset.cx,
-                            _v_offset.ux,
-                        );
-                        _v_offset = offset;
+                        unsafe {
+                            let offset = avx512_wide_row_handler(
+                                _y_plane,
+                                _u_plane,
+                                _v_plane,
+                                _rgba,
+                                image.width,
+                                &chroma_range,
+                                &i_transform,
+                                _v_offset.cx,
+                                _v_offset.ux,
+                            );
+                            _v_offset = offset;
+                        }
                     }
                     #[cfg(feature = "avx")]
                     if use_avx {
                         use crate::avx2::avx_yuv_p16_to_rgba8_row;
-                        let offset = avx_yuv_p16_to_rgba8_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            BIT_DEPTH,
-                            PRECISION,
-                        >(
-                            _y_plane,
-                            _u_plane,
-                            _v_plane,
-                            _rgba,
-                            image.width,
-                            &chroma_range,
-                            &i_transform,
-                            _v_offset.cx,
-                            _v_offset.ux,
-                        );
-                        _v_offset = offset;
+                        unsafe {
+                            let offset = avx_yuv_p16_to_rgba8_row::<
+                                DESTINATION_CHANNELS,
+                                SAMPLING,
+                                ENDIANNESS,
+                                BYTES_POSITION,
+                                BIT_DEPTH,
+                                PRECISION,
+                            >(
+                                _y_plane,
+                                _u_plane,
+                                _v_plane,
+                                _rgba,
+                                image.width,
+                                &chroma_range,
+                                &i_transform,
+                                _v_offset.cx,
+                                _v_offset.ux,
+                            );
+                            _v_offset = offset;
+                        }
                     }
+                    #[cfg(feature = "sse")]
                     if use_sse {
-                        let offset = sse_yuv_p16_to_rgba8_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            BIT_DEPTH,
-                            PRECISION,
-                        >(
-                            _y_plane,
-                            _u_plane,
-                            _v_plane,
-                            _rgba,
-                            image.width,
-                            &chroma_range,
-                            &i_transform,
-                            _v_offset.cx,
-                            _v_offset.ux,
-                        );
-                        _v_offset = offset;
+                        use crate::sse::sse_yuv_p16_to_rgba8_row;
+                        unsafe {
+                            let offset = sse_yuv_p16_to_rgba8_row::<
+                                DESTINATION_CHANNELS,
+                                SAMPLING,
+                                ENDIANNESS,
+                                BYTES_POSITION,
+                                BIT_DEPTH,
+                                PRECISION,
+                            >(
+                                _y_plane,
+                                _u_plane,
+                                _v_plane,
+                                _rgba,
+                                image.width,
+                                &chroma_range,
+                                &i_transform,
+                                _v_offset.cx,
+                                _v_offset.ux,
+                            );
+                            _v_offset = offset;
+                        }
                     }
                 }
                 _cx = _v_offset.cx;

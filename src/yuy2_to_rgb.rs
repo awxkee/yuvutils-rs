@@ -29,8 +29,6 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuy2_to_rgb_neon;
 use crate::numerics::qrshr;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::yuy2_to_rgb_sse;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_inverse_transform, get_yuv_range, YuvSourceChannels, Yuy2Description,
@@ -77,7 +75,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let _use_avx = std::arch::is_x86_feature_detected!("avx2");
@@ -128,7 +126,9 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                 _cx = processed.cx;
                 _yuy2_x = processed.x;
             }
+            #[cfg(feature = "sse")]
             if _use_sse {
+                use crate::sse::yuy2_to_rgb_sse;
                 let processed = yuy2_to_rgb_sse::<DESTINATION_CHANNELS, YUY2_SOURCE>(
                     &range,
                     &inverse_transform,

@@ -75,7 +75,7 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
-let img = img.resize_exact(140, 140, FilterType::CatmullRom);
+    let img = img.resize_exact(140, 140, FilterType::CatmullRom);
     let img = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let dimensions = img.dimensions();

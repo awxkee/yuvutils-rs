@@ -93,13 +93,12 @@ impl<
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
-
             #[cfg(feature = "nightly_avx512")]
             {
                 let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
                 let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
                 use crate::avx512bw::{avx512_yuv_nv_to_rgba, avx512_yuv_nv_to_rgba422};
+                let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
                 if use_avx512 {
                     return if subsampling == YuvChromaSubsampling::Yuv422
                         || subsampling == YuvChromaSubsampling::Yuv420
@@ -140,6 +139,7 @@ impl<
             #[cfg(feature = "avx")]
             {
                 let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
                 if use_avx2 {
                     use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row422};
                     return NVRowHandler {
@@ -160,20 +160,28 @@ impl<
                 }
             }
 
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                use crate::sse::{sse_yuv_nv_to_rgba, sse_yuv_nv_to_rgba422};
-                return NVRowHandler {
-                    handler: Some(
-                        if subsampling == YuvChromaSubsampling::Yuv420
-                            || subsampling == YuvChromaSubsampling::Yuv422
-                        {
-                            sse_yuv_nv_to_rgba422::<UV_ORDER, DESTINATION_CHANNELS>
-                        } else {
-                            sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>
-                        },
-                    ),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    use crate::sse::{sse_yuv_nv_to_rgba, sse_yuv_nv_to_rgba422};
+                    return NVRowHandler {
+                        handler: Some(
+                            if subsampling == YuvChromaSubsampling::Yuv420
+                                || subsampling == YuvChromaSubsampling::Yuv422
+                            {
+                                sse_yuv_nv_to_rgba422::<UV_ORDER, DESTINATION_CHANNELS>
+                            } else {
+                                sse_yuv_nv_to_rgba::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >
+                            },
+                        ),
+                    };
+                }
             }
         }
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -347,12 +355,15 @@ impl<
                 }
             }
 
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                use crate::sse::sse_yuv_nv_to_rgba420;
-                return NVRow420Handler {
-                    handler: Some(sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    use crate::sse::sse_yuv_nv_to_rgba420;
+                    return NVRow420Handler {
+                        handler: Some(sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>),
+                    };
+                }
             }
         }
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -2313,7 +2324,7 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 55);
+        matrix(YuvConversionMode::Balanced, 60);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 72);
     }

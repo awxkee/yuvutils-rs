@@ -29,7 +29,6 @@
 
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
-use crate::sse::{sse_interleave_even, sse_interleave_odd};
 use crate::yuv_support::{YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;

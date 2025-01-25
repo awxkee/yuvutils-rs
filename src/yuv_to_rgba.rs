@@ -37,8 +37,6 @@ use crate::neon::{
     neon_yuv_to_rgba_row_rdm420,
 };
 use crate::numerics::qrshr;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_yuv_to_rgba_row, sse_yuv_to_rgba_row420, sse_yuv_to_rgba_row422};
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::{wasm_yuv_to_rgba_row, wasm_yuv_to_rgba_row420};
 use crate::yuv_error::check_rgba_destination;
@@ -82,7 +80,7 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -190,7 +188,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 _uv_x = processed.ux;
             }
 
+            #[cfg(feature = "sse")]
             if use_sse {
+                use crate::sse::{sse_yuv_to_rgba_row, sse_yuv_to_rgba_row422};
                 let handler = if chroma_subsampling == YuvChromaSubsampling::Yuv422
                     || chroma_subsampling == YuvChromaSubsampling::Yuv420
                 {
@@ -320,7 +320,9 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     _cx = processed.cx;
                     _uv_x = processed.ux;
                 }
+                #[cfg(feature = "sse")]
                 if use_sse {
+                    use crate::sse::sse_yuv_to_rgba_row420;
                     let processed = sse_yuv_to_rgba_row420::<DESTINATION_CHANNELS>(
                         &chroma_range,
                         &inverse_transform,

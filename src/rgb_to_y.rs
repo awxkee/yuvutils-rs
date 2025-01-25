@@ -34,8 +34,6 @@ use crate::avx512bw::avx512_row_rgb_to_y;
 use crate::images::YuvGrayImageMut;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_rgb_to_y_rdm, neon_rgb_to_y_row};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_rgb_to_y;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::YuvError;
@@ -73,7 +71,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
@@ -153,7 +151,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 );
                 _cx = processed_offset;
             }
+            #[cfg(feature = "sse")]
             if use_sse {
+                use crate::sse::sse_rgb_to_y;
                 let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,

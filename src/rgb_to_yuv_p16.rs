@@ -37,8 +37,7 @@ use crate::neon::{
     neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_420, neon_rgba_to_yuv_p16_rdm,
     neon_rgba_to_yuv_p16_rdm_420,
 };
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_420};
+
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSubsampling,
@@ -107,7 +106,7 @@ fn rgbx_to_yuv_ant<
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
@@ -150,7 +149,9 @@ fn rgbx_to_yuv_ant<
     } else {
         neon_rgba_to_yuv_p16_420::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH>
     };
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
+    use crate::sse::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_420};
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let sse_dispatch = sse_rgba_to_yuv_p16::<
         ORIGIN_CHANNELS,
         SAMPLING,
@@ -159,8 +160,7 @@ fn rgbx_to_yuv_ant<
         PRECISION,
         BIT_DEPTH,
     >;
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let sse_dispatch_420 = sse_rgba_to_yuv_p16_420::<
         ORIGIN_CHANNELS,
         ENDIANNESS,
@@ -235,6 +235,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "sse")]
             if use_sse {
                 _offset = sse_dispatch(
                     &transform,
@@ -394,6 +395,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "sse")]
             if use_sse {
                 _offset = sse_dispatch_420(
                     &transform,

@@ -37,8 +37,6 @@ use crate::internals::*;
 use crate::neon::{
     neon_rgba_to_yuv, neon_rgba_to_yuv420, neon_rgba_to_yuv_rdm, neon_rgba_to_yuv_rdm420,
 };
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_rgba_to_yuv_row, sse_rgba_to_yuv_row420};
 use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -129,11 +127,14 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
 
-                if std::arch::is_x86_feature_detected!("sse4.1") {
-                    use crate::sse::sse_rgba_to_yuv_dot_rgba;
-                    return RgbEncoder {
-                        handler: Some(sse_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
-                    };
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_yuv_dot_rgba;
+                        return RgbEncoder {
+                            handler: Some(sse_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    }
                 }
             }
         }
@@ -182,11 +183,15 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
             }
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return RgbEncoder {
-                    handler: Some(sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                use crate::sse::sse_rgba_to_yuv_row;
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    return RgbEncoder {
+                        handler: Some(sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
@@ -316,6 +321,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
 
+                #[cfg(feature = "sse")]
                 if std::arch::is_x86_feature_detected!("sse4.1") {
                     use crate::sse::sse_rgba_to_yuv_dot_rgba420;
                     return RgbEncoder420 {
@@ -371,11 +377,15 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                 }
             }
 
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return RgbEncoder420 {
-                    handler: Some(sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS, PRECISION>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                use crate::sse::sse_rgba_to_yuv_row420;
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    return RgbEncoder420 {
+                        handler: Some(sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS, PRECISION>),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]

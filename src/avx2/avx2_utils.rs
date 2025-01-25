@@ -1133,3 +1133,30 @@ pub(crate) unsafe fn _mm256_expand_rgb_to_rgba(
 
     (v0, v1, v2, v3)
 }
+
+#[inline(always)]
+pub(crate) unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
+    #[rustfmt::skip]
+    let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
+                                     8, 8, 10, 10, 12, 12, 14, 14);
+    _mm_shuffle_epi8(x, shuffle)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
+    let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+    _mm_shuffle_epi8(x, shuffle)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _avx_from_msb_epi16<const BIT_DEPTH: usize>(a: __m128i) -> __m128i {
+    if BIT_DEPTH == 10 {
+        _mm_srli_epi16::<6>(a)
+    } else if BIT_DEPTH == 12 {
+        _mm_srli_epi16::<4>(a)
+    } else if BIT_DEPTH == 14 {
+        _mm_srli_epi16::<2>(a)
+    } else {
+        a
+    }
+}

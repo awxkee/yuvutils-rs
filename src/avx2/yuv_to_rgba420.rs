@@ -29,7 +29,6 @@
 
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
-use crate::sse::_xx_load_si64;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -193,8 +192,8 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     while cx + 16 < width {
         let yvl0 = _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i);
         let yvl1 = _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i);
-        let u_values = _xx_load_si64(u_ptr.add(uv_x));
-        let v_values = _xx_load_si64(v_ptr.add(uv_x));
+        let u_values = _mm_loadu_si64(u_ptr.add(uv_x));
+        let v_values = _mm_loadu_si64(v_ptr.add(uv_x));
 
         let y_values0 = _mm256_subs_epu8(_mm256_castsi128_si256(yvl0), y_corr);
         let y_values1 = _mm256_subs_epu8(_mm256_castsi128_si256(yvl1), y_corr);

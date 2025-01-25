@@ -29,7 +29,6 @@
 
 use crate::avx2::avx2_utils::*;
 use crate::internals::ProcessedOffset;
-use crate::sse::_xx_load_si64;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -204,8 +203,8 @@ unsafe fn avx2_yuv_to_rgba_row_impl<const DESTINATION_CHANNELS: u8, const SAMPLI
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_values = _xx_load_si64(u_ptr.add(uv_x));
-                let v_values = _xx_load_si64(v_ptr.add(uv_x));
+                let u_values = _mm_loadu_si64(u_ptr.add(uv_x));
+                let v_values = _mm_loadu_si64(v_ptr.add(uv_x));
 
                 let u_vl = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(
                     _mm_unpacklo_epi8(u_values, u_values),

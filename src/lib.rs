@@ -64,7 +64,7 @@ mod rgba_to_nv;
 mod rgba_to_yuv;
 mod sharpyuv;
 mod shuffle;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
 mod sse;
 mod to_identity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]

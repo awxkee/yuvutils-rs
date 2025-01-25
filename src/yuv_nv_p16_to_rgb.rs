@@ -30,8 +30,6 @@ use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_yuv_nv_p16_to_rgba_row, neon_yuv_nv_p16_to_rgba_row_rdm};
 use crate::numerics::{qrshr_n, to_ne};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_yuv_nv_p16_to_rgba_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvBiPlanarImage, YuvError};
@@ -83,7 +81,7 @@ fn yuv_nv_p16_to_image_impl<
     let bias_y = chroma_range.bias_y as i32;
     let bias_uv = chroma_range.bias_uv as i32;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
@@ -114,8 +112,10 @@ fn yuv_nv_p16_to_image_impl<
         let mut _offset = ProcessedOffset { cx: 0, ux: 0 };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            unsafe {
-                if _use_sse {
+            #[cfg(feature = "sse")]
+            if _use_sse {
+                use crate::sse::sse_yuv_nv_p16_to_rgba_row;
+                unsafe {
                     let processed = sse_yuv_nv_p16_to_rgba_row::<
                         DESTINATION_CHANNELS,
                         NV_ORDER,

@@ -37,8 +37,6 @@ use crate::internals::WideRowInversionHandler;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
 use crate::numerics::{qrshr, to_ne};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_yuv_p16_to_rgba_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_yuv_range, search_inverse_transform, CbCrInverseTransform, YuvBytesPacking, YuvChromaRange,
@@ -130,6 +128,7 @@ impl<
         };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "sse")]
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
             #[cfg(feature = "avx")]
             let use_avx = std::arch::is_x86_feature_detected!("avx2");
@@ -166,7 +165,9 @@ impl<
                     ),
                 };
             }
+            #[cfg(feature = "sse")]
             if use_sse && BIT_DEPTH <= 12 {
+                use crate::sse::sse_yuv_p16_to_rgba_row;
                 return WideRowAnyHandler {
                     handler: Some(
                         sse_yuv_p16_to_rgba_row::<
