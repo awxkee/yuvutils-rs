@@ -278,9 +278,8 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
         assert!(diff <= 64);
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer0: [u8; 64 * 4] = [0; 64 * 4];
         let mut src_buffer1: [u8; 64 * 4] = [0; 64 * 4];
@@ -299,6 +298,22 @@ unsafe fn avx512_rgba_to_yuv_impl420<const ORIGIN_CHANNELS: u8, const HAS_VBMI: 
             src_buffer1.as_mut_ptr(),
             diff * channels,
         );
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
 
         encode_64_part::<ORIGIN_CHANNELS, HAS_VBMI>(
             src_buffer0.as_slice(),

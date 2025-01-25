@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::built_coefficients::{get_built_forward_transform, get_built_inverse_transform};
+use std::fmt::Display;
 
 #[derive(Debug, Copy, Clone)]
 pub struct CbCrInverseTransform<T> {
@@ -701,6 +702,37 @@ pub(crate) fn search_inverse_transform(
             transform
         } else {
             transform.to_integers(precision as u32)
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
+pub enum YuvConversionMode {
+    /// Minimal precision, but the fastest option. Same as libyuv does use.
+    /// This may encode with notable changes in the image,
+    /// consider using this when you're migrating from libyuv and want same,
+    /// or fastest performance, or you just need the fastest available performance.
+    /// On aarch64 `i8mm` activated feature may be preferred, nightly compiler channel is required,
+    /// when encoding RGBA/BGRA only.
+    /// For `x86` consider activating `avx512` feature ( nightly compiler channel is required ),
+    /// it may significantly increase throughout on some modern CPU's,
+    /// even without AVX-512 available. `avxvnni` may be used instead.
+    #[cfg(feature = "fast_mode")]
+    Fast,
+    /// Mixed, but high precision, very good performance.
+    /// This is still a VERY fast method, with much more precise encoding.
+    /// This option is more suitable for common encoding, where fast speed is critical along the
+    /// high precision.
+    #[default]
+    Balanced,
+}
+
+impl Display for YuvConversionMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "fast_mode")]
+            YuvConversionMode::Fast => f.write_str("YuvAccuracy::Fast"),
+            YuvConversionMode::Balanced => f.write_str("YuvAccuracy::Balanced"),
         }
     }
 }

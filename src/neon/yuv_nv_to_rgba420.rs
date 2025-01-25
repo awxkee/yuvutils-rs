@@ -411,11 +411,8 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
         u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
         v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
 
-        #[allow(clippy::manual_swap)]
         if order == YuvNVOrder::VU {
-            let new_v = u_low_u8;
-            u_low_u8 = v_low_u8;
-            v_low_u8 = new_v;
+            std::mem::swap(&mut u_low_u8, &mut v_low_u8);
         }
 
         let u_low = vsubq_s16(
@@ -470,11 +467,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
 
         assert!(diff <= 8);
-
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut dst_buffer0: [u8; 8 * 4] = [0; 8 * 4];
         let mut dst_buffer1: [u8; 8 * 4] = [0; 8 * 4];
@@ -494,10 +489,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
             diff,
         );
 
+        let hv = diff.div_ceil(2) * 2;
+
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
             uv_buffer.as_mut_ptr(),
-            diff,
+            hv,
         );
 
         let vl0 = vld1_u8(y_buffer0.as_ptr());
@@ -513,11 +510,8 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
         u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
         v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
 
-        #[allow(clippy::manual_swap)]
         if order == YuvNVOrder::VU {
-            let new_v = u_low_u8;
-            u_low_u8 = v_low_u8;
-            v_low_u8 = new_v;
+            std::mem::swap(&mut u_low_u8, &mut v_low_u8);
         }
 
         let u_low = vsubq_s16(
@@ -582,7 +576,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_rdm420<
         );
 
         cx += diff;
-        ux += diff;
+        ux += hv;
     }
 
     ProcessedOffset { cx, ux }
@@ -733,11 +727,8 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
             u_low_u8 = vtbl1_u8(uv_values, shuffle_u);
             v_low_u8 = vtbl1_u8(uv_values, shuffle_v);
 
-            #[allow(clippy::manual_swap)]
             if order == YuvNVOrder::VU {
-                let new_v = u_low_u8;
-                u_low_u8 = v_low_u8;
-                v_low_u8 = new_v;
+                std::mem::swap(&mut u_low_u8, &mut v_low_u8);
             }
 
             let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
@@ -795,11 +786,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
 
         assert!(diff <= 8);
-
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut dst_buffer0: [u8; 8 * 4] = [0; 8 * 4];
         let mut dst_buffer1: [u8; 8 * 4] = [0; 8 * 4];
@@ -819,10 +808,12 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
             diff,
         );
 
+        let hv = diff.div_ceil(2) * 2;
+
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
             uv_buffer.as_mut_ptr(),
-            diff,
+            hv,
         );
 
         decode_8_part(
@@ -848,7 +839,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420<
         );
 
         cx += diff;
-        ux += diff;
+        ux += hv;
     }
 
     ProcessedOffset { cx, ux }

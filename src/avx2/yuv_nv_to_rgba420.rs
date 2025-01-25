@@ -186,5 +186,150 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<const UV_ORDER: u8, const DESTINATION_
         uv_x += 32;
     }
 
+    if cx < width {
+        let diff = width - cx;
+
+        assert!(diff <= 32);
+
+        let mut dst_buffer0: [u8; 32 * 4] = [0; 32 * 4];
+        let mut dst_buffer1: [u8; 32 * 4] = [0; 32 * 4];
+        let mut y_buffer0: [u8; 32] = [0; 32];
+        let mut y_buffer1: [u8; 32] = [0; 32];
+        let mut uv_buffer: [u8; 32 * 2] = [0; 32 * 2];
+
+        std::ptr::copy_nonoverlapping(
+            y_plane0.get_unchecked(cx..).as_ptr(),
+            y_buffer0.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_plane1.get_unchecked(cx..).as_ptr(),
+            y_buffer1.as_mut_ptr(),
+            diff,
+        );
+
+        let hv = diff.div_ceil(2) * 2;
+
+        std::ptr::copy_nonoverlapping(
+            uv_plane.get_unchecked(uv_x..).as_ptr(),
+            uv_buffer.as_mut_ptr(),
+            hv,
+        );
+
+        let yvl0 = _mm256_loadu_si256(y_buffer0.as_ptr() as *const __m256i);
+        let yvl1 = _mm256_loadu_si256(y_buffer1.as_ptr() as *const __m256i);
+        let uv_values = _mm256_loadu_si256(uv_buffer.as_ptr() as *const __m256i);
+
+        let y_values0 = _mm256_subs_epu8(yvl0, y_corr);
+        let y_values1 = _mm256_subs_epu8(yvl1, y_corr);
+
+        let (u_high_u16, v_high_u16, u_low_u16, v_low_u16);
+
+        let mut u_values = avx2_interleave_even(uv_values);
+        let mut v_values = avx2_interleave_odd(uv_values);
+
+        if order == YuvNVOrder::VU {
+            std::mem::swap(&mut u_values, &mut v_values);
+        }
+
+        let uh0 = _mm256_unpackhi_epi8(u_values, u_values);
+        let vh0 = _mm256_unpackhi_epi8(v_values, v_values);
+        let uh1 = _mm256_unpacklo_epi8(u_values, u_values);
+        let vh1 = _mm256_unpacklo_epi8(v_values, v_values);
+
+        u_high_u16 = _mm256_srli_epi16::<6>(uh0);
+        v_high_u16 = _mm256_srli_epi16::<6>(vh0);
+        u_low_u16 = _mm256_srli_epi16::<6>(uh1);
+        v_low_u16 = _mm256_srli_epi16::<6>(vh1);
+
+        let y0_10 = _mm256_expand8_unordered_to_10(y_values0);
+        let y1_10 = _mm256_expand8_unordered_to_10(y_values1);
+
+        let u_high = _mm256_sub_epi16(u_high_u16, uv_corr);
+        let v_high = _mm256_sub_epi16(v_high_u16, uv_corr);
+        let y_high0 = _mm256_mulhrs_epi16(y0_10.1, v_luma_coeff);
+        let y_high1 = _mm256_mulhrs_epi16(y1_10.1, v_luma_coeff);
+
+        let g_coeff_hi = _mm256_add_epi16(
+            _mm256_mulhrs_epi16(v_high, v_g_coeff_1),
+            _mm256_mulhrs_epi16(u_high, v_g_coeff_2),
+        );
+
+        let v_cr_hi = _mm256_mulhrs_epi16(v_high, v_cr_coeff);
+        let v_cb_hi = _mm256_mulhrs_epi16(u_high, v_cb_coeff);
+
+        let r_high0 = _mm256_add_epi16(y_high0, v_cr_hi);
+        let b_high0 = _mm256_add_epi16(y_high0, v_cb_hi);
+        let g_high0 = _mm256_sub_epi16(y_high0, g_coeff_hi);
+
+        let r_high1 = _mm256_add_epi16(y_high1, v_cr_hi);
+        let b_high1 = _mm256_add_epi16(y_high1, v_cb_hi);
+        let g_high1 = _mm256_sub_epi16(y_high1, g_coeff_hi);
+
+        let u_low = _mm256_sub_epi16(u_low_u16, uv_corr);
+        let v_low = _mm256_sub_epi16(v_low_u16, uv_corr);
+        let y_low0 = _mm256_mulhrs_epi16(y0_10.0, v_luma_coeff);
+        let y_low1 = _mm256_mulhrs_epi16(y1_10.0, v_luma_coeff);
+
+        let g_coeff_lo = _mm256_add_epi16(
+            _mm256_mulhrs_epi16(v_low, v_g_coeff_1),
+            _mm256_mulhrs_epi16(u_low, v_g_coeff_2),
+        );
+
+        let v_cr_lo = _mm256_mulhrs_epi16(v_low, v_cr_coeff);
+        let v_cb_lo = _mm256_mulhrs_epi16(u_low, v_cb_coeff);
+
+        let r_low0 = _mm256_add_epi16(y_low0, v_cr_lo);
+        let b_low0 = _mm256_add_epi16(y_low0, v_cb_lo);
+        let g_low0 = _mm256_sub_epi16(y_low0, g_coeff_lo);
+
+        let r_low1 = _mm256_add_epi16(y_low1, v_cr_lo);
+        let b_low1 = _mm256_add_epi16(y_low1, v_cb_lo);
+        let g_low1 = _mm256_sub_epi16(y_low1, g_coeff_lo);
+
+        let r_values0 = _mm256_packus_epi16(r_low0, r_high0);
+        let g_values0 = _mm256_packus_epi16(g_low0, g_high0);
+        let b_values0 = _mm256_packus_epi16(b_low0, b_high0);
+
+        let r_values1 = _mm256_packus_epi16(r_low1, r_high1);
+        let g_values1 = _mm256_packus_epi16(g_low1, g_high1);
+        let b_values1 = _mm256_packus_epi16(b_low1, b_high1);
+
+        let v_alpha = _mm256_set1_epi8(255u8 as i8);
+
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer0.as_mut_ptr(),
+            r_values0,
+            g_values0,
+            b_values0,
+            v_alpha,
+        );
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer1.as_mut_ptr(),
+            r_values1,
+            g_values1,
+            b_values1,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer0.as_mut_ptr(),
+            rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer1.as_mut_ptr(),
+            rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
+        uv_x += hv;
+    }
+
     ProcessedOffset { cx, ux: uv_x }
 }

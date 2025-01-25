@@ -357,11 +357,8 @@ unsafe fn sse_rgba_to_yuv_row_impl<
     }
 
     if cx < width {
-        let mut diff = width - cx;
+        let diff = width - cx;
         assert!(diff <= 8);
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
         let mut y_buffer: [u8; 8] = [0; 8];
@@ -373,6 +370,17 @@ unsafe fn sse_rgba_to_yuv_row_impl<
             src_buffer.as_mut_ptr(),
             diff * channels,
         );
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
 
         encode_8_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
             src_buffer.as_slice(),

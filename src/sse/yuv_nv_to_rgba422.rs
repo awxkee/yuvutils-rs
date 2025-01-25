@@ -89,25 +89,32 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
     let zeros = _mm_setzero_si128();
 
     while cx + 16 < width {
-        let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
-
+        let y_vl0 = _mm_loadu_si128(y_ptr.add(cx) as *const __m128i);
         let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_x) as *const __m128i);
+
         let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
-        u = _mm_sub_epi16(_mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u)), uv_corr);
-        v = _mm_sub_epi16(_mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v)), uv_corr);
+        let y_values = _mm_subs_epu8(y_vl0, y_corr);
+
+        u = _mm_unpacklo_epi8(u, u);
+        v = _mm_unpacklo_epi8(v, v);
+
+        u = _mm_srli_epi16::<6>(u);
+        v = _mm_srli_epi16::<6>(v);
+
+        u = _mm_sub_epi16(u, uv_corr);
+        v = _mm_sub_epi16(v, uv_corr);
 
         if order == YuvNVOrder::VU {
             std::mem::swap(&mut u, &mut v);
         }
 
+        let g_c0 = _mm_mulhrs_epi16(v, v_g_coeff_1);
+        let g_c1 = _mm_mulhrs_epi16(u, v_g_coeff_2);
         let v_u = _mm_mulhrs_epi16(u, v_cb_coeff);
         let v_v = _mm_mulhrs_epi16(v, v_cr_coeff);
 
-        let v_g = _mm_add_epi16(
-            _mm_mulhrs_epi16(v, v_g_coeff_1),
-            _mm_mulhrs_epi16(u, v_g_coeff_2),
-        );
+        let v_g = _mm_add_epi16(g_c0, g_c1);
 
         let (v_u_l, v_u_h) = (_mm_unpacklo_epi16(v_u, v_u), _mm_unpackhi_epi16(v_u, v_u));
 
@@ -148,33 +155,34 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
     }
 
     while cx + 8 < width {
-        let y_values = _mm_subs_epi8(_mm_loadu_si64(y_ptr.add(cx)), y_corr);
-
+        let y_vl0 = _mm_loadu_si64(y_ptr.add(cx));
         let uv_values_ = _mm_loadu_si64(uv_ptr.add(uv_x));
+
         let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
         let distribute_shuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
 
-        u = _mm_sub_epi16(
-            _mm_srli_epi16::<6>(_mm_shuffle_epi8(u, distribute_shuffle)),
-            uv_corr,
-        );
-        v = _mm_sub_epi16(
-            _mm_srli_epi16::<6>(_mm_shuffle_epi8(v, distribute_shuffle)),
-            uv_corr,
-        );
+        let y_values = _mm_subs_epi8(y_vl0, y_corr);
+
+        u = _mm_shuffle_epi8(u, distribute_shuffle);
+        v = _mm_shuffle_epi8(v, distribute_shuffle);
+
+        u = _mm_srli_epi16::<6>(u);
+        v = _mm_srli_epi16::<6>(v);
+
+        u = _mm_sub_epi16(u, uv_corr);
+        v = _mm_sub_epi16(v, uv_corr);
 
         if order == YuvNVOrder::VU {
             std::mem::swap(&mut u, &mut v);
         }
 
+        let g_c0 = _mm_mulhrs_epi16(v, v_g_coeff_1);
+        let g_c1 = _mm_mulhrs_epi16(u, v_g_coeff_2);
         let v_u = _mm_mulhrs_epi16(u, v_cb_coeff);
         let v_v = _mm_mulhrs_epi16(v, v_cr_coeff);
 
-        let v_g = _mm_add_epi16(
-            _mm_mulhrs_epi16(v, v_g_coeff_1),
-            _mm_mulhrs_epi16(u, v_g_coeff_2),
-        );
+        let v_g = _mm_add_epi16(g_c0, g_c1);
 
         let y_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
 
@@ -197,6 +205,90 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
 
         cx += 8;
         uv_x += 8;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+
+        assert!(diff <= 8);
+
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer0: [u8; 8] = [0; 8];
+        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
+
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer0.as_mut_ptr(),
+            diff,
+        );
+
+        let hv = diff.div_ceil(2) * 2;
+
+        std::ptr::copy_nonoverlapping(
+            uv_plane.get_unchecked(uv_x..).as_ptr(),
+            uv_buffer.as_mut_ptr(),
+            hv,
+        );
+
+        let y_vl0 = _mm_loadu_si64(y_buffer0.as_ptr());
+        let uv_values_ = _mm_loadu_si64(uv_buffer.as_ptr());
+
+        let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
+
+        let distribute_shuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
+
+        let y_values = _mm_subs_epi8(y_vl0, y_corr);
+
+        u = _mm_shuffle_epi8(u, distribute_shuffle);
+        v = _mm_shuffle_epi8(v, distribute_shuffle);
+
+        u = _mm_srli_epi16::<6>(u);
+        v = _mm_srli_epi16::<6>(v);
+
+        u = _mm_sub_epi16(u, uv_corr);
+        v = _mm_sub_epi16(v, uv_corr);
+
+        if order == YuvNVOrder::VU {
+            std::mem::swap(&mut u, &mut v);
+        }
+
+        let g_c0 = _mm_mulhrs_epi16(v, v_g_coeff_1);
+        let g_c1 = _mm_mulhrs_epi16(u, v_g_coeff_2);
+        let v_u = _mm_mulhrs_epi16(u, v_cb_coeff);
+        let v_v = _mm_mulhrs_epi16(v, v_cr_coeff);
+
+        let v_g = _mm_add_epi16(g_c0, g_c1);
+
+        let y_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
+
+        let r_low = _mm_add_epi16(y_low, v_v);
+        let b_low = _mm_add_epi16(y_low, v_u);
+        let g_low = _mm_sub_epi16(y_low, v_g);
+
+        let r_values = _mm_packus_epi16(r_low, zeros);
+        let g_values = _mm_packus_epi16(g_low, zeros);
+        let b_values = _mm_packus_epi16(b_low, zeros);
+
+        let v_alpha = _mm_set1_epi8(255u8 as i8);
+
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_mut_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
+        uv_x += hv;
     }
 
     ProcessedOffset { cx, ux: uv_x }

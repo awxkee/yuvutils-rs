@@ -920,6 +920,151 @@ pub(crate) unsafe fn _mm512_expand_bp_by2<const BIT_DEPTH: usize>(v: __m512i) ->
     }
 }
 
+#[inline(always)]
+pub(crate) unsafe fn _mm512_set4r_epi8(a0: i8, a1: i8, a2: i8, a3: i8) -> __m512i {
+    _mm512_set_epi8(
+        a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1,
+        a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2,
+        a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0, a3, a2, a1, a0,
+    )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_deinterleave_epi16(a0: __m512i, a1: __m512i) -> (__m512i, __m512i) {
+    let mask0 = _v512_set_epu16(
+        62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 18,
+        16, 14, 12, 10, 8, 6, 4, 2, 0,
+    );
+    let mask1 = _v512_set_epu16(
+        63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 33, 31, 29, 27, 25, 23, 21, 19,
+        17, 15, 13, 11, 9, 7, 5, 3, 1,
+    );
+    let a = _mm512_permutex2var_epi16(a0, mask0, a1);
+    let b = _mm512_permutex2var_epi16(a0, mask1, a1);
+    (a, b)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_deinterleave_epi32(a0: __m512i, a1: __m512i) -> (__m512i, __m512i) {
+    let mask0 = _v512_set_epu32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    let mask1 = _v512_set_epu32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
+    let a = _mm512_permutex2var_epi32(a0, mask0, a1);
+    let b = _mm512_permutex2var_epi32(a0, mask1, a1);
+    (a, b)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_setr_epi8(
+    e0: i8,
+    e1: i8,
+    e2: i8,
+    e3: i8,
+    e4: i8,
+    e5: i8,
+    e6: i8,
+    e7: i8,
+    e8: i8,
+    e9: i8,
+    e10: i8,
+    e11: i8,
+    e12: i8,
+    e13: i8,
+    e14: i8,
+    e15: i8,
+    e16: i8,
+    e17: i8,
+    e18: i8,
+    e19: i8,
+    e20: i8,
+    e21: i8,
+    e22: i8,
+    e23: i8,
+    e24: i8,
+    e25: i8,
+    e26: i8,
+    e27: i8,
+    e28: i8,
+    e29: i8,
+    e30: i8,
+    e31: i8,
+    e32: i8,
+    e33: i8,
+    e34: i8,
+    e35: i8,
+    e36: i8,
+    e37: i8,
+    e38: i8,
+    e39: i8,
+    e40: i8,
+    e41: i8,
+    e42: i8,
+    e43: i8,
+    e44: i8,
+    e45: i8,
+    e46: i8,
+    e47: i8,
+    e48: i8,
+    e49: i8,
+    e50: i8,
+    e51: i8,
+    e52: i8,
+    e53: i8,
+    e54: i8,
+    e55: i8,
+    e56: i8,
+    e57: i8,
+    e58: i8,
+    e59: i8,
+    e60: i8,
+    e61: i8,
+    e62: i8,
+    e63: i8,
+) -> __m512i {
+    _mm512_set_epi8(
+        e63, e62, e61, e60, e59, e58, e57, e56, e55, e54, e53, e52, e51, e50, e49, e48, e47, e46,
+        e45, e44, e43, e42, e41, e40, e39, e38, e37, e36, e35, e34, e33, e32, e31, e30, e29, e28,
+        e27, e26, e25, e24, e23, e22, e21, e20, e19, e18, e17, e16, e15, e14, e13, e12, e11, e10,
+        e9, e8, e7, e6, e5, e4, e3, e2, e1, e0,
+    )
+}
+
+/// # Safety
+///
+/// - Checking `avx512vbmi` is required
+#[inline(always)]
+pub(crate) unsafe fn _mm512_expand_rgb_to_rgba(
+    a0: __m512i,
+    a1: __m512i,
+    a2: __m512i,
+) -> (__m512i, __m512i, __m512i, __m512i) {
+    let shuffle_default_mask = _mm512_setr_epi8(
+        0, 1, 2, -1, 3, 4, 5, -1, 6, 7, 8, -1, 9, 10, 11, -1, 12, 13, 14, -1, 15, 16, 17, -1, 18,
+        19, 20, -1, 21, 22, 23, -1, 24, 25, 26, -1, 27, 28, 29, -1, 30, 31, 32, -1, 33, 34, 35, -1,
+        36, 37, 38, -1, 39, 40, 41, -1, 42, 43, 44, -1, 45, 46, 47, -1,
+    );
+    let shuffle_v1_mask = _mm512_setr_epi8(
+        48, 49, 50, -1, 51, 52, 53, -1, 54, 55, 56, -1, 57, 58, 59, -1, 60, 61, 62, -1, 63, 64, 65,
+        -1, 66, 67, 68, -1, 69, 70, 71, -1, 72, 73, 74, -1, 75, 76, 77, -1, 78, 79, 80, -1, 81, 82,
+        83, -1, 84, 85, 86, -1, 87, 88, 89, -1, 90, 91, 92, -1, 93, 94, 95, -1,
+    );
+    let shuffle_v2_mask = _mm512_setr_epi8(
+        32, 33, 34, -1, 35, 36, 37, -1, 38, 39, 40, -1, 41, 42, 43, -1, 44, 45, 46, -1, 47, 48, 49,
+        -1, 50, 51, 52, -1, 53, 54, 55, -1, 56, 57, 58, -1, 59, 60, 61, -1, 62, 63, 64, -1, 65, 66,
+        67, -1, 68, 69, 70, -1, 71, 72, 73, -1, 74, 75, 76, -1, 77, 78, 79, -1,
+    );
+    let shuffle_v3_mask = _mm512_setr_epi8(
+        16, 17, 18, -1, 19, 20, 21, -1, 22, 23, 24, -1, 25, 26, 27, -1, 28, 29, 30, -1, 31, 32, 33,
+        -1, 34, 35, 36, -1, 37, 38, 39, -1, 40, 41, 42, -1, 43, 44, 45, -1, 46, 47, 48, -1, 49, 50,
+        51, -1, 52, 53, 54, -1, 55, 56, 57, -1, 58, 59, 60, -1, 61, 62, 63, -1,
+    );
+
+    let v0 = _mm512_permutexvar_epi8(shuffle_default_mask, a0);
+    let v1 = _mm512_permutex2var_epi8(a0, shuffle_v1_mask, a1);
+    let v2 = _mm512_permutex2var_epi8(a1, shuffle_v2_mask, a2);
+    let v3 = _mm512_permutexvar_epi8(shuffle_v3_mask, a2);
+    (v0, v1, v2, v3)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

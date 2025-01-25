@@ -212,9 +212,8 @@ unsafe fn avx2_rgba_to_nv_impl<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
         assert!(diff <= 32);
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer0: [u8; 32 * 4] = [0; 32 * 4];
         let mut src_buffer1: [u8; 32 * 4] = [0; 32 * 4];
@@ -233,6 +232,22 @@ unsafe fn avx2_rgba_to_nv_impl<
             src_buffer1.as_mut_ptr(),
             diff * channels,
         );
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
 
         encode_32_part::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
             src_buffer0.as_slice(),
@@ -256,7 +271,7 @@ unsafe fn avx2_rgba_to_nv_impl<
             diff,
         );
 
-        let ux_size = diff;
+        let ux_size = diff.div_ceil(2) * 2;
 
         std::ptr::copy_nonoverlapping(
             uv_buffer.as_mut_ptr(),

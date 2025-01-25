@@ -1102,709 +1102,763 @@ mod tests {
 
     #[test]
     fn test_yuv444_round_trip_full_range() {
-        let image_width = 256usize;
-        let image_height = 256usize;
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
+            let image_width = 256usize;
+            let image_height = 256usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::thread_rng().gen_range(0..image_width);
+            let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
-        let pixel_points = [
-            [0, 0],
-            [image_width - 1, image_height - 1],
-            [image_width - 1, 0],
-            [0, image_height - 1],
-            [(image_width - 1) / 2, (image_height - 1) / 2],
-            [image_width / 5, image_height / 5],
-            [0, image_height / 5],
-            [image_width / 5, 0],
-            [image_width / 5 * 3, image_height / 5],
-            [image_width / 5 * 3, image_height / 5 * 3],
-            [image_width / 5, image_height / 5 * 3],
-            [random_point_x, random_point_y],
-        ];
-        let mut image_rgb = vec![0u8; image_width * image_height * 3];
+            let pixel_points = [
+                [0, 0],
+                [image_width - 1, image_height - 1],
+                [image_width - 1, 0],
+                [0, image_height - 1],
+                [(image_width - 1) / 2, (image_height - 1) / 2],
+                [image_width / 5, image_height / 5],
+                [0, image_height / 5],
+                [image_width / 5, 0],
+                [image_width / 5 * 3, image_height / 5],
+                [image_width / 5 * 3, image_height / 5 * 3],
+                [image_width / 5, image_height / 5 * 3],
+                [random_point_x, random_point_y],
+            ];
+            let mut image_rgb = vec![0u8; image_width * image_height * 3];
 
-        let or = rand::thread_rng().gen_range(0..256) as u8;
-        let og = rand::thread_rng().gen_range(0..256) as u8;
-        let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::thread_rng().gen_range(0..256) as u8;
+            let og = rand::thread_rng().gen_range(0..256) as u8;
+            let ob = rand::thread_rng().gen_range(0..256) as u8;
 
-        for point in &pixel_points {
-            image_rgb[point[0] * 3 + point[1] * image_width * 3] = or;
-            image_rgb[point[0] * 3 + point[1] * image_width * 3 + 1] = og;
-            image_rgb[point[0] * 3 + point[1] * image_width * 3 + 2] = ob;
+            for point in &pixel_points {
+                image_rgb[point[0] * 3 + point[1] * image_width * 3] = or;
+                image_rgb[point[0] * 3 + point[1] * image_width * 3 + 1] = og;
+                image_rgb[point[0] * 3 + point[1] * image_width * 3 + 2] = ob;
+            }
+
+            let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+                image_width as u32,
+                image_height as u32,
+                YuvChromaSubsampling::Yuv444,
+            );
+
+            rgb_to_yuv444(
+                &mut planar_image,
+                &image_rgb,
+                image_width as u32 * 3,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt709,
+                yuv_accuracy,
+            )
+            .unwrap();
+
+            image_rgb.fill(0);
+
+            let fixed_planar = planar_image.to_fixed();
+
+            yuv444_to_rgb(
+                &fixed_planar,
+                &mut image_rgb,
+                image_width as u32 * 3,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt709,
+            )
+            .unwrap();
+
+            for point in &pixel_points {
+                let x = point[0];
+                let y = point[1];
+                let r = image_rgb[x * 3 + y * image_width * 3];
+                let g = image_rgb[x * 3 + y * image_width * 3 + 1];
+                let b = image_rgb[x * 3 + y * image_width * 3 + 2];
+
+                let diff_r = (r as i32 - or as i32).abs();
+                let diff_g = (g as i32 - og as i32).abs();
+                let diff_b = (b as i32 - ob as i32).abs();
+
+                assert!(
+                    diff_r <= max_diff,
+                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_g <= max_diff,
+                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_b <= max_diff,
+                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+            }
         }
-
-        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
-            image_width as u32,
-            image_height as u32,
-            YuvChromaSubsampling::Yuv444,
-        );
-
-        rgb_to_yuv444(
-            &mut planar_image,
-            &image_rgb,
-            image_width as u32 * 3,
-            YuvRange::Full,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        image_rgb.fill(0);
-
-        let fixed_planar = planar_image.to_fixed();
-
-        yuv444_to_rgb(
-            &fixed_planar,
-            &mut image_rgb,
-            image_width as u32 * 3,
-            YuvRange::Full,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        for point in &pixel_points {
-            let x = point[0];
-            let y = point[1];
-            let r = image_rgb[x * 3 + y * image_width * 3];
-            let g = image_rgb[x * 3 + y * image_width * 3 + 1];
-            let b = image_rgb[x * 3 + y * image_width * 3 + 2];
-
-            let diff_r = (r as i32 - or as i32).abs();
-            let diff_g = (g as i32 - og as i32).abs();
-            let diff_b = (b as i32 - ob as i32).abs();
-
-            assert!(
-                diff_r <= 3,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_g <= 3,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_b <= 3,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
-                [or, og, ob],
-                [r, g, b]
-            );
-        }
+        matrix(YuvConversionMode::Balanced, 3);
+        #[cfg(feature = "fast_mode")]
+        matrix(YuvConversionMode::Fast, 6);
     }
 
     #[test]
     fn test_yuv444_round_trip_limited_range() {
-        let image_width = 256usize;
-        let image_height = 256usize;
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
+            let image_width = 256usize;
+            let image_height = 256usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::thread_rng().gen_range(0..image_width);
+            let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
-        let pixel_points = [
-            [0, 0],
-            [image_width - 1, image_height - 1],
-            [image_width - 1, 0],
-            [0, image_height - 1],
-            [(image_width - 1) / 2, (image_height - 1) / 2],
-            [image_width / 5, image_height / 5],
-            [0, image_height / 5],
-            [image_width / 5, 0],
-            [image_width / 5 * 3, image_height / 5],
-            [image_width / 5 * 3, image_height / 5 * 3],
-            [image_width / 5, image_height / 5 * 3],
-            [random_point_x, random_point_y],
-        ];
-        let mut image_rgb = vec![0u8; image_width * image_height * 3];
+            let pixel_points = [
+                [0, 0],
+                [image_width - 1, image_height - 1],
+                [image_width - 1, 0],
+                [0, image_height - 1],
+                [(image_width - 1) / 2, (image_height - 1) / 2],
+                [image_width / 5, image_height / 5],
+                [0, image_height / 5],
+                [image_width / 5, 0],
+                [image_width / 5 * 3, image_height / 5],
+                [image_width / 5 * 3, image_height / 5 * 3],
+                [image_width / 5, image_height / 5 * 3],
+                [random_point_x, random_point_y],
+            ];
+            let mut image_rgb = vec![0u8; image_width * image_height * 3];
 
-        let or = rand::thread_rng().gen_range(0..256) as u8;
-        let og = rand::thread_rng().gen_range(0..256) as u8;
-        let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::thread_rng().gen_range(0..256) as u8;
+            let og = rand::thread_rng().gen_range(0..256) as u8;
+            let ob = rand::thread_rng().gen_range(0..256) as u8;
 
-        for point in &pixel_points {
-            image_rgb[point[0] * 3 + point[1] * image_width * 3] = or;
-            image_rgb[point[0] * 3 + point[1] * image_width * 3 + 1] = og;
-            image_rgb[point[0] * 3 + point[1] * image_width * 3 + 2] = ob;
+            for point in &pixel_points {
+                image_rgb[point[0] * 3 + point[1] * image_width * 3] = or;
+                image_rgb[point[0] * 3 + point[1] * image_width * 3 + 1] = og;
+                image_rgb[point[0] * 3 + point[1] * image_width * 3 + 2] = ob;
+            }
+
+            let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+                image_width as u32,
+                image_height as u32,
+                YuvChromaSubsampling::Yuv444,
+            );
+
+            rgb_to_yuv444(
+                &mut planar_image,
+                &image_rgb,
+                image_width as u32 * 3,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt709,
+                yuv_accuracy,
+            )
+            .unwrap();
+
+            image_rgb.fill(0);
+
+            let fixed_planar = planar_image.to_fixed();
+
+            yuv444_to_rgb(
+                &fixed_planar,
+                &mut image_rgb,
+                image_width as u32 * 3,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt709,
+            )
+            .unwrap();
+
+            for point in &pixel_points {
+                let x = point[0];
+                let y = point[1];
+                let r = image_rgb[x * 3 + y * image_width * 3];
+                let g = image_rgb[x * 3 + y * image_width * 3 + 1];
+                let b = image_rgb[x * 3 + y * image_width * 3 + 2];
+
+                let diff_r = (r as i32 - or as i32).abs();
+                let diff_g = (g as i32 - og as i32).abs();
+                let diff_b = (b as i32 - ob as i32).abs();
+
+                assert!(
+                    diff_r <= max_diff,
+                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}, diff {}",
+                    yuv_accuracy,
+                    [or, og, ob],
+                    [r, g, b],
+                    diff_r
+                );
+                assert!(
+                    diff_g <= max_diff,
+                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}, diff {}",
+                    yuv_accuracy,
+                    [or, og, ob],
+                    [r, g, b],
+                    diff_g,
+                );
+                assert!(
+                    diff_b <= max_diff,
+                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}, diff {}",
+                    yuv_accuracy,
+                    [or, og, ob],
+                    [r, g, b],
+                    diff_b,
+                );
+            }
         }
-
-        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
-            image_width as u32,
-            image_height as u32,
-            YuvChromaSubsampling::Yuv444,
-        );
-
-        rgb_to_yuv444(
-            &mut planar_image,
-            &image_rgb,
-            image_width as u32 * 3,
-            YuvRange::Limited,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        image_rgb.fill(0);
-
-        let fixed_planar = planar_image.to_fixed();
-
-        yuv444_to_rgb(
-            &fixed_planar,
-            &mut image_rgb,
-            image_width as u32 * 3,
-            YuvRange::Limited,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        for point in &pixel_points {
-            let x = point[0];
-            let y = point[1];
-            let r = image_rgb[x * 3 + y * image_width * 3];
-            let g = image_rgb[x * 3 + y * image_width * 3 + 1];
-            let b = image_rgb[x * 3 + y * image_width * 3 + 2];
-
-            let diff_r = (r as i32 - or as i32).abs();
-            let diff_g = (g as i32 - og as i32).abs();
-            let diff_b = (b as i32 - ob as i32).abs();
-
-            assert!(
-                diff_r <= 20,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_g <= 20,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_b <= 20,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
-                [or, og, ob],
-                [r, g, b]
-            );
-        }
+        matrix(YuvConversionMode::Balanced, 20);
+        #[cfg(feature = "fast_mode")]
+        matrix(YuvConversionMode::Fast, 30);
     }
 
     #[test]
     fn test_yuv422_round_trip_full_range() {
-        let image_width = 256usize;
-        let image_height = 256usize;
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
+            let image_width = 256usize;
+            let image_height = 256usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::thread_rng().gen_range(0..image_width);
+            let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
-        const CHANNELS: usize = 3;
+            const CHANNELS: usize = 3;
 
-        let pixel_points = [
-            [0, 0],
-            [image_width - 1, image_height - 1],
-            [image_width - 1, 0],
-            [0, image_height - 1],
-            [(image_width - 1) / 2, (image_height - 1) / 2],
-            [image_width / 5, image_height / 5],
-            [0, image_height / 5],
-            [image_width / 5, 0],
-            [image_width / 5 * 3, image_height / 5],
-            [image_width / 5 * 3, image_height / 5 * 3],
-            [image_width / 5, image_height / 5 * 3],
-            [random_point_x, random_point_y],
-        ];
+            let pixel_points = [
+                [0, 0],
+                [image_width - 1, image_height - 1],
+                [image_width - 1, 0],
+                [0, image_height - 1],
+                [(image_width - 1) / 2, (image_height - 1) / 2],
+                [image_width / 5, image_height / 5],
+                [0, image_height / 5],
+                [image_width / 5, 0],
+                [image_width / 5 * 3, image_height / 5],
+                [image_width / 5 * 3, image_height / 5 * 3],
+                [image_width / 5, image_height / 5 * 3],
+                [random_point_x, random_point_y],
+            ];
 
-        let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
+            let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-        let or = rand::thread_rng().gen_range(0..256) as u8;
-        let og = rand::thread_rng().gen_range(0..256) as u8;
-        let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::thread_rng().gen_range(0..256) as u8;
+            let og = rand::thread_rng().gen_range(0..256) as u8;
+            let ob = rand::thread_rng().gen_range(0..256) as u8;
 
-        for point in &pixel_points {
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+            for point in &pixel_points {
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
 
-            let nx = (point[0] + 1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = (point[0] + 1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].saturating_sub(1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = point[0].saturating_sub(1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+            }
+
+            let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+                image_width as u32,
+                image_height as u32,
+                YuvChromaSubsampling::Yuv422,
+            );
+
+            rgb_to_yuv422(
+                &mut planar_image,
+                &source_rgb,
+                image_width as u32 * 3,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt709,
+                yuv_accuracy,
+            )
+            .unwrap();
+
+            let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
+
+            let fixed_planar = planar_image.to_fixed();
+
+            yuv422_to_rgb(
+                &fixed_planar,
+                &mut dest_rgb,
+                image_width as u32 * 3,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt709,
+            )
+            .unwrap();
+
+            for point in &pixel_points {
+                let x = point[0];
+                let y = point[1];
+                let px = x * CHANNELS + y * image_width * CHANNELS;
+
+                let r = dest_rgb[px];
+                let g = dest_rgb[px + 1];
+                let b = dest_rgb[px + 2];
+
+                let diff_r = r as i32 - or as i32;
+                let diff_g = g as i32 - og as i32;
+                let diff_b = b as i32 - ob as i32;
+
+                assert!(
+                    diff_r <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_r,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_g <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_g,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_b <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_b,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+            }
         }
-
-        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
-            image_width as u32,
-            image_height as u32,
-            YuvChromaSubsampling::Yuv422,
-        );
-
-        rgb_to_yuv422(
-            &mut planar_image,
-            &source_rgb,
-            image_width as u32 * 3,
-            YuvRange::Full,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
-
-        let fixed_planar = planar_image.to_fixed();
-
-        yuv422_to_rgb(
-            &fixed_planar,
-            &mut dest_rgb,
-            image_width as u32 * 3,
-            YuvRange::Full,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        for point in &pixel_points {
-            let x = point[0];
-            let y = point[1];
-            let px = x * CHANNELS + y * image_width * CHANNELS;
-
-            let r = dest_rgb[px];
-            let g = dest_rgb[px + 1];
-            let b = dest_rgb[px + 2];
-
-            let diff_r = r as i32 - or as i32;
-            let diff_g = g as i32 - og as i32;
-            let diff_b = b as i32 - ob as i32;
-
-            assert!(
-                diff_r <= 3,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_r,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_g <= 3,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_g,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_b <= 3,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_b,
-                [or, og, ob],
-                [r, g, b]
-            );
-        }
+        matrix(YuvConversionMode::Balanced, 3);
+        #[cfg(feature = "fast_mode")]
+        matrix(YuvConversionMode::Fast, 7);
     }
 
     #[test]
     fn test_yuv422_round_trip_limited_range() {
-        let image_width = 256usize;
-        let image_height = 256usize;
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
+            let image_width = 256usize;
+            let image_height = 256usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::thread_rng().gen_range(0..image_width);
+            let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
-        const CHANNELS: usize = 3;
+            const CHANNELS: usize = 3;
 
-        let pixel_points = [
-            [0, 0],
-            [image_width - 1, image_height - 1],
-            [image_width - 1, 0],
-            [0, image_height - 1],
-            [(image_width - 1) / 2, (image_height - 1) / 2],
-            [image_width / 5, image_height / 5],
-            [0, image_height / 5],
-            [image_width / 5, 0],
-            [image_width / 5 * 3, image_height / 5],
-            [image_width / 5 * 3, image_height / 5 * 3],
-            [image_width / 5, image_height / 5 * 3],
-            [random_point_x, random_point_y],
-        ];
+            let pixel_points = [
+                [0, 0],
+                [image_width - 1, image_height - 1],
+                [image_width - 1, 0],
+                [0, image_height - 1],
+                [(image_width - 1) / 2, (image_height - 1) / 2],
+                [image_width / 5, image_height / 5],
+                [0, image_height / 5],
+                [image_width / 5, 0],
+                [image_width / 5 * 3, image_height / 5],
+                [image_width / 5 * 3, image_height / 5 * 3],
+                [image_width / 5, image_height / 5 * 3],
+                [random_point_x, random_point_y],
+            ];
 
-        let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
+            let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-        let or = rand::thread_rng().gen_range(0..256) as u8;
-        let og = rand::thread_rng().gen_range(0..256) as u8;
-        let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::thread_rng().gen_range(0..256) as u8;
+            let og = rand::thread_rng().gen_range(0..256) as u8;
+            let ob = rand::thread_rng().gen_range(0..256) as u8;
 
-        for point in &pixel_points {
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+            for point in &pixel_points {
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
 
-            let nx = (point[0] + 1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = (point[0] + 1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].saturating_sub(1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = point[0].saturating_sub(1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+            }
+
+            let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+                image_width as u32,
+                image_height as u32,
+                YuvChromaSubsampling::Yuv422,
+            );
+
+            rgb_to_yuv422(
+                &mut planar_image,
+                &source_rgb,
+                image_width as u32 * 3,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt709,
+                yuv_accuracy,
+            )
+            .unwrap();
+
+            let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
+
+            let fixed_planar = planar_image.to_fixed();
+
+            yuv422_to_rgb(
+                &fixed_planar,
+                &mut dest_rgb,
+                image_width as u32 * 3,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt709,
+            )
+            .unwrap();
+
+            for point in pixel_points.iter() {
+                let x = point[0];
+                let y = point[1];
+                let px = x * CHANNELS + y * image_width * CHANNELS;
+
+                let r = dest_rgb[px];
+                let g = dest_rgb[px + 1];
+                let b = dest_rgb[px + 2];
+
+                let diff_r = r as i32 - or as i32;
+                let diff_g = g as i32 - og as i32;
+                let diff_b = b as i32 - ob as i32;
+
+                assert!(
+                    diff_r <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_r,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_g <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_g,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_b <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_b,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+            }
         }
-
-        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
-            image_width as u32,
-            image_height as u32,
-            YuvChromaSubsampling::Yuv422,
-        );
-
-        rgb_to_yuv422(
-            &mut planar_image,
-            &source_rgb,
-            image_width as u32 * 3,
-            YuvRange::Limited,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
-
-        let fixed_planar = planar_image.to_fixed();
-
-        yuv422_to_rgb(
-            &fixed_planar,
-            &mut dest_rgb,
-            image_width as u32 * 3,
-            YuvRange::Limited,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        for point in pixel_points.iter() {
-            let x = point[0];
-            let y = point[1];
-            let px = x * CHANNELS + y * image_width * CHANNELS;
-
-            let r = dest_rgb[px];
-            let g = dest_rgb[px + 1];
-            let b = dest_rgb[px + 2];
-
-            let diff_r = r as i32 - or as i32;
-            let diff_g = g as i32 - og as i32;
-            let diff_b = b as i32 - ob as i32;
-
-            assert!(
-                diff_r <= 10,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_r,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_g <= 10,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_g,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_b <= 10,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_b,
-                [or, og, ob],
-                [r, g, b]
-            );
-        }
+        #[cfg(feature = "fast_mode")]
+        matrix(YuvConversionMode::Fast, 15);
+        matrix(YuvConversionMode::Balanced, 10);
     }
 
     #[test]
     fn test_yuv420_round_trip_full_range() {
-        let image_width = 256usize;
-        let image_height = 256usize;
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
+            let image_width = 256usize;
+            let image_height = 256usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::thread_rng().gen_range(0..image_width);
+            let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
-        const CHANNELS: usize = 3;
+            const CHANNELS: usize = 3;
 
-        let pixel_points = [
-            [0, 0],
-            [image_width - 1, image_height - 1],
-            [image_width - 1, 0],
-            [0, image_height - 1],
-            [(image_width - 1) / 2, (image_height - 1) / 2],
-            [image_width / 5, image_height / 5],
-            [0, image_height / 5],
-            [image_width / 5, 0],
-            [image_width / 5 * 3, image_height / 5],
-            [image_width / 5 * 3, image_height / 5 * 3],
-            [image_width / 5, image_height / 5 * 3],
-            [random_point_x, random_point_y],
-        ];
+            let pixel_points = [
+                [0, 0],
+                [image_width - 1, image_height - 1],
+                [image_width - 1, 0],
+                [0, image_height - 1],
+                [(image_width - 1) / 2, (image_height - 1) / 2],
+                [image_width / 5, image_height / 5],
+                [0, image_height / 5],
+                [image_width / 5, 0],
+                [image_width / 5 * 3, image_height / 5],
+                [image_width / 5 * 3, image_height / 5 * 3],
+                [image_width / 5, image_height / 5 * 3],
+                [random_point_x, random_point_y],
+            ];
 
-        let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
+            let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-        let or = rand::thread_rng().gen_range(0..256) as u8;
-        let og = rand::thread_rng().gen_range(0..256) as u8;
-        let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::thread_rng().gen_range(0..256) as u8;
+            let og = rand::thread_rng().gen_range(0..256) as u8;
+            let ob = rand::thread_rng().gen_range(0..256) as u8;
 
-        for point in &pixel_points {
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+            for point in &pixel_points {
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
 
-            let nx = (point[0] + 1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = (point[0] + 1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = (point[0] + 1).min(image_width - 1);
-            let ny = (point[1] + 1).min(image_height - 1);
+                let nx = (point[0] + 1).min(image_width - 1);
+                let ny = (point[1] + 1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].min(image_width - 1);
-            let ny = (point[1] + 1).min(image_height - 1);
+                let nx = point[0].min(image_width - 1);
+                let ny = (point[1] + 1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].saturating_sub(1).min(image_width - 1);
-            let ny = point[1].saturating_sub(1).min(image_height - 1);
+                let nx = point[0].saturating_sub(1).min(image_width - 1);
+                let ny = point[1].saturating_sub(1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].min(image_width - 1);
-            let ny = point[1].saturating_sub(1).min(image_height - 1);
+                let nx = point[0].min(image_width - 1);
+                let ny = point[1].saturating_sub(1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].saturating_sub(1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = point[0].saturating_sub(1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+            }
+
+            let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+                image_width as u32,
+                image_height as u32,
+                YuvChromaSubsampling::Yuv420,
+            );
+
+            rgb_to_yuv420(
+                &mut planar_image,
+                &source_rgb,
+                image_width as u32 * 3,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt709,
+                yuv_accuracy,
+            )
+            .unwrap();
+
+            let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
+
+            let fixed_planar = planar_image.to_fixed();
+
+            yuv420_to_rgb(
+                &fixed_planar,
+                &mut dest_rgb,
+                image_width as u32 * 3,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt709,
+            )
+            .unwrap();
+
+            for point in &pixel_points {
+                let x = point[0];
+                let y = point[1];
+                let px = x * CHANNELS + y * image_width * CHANNELS;
+
+                let r = dest_rgb[px];
+                let g = dest_rgb[px + 1];
+                let b = dest_rgb[px + 2];
+
+                let diff_r = r as i32 - or as i32;
+                let diff_g = g as i32 - og as i32;
+                let diff_b = b as i32 - ob as i32;
+
+                assert!(
+                    diff_r <= max_diff,
+                    "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    diff_r,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_g <= max_diff,
+                    "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    diff_g,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_b <= max_diff,
+                    "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    diff_b,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+            }
         }
-
-        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
-            image_width as u32,
-            image_height as u32,
-            YuvChromaSubsampling::Yuv420,
-        );
-
-        rgb_to_yuv420(
-            &mut planar_image,
-            &source_rgb,
-            image_width as u32 * 3,
-            YuvRange::Full,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
-
-        let fixed_planar = planar_image.to_fixed();
-
-        yuv420_to_rgb(
-            &fixed_planar,
-            &mut dest_rgb,
-            image_width as u32 * 3,
-            YuvRange::Full,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        for point in &pixel_points {
-            let x = point[0];
-            let y = point[1];
-            let px = x * CHANNELS + y * image_width * CHANNELS;
-
-            let r = dest_rgb[px];
-            let g = dest_rgb[px + 1];
-            let b = dest_rgb[px + 2];
-
-            let diff_r = r as i32 - or as i32;
-            let diff_g = g as i32 - og as i32;
-            let diff_b = b as i32 - ob as i32;
-
-            assert!(
-                diff_r <= 47,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_r,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_g <= 47,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_g,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_b <= 47,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_b,
-                [or, og, ob],
-                [r, g, b]
-            );
-        }
+        matrix(YuvConversionMode::Balanced, 47);
+        #[cfg(feature = "fast_mode")]
+        matrix(YuvConversionMode::Fast, 50);
     }
 
     #[test]
     fn test_yuv420_round_trip_limited_range() {
-        let image_width = 256usize;
-        let image_height = 256usize;
+        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
+            let image_width = 256usize;
+            let image_height = 256usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::thread_rng().gen_range(0..image_width);
+            let random_point_y = rand::thread_rng().gen_range(0..image_height);
 
-        const CHANNELS: usize = 3;
+            const CHANNELS: usize = 3;
 
-        let pixel_points = [
-            [0, 0],
-            [image_width - 1, image_height - 1],
-            [image_width - 1, 0],
-            [0, image_height - 1],
-            [(image_width - 1) / 2, (image_height - 1) / 2],
-            [image_width / 5, image_height / 5],
-            [0, image_height / 5],
-            [image_width / 5, 0],
-            [image_width / 5 * 3, image_height / 5],
-            [image_width / 5 * 3, image_height / 5 * 3],
-            [image_width / 5, image_height / 5 * 3],
-            [random_point_x, random_point_y],
-        ];
+            let pixel_points = [
+                [0, 0],
+                [image_width - 1, image_height - 1],
+                [image_width - 1, 0],
+                [0, image_height - 1],
+                [(image_width - 1) / 2, (image_height - 1) / 2],
+                [image_width / 5, image_height / 5],
+                [0, image_height / 5],
+                [image_width / 5, 0],
+                [image_width / 5 * 3, image_height / 5],
+                [image_width / 5 * 3, image_height / 5 * 3],
+                [image_width / 5, image_height / 5 * 3],
+                [random_point_x, random_point_y],
+            ];
 
-        let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
+            let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-        let or = rand::thread_rng().gen_range(0..256) as u8;
-        let og = rand::thread_rng().gen_range(0..256) as u8;
-        let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::thread_rng().gen_range(0..256) as u8;
+            let og = rand::thread_rng().gen_range(0..256) as u8;
+            let ob = rand::thread_rng().gen_range(0..256) as u8;
 
-        for point in &pixel_points {
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
-            source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
+            for point in &pixel_points {
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 1] = og;
+                source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS + 2] = ob;
 
-            let nx = (point[0] + 1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = (point[0] + 1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = (point[0] + 1).min(image_width - 1);
-            let ny = (point[1] + 1).min(image_height - 1);
+                let nx = (point[0] + 1).min(image_width - 1);
+                let ny = (point[1] + 1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].min(image_width - 1);
-            let ny = (point[1] + 1).min(image_height - 1);
+                let nx = point[0].min(image_width - 1);
+                let ny = (point[1] + 1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].saturating_sub(1).min(image_width - 1);
-            let ny = point[1].saturating_sub(1).min(image_height - 1);
+                let nx = point[0].saturating_sub(1).min(image_width - 1);
+                let ny = point[1].saturating_sub(1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].min(image_width - 1);
-            let ny = point[1].saturating_sub(1).min(image_height - 1);
+                let nx = point[0].min(image_width - 1);
+                let ny = point[1].saturating_sub(1).min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
 
-            let nx = point[0].saturating_sub(1).min(image_width - 1);
-            let ny = point[1].min(image_height - 1);
+                let nx = point[0].saturating_sub(1).min(image_width - 1);
+                let ny = point[1].min(image_height - 1);
 
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
-            source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS] = or;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 1] = og;
+                source_rgb[nx * CHANNELS + ny * image_width * CHANNELS + 2] = ob;
+            }
+
+            let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
+                image_width as u32,
+                image_height as u32,
+                YuvChromaSubsampling::Yuv420,
+            );
+
+            rgb_to_yuv420(
+                &mut planar_image,
+                &source_rgb,
+                image_width as u32 * 3,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt709,
+                yuv_accuracy,
+            )
+            .unwrap();
+
+            let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
+
+            let fixed_planar = planar_image.to_fixed();
+
+            yuv420_to_rgb(
+                &fixed_planar,
+                &mut dest_rgb,
+                image_width as u32 * 3,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt709,
+            )
+            .unwrap();
+
+            for point in &pixel_points {
+                let x = point[0];
+                let y = point[1];
+                let px = x * CHANNELS + y * image_width * CHANNELS;
+
+                let r = dest_rgb[px];
+                let g = dest_rgb[px + 1];
+                let b = dest_rgb[px + 2];
+
+                let diff_r = r as i32 - or as i32;
+                let diff_g = g as i32 - og as i32;
+                let diff_b = b as i32 - ob as i32;
+
+                assert!(
+                    diff_r <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_r,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_g <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_g,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+                assert!(
+                    diff_b <= max_diff,
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
+                    diff_b,
+                    [or, og, ob],
+                    [r, g, b]
+                );
+            }
         }
-
-        let mut planar_image = YuvPlanarImageMut::<u8>::alloc(
-            image_width as u32,
-            image_height as u32,
-            YuvChromaSubsampling::Yuv420,
-        );
-
-        rgb_to_yuv420(
-            &mut planar_image,
-            &source_rgb,
-            image_width as u32 * 3,
-            YuvRange::Limited,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        let mut dest_rgb = vec![0u8; image_width * image_height * CHANNELS];
-
-        let fixed_planar = planar_image.to_fixed();
-
-        yuv420_to_rgb(
-            &fixed_planar,
-            &mut dest_rgb,
-            image_width as u32 * 3,
-            YuvRange::Limited,
-            YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        for point in &pixel_points {
-            let x = point[0];
-            let y = point[1];
-            let px = x * CHANNELS + y * image_width * CHANNELS;
-
-            let r = dest_rgb[px];
-            let g = dest_rgb[px + 1];
-            let b = dest_rgb[px + 2];
-
-            let diff_r = r as i32 - or as i32;
-            let diff_g = g as i32 - og as i32;
-            let diff_b = b as i32 - ob as i32;
-
-            assert!(
-                diff_r <= 55,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_r,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_g <= 55,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_g,
-                [or, og, ob],
-                [r, g, b]
-            );
-            assert!(
-                diff_b <= 55,
-                "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
-                diff_b,
-                [or, og, ob],
-                [r, g, b]
-            );
-        }
+        matrix(YuvConversionMode::Balanced, 55);
+        #[cfg(feature = "fast_mode")]
+        matrix(YuvConversionMode::Fast, 60);
     }
 }

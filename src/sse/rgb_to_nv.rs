@@ -264,11 +264,8 @@ unsafe fn sse_rgba_to_nv_row_impl<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
         assert!(diff <= 16);
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];
@@ -279,6 +276,17 @@ unsafe fn sse_rgba_to_nv_row_impl<
             src_buffer.as_mut_ptr(),
             diff * channels,
         );
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
 
         encode_16_part::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
             src_buffer.as_slice(),
@@ -295,7 +303,7 @@ unsafe fn sse_rgba_to_nv_row_impl<
         );
 
         let ux_size = match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff,
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff.div_ceil(2) * 2,
             YuvChromaSubsampling::Yuv444 => diff * 2,
         };
 

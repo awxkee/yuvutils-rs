@@ -123,9 +123,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
         vst1q_u16(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0_vl);
         vst1q_u16(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1_vl);
 
-        let hr = vhaddq_u16(r_values0, r_values1);
-        let hg = vhaddq_u16(g_values0, g_values1);
-        let hb = vhaddq_u16(b_values0, b_values1);
+        let hr = vrhaddq_u16(r_values0, r_values1);
+        let hg = vrhaddq_u16(g_values0, g_values1);
+        let hb = vrhaddq_u16(b_values0, b_values1);
 
         let rv = vpaddlq_u16(hr);
         let rg = vpaddlq_u16(hg);
@@ -272,9 +272,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
         vst1q_u16(y_plane0.get_unchecked_mut(cx..).as_mut_ptr(), y0_vl);
         vst1q_u16(y_plane1.get_unchecked_mut(cx..).as_mut_ptr(), y1_vl);
 
-        let hvr = vhaddq_u16(r_values0, r_values1);
-        let hvg = vhaddq_u16(g_values0, g_values1);
-        let hvb = vhaddq_u16(b_values0, b_values1);
+        let hvr = vrhaddq_u16(r_values0, r_values1);
+        let hvg = vrhaddq_u16(g_values0, g_values1);
+        let hvb = vrhaddq_u16(b_values0, b_values1);
         let pvr = vpaddlq_u16(hvr);
         let pvg = vpaddlq_u16(hvg);
         let pvb = vpaddlq_u16(hvb);

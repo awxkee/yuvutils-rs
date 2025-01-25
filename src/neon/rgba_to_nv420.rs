@@ -193,17 +193,31 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
 
         assert!(diff <= 16);
-
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer0: [u8; 16 * 4] = [0; 16 * 4];
         let mut src_buffer1: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];
         let mut y_buffer1: [u8; 16] = [0; 16];
         let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
@@ -244,11 +258,11 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
         std::ptr::copy_nonoverlapping(
             uv_buffer.as_mut_ptr(),
             uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
-            diff,
+            diff.div_ceil(2) * 2,
         );
 
         cx += diff;
-        ux += diff;
+        ux += diff.div_ceil(2) * 2;
     }
 
     ProcessedOffset { cx, ux }
@@ -368,9 +382,8 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
             ));
 
             let y0 = vcombine_u8(vmovn_u16(y_low0), vmovn_u16(y_high0));
-            vst1q_u8(y_dst0.as_mut_ptr(), y0);
-
             let y1 = vcombine_u8(vmovn_u16(y_low1), vmovn_u16(y_high1));
+            vst1q_u8(y_dst0.as_mut_ptr(), y0);
             vst1q_u8(y_dst1.as_mut_ptr(), y1);
 
             let r1l = vpaddlq_u8(r_values_0);
@@ -380,9 +393,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
             let b1l = vpaddlq_u8(b_values_0);
             let b1h = vpaddlq_u8(b_values_1);
 
-            let r1hv = vhaddq_u16(r1l, r1h);
-            let g1hv = vhaddq_u16(g1l, g1h);
-            let b1hv = vhaddq_u16(b1l, b1h);
+            let r1hv = vrhaddq_u16(r1l, r1h);
+            let g1hv = vrhaddq_u16(g1l, g1h);
+            let b1hv = vrhaddq_u16(b1l, b1h);
 
             let r1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(r1hv));
             let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(g1hv));
@@ -403,15 +416,13 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
             cr_h = vmlal_high_laneq_s16::<0>(cr_h, b1, v_cr_b);
             cr_l = vmlal_laneq_s16::<0>(cr_l, vget_low_s16(b1), v_cr_b);
 
-            let cb = vmovn_u16(vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(cb_l),
-                vshrn_n_s32::<PRECISION>(cb_h),
-            )));
+            let cb_l0 = vshrn_n_s32::<PRECISION>(cb_l);
+            let cb_l1 = vshrn_n_s32::<PRECISION>(cb_h);
+            let cr_l0 = vshrn_n_s32::<PRECISION>(cr_l);
+            let cr_l1 = vshrn_n_s32::<PRECISION>(cr_h);
 
-            let cr = vmovn_u16(vreinterpretq_u16_s16(vcombine_s16(
-                vshrn_n_s32::<PRECISION>(cr_l),
-                vshrn_n_s32::<PRECISION>(cr_h),
-            )));
+            let cb = vmovn_u16(vreinterpretq_u16_s16(vcombine_s16(cb_l0, cb_l1)));
+            let cr = vmovn_u16(vreinterpretq_u16_s16(vcombine_s16(cr_l0, cr_l1)));
 
             match order {
                 YuvNVOrder::UV => {
@@ -439,17 +450,31 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
 
         assert!(diff <= 16);
-
-        diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
 
         let mut src_buffer0: [u8; 16 * 4] = [0; 16 * 4];
         let mut src_buffer1: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer0: [u8; 16] = [0; 16];
         let mut y_buffer1: [u8; 16] = [0; 16];
         let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
@@ -486,7 +511,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
         std::ptr::copy_nonoverlapping(
             uv_buffer.as_mut_ptr(),
             uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
-            diff,
+            diff.div_ceil(2) * 2,
         );
 
         cx += diff;

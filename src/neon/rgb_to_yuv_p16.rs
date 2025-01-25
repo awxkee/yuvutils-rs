@@ -179,9 +179,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
 
             ux += 8;
         } else {
-            let r1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(r_values)));
-            let g1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(g_values)));
-            let b1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(b_values)));
+            let r1l = vpaddlq_u16(r_values);
+            let g1l = vpaddlq_u16(g_values);
+            let b1l = vpaddlq_u16(b_values);
+            let r1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(r1l));
+            let g1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(g1l));
+            let b1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(b1l));
 
             let mut cb_h = vmlal_laneq_s16::<3>(uv_bias, r1, v_weights);
             let mut cr_h = vmlal_laneq_s16::<6>(uv_bias, r1, v_weights);

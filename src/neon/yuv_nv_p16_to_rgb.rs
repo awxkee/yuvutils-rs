@@ -344,18 +344,13 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
             v_weights,
         );
 
-        let r_values = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(r_vals, zeros)),
-            v_max_colors,
-        );
-        let g_values = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(g_vals, zeros)),
-            v_max_colors,
-        );
-        let b_values = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(b_vals, zeros)),
-            v_max_colors,
-        );
+        let r_m = vmaxq_s16(r_vals, zeros);
+        let g_m = vmaxq_s16(g_vals, zeros);
+        let b_m = vmaxq_s16(b_vals, zeros);
+
+        let r_values = vminq_u16(vreinterpretq_u16_s16(r_m), v_max_colors);
+        let g_values = vminq_u16(vreinterpretq_u16_s16(g_m), v_max_colors);
+        let b_values = vminq_u16(vreinterpretq_u16_s16(b_m), v_max_colors);
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
             dst_ptr,

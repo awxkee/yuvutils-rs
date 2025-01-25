@@ -32,6 +32,7 @@
 #![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
 #![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
 #![cfg_attr(feature = "nightly_f16", feature(f16))]
+#![cfg_attr(feature = "nightly_i8mm", feature(stdarch_neon_i8mm))]
 extern crate core;
 
 mod ar30_rgb;
@@ -96,8 +97,8 @@ mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
 
 pub use yuv_support::{
-    Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvRange,
-    YuvStandardMatrix,
+    Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness,
+    YuvRange, YuvStandardMatrix,
 };
 
 pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;

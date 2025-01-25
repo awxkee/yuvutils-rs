@@ -82,6 +82,53 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
             return SemiPlanar420Encoder { handler: None };
         }
+
+        #[cfg(feature = "fast_mode")]
+        if PRECISION == 7 {
+            assert_eq!(PRECISION, 7);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                #[cfg(feature = "nightly_i8mm")]
+                {
+                    let cn: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    use crate::neon::neon_rgba_to_nv_dot_rgba420;
+                    if std::arch::is_aarch64_feature_detected!("i8mm")
+                        && (cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra)
+                    {
+                        assert!(cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra);
+                        return SemiPlanar420Encoder {
+                            handler: Some(neon_rgba_to_nv_dot_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
+                        };
+                    }
+                }
+                use crate::neon::neon_rgbx_to_nv_fast420;
+                return SemiPlanar420Encoder {
+                    handler: Some(neon_rgbx_to_nv_fast420::<ORIGIN_CHANNELS, UV_ORDER>),
+                };
+            }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_nv_fast_rgba420;
+                    return SemiPlanar420Encoder {
+                        handler: Some(avx2_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
+                    };
+                }
+
+                if std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_rgba_to_nv_fast_rgba420;
+                    return SemiPlanar420Encoder {
+                        handler: Some(sse_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
+                    };
+                }
+            }
+        }
+
+        if PRECISION != 13 {
+            return SemiPlanar420Encoder { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
@@ -189,6 +236,59 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
     Default for SemiPlanarEncoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
 {
     fn default() -> Self {
+        #[cfg(feature = "fast_mode")]
+        if PRECISION == 7 {
+            assert_eq!(PRECISION, 7);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                #[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
+                {
+                    let cn: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    if std::arch::is_aarch64_feature_detected!("i8mm")
+                        && (cn == YuvSourceChannels::Bgra || cn == YuvSourceChannels::Rgba)
+                    {
+                        use crate::neon::neon_rgba_to_nv_dot_rgba;
+                        return SemiPlanarEncoder {
+                            handler: Some(
+                                neon_rgba_to_nv_dot_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                            ),
+                        };
+                    }
+                }
+
+                use crate::neon::neon_rgbx_to_nv_fast;
+                return SemiPlanarEncoder {
+                    handler: Some(neon_rgbx_to_nv_fast::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>),
+                };
+            }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_nv_fast_rgba;
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            avx2_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                        ),
+                    };
+                }
+
+                if std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_rgba_to_nv_fast_rgba;
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            sse_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                        ),
+                    };
+                }
+            }
+        }
+
+        if PRECISION != 13 {
+            return SemiPlanarEncoder { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
+
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
@@ -252,7 +352,12 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
     }
 }
 
-fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
+fn rgbx_to_nv_impl<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+>(
     image: &mut YuvBiPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
@@ -270,12 +375,11 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
 
-    const PRECISION: i32 = 13;
     let transform = search_forward_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
 
-    const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
-    let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
-    let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
+    let rnd_bias: i32 = (1 << (PRECISION - 1)) - 1;
+    let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + rnd_bias;
+    let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + rnd_bias;
 
     let width = image.width;
 
@@ -291,81 +395,87 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             chroma_range,
             &transform,
         );
+        if offset.cx != image.width as usize {
+            for ((y_dst, uv_dst), rgba) in y_dst
+                .chunks_exact_mut(2)
+                .zip(uv_dst.chunks_exact_mut(2))
+                .zip(rgba.chunks_exact(channels * 2))
+                .skip(offset.cx / 2)
+            {
+                let rgba0 = &rgba[0..channels];
+                let r0 = rgba0[src_chans.get_r_channel_offset()] as i32;
+                let g0 = rgba0[src_chans.get_g_channel_offset()] as i32;
+                let b0 = rgba0[src_chans.get_b_channel_offset()] as i32;
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[0] = y_0 as u8;
 
-        for ((y_dst, uv_dst), rgba) in y_dst
-            .chunks_exact_mut(2)
-            .zip(uv_dst.chunks_exact_mut(2))
-            .zip(rgba.chunks_exact(channels * 2))
-            .skip(offset.cx / 2)
-        {
-            let rgba0 = &rgba[0..channels];
-            let r0 = rgba0[src_chans.get_r_channel_offset()] as i32;
-            let g0 = rgba0[src_chans.get_g_channel_offset()] as i32;
-            let b0 = rgba0[src_chans.get_b_channel_offset()] as i32;
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0 as u8;
+                let rgba1 = &rgba[channels..channels * 2];
 
-            let rgba1 = &rgba[channels..channels * 2];
+                let r1 = rgba1[src_chans.get_r_channel_offset()] as i32;
+                let g1 = rgba1[src_chans.get_g_channel_offset()] as i32;
+                let b1 = rgba1[src_chans.get_b_channel_offset()] as i32;
 
-            let r1 = rgba1[src_chans.get_r_channel_offset()] as i32;
-            let g1 = rgba1[src_chans.get_g_channel_offset()] as i32;
-            let b1 = rgba1[src_chans.get_b_channel_offset()] as i32;
+                let y_1 = (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[1] = y_1 as u8;
 
-            let y_1 =
-                (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            y_dst[1] = y_1 as u8;
+                let r = (r0 + r1 + 1) >> 1;
+                let g = (g0 + g1 + 1) >> 1;
+                let b = (b0 + b1 + 1) >> 1;
 
-            let r = (r0 + r1 + 1) >> 1;
-            let g = (g0 + g1 + 1) >> 1;
-            let b = (b0 + b1 + 1) >> 1;
+                let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+                    >> PRECISION;
+                let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+                    >> PRECISION;
+                uv_dst[order.get_u_position()] = cb as u8;
+                uv_dst[order.get_v_position()] = cr as u8;
+            }
 
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
-                >> PRECISION;
-            uv_dst[order.get_u_position()] = cb as u8;
-            uv_dst[order.get_v_position()] = cr as u8;
-        }
+            if width & 1 != 0 {
+                let rgba = rgba.chunks_exact(channels * 2).remainder();
+                let rgba = &rgba[0..channels];
+                let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
+                let y_dst = y_dst.chunks_exact_mut(2).into_remainder();
 
-        if width & 1 != 0 {
-            let rgba = rgba.chunks_exact(channels * 2).remainder();
-            let rgba = &rgba[0..channels];
-            let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
-            let y_dst = y_dst.chunks_exact_mut(2).into_remainder();
+                let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
+                let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
+                let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst[0] = y_0 as u8;
 
-            let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
-            let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
-            let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            y_dst[0] = y_0 as u8;
-
-            let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                >> PRECISION;
-            uv_dst[order.get_u_position()] = cb as u8;
-            uv_dst[order.get_v_position()] = cr as u8;
+                let cb =
+                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                        >> PRECISION;
+                let cr =
+                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                        >> PRECISION;
+                uv_dst[order.get_u_position()] = cb as u8;
+                uv_dst[order.get_v_position()] = cr as u8;
+            }
         }
     };
 
     let semi_planar_handler420 =
         SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>::default();
 
-    let process_double_row =
-        |y_dst0: &mut [u8], y_dst1: &mut [u8], uv_dst: &mut [u8], rgba0: &[u8], rgba1: &[u8]| {
-            let offset = semi_planar_handler420.handle_rows(
-                rgba0,
-                rgba1,
-                y_dst0,
-                y_dst1,
-                uv_dst,
-                image.width,
-                chroma_range,
-                &transform,
-            );
-
+    let process_double_row = |y_dst0: &mut [u8],
+                              y_dst1: &mut [u8],
+                              uv_dst: &mut [u8],
+                              rgba0: &[u8],
+                              rgba1: &[u8]| {
+        let offset = semi_planar_handler420.handle_rows(
+            rgba0,
+            rgba1,
+            y_dst0,
+            y_dst1,
+            uv_dst,
+            image.width,
+            chroma_range,
+            &transform,
+        );
+        if offset.cx != image.width as usize {
             for ((((y_dst0, y_dst1), uv_dst), rgba0), rgba1) in y_dst0
                 .chunks_exact_mut(2)
                 .zip(y_dst1.chunks_exact_mut(2))
@@ -454,7 +564,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 uv_dst[order.get_u_position()] = cb as u8;
                 uv_dst[order.get_v_position()] = cr as u8;
             }
-        };
+        }
+    };
 
     let y_plane = image.y_plane.borrow_mut();
     let y_stride = image.y_stride;
@@ -488,26 +599,28 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 &transform,
             );
 
-            for ((y_dst, uv_dst), rgba) in y_dst
-                .iter_mut()
-                .zip(uv_dst.chunks_exact_mut(2))
-                .zip(rgba.chunks_exact(channels))
-                .skip(offset.cx)
-            {
-                let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
-                let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
-                let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
-                    >> PRECISION;
-                *y_dst = y_0 as u8;
-                let cb =
-                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+            if offset.cx != image.width as usize {
+                for ((y_dst, uv_dst), rgba) in y_dst
+                    .iter_mut()
+                    .zip(uv_dst.chunks_exact_mut(2))
+                    .zip(rgba.chunks_exact(channels))
+                    .skip(offset.cx)
+                {
+                    let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
+                    let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
+                    let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
+                    let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                         >> PRECISION;
-                let cr =
-                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                        >> PRECISION;
-                uv_dst[order.get_u_position()] = cb as u8;
-                uv_dst[order.get_v_position()] = cr as u8;
+                    *y_dst = y_0 as u8;
+                    let cb =
+                        (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                            >> PRECISION;
+                    let cr =
+                        (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                            >> PRECISION;
+                    uv_dst[order.get_u_position()] = cb as u8;
+                    uv_dst[order.get_v_position()] = cr as u8;
+                }
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
@@ -582,6 +695,54 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     Ok(())
 }
 
+fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>(
+    image: &mut YuvBiPlanarImageMut<u8>,
+    rgba: &[u8],
+    rgba_stride: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    _mode: YuvConversionMode,
+) -> Result<(), YuvError> {
+    #[cfg(any(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        all(target_arch = "aarch64", target_feature = "neon")
+    ))]
+    {
+        match _mode {
+            #[cfg(feature = "fast_mode")]
+            YuvConversionMode::Fast => rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 7>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+            ),
+            YuvConversionMode::Balanced => {
+                rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>(
+                    image,
+                    rgba,
+                    rgba_stride,
+                    range,
+                    matrix,
+                )
+            }
+        }
+    }
+    #[cfg(not(any(
+        all(any(target_arch = "x86", target_arch = "x86_64"),),
+        all(target_arch = "aarch64", target_feature = "neon",),
+    )))]
+    {
+        rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>(
+            image,
+            rgba,
+            rgba_stride,
+            range,
+            matrix,
+        )
+    }
+}
+
 /// Convert RGB image data to YUV NV16 bi-planar format.
 ///
 /// This function performs RGB to YUV conversion and stores the result in YUV NV16 bi-planar format,
@@ -606,12 +767,13 @@ pub fn rgb_to_yuv_nv16(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgb as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert RGB image data to YUV NV61 bi-planar format.
@@ -638,12 +800,13 @@ pub fn rgb_to_yuv_nv61(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgb as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert BGR image data to YUV NV16 bi-planar format.
@@ -670,12 +833,13 @@ pub fn bgr_to_yuv_nv16(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgr as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert BGR image data to YUV NV61 bi-planar format.
@@ -702,12 +866,13 @@ pub fn bgr_to_yuv_nv61(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgr as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert RGBA image data to YUV NV16 bi-planar format.
@@ -734,12 +899,13 @@ pub fn rgba_to_yuv_nv16(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert RGBA image data to YUV NV61 bi-planar format.
@@ -766,12 +932,13 @@ pub fn rgba_to_yuv_nv61(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert BGRA image data to YUV NV16 bi-planar format.
@@ -798,12 +965,13 @@ pub fn bgra_to_yuv_nv16(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert BGRA image data to YUV NV61 bi-planar format.
@@ -830,12 +998,13 @@ pub fn bgra_to_yuv_nv61(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert RGB image data to YUV NV12 bi-planar format.
@@ -862,12 +1031,13 @@ pub fn rgb_to_yuv_nv12(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgb as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert RGB image data to YUV NV21 bi-planar format.
@@ -894,12 +1064,13 @@ pub fn rgb_to_yuv_nv21(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgb as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert BGR image data to YUV NV12 bi-planar format.
@@ -926,12 +1097,13 @@ pub fn bgr_to_yuv_nv12(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgr as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert BGR image data to YUV NV21 bi-planar format.
@@ -958,12 +1130,13 @@ pub fn bgr_to_yuv_nv21(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgr as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert RGBA image data to YUV NV12 bi-planar format.
@@ -990,12 +1163,13 @@ pub fn rgba_to_yuv_nv12(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert RGBA image data to YUV NV21 bi-planar format.
@@ -1022,12 +1196,13 @@ pub fn rgba_to_yuv_nv21(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert BGRA image data to YUV NV12 bi-planar format.
@@ -1054,12 +1229,13 @@ pub fn bgra_to_yuv_nv12(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert BGRA image data to YUV NV21 bi-planar format.
@@ -1086,12 +1262,13 @@ pub fn bgra_to_yuv_nv21(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert RGB image data to YUV NV24 bi-planar format.
@@ -1118,12 +1295,13 @@ pub fn rgb_to_yuv_nv24(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgb as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert RGB image data to YUV NV42 bi-planar format.
@@ -1150,12 +1328,13 @@ pub fn rgb_to_yuv_nv42(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgb as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert BGR image data to YUV NV24 bi-planar format.
@@ -1182,12 +1361,13 @@ pub fn bgr_to_yuv_nv24(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgr as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert BGR image data to YUV NV42 bi-planar format.
@@ -1214,12 +1394,13 @@ pub fn bgr_to_yuv_nv42(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgr as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert RGBA image data to YUV NV24 bi-planar format.
@@ -1246,12 +1427,13 @@ pub fn rgba_to_yuv_nv24(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert RGBA image data to YUV NV42 bi-planar format.
@@ -1278,12 +1460,13 @@ pub fn rgba_to_yuv_nv42(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Rgba as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert BGRA image data to YUV NV24 bi-planar format.
@@ -1310,12 +1493,13 @@ pub fn bgra_to_yuv_nv24(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvNVOrder::UV as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert BGRA image data to YUV NV42 bi-planar format.
@@ -1342,10 +1526,11 @@ pub fn bgra_to_yuv_nv42(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     rgbx_to_nv::<
         { YuvSourceChannels::Bgra as u8 },
         { YuvNVOrder::VU as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }

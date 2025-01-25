@@ -5,9 +5,6 @@
 
 Fast and simple YUV approximation conversion in pure Rust. At most the same as libyuv does.
 Performance will be equal to libyuv or slightly higher on platforms where SIMD is implemented. Otherwise, equal or slower.
-Used precision is slightly higher than used in libyuv, however for decoding 4:2:0 is almost always faster than libyuv,
-decoding 4:2:2, 4:4:4 almost the same, however encoding except 4:2:0 often is slower with better results.
-Modern NEON CPU is almost always faster than libyuv.
 
 Mostly implemented AVX-512, AVX2, SSE, NEON, WASM. Waiting for SVE to be available in `nightly`.
 
@@ -82,26 +79,26 @@ AVX2 tests performed on `m4.large` with Ubuntu 24.04 droplet.
 AVX2 Win test performed on Windows 11 Intel Core i9-14900HX.
 
 ```bash
-cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml
+cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml --features fast_mode
 ```
 
 AVX-512 tests performed on `AWS c5.large` with Ubuntu 24.04 instance with command
 
 ```bash
-cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features nightly_avx512
+cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features nightly_avx512,fast_mode
 ```
 
 ### Encoding 8-bit
 
 | Conversion             | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) |
 |------------------------|:----------:|:--------------:|:----------:|:-------------:|
-| utils RGB->YUV 4:2:0   |  311.78µs  |    369.37µs    |   1.05ms   |   722.87µs    |
+| utils RGB->YUV 4:2:0   |  261.66µs  |    354.25µs    |  973.17µs  |   722.87µs    |
 | libyuv RGB->YUV 4:2:0  |  306.80µs  |     3.62ms     |   1.10ms   |   972.52µs    |
-| utils RGBA->YUV 4:2:0  |  368.92µs  |    367.47µs    |   1.09ms   |   785.93µs    |
+| utils RGBA->YUV 4:2:0  |  266.66µs  |    367.47µs    |  781.54µs  |   785.93µs    |
 | libyuv RGBA->YUV 4:2:0 |  429.36µs  |     2.70ms     |  846.69µs  |   707.33µs    |
-| utils RGBA->YUV 4:2:2  |  424.04µs  |    464.82µs    |   1.23ms   |   964.87µs    |
+| utils RGBA->YUV 4:2:2  |  362.72µs  |    464.82µs    |   1.06ms   |   964.87µs    |
 | libyuv RGBA->YUV 4:2:2 |  616.29µs  |    4.3003ms    |   1.09ms   |   947.97µs    |
-| utils RGBA->YUV 4:4:4  |  455.59µs  |    534.87µs    |   1.57ms   |   974.29µs    |
+| utils RGBA->YUV 4:4:4  |  378.49µs  |    534.87µs    |   1.09ms   |   974.29µs    |
 
 ### Decoding 8-bit
 

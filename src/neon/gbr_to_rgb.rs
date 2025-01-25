@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::neon::utils::vmullnq_s16;
+use crate::neon::utils::{neon_store_rgb8, vmullnq_s16};
 use crate::yuv_support::YuvSourceChannels;
 use std::arch::aarch64::*;
 
@@ -73,6 +73,7 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
         let g0 = vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _);
         let b0 = vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _);
         let r0 = vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _);
+
         let g_values0 = vqsubq_u8(g0, vy_bias);
         let b_values0 = vqsubq_u8(b0, vy_bias);
         let r_values0 = vqsubq_u8(r0, vy_bias);
@@ -97,26 +98,13 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
         let b_values = vcombine_u8(vqmovun_s16(bl_lo), vqmovun_s16(bl_hi));
 
         let dst_shift = cx * destination_channels.get_channels_count();
-        let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
-
-        match destination_channels {
-            YuvSourceChannels::Rgb => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
-                vst3q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-            }
-            YuvSourceChannels::Bgr => {
-                let dst_pack: uint8x16x3_t = uint8x16x3_t(b_values, g_values, r_values);
-                vst3q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-            }
-            YuvSourceChannels::Rgba => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(r_values, g_values, b_values, v_alpha);
-                vst4q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-            }
-            YuvSourceChannels::Bgra => {
-                let dst_pack: uint8x16x4_t = uint8x16x4_t(b_values, g_values, r_values, v_alpha);
-                vst4q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-            }
-        }
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
 
         cx += 16;
     }
@@ -145,54 +133,42 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
         let vy_bias = vdupq_n_u8(y_bias as u8);
 
         while cx + 16 < width {
-            let g_values0 = vqsubq_u8(
-                vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _),
-                vy_bias,
-            );
-            let b_values0 = vqsubq_u8(
-                vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _),
-                vy_bias,
-            );
-            let r_values0 = vqsubq_u8(
-                vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _),
-                vy_bias,
-            );
+            let g0 = vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _);
+            let b0 = vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _);
+            let r0 = vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _);
 
-            let rl_lo = vmullnq_s16::<PRECISION>(vmovl_u8(vget_low_u8(r_values0)), vy_coeff);
-            let gl_lo = vmullnq_s16::<PRECISION>(vmovl_u8(vget_low_u8(g_values0)), vy_coeff);
-            let bl_lo = vmullnq_s16::<PRECISION>(vmovl_u8(vget_low_u8(b_values0)), vy_coeff);
+            let g_values0 = vqsubq_u8(g0, vy_bias);
+            let b_values0 = vqsubq_u8(b0, vy_bias);
+            let r_values0 = vqsubq_u8(r0, vy_bias);
 
-            let rl_hi = vmullnq_s16::<PRECISION>(vmovl_high_u8(r_values0), vy_coeff);
-            let gl_hi = vmullnq_s16::<PRECISION>(vmovl_high_u8(g_values0), vy_coeff);
-            let bl_hi = vmullnq_s16::<PRECISION>(vmovl_high_u8(b_values0), vy_coeff);
+            let rl0 = vmovl_u8(vget_low_u8(r_values0));
+            let gl0 = vmovl_u8(vget_low_u8(g_values0));
+            let bl0 = vmovl_u8(vget_low_u8(b_values0));
+            let rh0 = vmovl_high_u8(r_values0);
+            let gh0 = vmovl_high_u8(g_values0);
+            let bh0 = vmovl_high_u8(b_values0);
+
+            let rl_lo = vmullnq_s16::<PRECISION>(rl0, vy_coeff);
+            let gl_lo = vmullnq_s16::<PRECISION>(gl0, vy_coeff);
+            let bl_lo = vmullnq_s16::<PRECISION>(bl0, vy_coeff);
+
+            let rl_hi = vmullnq_s16::<PRECISION>(rh0, vy_coeff);
+            let gl_hi = vmullnq_s16::<PRECISION>(gh0, vy_coeff);
+            let bl_hi = vmullnq_s16::<PRECISION>(bh0, vy_coeff);
 
             let r_values = vcombine_u8(vqmovn_u16(rl_lo), vqmovn_u16(rl_hi));
             let g_values = vcombine_u8(vqmovn_u16(gl_lo), vqmovn_u16(gl_hi));
             let b_values = vcombine_u8(vqmovn_u16(bl_lo), vqmovn_u16(bl_hi));
 
             let dst_shift = cx * destination_channels.get_channels_count();
-            let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
 
-            match destination_channels {
-                YuvSourceChannels::Rgb => {
-                    let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
-                    vst3q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-                YuvSourceChannels::Bgr => {
-                    let dst_pack: uint8x16x3_t = uint8x16x3_t(b_values, g_values, r_values);
-                    vst3q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-                YuvSourceChannels::Rgba => {
-                    let dst_pack: uint8x16x4_t =
-                        uint8x16x4_t(r_values, g_values, b_values, v_alpha);
-                    vst4q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-                YuvSourceChannels::Bgra => {
-                    let dst_pack: uint8x16x4_t =
-                        uint8x16x4_t(b_values, g_values, r_values, v_alpha);
-                    vst4q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-            }
+            neon_store_rgb8::<DESTINATION_CHANNELS>(
+                rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+                r_values,
+                g_values,
+                b_values,
+                v_alpha,
+            );
 
             cx += 16;
         }
@@ -222,28 +198,14 @@ pub(crate) fn yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
             let r_values = vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _);
 
             let dst_shift = cx * destination_channels.get_channels_count();
-            let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
 
-            match destination_channels {
-                YuvSourceChannels::Rgb => {
-                    let dst_pack: uint8x16x3_t = uint8x16x3_t(r_values, g_values, b_values);
-                    vst3q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-                YuvSourceChannels::Bgr => {
-                    let dst_pack: uint8x16x3_t = uint8x16x3_t(b_values, g_values, r_values);
-                    vst3q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-                YuvSourceChannels::Rgba => {
-                    let dst_pack: uint8x16x4_t =
-                        uint8x16x4_t(r_values, g_values, b_values, v_alpha);
-                    vst4q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-                YuvSourceChannels::Bgra => {
-                    let dst_pack: uint8x16x4_t =
-                        uint8x16x4_t(b_values, g_values, r_values, v_alpha);
-                    vst4q_u8(rgba_ptr.as_mut_ptr(), dst_pack);
-                }
-            }
+            neon_store_rgb8::<DESTINATION_CHANNELS>(
+                rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+                r_values,
+                g_values,
+                b_values,
+                v_alpha,
+            );
 
             cx += 16;
         }
