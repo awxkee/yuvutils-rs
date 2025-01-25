@@ -78,35 +78,48 @@ jobs:
       - run: cargo test --no-default-features --features fast_mode,avx
       - run: cargo test --no-default-features --features fast_mode
 
-  fuzz_decoding:
-    name: Fuzzing decoders ARM
+  fuzz_arm:
+    name: Fuzzing ARM
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
-      - run: cargo fuzz run yuv_to_rgb -- -max_total_time=15
-      - run: cargo fuzz run yuv_nv_to_rgb -- -max_total_time=15
-      - run: cargo fuzz run y_to_rgb -- -max_total_time=15
-      - run: cargo fuzz run yuv16_to_rgb16 -- -max_total_time=15
-      - run: cargo fuzz run y16_to_rgb16 -- -max_total_time=15
-      - run: cargo fuzz run yuv_to_yuyu2 -- -max_total_time=15
-      - run: cargo fuzz run yuv_nv16_to_rgb16 -- -max_total_time=15
-      - run: cargo fuzz run shuffle -- -max_total_time=15
-      - run: cargo fuzz run rgb_to_f16 -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_yuv --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_nv --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_y --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run rgb16_to_nv16 --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run yuv_to_rgb --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run y_to_rgb --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run y16_to_rgb16 --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run shuffle --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_f16 --no-default-features -- -max_total_time=15
 
-  fuzz_encoding:
-    name: Fuzzing encoders ARM
+  fuzz_arm_rdm:
+    name: Fuzzing ARM RDM
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
-      - run: cargo fuzz run rgb_to_yuv -- -max_total_time=15
-      - run: cargo fuzz run rgb_to_nv -- -max_total_time=15
-      - run: cargo fuzz run rgb_to_y -- -max_total_time=15
-      - run: cargo fuzz run rgb16_to_yuv16 -- -max_total_time=15
-      - run: cargo fuzz run rgb16_to_nv16 -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_yuv --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_nv --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_y --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run rgb16_to_nv16 --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run yuv_to_rgb --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run y_to_rgb --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run y16_to_rgb16 --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run shuffle --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run rgb_to_f16 --no-default-features --features rdm -- -max_total_time=15
 
   fuzz_x86:
     name: Fuzzing x86

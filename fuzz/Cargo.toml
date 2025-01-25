@@ -15,6 +15,7 @@ yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode"], default-fe
 default = []
 avx = ["yuvutils-rs/avx"]
 sse = ["yuvutils-rs/sse"]
+rdm = ["yuvutils-rs/rdm"]
 nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
 nightly_i8mm = ["yuvutils-rs/nightly_i8mm"]
 
