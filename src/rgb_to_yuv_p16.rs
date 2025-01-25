@@ -168,7 +168,7 @@ fn rgbx_to_yuv_ant<
         PRECISION,
         BIT_DEPTH,
     >;
-    #[cfg(feature = "avx")]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     use crate::avx2::{avx_rgba_to_yuv_p16, avx_rgba_to_yuv_p16_420};
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let avx_dispatch_420 = avx_rgba_to_yuv_p16_420::<

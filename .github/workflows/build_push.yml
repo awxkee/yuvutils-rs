@@ -65,6 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo test --no-default-features
       - run: cargo test
 
   fuzz_decoding:
