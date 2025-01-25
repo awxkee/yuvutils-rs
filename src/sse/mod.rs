@@ -68,6 +68,8 @@ mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 #[cfg(feature = "fast_mode")]
 mod yuv_nv_to_rgba_fast420;
+#[cfg(feature = "fast_mode")]
+mod yuv_nv_to_rgba_fast;
 
 pub(crate) use gbr_to_rgb::{sse_yuv_to_rgba_row_full, sse_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::sse_rgba_to_nv_row;
@@ -109,3 +111,5 @@ pub(crate) use yuy2_to_rgb::yuy2_to_rgb_sse;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_sse;
 #[cfg(feature = "fast_mode")]
 pub(crate) use yuv_nv_to_rgba_fast420::sse_yuv_nv_to_rgba_fast420;
+#[cfg(feature = "fast_mode")]
+pub(crate) use yuv_nv_to_rgba_fast::sse_yuv_nv_to_rgba_fast;

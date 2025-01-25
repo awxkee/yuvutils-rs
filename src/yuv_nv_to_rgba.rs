@@ -80,6 +80,26 @@ impl<
                     ),
                 };
             }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_fast;
+                        return NVRowHandler {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_fast::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
+            }
         }
 
         if PRECISION != 13 {

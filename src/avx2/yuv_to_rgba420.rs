@@ -227,8 +227,8 @@ unsafe fn avx2_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
             half_div,
         );
 
-        let yvl0 = _mm256_loadu_si256(y_plane0.as_ptr() as *const __m256i);
-        let yvl1 = _mm256_loadu_si256(y_plane1.as_ptr() as *const __m256i);
+        let yvl0 = _mm256_loadu_si256(y_buffer0.as_ptr() as *const __m256i);
+        let yvl1 = _mm256_loadu_si256(y_buffer1.as_ptr() as *const __m256i);
         let u_values = _mm_loadu_si128(u_buffer.as_ptr() as *const __m128i);
         let v_values = _mm_loadu_si128(v_buffer.as_ptr() as *const __m128i);
 
