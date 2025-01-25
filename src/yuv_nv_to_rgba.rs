@@ -2014,7 +2014,7 @@ mod tests {
         }
         matrix(YuvConversionMode::Balanced, 10);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 14);
+        matrix(YuvConversionMode::Fast, 18);
     }
 
     #[test]

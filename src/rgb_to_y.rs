@@ -33,7 +33,7 @@
 use crate::avx512bw::avx512_row_rgb_to_y;
 use crate::images::YuvGrayImageMut;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_rgb_to_y_rdm, neon_rgb_to_y_row};
+use crate::neon::neon_rgb_to_y_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::YuvError;
@@ -96,7 +96,15 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_handler = if std::arch::is_aarch64_feature_detected!("rdm") {
-        neon_rgb_to_y_rdm::<ORIGIN_CHANNELS>
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_rgb_to_y_rdm;
+            neon_rgb_to_y_rdm::<ORIGIN_CHANNELS>
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>
+        }
     } else {
         neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>
     };

@@ -25,15 +25,16 @@ fast_transpose = "0.2.2"
 rand = "0.8.5"
 
 [features]
-default = ["avx", "sse"]
-nightly_f16 = []
+default = ["avx", "sse", "rdm"]
 # On x86 architectures runtime dispatch is used to detect if AVX, SSE is available
 # disable those features only for testing or reducing binary size, if you're sure that your hardware
 # do not support it or already shadowed by another feature.
 # It is safe to enable any features because all features will be checked at runtime.
-nightly_avx512 = ["fast_transpose/nightly_avx512"]
 avx = []
 sse = []
+rdm = []
+nightly_f16 = []
+nightly_avx512 = ["fast_transpose/nightly_avx512"]
 nightly_i8mm = []
 fast_mode = []
 rayon = ["dep:rayon"]

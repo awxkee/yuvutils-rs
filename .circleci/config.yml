@@ -46,5 +46,5 @@ workflows:
           filters:
             branches:
               only: main
-          pull_requests:
-              only: /.*/
+            pull_requests:
+                only: /.*/

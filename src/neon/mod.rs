@@ -88,7 +88,9 @@ pub(crate) use f16_converter::{
 pub(crate) use gbr_to_rgb::{
     yuv_to_rgba_row_full, yuv_to_rgba_row_limited, yuv_to_rgba_row_limited_rdm,
 };
-pub(crate) use rgb_to_y::{neon_rgb_to_y_rdm, neon_rgb_to_y_row};
+#[cfg(feature = "rdm")]
+pub(crate) use rgb_to_y::neon_rgb_to_y_rdm;
+pub(crate) use rgb_to_y::{neon_rgb_to_y_row};
 pub(crate) use rgb_to_ycgco::neon_rgb_to_ycgco_row;
 pub(crate) use rgb_to_yuv_p16::{neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_rdm};
 pub(crate) use rgb_to_yuv_p16_420::{neon_rgba_to_yuv_p16_420, neon_rgba_to_yuv_p16_rdm_420};
