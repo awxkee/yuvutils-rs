@@ -108,8 +108,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_x) as *const __m128i);
 
-                let sh_e = _mm_setr_epi8(0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 6);
-                let sh_o = _mm_setr_epi8(1, 1, 1, 1, 3, 3, 3, 3, 5, 5, 5, 5, 7, 7, 7, 7);
+                let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
+                let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
 
                 let mut u = _mm_shuffle_epi8(uv_values_, sh_e);
                 let mut v = _mm_shuffle_epi8(uv_values_, sh_o);

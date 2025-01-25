@@ -35,55 +35,15 @@ use yuvutils_rs::{
     BufferStoreMut, YuvConversionMode, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
-fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
-    fuzz_yuv_420(
-        data.0,
-        data.1,
-        data.2,
-        data.3,
-        data.4,
-        YuvConversionMode::Fast,
-    );
-    fuzz_yuv_420(
-        data.0,
-        data.1,
-        data.2,
-        data.3,
-        data.4,
-        YuvConversionMode::Balanced,
-    );
-    fuzz_yuv_422(
-        data.0,
-        data.1,
-        data.2,
-        data.3,
-        data.4,
-        YuvConversionMode::Fast,
-    );
-    fuzz_yuv_422(
-        data.0,
-        data.1,
-        data.2,
-        data.3,
-        data.4,
-        YuvConversionMode::Balanced,
-    );
-    fuzz_yuv_444(
-        data.0,
-        data.1,
-        data.2,
-        data.3,
-        data.4,
-        YuvConversionMode::Fast,
-    );
-    fuzz_yuv_444(
-        data.0,
-        data.1,
-        data.2,
-        data.3,
-        data.4,
-        YuvConversionMode::Balanced,
-    );
+fuzz_target!(|data: (u8, u8, u8, u8, u8, u8, bool)| {
+    let fast_mode = if data.6 {
+        YuvConversionMode::Fast
+    } else {
+        YuvConversionMode::Balanced
+    };
+    fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4, fast_mode);
+    fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4, fast_mode);
+    fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4, fast_mode);
 });
 
 fn fuzz_yuv_420(

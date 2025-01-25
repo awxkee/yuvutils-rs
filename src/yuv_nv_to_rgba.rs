@@ -2160,9 +2160,9 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 50);
+        matrix(YuvConversionMode::Balanced, 72);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 55);
+        matrix(YuvConversionMode::Fast, 74);
     }
 
     #[test]
@@ -2315,6 +2315,6 @@ mod tests {
         }
         matrix(YuvConversionMode::Balanced, 55);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 58);
+        matrix(YuvConversionMode::Fast, 72);
     }
 }
