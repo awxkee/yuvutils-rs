@@ -4,6 +4,7 @@ jobs:
   check_avx512:
     docker:
       - image: cimg/rust:1.82.0
+    resource_class: xlarge
     steps:
       - checkout
       - run:
@@ -45,6 +46,5 @@ workflows:
       - check_avx512:
           filters:
             branches:
-              only:
-                - main
+              ignore:
                 - dev

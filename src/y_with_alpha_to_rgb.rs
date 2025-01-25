@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_y_to_rgb_alpha_row, neon_y_to_rgb_row_alpha_rdm};
+use crate::neon::neon_y_to_rgb_alpha_row;
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -107,7 +107,15 @@ impl ProcessRowHandler<u8> for WideRowProcessor<u8> {
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {
             let neon_wide_row_handler = if self._use_rdm {
-                neon_y_to_rgb_row_alpha_rdm::<DESTINATION_CHANNELS>
+                #[cfg(feature = "rdm")]
+                {
+                    use crate::neon::neon_y_to_rgb_row_alpha_rdm;
+                    neon_y_to_rgb_row_alpha_rdm::<DESTINATION_CHANNELS>
+                }
+                #[cfg(not(feature = "rdm"))]
+                {
+                    neon_y_to_rgb_alpha_row::<PRECISION, DESTINATION_CHANNELS>
+                }
             } else {
                 neon_y_to_rgb_alpha_row::<PRECISION, DESTINATION_CHANNELS>
             };

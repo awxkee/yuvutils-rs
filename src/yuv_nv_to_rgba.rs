@@ -66,29 +66,33 @@ impl<
     fn default() -> Self {
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            use crate::neon::{neon_yuv_nv_to_rgba_row, neon_yuv_nv_to_rgba_row_rdm};
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            return if is_rdm_available {
-                NVRowHandler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_row_rdm::<
-                            UV_ORDER,
-                            DESTINATION_CHANNELS,
-                            YUV_CHROMA_SAMPLING,
-                        >,
-                    ),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_row_rdm;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return NVRowHandler {
+                        handler: Some(
+                            neon_yuv_nv_to_rgba_row_rdm::<
+                                UV_ORDER,
+                                DESTINATION_CHANNELS,
+                                YUV_CHROMA_SAMPLING,
+                            >,
+                        ),
+                    };
                 }
-            } else {
-                NVRowHandler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_row::<
-                            PRECISION,
-                            UV_ORDER,
-                            DESTINATION_CHANNELS,
-                            YUV_CHROMA_SAMPLING,
-                        >,
-                    ),
-                }
+            }
+            use crate::neon::neon_yuv_nv_to_rgba_row;
+
+            return NVRowHandler {
+                handler: Some(
+                    neon_yuv_nv_to_rgba_row::<
+                        PRECISION,
+                        UV_ORDER,
+                        DESTINATION_CHANNELS,
+                        YUV_CHROMA_SAMPLING,
+                    >,
+                ),
             };
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -312,18 +316,24 @@ impl<
         assert_eq!(sampling, YuvChromaSubsampling::Yuv420);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            use crate::neon::{neon_yuv_nv_to_rgba_row420, neon_yuv_nv_to_rgba_row_rdm420};
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            return if is_rdm_available {
-                NVRow420Handler {
-                    handler: Some(neon_yuv_nv_to_rgba_row_rdm420::<UV_ORDER, DESTINATION_CHANNELS>),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_row_rdm420;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return NVRow420Handler {
+                        handler: Some(
+                            neon_yuv_nv_to_rgba_row_rdm420::<UV_ORDER, DESTINATION_CHANNELS>,
+                        ),
+                    };
                 }
-            } else {
-                NVRow420Handler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_row420::<PRECISION, UV_ORDER, DESTINATION_CHANNELS>,
-                    ),
-                }
+            }
+
+            use crate::neon::neon_yuv_nv_to_rgba_row420;
+            return NVRow420Handler {
+                handler: Some(
+                    neon_yuv_nv_to_rgba_row420::<PRECISION, UV_ORDER, DESTINATION_CHANNELS>,
+                ),
             };
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

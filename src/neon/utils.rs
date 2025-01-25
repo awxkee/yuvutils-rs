@@ -593,6 +593,7 @@ pub(crate) unsafe fn vpackuq_n_shift16<const BIT_DEPTH: usize>(a: int16x8_t) -> 
 
 /// Expands exactly 8 bit to 10
 #[inline(always)]
+#[cfg(feature = "rdm")]
 pub(crate) unsafe fn vexpand8_to_10(a: uint8x8_t) -> uint16x8_t {
     let k = vcombine_u8(a, a);
     vrshrq_n_u16::<6>(vreinterpretq_u16_u8(vzip1q_u8(k, k)))
@@ -600,10 +601,12 @@ pub(crate) unsafe fn vexpand8_to_10(a: uint8x8_t) -> uint16x8_t {
 
 /// Expands exactly 8 bit to 10
 #[inline(always)]
+#[cfg(feature = "rdm")]
 pub(crate) unsafe fn vexpand_high_8_to_10(a: uint8x16_t) -> uint16x8_t {
     vrshrq_n_u16::<6>(vreinterpretq_u16_u8(vzip2q_u8(a, a)))
 }
 
+#[cfg(feature = "rdm")]
 #[inline(always)]
 pub(crate) unsafe fn vexpand_high_bp_by_2<const BIT_DEPTH: usize>(v: int16x8_t) -> int16x8_t {
     let v = vreinterpretq_u16_s16(v);

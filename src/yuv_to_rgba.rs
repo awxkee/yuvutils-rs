@@ -32,10 +32,7 @@
 ))]
 use crate::avx512bw::{avx512_yuv_to_rgba, avx512_yuv_to_rgba420, avx512_yuv_to_rgba422};
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{
-    neon_yuv_to_rgba_row, neon_yuv_to_rgba_row420, neon_yuv_to_rgba_row_rdm,
-    neon_yuv_to_rgba_row_rdm420,
-};
+use crate::neon::{neon_yuv_to_rgba_row, neon_yuv_to_rgba_row420};
 use crate::numerics::qrshr;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::{wasm_yuv_to_rgba_row, wasm_yuv_to_rgba_row420};
@@ -96,13 +93,29 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_wide_row_handler = if is_rdm_available {
-        neon_yuv_to_rgba_row_rdm::<DESTINATION_CHANNELS, SAMPLING>
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_yuv_to_rgba_row_rdm;
+            neon_yuv_to_rgba_row_rdm::<DESTINATION_CHANNELS, SAMPLING>
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_yuv_to_rgba_row::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+        }
     } else {
         neon_yuv_to_rgba_row::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_double_row_handler = if is_rdm_available {
-        neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS>
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_yuv_to_rgba_row_rdm420;
+            neon_yuv_to_rgba_row_rdm420::<DESTINATION_CHANNELS>
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>
+        }
     } else {
         neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>
     };

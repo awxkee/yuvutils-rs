@@ -32,7 +32,7 @@
 ))]
 use crate::avx512bw::avx512_yuv_to_rgba_alpha;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_yuv_to_rgba_alpha, neon_yuv_to_rgba_alpha_rdm};
+use crate::neon::neon_yuv_to_rgba_alpha;
 use crate::numerics::{div_by_255, qrshr};
 use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
@@ -95,7 +95,15 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_wide_row_handler = if is_rdm_available {
-        neon_yuv_to_rgba_alpha_rdm::<DESTINATION_CHANNELS, SAMPLING>
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_yuv_to_rgba_alpha_rdm;
+            neon_yuv_to_rgba_alpha_rdm::<DESTINATION_CHANNELS, SAMPLING>
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
+        }
     } else {
         neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
     };

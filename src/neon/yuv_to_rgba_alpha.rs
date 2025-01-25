@@ -28,15 +28,13 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{
-    neon_premultiply_alpha, neon_store_rgb8, vdotl_laneq_s16, vdotl_laneq_s16_x2, vexpand8_to_10,
-    vexpand_high_8_to_10, vmullq_laneq_s16, xvld1q_u8_x2,
-};
+use crate::neon::utils::*;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 pub(crate) unsafe fn neon_yuv_to_rgba_alpha_rdm<
     const DESTINATION_CHANNELS: u8,

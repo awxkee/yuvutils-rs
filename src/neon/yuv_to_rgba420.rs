@@ -28,13 +28,11 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{
-    neon_store_half_rgb8, neon_store_rgb8, vaddn_dot, vdotl_laneq_s16, vexpand8_to_10,
-    vexpand_high_8_to_10, vmullq_laneq_s16, vweight_laneq_x2,
-};
+use crate::neon::utils::*;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 /// Special path for Planar YUV 4:2:0 for aarch64 with RDM available
 pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm420<const DESTINATION_CHANNELS: u8>(

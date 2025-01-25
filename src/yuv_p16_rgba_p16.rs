@@ -35,7 +35,7 @@ use crate::avx512bw::avx512_yuv_p16_to_rgba16_row;
 use crate::internals::ProcessedOffset;
 use crate::internals::WideRowInversionHandler;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
+use crate::neon::neon_yuv_p16_to_rgba16_row;
 use crate::numerics::{qrshr, to_ne};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
@@ -100,18 +100,37 @@ impl<
         let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         if is_rdm_available && BIT_DEPTH <= 12 {
-            return WideRowAnyHandler {
-                handler: Some(
-                    neon_yuv_p16_to_rgba16_row_rdm::<
-                        DESTINATION_CHANNELS,
-                        SAMPLING,
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        PRECISION,
-                        BIT_DEPTH,
-                    >,
-                ),
-            };
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_yuv_p16_to_rgba16_row_rdm;
+                return WideRowAnyHandler {
+                    handler: Some(
+                        neon_yuv_p16_to_rgba16_row_rdm::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            PRECISION,
+                            BIT_DEPTH,
+                        >,
+                    ),
+                };
+            }
+            #[cfg(not(feature = "rdm"))]
+            {
+                return WideRowAnyHandler {
+                    handler: Some(
+                        neon_yuv_p16_to_rgba16_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            PRECISION,
+                            BIT_DEPTH,
+                        >,
+                    ),
+                };
+            }
         } else if BIT_DEPTH <= 12 {
             return WideRowAnyHandler {
                 handler: Some(

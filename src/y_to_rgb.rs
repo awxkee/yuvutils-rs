@@ -35,7 +35,7 @@ use crate::avx512bw::avx512_y_to_rgb_row;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_y_to_rgb_row, neon_y_to_rgb_row_rdm};
+use crate::neon::neon_y_to_rgb_row;
 use crate::numerics::qrshr;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 use crate::wasm32::wasm_y_to_rgb_row;
@@ -73,7 +73,15 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_wide_row_handler = if is_rdm_available {
-        neon_y_to_rgb_row_rdm::<DESTINATION_CHANNELS>
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_y_to_rgb_row_rdm;
+            neon_y_to_rgb_row_rdm::<DESTINATION_CHANNELS>
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_y_to_rgb_row::<PRECISION, DESTINATION_CHANNELS>
+        }
     } else {
         neon_y_to_rgb_row::<PRECISION, DESTINATION_CHANNELS>
     };

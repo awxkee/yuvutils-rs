@@ -34,9 +34,7 @@ use crate::avx512bw::{avx512_rgba_to_yuv, avx512_rgba_to_yuv420};
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{
-    neon_rgba_to_yuv, neon_rgba_to_yuv420, neon_rgba_to_yuv_rdm, neon_rgba_to_yuv_rdm420,
-};
+use crate::neon::{neon_rgba_to_yuv, neon_rgba_to_yuv420};
 use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -144,16 +142,19 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                RgbEncoder {
-                    handler: Some(neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-                }
-            } else {
-                RgbEncoder {
-                    handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_rgba_to_yuv_rdm;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return RgbEncoder {
+                        handler: Some(neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                    };
                 }
             }
+            return RgbEncoder {
+                handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+            };
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -337,16 +338,19 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                RgbEncoder420 {
-                    handler: Some(neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS, PRECISION>),
-                }
-            } else {
-                RgbEncoder420 {
-                    handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_rgba_to_yuv_rdm420;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return RgbEncoder420 {
+                        handler: Some(neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS, PRECISION>),
+                    };
                 }
             }
+            return RgbEncoder420 {
+                handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
+            };
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
