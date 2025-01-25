@@ -37,3 +37,15 @@ jobs:
           key: cargo-{{ checksum "Cargo.lock" }}
           paths:
             - ~/.cargo
+
+workflows:
+  version: 2
+
+  check_avx512:
+    jobs:
+      - check_avx512:
+          filters:
+            branches:
+              only:
+                - dev
+                - main
