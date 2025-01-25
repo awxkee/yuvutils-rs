@@ -31,7 +31,7 @@ nightly_f16 = []
 # disable those features only for testing or reducing binary size, if you're sure that your hardware
 # do not support it or already shadowed by another feature.
 # It is safe to enable any features because all features will be checked at runtime.
-nightly_avx512 = ["fast_transpose/nightly_avx512", "avx"]
+nightly_avx512 = ["fast_transpose/nightly_avx512"]
 avx = []
 sse = []
 nightly_i8mm = []

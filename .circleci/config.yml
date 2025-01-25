@@ -45,8 +45,6 @@ workflows:
       - check_avx512:
           filters:
             branches:
-              only:
-                - dev
-                - main
-            pull_requests:
+              only: main
+          pull_requests:
               only: /.*/
