@@ -9,6 +9,15 @@ jobs:
       - run:
           name: CPU Info
           command: "cat /proc/cpuinfo"
+      - restore_cache:
+          key: cargo-{{ checksum "Cargo.lock" }}
       - run:
           name: Run Tests
           command: "cargo test --no-default-features"
+      - run:
+          name: Run Tests
+          command: "cargo test --no-default-features --features nightly_avx512"
+      - save_cache:
+          key: cargo-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo
