@@ -36,13 +36,15 @@ use yuvutils_rs::{
     YuvStandardMatrix,
 };
 
-fuzz_target!(|data: (u8, u8, u8, u8, u8)| {
-    fuzz_yuv_420(data.0, data.1, data.2, data.3, YuvConversionMode::Fast);
-    fuzz_yuv_420(data.0, data.1, data.2, data.3, YuvConversionMode::Balanced);
-    fuzz_yuv_422(data.0, data.1, data.2, data.3, YuvConversionMode::Fast);
-    fuzz_yuv_422(data.0, data.1, data.2, data.3, YuvConversionMode::Balanced);
-    fuzz_yuv_444(data.0, data.1, data.2, data.3, YuvConversionMode::Fast);
-    fuzz_yuv_444(data.0, data.1, data.2, data.3, YuvConversionMode::Balanced);
+fuzz_target!(|data: (u8, u8, u8, u8, u8, bool)| {
+    let fast_mode = if data.5 {
+        YuvConversionMode::Fast
+    } else {
+        YuvConversionMode::Balanced
+    };
+    fuzz_yuv_420(data.0, data.1, data.2, data.3, fast_mode);
+    fuzz_yuv_422(data.0, data.1, data.2, data.3, fast_mode);
+    fuzz_yuv_444(data.0, data.1, data.2, data.3, fast_mode);
 });
 
 fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, mode: YuvConversionMode) {

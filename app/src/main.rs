@@ -66,6 +66,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     Ok(buffer)
 }
 use core::f16;
+use image::imageops::FilterType;
 
 fn main() {
     let j = (1. / u16::MAX as f32) as f16;
@@ -74,7 +75,7 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
-
+let img = img.resize_exact(140, 140, FilterType::CatmullRom);
     let img = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let dimensions = img.dimensions();
@@ -110,18 +111,18 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv12(
-        &mut bi_planar_image,
+    rgb_to_yuv420(
+        &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvConversionMode::Balanced,
+        YuvConversionMode::Fast,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -274,8 +275,8 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv_nv12_to_rgb(
-        &fixed_biplanar,
+    yuv420_to_rgb(
+        &fixed_planar,
         &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
