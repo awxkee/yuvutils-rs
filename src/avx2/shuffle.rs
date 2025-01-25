@@ -78,10 +78,10 @@ unsafe fn shuffle_channels8_avx_impl<const SRC: u8, const DST: u8>(
         .into_remainder();
 
     if !src.is_empty() && !dst.is_empty() {
-        assert!(src.len() < 64);
-        assert!(dst.len() < 64);
-        let mut transient_src: [u8; 64] = [0; 64];
-        let mut transient_dst: [u8; 64] = [0; 64];
+        assert!(src.len() < 32 * 4);
+        assert!(dst.len() < 32 * 4);
+        let mut transient_src: [u8; 32 * 4] = [0; 32 * 4];
+        let mut transient_dst: [u8; 32 * 4] = [0; 32 * 4];
         std::ptr::copy_nonoverlapping(src.as_ptr(), transient_src.as_mut_ptr(), src.len());
         let (a0, b0, c0, d0) = _mm256_load_deinterleave_rgb::<SRC>(transient_src.as_ptr());
         _mm256_store_interleave_rgb_for_yuv::<DST>(transient_dst.as_mut_ptr(), a0, b0, c0, d0);
