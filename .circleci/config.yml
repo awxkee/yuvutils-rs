@@ -40,7 +40,7 @@ jobs:
 workflows:
   version: 2
 
-  build:
+  check_avx512:
     jobs:
       - check_avx512:
           filters:
