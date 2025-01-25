@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx_yuv_p16_to_rgba8_alpha_row;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -98,7 +96,7 @@ fn yuv_p16_to_image_alpha_ant<
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     let msb_shift = (16 - BIT_DEPTH) as i32;
@@ -123,7 +121,9 @@ fn yuv_p16_to_image_alpha_ant<
         {
             let mut _v_offset = ProcessedOffset { cx: 0, ux: 0 };
             unsafe {
+                #[cfg(feature = "avx")]
                 if use_avx {
+                    use crate::avx2::avx_yuv_p16_to_rgba8_alpha_row;
                     let offset = avx_yuv_p16_to_rgba8_alpha_row::<
                         DESTINATION_CHANNELS,
                         SAMPLING,

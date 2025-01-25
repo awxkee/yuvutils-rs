@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx_yuv_p16_to_rgba_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -133,6 +131,7 @@ impl<
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+            #[cfg(feature = "avx")]
             let use_avx = std::arch::is_x86_feature_detected!("avx2");
             #[cfg(feature = "nightly_avx512")]
             let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
@@ -151,7 +150,9 @@ impl<
                     ),
                 };
             }
+            #[cfg(feature = "avx")]
             if use_avx && BIT_DEPTH <= 12 {
+                use crate::avx2::avx_yuv_p16_to_rgba_row;
                 return WideRowAnyHandler {
                     handler: Some(
                         avx_yuv_p16_to_rgba_row::<

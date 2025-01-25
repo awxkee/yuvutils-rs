@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::yuy2_to_rgb_avx;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuy2_to_rgb_neon;
 use crate::numerics::qrshr;
@@ -81,7 +79,7 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let _use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     let rgb_iter;
@@ -116,7 +114,9 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "avx")]
             if _use_avx {
+                use crate::avx2::yuy2_to_rgb_avx;
                 let processed = yuy2_to_rgb_avx::<DESTINATION_CHANNELS, YUY2_SOURCE>(
                     &range,
                     &inverse_transform,

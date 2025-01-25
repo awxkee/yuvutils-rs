@@ -27,8 +27,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_ycgco_to_rgba_alpha;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -100,7 +98,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -141,7 +139,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 cx = processed.cx;
                 uv_x = processed.ux;
             }
+            #[cfg(feature = "avx")]
             if _use_avx2 {
+                use crate::avx2::avx2_ycgco_to_rgba_alpha;
                 let processed = avx2_ycgco_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
                     &range,
                     y_plane,

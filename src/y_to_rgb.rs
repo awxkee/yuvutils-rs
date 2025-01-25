@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_y_to_rgba_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -86,7 +84,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
 
     #[cfg(all(
@@ -146,8 +144,9 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
                 );
                 _cx = processed;
             }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
             if use_avx {
+                use crate::avx2::avx2_y_to_rgba_row;
                 let processed = avx2_y_to_rgba_row::<DESTINATION_CHANNELS>(
                     &chroma_range,
                     &inverse_transform,

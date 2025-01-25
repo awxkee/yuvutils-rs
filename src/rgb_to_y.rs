@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_rgb_to_y_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -77,7 +75,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -142,7 +140,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 );
                 _cx = processed_offset;
             }
+            #[cfg(feature = "avx")]
             if use_avx {
+                use crate::avx2::avx2_rgb_to_y_row;
                 let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,

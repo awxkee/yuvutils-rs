@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx2_rgba_to_nv, avx2_rgba_to_nv420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -109,6 +107,7 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_nv_fast_rgba420;
                     return SemiPlanar420Encoder {
@@ -168,11 +167,15 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                 }
             }
 
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                return SemiPlanar420Encoder {
-                    handler: Some(avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::avx2_rgba_to_nv420;
+                    return SemiPlanar420Encoder {
+                        handler: Some(avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+                    };
+                }
             }
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
             if use_sse {
@@ -264,6 +267,7 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_nv_fast_rgba;
                     return SemiPlanarEncoder {
@@ -308,13 +312,17 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                return SemiPlanarEncoder {
-                    handler: Some(
-                        avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::avx2_rgba_to_nv;
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
+                }
             }
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
             if use_sse {

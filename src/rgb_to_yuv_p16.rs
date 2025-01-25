@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx_rgba_to_yuv_p16, avx_rgba_to_yuv_p16_420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -111,7 +109,7 @@ fn rgbx_to_yuv_ant<
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -170,8 +168,9 @@ fn rgbx_to_yuv_ant<
         PRECISION,
         BIT_DEPTH,
     >;
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(feature = "avx")]
+    use crate::avx2::{avx_rgba_to_yuv_p16, avx_rgba_to_yuv_p16_420};
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let avx_dispatch_420 = avx_rgba_to_yuv_p16_420::<
         ORIGIN_CHANNELS,
         ENDIANNESS,
@@ -180,7 +179,7 @@ fn rgbx_to_yuv_ant<
         BIT_DEPTH,
     >;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let avx_dispatch = avx_rgba_to_yuv_p16::<
         ORIGIN_CHANNELS,
         SAMPLING,
@@ -222,6 +221,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "avx")]
             if use_avx {
                 _offset = avx_dispatch(
                     &transform,
@@ -378,6 +378,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "avx")]
             if use_avx {
                 _offset = avx_dispatch_420(
                     &transform,

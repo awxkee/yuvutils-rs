@@ -137,24 +137,27 @@ impl<
                 }
             }
 
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row422};
-                return NVRowHandler {
-                    handler: Some(
-                        if subsampling == YuvChromaSubsampling::Yuv420
-                            || subsampling == YuvChromaSubsampling::Yuv422
-                        {
-                            avx2_yuv_nv_to_rgba_row422::<UV_ORDER, DESTINATION_CHANNELS>
-                        } else {
-                            avx2_yuv_nv_to_rgba_row::<
-                                UV_ORDER,
-                                DESTINATION_CHANNELS,
-                                YUV_CHROMA_SAMPLING,
-                            >
-                        },
-                    ),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row422};
+                    return NVRowHandler {
+                        handler: Some(
+                            if subsampling == YuvChromaSubsampling::Yuv420
+                                || subsampling == YuvChromaSubsampling::Yuv422
+                            {
+                                avx2_yuv_nv_to_rgba_row422::<UV_ORDER, DESTINATION_CHANNELS>
+                            } else {
+                                avx2_yuv_nv_to_rgba_row::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >
+                            },
+                        ),
+                    };
+                }
             }
 
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -333,12 +336,15 @@ impl<
                 }
             }
 
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                use crate::avx2::avx2_yuv_nv_to_rgba_row420;
-                return NVRow420Handler {
-                    handler: Some(avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::avx2_yuv_nv_to_rgba_row420;
+                    return NVRow420Handler {
+                        handler: Some(avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>),
+                    };
+                }
             }
 
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");

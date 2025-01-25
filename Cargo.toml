@@ -25,9 +25,10 @@ fast_transpose = "0.2.2"
 rand = "0.8.5"
 
 [features]
-default = []
-nightly_avx512 = ["fast_transpose/nightly_avx512"]
+default = ["avx"]
+nightly_avx512 = ["fast_transpose/nightly_avx512", "avx"]
 nightly_f16 = []
+avx = []
 nightly_i8mm = []
 fast_mode = []
 rayon = ["dep:rayon"]

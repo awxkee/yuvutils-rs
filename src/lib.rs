@@ -36,7 +36,7 @@
 extern crate core;
 
 mod ar30_rgb;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
 mod avx2;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),

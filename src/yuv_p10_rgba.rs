@@ -32,9 +32,6 @@ use crate::neon::neon_yuv_p16_to_rgba_row;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx_yuv_p16_to_rgba8_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -109,7 +106,7 @@ fn yuv_p16_to_image_ant<
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -178,7 +175,9 @@ fn yuv_p16_to_image_ant<
                         );
                         _v_offset = offset;
                     }
+                    #[cfg(feature = "avx")]
                     if use_avx {
+                        use crate::avx2::avx_yuv_p16_to_rgba8_row;
                         let offset = avx_yuv_p16_to_rgba8_row::<
                             DESTINATION_CHANNELS,
                             SAMPLING,

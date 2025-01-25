@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::yuy2_to_yuv_avx;
 use crate::images::YuvPackedImage;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuy2_to_yuv_neon_impl;
@@ -57,7 +55,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
 
     let width = planar_image.width;
@@ -79,7 +77,9 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "avx")]
                 if _use_avx2 {
+                    use crate::avx2::yuy2_to_yuv_avx;
                     _yuy2_nav = yuy2_to_yuv_avx::<SAMPLING, YUY2_TARGET>(
                         _y_plane,
                         _u_plane,

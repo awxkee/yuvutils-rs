@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_y_to_rgba_alpha_row;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{neon_y_to_rgb_alpha_row, neon_y_to_rgb_row_alpha_rdm};
 use crate::numerics::qrshr;
@@ -50,7 +48,7 @@ struct WideRowProcessor<T> {
     _use_rdm: bool,
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     _use_sse: bool,
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     _use_avx: bool,
 }
 
@@ -62,7 +60,7 @@ impl<V> Default for WideRowProcessor<V> {
             _use_rdm: std::arch::is_aarch64_feature_detected!("rdm"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             _use_sse: std::arch::is_x86_feature_detected!("sse4.1"),
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
             _use_avx: std::arch::is_x86_feature_detected!("avx2"),
         }
     }
@@ -120,8 +118,9 @@ impl ProcessRowHandler<u8> for WideRowProcessor<u8> {
                 neon_wide_row_handler(_range, _transform, _y_plane, _a_plane, _rgba, _cx, _width);
             _cx = offset;
         }
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
         if self._use_avx {
+            use crate::avx2::avx2_y_to_rgba_alpha_row;
             let offset = avx2_y_to_rgba_alpha_row::<DESTINATION_CHANNELS>(
                 _range, _transform, _y_plane, _a_plane, _rgba, _cx, _width,
             );

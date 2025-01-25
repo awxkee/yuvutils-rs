@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx2_rgba_to_yuv, avx2_rgba_to_yuv420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -123,6 +121,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     }
                 }
 
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_yuv_dot_rgba;
                     return RgbEncoder {
@@ -173,12 +172,15 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
             }
-
-            let use_avx = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx {
-                return RgbEncoder {
-                    handler: Some(avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx {
+                    use crate::avx2::avx2_rgba_to_yuv;
+                    return RgbEncoder {
+                        handler: Some(avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                    };
+                }
             }
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
             if use_sse {
@@ -306,6 +308,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     }
                 }
 
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_yuv_dot_rgba420;
                     return RgbEncoder420 {
@@ -357,12 +360,15 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
             }
-
-            let use_avx = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx {
-                return RgbEncoder420 {
-                    handler: Some(avx2_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx {
+                    use crate::avx2::avx2_rgba_to_yuv420;
+                    return RgbEncoder420 {
+                        handler: Some(avx2_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
+                    };
+                }
             }
 
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
