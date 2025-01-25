@@ -40,11 +40,13 @@ jobs:
 workflows:
   version: 2
 
-  check_avx512:
+  avx512:
     jobs:
       - check_avx512:
           filters:
             branches:
-              only: main
+              only:
+                - main
             pull_requests:
-                only: /.*/
+                only:
+                - /.*/

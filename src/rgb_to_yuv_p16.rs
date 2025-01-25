@@ -33,10 +33,7 @@
 use crate::avx512bw::{avx512_rgba_to_yuv_p16, avx512_rgba_to_yuv_p16_420};
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{
-    neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_420, neon_rgba_to_yuv_p16_rdm,
-    neon_rgba_to_yuv_p16_rdm_420,
-};
+use crate::neon::{neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_420};
 
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
@@ -119,14 +116,29 @@ fn rgbx_to_yuv_ant<
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
-        neon_rgba_to_yuv_p16_rdm::<
-            ORIGIN_CHANNELS,
-            SAMPLING,
-            ENDIANNESS,
-            BYTES_POSITION,
-            PRECISION,
-            BIT_DEPTH,
-        >
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_rgba_to_yuv_p16_rdm;
+            neon_rgba_to_yuv_p16_rdm::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_rgba_to_yuv_p16::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
     } else {
         neon_rgba_to_yuv_p16::<
             ORIGIN_CHANNELS,
@@ -139,13 +151,27 @@ fn rgbx_to_yuv_ant<
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_double_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
-        neon_rgba_to_yuv_p16_rdm_420::<
-            ORIGIN_CHANNELS,
-            ENDIANNESS,
-            BYTES_POSITION,
-            PRECISION,
-            BIT_DEPTH,
-        >
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_rgba_to_yuv_p16_rdm_420;
+            neon_rgba_to_yuv_p16_rdm_420::<
+                ORIGIN_CHANNELS,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_rgba_to_yuv_p16_420::<
+                ORIGIN_CHANNELS,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
     } else {
         neon_rgba_to_yuv_p16_420::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH>
     };

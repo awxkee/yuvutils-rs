@@ -224,6 +224,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
     ProcessedOffset { ux, cx }
 }
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
     const ORIGIN_CHANNELS: u8,

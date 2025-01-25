@@ -92,8 +92,12 @@ pub(crate) use gbr_to_rgb::{
 pub(crate) use rgb_to_y::neon_rgb_to_y_rdm;
 pub(crate) use rgb_to_y::{neon_rgb_to_y_row};
 pub(crate) use rgb_to_ycgco::neon_rgb_to_ycgco_row;
-pub(crate) use rgb_to_yuv_p16::{neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_rdm};
-pub(crate) use rgb_to_yuv_p16_420::{neon_rgba_to_yuv_p16_420, neon_rgba_to_yuv_p16_rdm_420};
+pub(crate) use rgb_to_yuv_p16::{neon_rgba_to_yuv_p16};
+#[cfg(feature = "rdm")]
+pub(crate) use rgb_to_yuv_p16::neon_rgba_to_yuv_p16_rdm;
+pub(crate) use rgb_to_yuv_p16_420::{neon_rgba_to_yuv_p16_420};
+#[cfg(feature = "rdm")]
+pub(crate) use rgb_to_yuv_p16_420::neon_rgba_to_yuv_p16_rdm_420;
 pub(crate) use rgba_to_nv::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row_rdm};
 pub(crate) use rgba_to_nv420::{neon_rgbx_to_nv_row420, neon_rgbx_to_nv_row_rdm420};
 #[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
