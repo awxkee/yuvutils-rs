@@ -47,6 +47,4 @@ workflows:
             branches:
               only:
                 - main
-            pull_requests:
-                only:
-                - /.*/
+                - dev

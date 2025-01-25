@@ -27,12 +27,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{neon_vld_h_rgb_for_yuv, neon_vld_rgb_for_yuv, vdotl_laneq_u16_x3};
+use crate::neon::utils::*;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     const ORIGIN_CHANNELS: u8,

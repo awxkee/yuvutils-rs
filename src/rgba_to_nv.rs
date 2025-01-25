@@ -36,10 +36,7 @@ use crate::internals::{
     ProcessedOffset, WideRowForwardBiPlanar420Handler, WideRowForwardBiPlanarHandler,
 };
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{
-    neon_rgbx_to_nv_row, neon_rgbx_to_nv_row420, neon_rgbx_to_nv_row_rdm,
-    neon_rgbx_to_nv_row_rdm420,
-};
+use crate::neon::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row420};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::YuvError;
@@ -132,18 +129,22 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                SemiPlanar420Encoder {
-                    handler: Some(
-                        neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
-                    ),
-                }
-            } else {
-                SemiPlanar420Encoder {
-                    handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+            #[cfg(feature = "rdm")]
+            {
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                use crate::neon::neon_rgbx_to_nv_row_rdm420;
+                if is_rdm_available {
+                    return SemiPlanar420Encoder {
+                        handler: Some(
+                            neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
+                        ),
+                    };
                 }
             }
+
+            return SemiPlanar420Encoder {
+                handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+            };
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -305,20 +306,24 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                SemiPlanarEncoder {
-                    handler: Some(
-                        neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
-                }
-            } else {
-                SemiPlanarEncoder {
-                    handler: Some(
-                        neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
+            #[cfg(feature = "rdm")]
+            {
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                use crate::neon::neon_rgbx_to_nv_row_rdm;
+                if is_rdm_available {
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
                 }
             }
+
+            return SemiPlanarEncoder {
+                handler: Some(
+                    neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                ),
+            };
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
