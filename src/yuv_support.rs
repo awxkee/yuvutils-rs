@@ -725,6 +725,11 @@ pub enum YuvConversionMode {
     /// high precision.
     #[default]
     Balanced,
+    /// Maximises quality and lossless instead of speed.
+    /// Currently, only encoding is supported. When used on unsupported method [YuvConversionMode::Balanced]
+    /// will be used instead.
+    #[cfg(feature = "professional_mode")]
+    Professional,
 }
 
 impl Display for YuvConversionMode {
@@ -733,6 +738,8 @@ impl Display for YuvConversionMode {
             #[cfg(feature = "fast_mode")]
             YuvConversionMode::Fast => f.write_str("YuvAccuracy::Fast"),
             YuvConversionMode::Balanced => f.write_str("YuvAccuracy::Balanced"),
+            #[cfg(feature = "professional_mode")]
+            YuvConversionMode::Professional => f.write_str("YuvAccuracy::Professional"),
         }
     }
 }

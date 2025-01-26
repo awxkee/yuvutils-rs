@@ -36,11 +36,7 @@ use std::arch::aarch64::*;
 
 #[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
-pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
-    const ORIGIN_CHANNELS: u8,
-    const SAMPLING: u8,
-    const PRECISION: i32,
->(
+pub(crate) unsafe fn neon_rgba_to_yuv_rdm<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -371,11 +367,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<
 }
 
 #[inline(always)]
-pub(crate) unsafe fn neon_rgba_to_yuv<
-    const ORIGIN_CHANNELS: u8,
-    const SAMPLING: u8,
-    const PRECISION: i32,
->(
+pub(crate) unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -389,6 +381,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv<
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
+
+    const PRECISION: i32 = 13;
 
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;

@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode"], default-features = false }
+yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode", "professional_mode"], default-features = false }
 
 [features]
 default = []

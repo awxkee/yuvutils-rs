@@ -44,98 +44,90 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
+type RgbEncoder420Handler = Option<
+    unsafe fn(
+        transform: &CbCrForwardTransform<i32>,
+        range: &YuvChromaRange,
+        y_plane0: &mut [u8],
+        y_plane1: &mut [u8],
+        u_plane: &mut [u8],
+        v_plane: &mut [u8],
+        rgba0: &[u8],
+        rgba1: &[u8],
+        start_cx: usize,
+        start_ux: usize,
+        width: usize,
+    ) -> ProcessedOffset,
+>;
+
+type RgbEncoderHandler = Option<
+    unsafe fn(
+        transform: &CbCrForwardTransform<i32>,
+        range: &YuvChromaRange,
+        y_plane: &mut [u8],
+        u_plane: &mut [u8],
+        v_plane: &mut [u8],
+        rgba: &[u8],
+        start_cx: usize,
+        start_ux: usize,
+        width: usize,
+    ) -> ProcessedOffset,
+>;
+
+macro_rules! define_handler_impl {
+    ($struct_name:ident) => {
+        impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
+            WideRowForwardHandler<u8, i32> for $struct_name<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+        {
+            fn handle_row(
+                &self,
+                y_plane: &mut [u8],
+                u_plane: &mut [u8],
+                v_plane: &mut [u8],
+                rgba: &[u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrForwardTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(
+                            transform,
+                            &chroma,
+                            y_plane,
+                            u_plane,
+                            v_plane,
+                            rgba,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    }
+                }
+                ProcessedOffset { cx: 0, ux: 0 }
+            }
+        }
+    };
+}
+
 struct RgbEncoder<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
-    handler: Option<
-        unsafe fn(
-            transform: &CbCrForwardTransform<i32>,
-            range: &YuvChromaRange,
-            y_plane: &mut [u8],
-            u_plane: &mut [u8],
-            v_plane: &mut [u8],
-            rgba: &[u8],
-            start_cx: usize,
-            start_ux: usize,
-            width: usize,
-        ) -> ProcessedOffset,
-    >,
+    handler: RgbEncoderHandler,
+}
+
+#[cfg(feature = "fast_mode")]
+struct RgbEncoderFast<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
+    handler: RgbEncoderHandler,
+}
+
+#[cfg(feature = "professional_mode")]
+struct RgbEncoderProfessional<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
+    handler: RgbEncoderHandler,
 }
 
 impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
     for RgbEncoder<ORIGIN_CHANNELS, SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        #[cfg(feature = "fast_mode")]
-        if PRECISION == 7 {
-            assert_eq!(PRECISION, 7);
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon",))]
-            {
-                #[cfg(feature = "nightly_i8mm")]
-                if std::arch::is_aarch64_feature_detected!("i8mm") {
-                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
-                    use crate::neon::neon_rgba_to_yuv_dot_rgba;
-                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
-                        assert!(
-                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
-                        );
-                        return RgbEncoder {
-                            handler: Some(neon_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
-                        };
-                    }
-                }
-
-                use crate::neon::neon_rgbx_to_yuv_fast;
-                return RgbEncoder {
-                    handler: Some(neon_rgbx_to_yuv_fast::<ORIGIN_CHANNELS, SAMPLING>),
-                };
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                #[cfg(feature = "nightly_avx512")]
-                if std::arch::is_x86_feature_detected!("avx512bw") {
-                    use crate::avx512bw::{
-                        avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi,
-                    };
-                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
-                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
-                        assert!(
-                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
-                        );
-                        return RgbEncoder {
-                            handler: Some(avx512_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
-                        };
-                    }
-                    let has_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
-                    if (chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb)
-                        && has_vbmi
-                    {
-                        assert!(chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb);
-                        return RgbEncoder {
-                            handler: Some(
-                                avx512_rgba_to_yuv_dot_rgba_bmi::<ORIGIN_CHANNELS, SAMPLING>,
-                            ),
-                        };
-                    }
-                }
-
-                #[cfg(feature = "avx")]
-                if std::arch::is_x86_feature_detected!("avx2") {
-                    use crate::avx2::avx2_rgba_to_yuv_dot_rgba;
-                    return RgbEncoder {
-                        handler: Some(avx2_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
-                    };
-                }
-
-                #[cfg(feature = "sse")]
-                {
-                    if std::arch::is_x86_feature_detected!("sse4.1") {
-                        use crate::sse::sse_rgba_to_yuv_dot_rgba;
-                        return RgbEncoder {
-                            handler: Some(sse_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
-                        };
-                    }
-                }
-            }
-        }
         if PRECISION != 13 {
             return RgbEncoder { handler: None };
         }
@@ -148,12 +140,12 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                 let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
                 if is_rdm_available {
                     return RgbEncoder {
-                        handler: Some(neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                        handler: Some(neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING>),
                     };
                 }
             }
             RgbEncoder {
-                handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -200,54 +192,114 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     }
 }
 
-impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
-    WideRowForwardHandler<u8, i32> for RgbEncoder<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+#[cfg(feature = "fast_mode")]
+impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
+    for RgbEncoderFast<ORIGIN_CHANNELS, SAMPLING, PRECISION>
 {
-    fn handle_row(
-        &self,
-        y_plane: &mut [u8],
-        u_plane: &mut [u8],
-        v_plane: &mut [u8],
-        rgba: &[u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrForwardTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(
-                    transform,
-                    &chroma,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
-                    0,
-                    0,
-                    width as usize,
-                );
+    fn default() -> Self {
+        #[cfg(feature = "fast_mode")]
+        if PRECISION == 7 {
+            assert_eq!(PRECISION, 7);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                #[cfg(feature = "nightly_i8mm")]
+                if std::arch::is_aarch64_feature_detected!("i8mm") {
+                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    use crate::neon::neon_rgba_to_yuv_dot_rgba;
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoderFast {
+                            handler: Some(neon_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    }
+                }
+
+                use crate::neon::neon_rgbx_to_yuv_fast;
+                return RgbEncoderFast {
+                    handler: Some(neon_rgbx_to_yuv_fast::<ORIGIN_CHANNELS, SAMPLING>),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "nightly_avx512")]
+                if std::arch::is_x86_feature_detected!("avx512bw") {
+                    use crate::avx512bw::{
+                        avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi,
+                    };
+                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoderFast {
+                            handler: Some(avx512_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    }
+                    let has_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                    if (chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb)
+                        && has_vbmi
+                    {
+                        assert!(chans == YuvSourceChannels::Bgr || chans == YuvSourceChannels::Rgb);
+                        return RgbEncoderFast {
+                            handler: Some(
+                                avx512_rgba_to_yuv_dot_rgba_bmi::<ORIGIN_CHANNELS, SAMPLING>,
+                            ),
+                        };
+                    }
+                }
+
+                #[cfg(feature = "avx")]
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_yuv_dot_rgba;
+                    return RgbEncoderFast {
+                        handler: Some(avx2_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                    };
+                }
+
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_yuv_dot_rgba;
+                        return RgbEncoderFast {
+                            handler: Some(sse_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    }
+                }
             }
         }
-        ProcessedOffset { cx: 0, ux: 0 }
+        RgbEncoderFast { handler: None }
     }
 }
 
+#[cfg(feature = "professional_mode")]
+impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
+    for RgbEncoderProfessional<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        if PRECISION == 15 {
+            assert_eq!(PRECISION, 15);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_rgba_to_yuv_prof;
+                return RgbEncoderProfessional {
+                    handler: Some(neon_rgba_to_yuv_prof::<ORIGIN_CHANNELS, SAMPLING>),
+                };
+            }
+        }
+        RgbEncoderProfessional { handler: None }
+    }
+}
+
+define_handler_impl!(RgbEncoder);
+#[cfg(feature = "fast_mode")]
+define_handler_impl!(RgbEncoderFast);
+#[cfg(feature = "professional_mode")]
+define_handler_impl!(RgbEncoderProfessional);
+
 struct RgbEncoder420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
-    handler: Option<
-        unsafe fn(
-            transform: &CbCrForwardTransform<i32>,
-            range: &YuvChromaRange,
-            y_plane0: &mut [u8],
-            y_plane1: &mut [u8],
-            u_plane: &mut [u8],
-            v_plane: &mut [u8],
-            rgba0: &[u8],
-            rgba1: &[u8],
-            start_cx: usize,
-            start_ux: usize,
-            width: usize,
-        ) -> ProcessedOffset,
-    >,
+    handler: RgbEncoder420Handler,
 }
 
 impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
@@ -344,12 +396,12 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                 let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
                 if is_rdm_available {
                     return RgbEncoder420 {
-                        handler: Some(neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS, PRECISION>),
+                        handler: Some(neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS>),
                     };
                 }
             }
             RgbEncoder420 {
-                handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
+                handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -397,41 +449,179 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     }
 }
 
-impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
-    WideRowForward420Handler<u8, i32> for RgbEncoder420<ORIGIN_CHANNELS, SAMPLING, PRECISION>
-{
-    fn handle_row(
-        &self,
-        y_plane0: &mut [u8],
-        y_plane1: &mut [u8],
-        u_plane: &mut [u8],
-        v_plane: &mut [u8],
-        rgba0: &[u8],
-        rgba1: &[u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrForwardTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(
-                    transform,
-                    &chroma,
-                    y_plane0,
-                    y_plane1,
-                    u_plane,
-                    v_plane,
-                    rgba0,
-                    rgba1,
-                    0,
-                    0,
-                    width as usize,
-                );
+macro_rules! impl_wide_row_forward_handler {
+    ($struct_name:ident) => {
+        impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
+            WideRowForward420Handler<u8, i32>
+            for $struct_name<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+        {
+            fn handle_row(
+                &self,
+                y_plane0: &mut [u8],
+                y_plane1: &mut [u8],
+                u_plane: &mut [u8],
+                v_plane: &mut [u8],
+                rgba0: &[u8],
+                rgba1: &[u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrForwardTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(
+                            transform,
+                            &chroma,
+                            y_plane0,
+                            y_plane1,
+                            u_plane,
+                            v_plane,
+                            rgba0,
+                            rgba1,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    }
+                }
+                ProcessedOffset { cx: 0, ux: 0 }
             }
         }
-        ProcessedOffset { cx: 0, ux: 0 }
+    };
+}
+
+impl_wide_row_forward_handler!(RgbEncoder420);
+
+#[cfg(feature = "professional_mode")]
+struct RgbEncoder420Professional<
+    const ORIGIN_CHANNELS: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: RgbEncoder420Handler,
+}
+
+#[cfg(feature = "professional_mode")]
+impl_wide_row_forward_handler!(RgbEncoder420Professional);
+
+#[cfg(feature = "professional_mode")]
+impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
+    for RgbEncoder420Professional<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+        if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
+            return RgbEncoder420Professional { handler: None };
+        }
+        assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
+
+        if PRECISION == 15 {
+            assert_eq!(PRECISION, 15);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_rgba_to_yuv_prof420;
+                return RgbEncoder420Professional {
+                    handler: Some(neon_rgba_to_yuv_prof420::<ORIGIN_CHANNELS>),
+                };
+            }
+        }
+
+        RgbEncoder420Professional { handler: None }
     }
 }
+
+#[cfg(feature = "fast_mode")]
+struct RgbEncoderFast420<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
+    handler: RgbEncoder420Handler,
+}
+
+#[cfg(feature = "fast_mode")]
+impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
+    for RgbEncoderFast420<ORIGIN_CHANNELS, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+        if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
+            return RgbEncoderFast420 { handler: None };
+        }
+        assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
+
+        if PRECISION == 7 {
+            assert_eq!(PRECISION, 7);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon",))]
+            {
+                #[cfg(feature = "nightly_i8mm")]
+                {
+                    if std::arch::is_aarch64_feature_detected!("i8mm") {
+                        let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                        use crate::neon::neon_rgba_to_yuv_dot_rgba420;
+                        if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                            assert!(
+                                chans == YuvSourceChannels::Rgba
+                                    || chans == YuvSourceChannels::Bgra
+                            );
+                            return RgbEncoderFast420 {
+                                handler: Some(neon_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                            };
+                        }
+                    }
+                }
+                use crate::neon::neon_rgbx_to_yuv_fast420;
+                return RgbEncoderFast420 {
+                    handler: Some(neon_rgbx_to_yuv_fast420::<ORIGIN_CHANNELS>),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "nightly_avx512")]
+                if std::arch::is_x86_feature_detected!("avx512bw") {
+                    use crate::avx512bw::{
+                        avx512_rgba_to_yuv_dot_rgba420, avx512_rgba_to_yuv_dot_rgba420_vbmi,
+                    };
+                    let chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    if chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra {
+                        assert!(
+                            chans == YuvSourceChannels::Rgba || chans == YuvSourceChannels::Bgra
+                        );
+                        return RgbEncoderFast420 {
+                            handler: Some(avx512_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                        };
+                    }
+
+                    let has_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                    if (chans == YuvSourceChannels::Rgb || chans == YuvSourceChannels::Bgr)
+                        && has_vbmi
+                    {
+                        assert!(chans == YuvSourceChannels::Rgb || chans == YuvSourceChannels::Bgr);
+                        return RgbEncoderFast420 {
+                            handler: Some(avx512_rgba_to_yuv_dot_rgba420_vbmi::<ORIGIN_CHANNELS>),
+                        };
+                    }
+                }
+
+                #[cfg(feature = "avx")]
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_yuv_dot_rgba420;
+                    return RgbEncoderFast420 {
+                        handler: Some(avx2_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                    };
+                }
+
+                #[cfg(feature = "sse")]
+                if std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_rgba_to_yuv_dot_rgba420;
+                    return RgbEncoderFast420 {
+                        handler: Some(sse_rgba_to_yuv_dot_rgba420::<ORIGIN_CHANNELS>),
+                    };
+                }
+            }
+        }
+        RgbEncoderFast420 { handler: None }
+    }
+}
+
+#[cfg(feature = "fast_mode")]
+impl_wide_row_forward_handler!(RgbEncoderFast420);
 
 fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>(
     image: &mut YuvPlanarImageMut<u8>,
@@ -439,6 +629,8 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    row_handler: impl WideRowForwardHandler<u8, i32>,
+    row_handler420: impl WideRowForward420Handler<u8, i32>,
 ) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -456,14 +648,11 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
-    let row_encoder = RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, PRECISION>::default();
-    let row_encoder420 = RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, PRECISION>::default();
-
     let process_halved_chroma_row = |y_plane: &mut [u8],
                                      u_plane: &mut [u8],
                                      v_plane: &mut [u8],
                                      rgba: &[u8]| {
-        let processed_offset = row_encoder.handle_row(
+        let processed_offset = row_handler.handle_row(
             y_plane,
             u_plane,
             v_plane,
@@ -543,7 +732,7 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
                                v_plane: &mut [u8],
                                rgba0: &[u8],
                                rgba1: &[u8]| {
-        let processed_offset = row_encoder420.handle_row(
+        let processed_offset = row_handler420.handle_row(
             y_plane0,
             y_plane1,
             u_plane,
@@ -556,97 +745,103 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
         );
         let cx = processed_offset.cx;
 
-        for (((((y_dst0, y_dst1), u_dst), v_dst), rgba0), rgba1) in y_plane0
-            .chunks_exact_mut(2)
-            .zip(y_plane1.chunks_exact_mut(2))
-            .zip(u_plane.iter_mut())
-            .zip(v_plane.iter_mut())
-            .zip(rgba0.chunks_exact(channels * 2))
-            .zip(rgba1.chunks_exact(channels * 2))
-            .skip(cx / 2)
-        {
-            let src00 = &rgba0[0..channels];
+        if cx != image.width as usize {
+            for (((((y_dst0, y_dst1), u_dst), v_dst), rgba0), rgba1) in y_plane0
+                .chunks_exact_mut(2)
+                .zip(y_plane1.chunks_exact_mut(2))
+                .zip(u_plane.iter_mut())
+                .zip(v_plane.iter_mut())
+                .zip(rgba0.chunks_exact(channels * 2))
+                .zip(rgba1.chunks_exact(channels * 2))
+                .skip(cx / 2)
+            {
+                let src00 = &rgba0[0..channels];
 
-            let r00 = src00[src_chans.get_r_channel_offset()] as i32;
-            let g00 = src00[src_chans.get_g_channel_offset()] as i32;
-            let b00 = src00[src_chans.get_b_channel_offset()] as i32;
-            let y_00 = (r00 * transform.yr + g00 * transform.yg + b00 * transform.yb + bias_y)
-                >> PRECISION;
-            y_dst0[0] = y_00 as u8;
+                let r00 = src00[src_chans.get_r_channel_offset()] as i32;
+                let g00 = src00[src_chans.get_g_channel_offset()] as i32;
+                let b00 = src00[src_chans.get_b_channel_offset()] as i32;
+                let y_00 = (r00 * transform.yr + g00 * transform.yg + b00 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst0[0] = y_00 as u8;
 
-            let src1 = &rgba0[channels..channels * 2];
+                let src1 = &rgba0[channels..channels * 2];
 
-            let r01 = src1[src_chans.get_r_channel_offset()] as i32;
-            let g01 = src1[src_chans.get_g_channel_offset()] as i32;
-            let b01 = src1[src_chans.get_b_channel_offset()] as i32;
-            let y_01 = (r01 * transform.yr + g01 * transform.yg + b01 * transform.yb + bias_y)
-                >> PRECISION;
-            y_dst0[1] = y_01 as u8;
+                let r01 = src1[src_chans.get_r_channel_offset()] as i32;
+                let g01 = src1[src_chans.get_g_channel_offset()] as i32;
+                let b01 = src1[src_chans.get_b_channel_offset()] as i32;
+                let y_01 = (r01 * transform.yr + g01 * transform.yg + b01 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst0[1] = y_01 as u8;
 
-            let src10 = &rgba1[0..channels];
+                let src10 = &rgba1[0..channels];
 
-            let r10 = src10[src_chans.get_r_channel_offset()] as i32;
-            let g10 = src10[src_chans.get_g_channel_offset()] as i32;
-            let b10 = src10[src_chans.get_b_channel_offset()] as i32;
-            let y_10 = (r10 * transform.yr + g10 * transform.yg + b10 * transform.yb + bias_y)
-                >> PRECISION;
-            y_dst1[0] = y_10 as u8;
+                let r10 = src10[src_chans.get_r_channel_offset()] as i32;
+                let g10 = src10[src_chans.get_g_channel_offset()] as i32;
+                let b10 = src10[src_chans.get_b_channel_offset()] as i32;
+                let y_10 = (r10 * transform.yr + g10 * transform.yg + b10 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst1[0] = y_10 as u8;
 
-            let src11 = &rgba1[channels..channels * 2];
+                let src11 = &rgba1[channels..channels * 2];
 
-            let r11 = src11[src_chans.get_r_channel_offset()] as i32;
-            let g11 = src11[src_chans.get_g_channel_offset()] as i32;
-            let b11 = src11[src_chans.get_b_channel_offset()] as i32;
-            let y_11 = (r11 * transform.yr + g11 * transform.yg + b11 * transform.yb + bias_y)
-                >> PRECISION;
-            y_dst1[1] = y_11 as u8;
+                let r11 = src11[src_chans.get_r_channel_offset()] as i32;
+                let g11 = src11[src_chans.get_g_channel_offset()] as i32;
+                let b11 = src11[src_chans.get_b_channel_offset()] as i32;
+                let y_11 = (r11 * transform.yr + g11 * transform.yg + b11 * transform.yb + bias_y)
+                    >> PRECISION;
+                y_dst1[1] = y_11 as u8;
 
-            let ruv = (r00 + r01 + r10 + r11 + 2) >> 2;
-            let guv = (g00 + g01 + g10 + g11 + 2) >> 2;
-            let buv = (b00 + b01 + b10 + b11 + 2) >> 2;
+                let ruv = (r00 + r01 + r10 + r11 + 2) >> 2;
+                let guv = (g00 + g01 + g10 + g11 + 2) >> 2;
+                let buv = (b00 + b01 + b10 + b11 + 2) >> 2;
 
-            let cb = (ruv * transform.cb_r + guv * transform.cb_g + buv * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (ruv * transform.cr_r + guv * transform.cr_g + buv * transform.cr_b + bias_uv)
-                >> PRECISION;
-            *u_dst = cb as u8;
-            *v_dst = cr as u8;
-        }
+                let cb =
+                    (ruv * transform.cb_r + guv * transform.cb_g + buv * transform.cb_b + bias_uv)
+                        >> PRECISION;
+                let cr =
+                    (ruv * transform.cr_r + guv * transform.cr_g + buv * transform.cr_b + bias_uv)
+                        >> PRECISION;
+                *u_dst = cb as u8;
+                *v_dst = cr as u8;
+            }
 
-        if image.width & 1 != 0 {
-            let rgb_last0 = rgba0.chunks_exact(channels * 2).remainder();
-            let rgb_last1 = rgba1.chunks_exact(channels * 2).remainder();
-            let r0 = rgb_last0[src_chans.get_r_channel_offset()] as i32;
-            let g0 = rgb_last0[src_chans.get_g_channel_offset()] as i32;
-            let b0 = rgb_last0[src_chans.get_b_channel_offset()] as i32;
+            if image.width & 1 != 0 {
+                let rgb_last0 = rgba0.chunks_exact(channels * 2).remainder();
+                let rgb_last1 = rgba1.chunks_exact(channels * 2).remainder();
+                let r0 = rgb_last0[src_chans.get_r_channel_offset()] as i32;
+                let g0 = rgb_last0[src_chans.get_g_channel_offset()] as i32;
+                let b0 = rgb_last0[src_chans.get_b_channel_offset()] as i32;
 
-            let r1 = rgb_last1[src_chans.get_r_channel_offset()] as i32;
-            let g1 = rgb_last1[src_chans.get_g_channel_offset()] as i32;
-            let b1 = rgb_last1[src_chans.get_b_channel_offset()] as i32;
+                let r1 = rgb_last1[src_chans.get_r_channel_offset()] as i32;
+                let g1 = rgb_last1[src_chans.get_g_channel_offset()] as i32;
+                let b1 = rgb_last1[src_chans.get_b_channel_offset()] as i32;
 
-            let y0_last = y_plane0.last_mut().unwrap();
-            let y1_last = y_plane1.last_mut().unwrap();
-            let u_last = u_plane.last_mut().unwrap();
-            let v_last = v_plane.last_mut().unwrap();
+                let y0_last = y_plane0.last_mut().unwrap();
+                let y1_last = y_plane1.last_mut().unwrap();
+                let u_last = u_plane.last_mut().unwrap();
+                let v_last = v_plane.last_mut().unwrap();
 
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
-            *y0_last = y_0 as u8;
+                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                    >> PRECISION;
+                *y0_last = y_0 as u8;
 
-            let y_1 =
-                (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
-            *y1_last = y_1 as u8;
+                let y_1 = (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y)
+                    >> PRECISION;
+                *y1_last = y_1 as u8;
 
-            let r0 = (r0 + r1) >> 1;
-            let g0 = (g0 + g1) >> 1;
-            let b0 = (b0 + b1) >> 1;
+                let r0 = (r0 + r1) >> 1;
+                let g0 = (g0 + g1) >> 1;
+                let b0 = (b0 + b1) >> 1;
 
-            let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
-                >> PRECISION;
-            let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                >> PRECISION;
-            *u_last = cb as u8;
-            *v_last = cr as u8;
+                let cb =
+                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                        >> PRECISION;
+                let cr =
+                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                        >> PRECISION;
+                *u_last = cb as u8;
+                *v_last = cr as u8;
+            }
         }
     };
 
@@ -677,7 +872,7 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
         }
         iter.for_each(|(((y_dst, u_plane), v_plane), rgba)| {
             let y_dst = &mut y_dst[0..image.width as usize];
-            let processed_offset = row_encoder.handle_row(
+            let processed_offset = row_handler.handle_row(
                 y_dst,
                 u_plane,
                 v_plane,
@@ -687,29 +882,30 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
                 &transform,
             );
             let cx = processed_offset.cx;
-
-            for (((y_dst, u_dst), v_dst), rgba) in y_dst
-                .iter_mut()
-                .zip(u_plane.iter_mut())
-                .zip(v_plane.iter_mut())
-                .zip(rgba.chunks_exact(channels))
-                .skip(cx)
-            {
-                let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
-                let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
-                let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
-                    >> PRECISION;
-                *y_dst = y_0 as u8;
-
-                let cb =
-                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+            if cx != image.width as usize {
+                for (((y_dst, u_dst), v_dst), rgba) in y_dst
+                    .iter_mut()
+                    .zip(u_plane.iter_mut())
+                    .zip(v_plane.iter_mut())
+                    .zip(rgba.chunks_exact(channels))
+                    .skip(cx)
+                {
+                    let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
+                    let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
+                    let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
+                    let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
                         >> PRECISION;
-                let cr =
-                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                        >> PRECISION;
-                *u_dst = cb as u8;
-                *v_dst = cr as u8;
+                    *y_dst = y_0 as u8;
+
+                    let cb =
+                        (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+                            >> PRECISION;
+                    let cr =
+                        (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+                            >> PRECISION;
+                    *u_dst = cb as u8;
+                    *v_dst = cr as u8;
+                }
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
@@ -810,6 +1006,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 rgba_stride,
                 range,
                 matrix,
+                RgbEncoderFast::<ORIGIN_CHANNELS, SAMPLING, 7>::default(),
+                RgbEncoderFast420::<ORIGIN_CHANNELS, SAMPLING, 7>::default(),
             ),
             YuvConversionMode::Balanced => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
                 image,
@@ -817,6 +1015,18 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 rgba_stride,
                 range,
                 matrix,
+                RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, 13>::default(),
+                RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, 13>::default(),
+            ),
+            #[cfg(feature = "professional_mode")]
+            YuvConversionMode::Professional => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 15>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+                RgbEncoderProfessional::<ORIGIN_CHANNELS, SAMPLING, 15>::default(),
+                RgbEncoder420Professional::<ORIGIN_CHANNELS, SAMPLING, 15>::default(),
             ),
         }
     }

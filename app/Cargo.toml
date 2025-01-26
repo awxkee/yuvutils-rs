@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode", "sse"], default-features = false }
+yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode", "sse", "professional_mode", "rdm"], default-features = false }
 image = { version = "0.25.5", default-features = false, features = ["png", "jpeg"]}
 yuv-sys = "0.3.7"
 
@@ -13,6 +13,7 @@ nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
 nightly_i8mm = ["yuvutils-rs/nightly_i8mm"]
 fast_mode = ["yuvutils-rs/fast_mode"]
 rdm = ["yuvutils-rs/rdm"]
+professional_mode = ["yuvutils-rs/professional_mode"]
 
 [dev-dependencies]
 criterion = "0.5.1"

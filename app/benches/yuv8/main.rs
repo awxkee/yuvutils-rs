@@ -122,7 +122,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let fixed_gray = gray_image.to_fixed();
 
-    c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
+    /*c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             gbr_to_rgba(
@@ -135,7 +135,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("yuvutils RGB -> YUV 4:2:0", |b| {
+    c.bench_function("yuvutils RGB -> YUV 4:2:0 Fast", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -149,6 +149,44 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
                 YuvConversionMode::Fast,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGB -> YUV 4:2:0 Balanced", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgb_to_yuv420(
+                &mut test_planar,
+                &src_bytes,
+                stride as u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Balanced,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGB -> YUV 4:2:0 Professional", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgb_to_yuv420(
+                &mut test_planar,
+                &src_bytes,
+                stride as u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Professional,
             )
             .unwrap();
         })
@@ -229,6 +267,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("yuvutils RGBA -> YUV 4:2:0 Professional", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_yuv420(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Professional,
+            )
+            .unwrap();
+        })
+    });
+
     c.bench_function("libyuv RGBA -> YUV 4:2:0", |b| unsafe {
         let layout_rgba =
             Layout::from_size_align(dimensions.0 as usize * dimensions.1 as usize * 4, 16).unwrap();
@@ -299,6 +356,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
                 YuvConversionMode::Balanced,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA -> YUV 4:2:2 Professional", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv422,
+        );
+        b.iter(|| {
+            rgba_to_yuv422(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Professional,
             )
             .unwrap();
         })
@@ -397,8 +473,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             .unwrap();
         })
     });
-
-    c.bench_function("yuvutils RGB -> NV21 Fast", |b| {
+*/
+    c.bench_function("yuvutils RGBA -> NV21 Fast", |b| {
         let mut test_planar = YuvBiPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -417,7 +493,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("yuvutils RGB -> NV21 Balanced", |b| {
+    c.bench_function("yuvutils RGBA -> NV21 Balanced", |b| {
         let mut test_planar = YuvBiPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -431,6 +507,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
                 YuvConversionMode::Balanced,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA -> NV21 Professional", |b| {
+        let mut test_planar = YuvBiPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_yuv_nv12(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Professional,
             )
             .unwrap();
         })

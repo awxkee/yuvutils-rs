@@ -71,7 +71,7 @@ use image::imageops::FilterType;
 fn main() {
     let j = (1. / u16::MAX as f32) as f16;
     println!("{}, j {}", j.to_bits(), j as f32);
-    let mut img = ImageReader::open("./assets/bench.jpg")
+    let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
         .unwrap();
@@ -110,7 +110,7 @@ fn main() {
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
     //
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
@@ -121,7 +121,7 @@ fn main() {
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvConversionMode::Fast,
+        YuvConversionMode::Professional,
     )
     .unwrap();
     // bytes_16.fill(0);

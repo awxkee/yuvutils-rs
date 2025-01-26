@@ -1264,6 +1264,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 3);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 6);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 3);
     }
 
     #[test]
@@ -1495,6 +1497,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 3);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 7);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 3);
     }
 
     #[test]
@@ -1620,6 +1624,8 @@ mod tests {
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 15);
         matrix(YuvConversionMode::Balanced, 10);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 10);
     }
 
     #[test]
@@ -1770,6 +1776,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 50);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 52);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 50);
     }
 
     #[test]
@@ -1923,5 +1931,7 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 55);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 60);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 55);
     }
 }

@@ -885,6 +885,13 @@ fn yuv_nv12_to_rgbx<
             YUV_CHROMA_SAMPLING,
             13,
         >(image, bgra, bgra_stride, range, matrix),
+        #[cfg(feature = "professional_mode")]
+        YuvConversionMode::Professional => yuv_nv12_to_rgbx_impl::<
+            UV_ORDER,
+            DESTINATION_CHANNELS,
+            YUV_CHROMA_SAMPLING,
+            13,
+        >(image, bgra, bgra_stride, range, matrix),
     }
 }
 
@@ -1794,6 +1801,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 3);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 6);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 3);
     }
 
     #[test]
@@ -1904,6 +1913,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 37);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 45);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 37);
     }
 
     #[test]
@@ -2030,6 +2041,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 3);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 6);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 3);
     }
 
     #[test]
@@ -2156,6 +2169,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 10);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 18);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 10);
     }
 
     #[test]
@@ -2316,6 +2331,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 72);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 74);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 72);
     }
 
     #[test]
@@ -2470,5 +2487,7 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 60);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 72);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 60);
     }
 }

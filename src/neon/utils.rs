@@ -83,6 +83,29 @@ pub(crate) unsafe fn vdotl_laneq_s16_x3<
 }
 
 #[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn vqddotl_laneq_s16_x3<
+    const PRECISION: i32,
+    const LANE0: i32,
+    const LANE1: i32,
+    const LANE2: i32,
+>(
+    base: int32x4_t,
+    v0: int16x8_t,
+    v1: int16x8_t,
+    v2: int16x8_t,
+    c0: int16x8_t,
+) -> int16x8_t {
+    let mut hi = vqdmlal_high_laneq_s16::<LANE0>(base, v0, c0);
+    let mut lo = vqdmlal_laneq_s16::<LANE0>(base, vget_low_s16(v0), c0);
+    hi = vqdmlal_high_laneq_s16::<LANE1>(hi, v1, c0);
+    lo = vqdmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c0);
+    hi = vqdmlal_high_laneq_s16::<LANE2>(hi, v2, c0);
+    lo = vqdmlal_laneq_s16::<LANE2>(lo, vget_low_s16(v2), c0);
+    vcombine_s16(vshrn_n_s32::<PRECISION>(lo), vshrn_n_s32::<PRECISION>(hi))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn vdotl_laneq_u16_x3<
     const PRECISION: i32,
     const LANE0: i32,

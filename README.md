@@ -79,13 +79,13 @@ AVX2 tests performed on `m4.large` with Ubuntu 24.04 droplet.
 AVX2 Win test performed on Windows 11 Intel Core i9-14900HX.
 
 ```bash
-cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml --features fast_mode
+cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml --features fast_mode,professional_mode
 ```
 
 AVX-512 tests performed on `AWS c5.large` with Ubuntu 24.04 instance with command
 
 ```bash
-cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features nightly_avx512,fast_mode
+cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features nightly_avx512,fast_mode,professional_mode
 ```
 
 ### Encoding 8-bit
