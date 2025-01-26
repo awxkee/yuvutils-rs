@@ -78,7 +78,10 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
     let v_yr_yg = _mm_set1_epi32(transform._interleaved_yr_yg());
     let v_yb = _mm_set1_epi32(transform.yb);
 
-    let precision_uv = PRECISION + 1;
+    let precision_uv = match chroma_subsampling {
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => PRECISION + 1,
+        YuvChromaSubsampling::Yuv444 => PRECISION
+    };
     let rounding_const_uv = 1 << (precision_uv - 1) - 1;
 
     let uv_bias = _mm_set1_epi32(range.bias_uv as i32 * (1 << precision_uv) + rounding_const_uv);
@@ -113,10 +116,17 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
     _mm_storeu_si128(y_dst.as_mut_ptr() as *mut _, y0_values);
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-        let cb =
+        let cb_l =
             _mm_affine_uv_dot::<PRECISION>(uv_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_cb_r_g, v_cb_b);
-        let cr =
+        let cb_h =
+            _mm_affine_uv_dot::<PRECISION>(uv_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_cb_r_g, v_cb_b);
+        let cr_l =
             _mm_affine_uv_dot::<PRECISION>(uv_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_cr_r_g, v_cr_b);
+        let cr_h =
+            _mm_affine_uv_dot::<PRECISION>(uv_bias, rl_gh0, rl_gh1, b_h0, b_h1,  v_cr_r_g, v_cr_b);
+
+        let cb = _mm_packus_epi16(cb_l, cb_h);
+        let cr = _mm_packus_epi16(cr_l, cr_h);
 
         _mm_storeu_si128(u_dst.as_mut_ptr() as *mut _, cb);
         _mm_storeu_si128(v_dst.as_mut_ptr() as *mut _, cr);

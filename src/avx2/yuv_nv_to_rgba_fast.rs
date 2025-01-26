@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::_mm256_store_interleave_rgb_for_yuv;
+use crate::avx2::avx2_utils::{_mm256_store_interleave_rgb_for_yuv, avx2_pack_u16};
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
@@ -109,6 +109,8 @@ unsafe fn avx_yuv_nv_to_rgba_fast_impl<
         )
     };
 
+    let is_444 = YuvChromaSubsampling::Yuv444 == chroma_subsampling;
+
     while cx + 32 < width {
         let y_vl0 = _mm256_loadu_si256(y_ptr.add(cx) as *const _);
 
@@ -135,6 +137,7 @@ unsafe fn avx_yuv_nv_to_rgba_fast_impl<
                 let uv_source_ptr = uv_ptr.add(uv_x);
                 let mut uv0 = _mm256_loadu_si256(uv_source_ptr as *const _);
                 let mut uv1 = _mm256_loadu_si256(uv_source_ptr.add(32) as *const _);
+
                 uv0 = _mm256_sub_epi8(uv0, uv_corr);
                 uv1 = _mm256_sub_epi8(uv1, uv_corr);
 
@@ -150,8 +153,17 @@ unsafe fn avx_yuv_nv_to_rgba_fast_impl<
 
         let y_values = _mm256_subs_epu8(y_vl0, y_corr);
 
-        let y_hi = _mm256_unpackhi_epi8(y_values, _mm256_setzero_si256());
-        let y_lo = _mm256_unpacklo_epi8(y_values, _mm256_setzero_si256());
+        let y_hi = if is_444 {
+            _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(y_values))
+        } else {
+            _mm256_unpackhi_epi8(y_values, _mm256_setzero_si256())
+        };
+        let y_lo = if is_444 {
+            _mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values))
+        } else {
+            _mm256_unpacklo_epi8(y_values, _mm256_setzero_si256())
+        };
+
         let y_gh = _mm256_maddubs_epi16(y_hi, v_y_c);
         let y_gl = _mm256_maddubs_epi16(y_lo, v_y_c);
 
@@ -171,9 +183,21 @@ unsafe fn avx_yuv_nv_to_rgba_fast_impl<
         g_high0 = _mm256_srai_epi16::<6>(g_high0);
         b_high0 = _mm256_srai_epi16::<6>(b_high0);
 
-        let r_values = _mm256_packus_epi16(r_low0, r_high0);
-        let g_values = _mm256_packus_epi16(g_low0, g_high0);
-        let b_values = _mm256_packus_epi16(b_low0, b_high0);
+        let r_values = if is_444 {
+            avx2_pack_u16(r_low0, r_high0)
+        } else {
+            _mm256_packus_epi16(r_low0, r_high0)
+        };
+        let g_values = if is_444 {
+            avx2_pack_u16(g_low0, g_high0)
+        } else {
+            _mm256_packus_epi16(g_low0, g_high0)
+        };
+        let b_values = if is_444 {
+            avx2_pack_u16(b_low0, b_high0)
+        } else {
+            _mm256_packus_epi16(b_low0, b_high0)
+        };
 
         let dst_shift = cx * channels;
 
@@ -264,8 +288,17 @@ unsafe fn avx_yuv_nv_to_rgba_fast_impl<
 
         let y_values = _mm256_subs_epu8(y_vl0, y_corr);
 
-        let y_hi = _mm256_unpackhi_epi8(y_values, _mm256_setzero_si256());
-        let y_lo = _mm256_unpacklo_epi8(y_values, _mm256_setzero_si256());
+        let y_hi = if is_444 {
+            _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(y_values))
+        } else {
+            _mm256_unpackhi_epi8(y_values, _mm256_setzero_si256())
+        };
+        let y_lo = if is_444 {
+            _mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values))
+        } else {
+            _mm256_unpacklo_epi8(y_values, _mm256_setzero_si256())
+        };
+
         let y_gh = _mm256_maddubs_epi16(y_hi, v_y_c);
         let y_gl = _mm256_maddubs_epi16(y_lo, v_y_c);
 
@@ -285,9 +318,21 @@ unsafe fn avx_yuv_nv_to_rgba_fast_impl<
         g_high0 = _mm256_srai_epi16::<6>(g_high0);
         b_high0 = _mm256_srai_epi16::<6>(b_high0);
 
-        let r_values = _mm256_packus_epi16(r_low0, r_high0);
-        let g_values = _mm256_packus_epi16(g_low0, g_high0);
-        let b_values = _mm256_packus_epi16(b_low0, b_high0);
+        let r_values = if is_444 {
+            avx2_pack_u16(r_low0, r_high0)
+        } else {
+            _mm256_packus_epi16(r_low0, r_high0)
+        };
+        let g_values = if is_444 {
+            avx2_pack_u16(g_low0, g_high0)
+        } else {
+            _mm256_packus_epi16(g_low0, g_high0)
+        };
+        let b_values = if is_444 {
+            avx2_pack_u16(b_low0, b_high0)
+        } else {
+            _mm256_packus_epi16(b_low0, b_high0)
+        };
 
         let v_alpha = _mm256_set1_epi8(255u8 as i8);
 

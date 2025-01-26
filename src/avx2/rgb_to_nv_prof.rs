@@ -90,7 +90,10 @@ unsafe fn encode_32_part<
     let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
     let v_yb = _mm256_set1_epi32(transform.yb);
 
-    let precision_uv = PRECISION + 1;
+    let precision_uv = match chroma_subsampling {
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => PRECISION + 1,
+        YuvChromaSubsampling::Yuv444 => PRECISION
+    };
     let rounding_const_uv = 1 << (precision_uv - 1) - 1;
 
     let uv_bias = _mm256_set1_epi32(range.bias_uv as i32 * (1 << precision_uv) + rounding_const_uv);
@@ -127,12 +130,21 @@ unsafe fn encode_32_part<
     _mm256_storeu_si256(y_dst.as_mut_ptr() as *mut __m256i, y0_values);
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-        let cb = _mm256_affine_dot::<PRECISION, HAS_DOT>(
+        let cb_l = _mm256_affine_dot::<PRECISION, HAS_DOT>(
             uv_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_cb_r_g, v_cb_b,
         );
-        let cr = _mm256_affine_dot::<PRECISION, HAS_DOT>(
+        let cb_h = _mm256_affine_dot::<PRECISION, HAS_DOT>(
+            uv_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_cb_r_g, v_cb_b,
+        );
+        let cr_l = _mm256_affine_dot::<PRECISION, HAS_DOT>(
             uv_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_cr_r_g, v_cr_b,
         );
+        let cr_h = _mm256_affine_dot::<PRECISION, HAS_DOT>(
+            uv_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_cr_r_g, v_cr_b,
+        );
+
+        let cb = _mm256_packus_epi16(cb_l, cb_h);
+        let cr = _mm256_packus_epi16(cr_l, cr_h);
 
         let (row0, row1) = match order {
             YuvNVOrder::UV => _mm256_interleave_x2_epi8(cb, cr),
