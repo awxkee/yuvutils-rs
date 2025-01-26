@@ -1077,7 +1077,15 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         all(target_arch = "aarch64", target_feature = "neon",),
     )))]
     {
-        rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(image, rgba, rgba_stride, range, matrix)
+        rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
+            image,
+            rgba,
+            rgba_stride,
+            range,
+            matrix,
+            RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, 13>::default(),
+            RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, 13>::default(),
+        )
     }
 }
 

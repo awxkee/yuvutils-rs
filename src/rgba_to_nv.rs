@@ -955,6 +955,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             rgba_stride,
             range,
             matrix,
+            SemiPlanarEncoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>::default(),
+            SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>::default(),
         )
     }
 }
