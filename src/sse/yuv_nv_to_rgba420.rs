@@ -93,24 +93,23 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
     let distribute_shuffle = _mm_setr_epi8(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);
 
     while cx + 16 < width {
-        let y_values0 = _mm_subs_epu8(
-            _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i),
-            y_corr,
-        );
-        let y_values1 = _mm_subs_epu8(
-            _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i),
-            y_corr,
-        );
-
+        let y_vl0 = _mm_loadu_si128(y_plane0.get_unchecked(cx..).as_ptr() as *const __m128i);
+        let y_vl1 = _mm_loadu_si128(y_plane1.get_unchecked(cx..).as_ptr() as *const __m128i);
         let uv_values_ = _mm_loadu_si128(uv_ptr.add(uv_x) as *const __m128i);
+        let y_values0 = _mm_subs_epu8(y_vl0, y_corr);
+        let y_values1 = _mm_subs_epu8(y_vl1, y_corr);
 
         let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
         let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+
         let mut u = _mm_shuffle_epi8(uv_values_, sh_e);
         let mut v = _mm_shuffle_epi8(uv_values_, sh_o);
 
-        u = _mm_sub_epi16(_mm_srli_epi16::<6>(_mm_unpacklo_epi8(u, u)), uv_corr);
-        v = _mm_sub_epi16(_mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v)), uv_corr);
+        u = _mm_srli_epi16::<6>(u);
+        v = _mm_srli_epi16::<6>(v);
+
+        u = _mm_sub_epi16(u, uv_corr);
+        v = _mm_sub_epi16(v, uv_corr);
 
         if order == YuvNVOrder::VU {
             std::mem::swap(&mut u, &mut v);
@@ -285,8 +284,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
             hv,
         );
 
-        let y_vl0 = _mm_loadu_si64(y_plane0.as_ptr());
-        let y_vl1 = _mm_loadu_si64(y_plane1.as_ptr());
+        let y_vl0 = _mm_loadu_si64(y_buffer0.as_ptr());
+        let y_vl1 = _mm_loadu_si64(y_buffer1.as_ptr());
 
         let (u_low_u16, v_low_u16);
 

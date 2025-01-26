@@ -30,7 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{neon_store_rgb16, vexpand_high_bp_by_2, vfrommsb_u16, vfrommsbq_u16};
+use crate::neon::utils::*;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvNVOrder, YuvSourceChannels,
@@ -202,6 +202,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
     ProcessedOffset { cx, ux }
 }
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
     const DESTINATION_CHANNELS: u8,

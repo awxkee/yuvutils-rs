@@ -191,7 +191,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         std::alloc::dealloc(source_rgb, layout_rgb);
     });
 
-    c.bench_function("yuvutils RGBA -> YUV 4:2:0", |b| {
+    c.bench_function("yuvutils RGBA -> YUV 4:2:0 Fast", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -205,6 +205,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
                 YuvConversionMode::Fast,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA -> YUV 4:2:0 Balanced", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_yuv420(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Balanced,
             )
             .unwrap();
         })
@@ -247,7 +266,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         std::alloc::dealloc(source_rgb, layout_rgba);
     });
 
-    c.bench_function("yuvutils RGBA -> YUV 4:2:2", |b| {
+    c.bench_function("yuvutils RGBA -> YUV 4:2:2 Fast", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -261,6 +280,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
                 YuvConversionMode::Fast,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA -> YUV 4:2:2 Balanced", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv422,
+        );
+        b.iter(|| {
+            rgba_to_yuv422(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Balanced,
             )
             .unwrap();
         })
@@ -288,7 +326,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("yuvutils RGBA -> YUV 4:4:4", |b| {
+    c.bench_function("yuvutils RGBA -> YUV 4:4:4 Fast", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -307,6 +345,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("yuvutils RGBA -> YUV 4:4:4 Balanced", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv444,
+        );
+        b.iter(|| {
+            rgba_to_yuv444(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Balanced,
+            )
+            .unwrap();
+        })
+    });
+
     c.bench_function("yuvutils YUV NV16 -> RGB", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 3 * dimensions.1 as usize];
         b.iter(|| {
@@ -316,6 +373,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 3u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
+                YuvConversionMode::Fast,
             )
             .unwrap();
         })
@@ -399,7 +457,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("yuvutils YUV NV12 -> RGB", |b| {
+    c.bench_function("yuvutils YUV NV12 -> RGB Fast", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 3 * dimensions.1 as usize];
         b.iter(|| {
             yuv_nv12_to_rgb(
@@ -408,12 +466,28 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 3u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
+                YuvConversionMode::Fast,
             )
             .unwrap();
         })
     });
 
-    c.bench_function("yuvutils YUV NV12 -> RGBA", |b| {
+    c.bench_function("yuvutils YUV NV12 -> RGB Balanced", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 3 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv_nv12_to_rgb(
+                &fixed_bi_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 3u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Balanced,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YUV NV12 -> RGBA Fast", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             yuv_nv12_to_rgba(
@@ -422,6 +496,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 4u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
+                YuvConversionMode::Fast,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YUV NV12 -> RGBA Balanced", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv_nv12_to_rgba(
+                &fixed_bi_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Balanced,
             )
             .unwrap();
         })

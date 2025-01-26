@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx_rgba_to_yuv_p16, avx_rgba_to_yuv_p16_420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -35,12 +33,8 @@ use crate::avx2::{avx_rgba_to_yuv_p16, avx_rgba_to_yuv_p16_420};
 use crate::avx512bw::{avx512_rgba_to_yuv_p16, avx512_rgba_to_yuv_p16_420};
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{
-    neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_420, neon_rgba_to_yuv_p16_rdm,
-    neon_rgba_to_yuv_p16_rdm_420,
-};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_420};
+use crate::neon::{neon_rgba_to_yuv_p16, neon_rgba_to_yuv_p16_420};
+
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_forward_transform, get_yuv_range, ToIntegerTransform, YuvChromaSubsampling,
@@ -109,9 +103,9 @@ fn rgbx_to_yuv_ant<
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -122,14 +116,29 @@ fn rgbx_to_yuv_ant<
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
-        neon_rgba_to_yuv_p16_rdm::<
-            ORIGIN_CHANNELS,
-            SAMPLING,
-            ENDIANNESS,
-            BYTES_POSITION,
-            PRECISION,
-            BIT_DEPTH,
-        >
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_rgba_to_yuv_p16_rdm;
+            neon_rgba_to_yuv_p16_rdm::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_rgba_to_yuv_p16::<
+                ORIGIN_CHANNELS,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
     } else {
         neon_rgba_to_yuv_p16::<
             ORIGIN_CHANNELS,
@@ -142,17 +151,33 @@ fn rgbx_to_yuv_ant<
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_double_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
-        neon_rgba_to_yuv_p16_rdm_420::<
-            ORIGIN_CHANNELS,
-            ENDIANNESS,
-            BYTES_POSITION,
-            PRECISION,
-            BIT_DEPTH,
-        >
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_rgba_to_yuv_p16_rdm_420;
+            neon_rgba_to_yuv_p16_rdm_420::<
+                ORIGIN_CHANNELS,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_rgba_to_yuv_p16_420::<
+                ORIGIN_CHANNELS,
+                ENDIANNESS,
+                BYTES_POSITION,
+                PRECISION,
+                BIT_DEPTH,
+            >
+        }
     } else {
         neon_rgba_to_yuv_p16_420::<ORIGIN_CHANNELS, ENDIANNESS, BYTES_POSITION, PRECISION, BIT_DEPTH>
     };
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
+    use crate::sse::{sse_rgba_to_yuv_p16, sse_rgba_to_yuv_p16_420};
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let sse_dispatch = sse_rgba_to_yuv_p16::<
         ORIGIN_CHANNELS,
         SAMPLING,
@@ -161,8 +186,7 @@ fn rgbx_to_yuv_ant<
         PRECISION,
         BIT_DEPTH,
     >;
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let sse_dispatch_420 = sse_rgba_to_yuv_p16_420::<
         ORIGIN_CHANNELS,
         ENDIANNESS,
@@ -170,8 +194,9 @@ fn rgbx_to_yuv_ant<
         PRECISION,
         BIT_DEPTH,
     >;
-
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
+    use crate::avx2::{avx_rgba_to_yuv_p16, avx_rgba_to_yuv_p16_420};
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let avx_dispatch_420 = avx_rgba_to_yuv_p16_420::<
         ORIGIN_CHANNELS,
         ENDIANNESS,
@@ -180,7 +205,7 @@ fn rgbx_to_yuv_ant<
         BIT_DEPTH,
     >;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let avx_dispatch = avx_rgba_to_yuv_p16::<
         ORIGIN_CHANNELS,
         SAMPLING,
@@ -222,6 +247,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "avx")]
             if use_avx {
                 _offset = avx_dispatch(
                     &transform,
@@ -235,6 +261,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "sse")]
             if use_sse {
                 _offset = sse_dispatch(
                     &transform,
@@ -378,6 +405,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "avx")]
             if use_avx {
                 _offset = avx_dispatch_420(
                     &transform,
@@ -393,6 +421,7 @@ fn rgbx_to_yuv_ant<
                     image.width as usize,
                 );
             }
+            #[cfg(feature = "sse")]
             if use_sse {
                 _offset = sse_dispatch_420(
                     &transform,

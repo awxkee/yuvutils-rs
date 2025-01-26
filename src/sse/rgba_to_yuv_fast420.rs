@@ -265,8 +265,8 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         let cb_vl = _mm_packus_epi16(cb00, cb00);
         let cr_vl = _mm_packus_epi16(cr00, cr00);
 
-        _mm_storeu_si128(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cb_vl);
-        _mm_storeu_si128(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cr_vl);
+        _mm_storeu_si64(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cb_vl);
+        _mm_storeu_si64(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cr_vl);
 
         ux += 8;
         cx += 16;

@@ -216,11 +216,8 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
         assert!(diff <= 8);
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut y_buffer: [u16; 8] = [0; 8];
         let mut u_buffer: [u16; 8] = [0; 8];
@@ -332,7 +329,7 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
             v_max_colors,
         );
 
-        std::ptr::copy_nonoverlapping(dst_ptr.as_mut_ptr(), buffer.as_mut_ptr(), diff * channels);
+        std::ptr::copy_nonoverlapping(buffer.as_mut_ptr(), dst_ptr.as_mut_ptr(), diff * channels);
 
         cx += diff;
         match chroma_subsampling {
@@ -340,7 +337,7 @@ unsafe fn sse_yuv_p16_to_rgba_row_impl<
                 ux += diff.div_ceil(2);
             }
             YuvChromaSubsampling::Yuv444 => {
-                ux += diff.div_ceil(2);
+                ux += diff;
             }
         }
     }

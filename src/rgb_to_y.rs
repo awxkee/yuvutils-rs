@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_rgb_to_y_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -35,9 +33,7 @@ use crate::avx2::avx2_rgb_to_y_row;
 use crate::avx512bw::avx512_row_rgb_to_y;
 use crate::images::YuvGrayImageMut;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_rgb_to_y_rdm, neon_rgb_to_y_row};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_rgb_to_y;
+use crate::neon::neon_rgb_to_y_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::YuvError;
@@ -75,9 +71,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = chroma_range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -100,7 +96,15 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_handler = if std::arch::is_aarch64_feature_detected!("rdm") {
-        neon_rgb_to_y_rdm::<ORIGIN_CHANNELS>
+        #[cfg(feature = "rdm")]
+        {
+            use crate::neon::neon_rgb_to_y_rdm;
+            neon_rgb_to_y_rdm::<ORIGIN_CHANNELS>
+        }
+        #[cfg(not(feature = "rdm"))]
+        {
+            neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>
+        }
     } else {
         neon_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>
     };
@@ -142,7 +146,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 );
                 _cx = processed_offset;
             }
+            #[cfg(feature = "avx")]
             if use_avx {
+                use crate::avx2::avx2_rgb_to_y_row;
                 let processed_offset = avx2_rgb_to_y_row::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,
@@ -153,7 +159,9 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
                 );
                 _cx = processed_offset;
             }
+            #[cfg(feature = "sse")]
             if use_sse {
+                use crate::sse::sse_rgb_to_y;
                 let processed_offset = sse_rgb_to_y::<ORIGIN_CHANNELS, PRECISION>(
                     &transform,
                     &chroma_range,

@@ -27,9 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::_mm256_interleave_epi8;
 use crate::avx512bw::avx512_utils::{
-    _mm512_expand8_unordered_to_10, avx512_create, avx512_store_rgba_for_yuv_u8, avx512_zip_epi8,
+    _mm256_interleave_epi8, _mm512_expand8_unordered_to_10, avx512_create,
+    avx512_store_rgba_for_yuv_u8, avx512_zip_epi8,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{

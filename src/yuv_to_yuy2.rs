@@ -26,12 +26,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::yuv_to_yuy2_avx2_row;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::yuv_to_yuy2_neon_impl;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::yuv_to_yuy2_sse;
+
 use crate::yuv_support::{YuvChromaSubsampling, Yuy2Description};
 use crate::{YuvError, YuvPackedImageMut, YuvPlanarImage};
 #[cfg(feature = "rayon")]
@@ -93,35 +90,39 @@ impl ProcessWideRow<u8> for u8 {
     ) -> usize {
         let mut _processed = 0usize;
 
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
         let _use_sse = is_x86_feature_detected!("sse4.1");
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
         let _use_avx2 = is_x86_feature_detected!("avx2");
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            let mut nav = YuvToYuy2Navigation::new(0, 0, 0);
+            let mut _nav = YuvToYuy2Navigation::new(0, 0, 0);
+            #[cfg(feature = "avx")]
             if _use_avx2 {
-                nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
+                use crate::avx2::yuv_to_yuy2_avx2_row;
+                _nav = yuv_to_yuy2_avx2_row::<SAMPLING, YUY2_TARGET>(
                     _y_src,
                     _u_src,
                     _v_src,
                     _yuy2,
                     _width as u32,
-                    nav,
+                    _nav,
                 );
             }
+            #[cfg(feature = "sse")]
             if _use_sse {
-                nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
+                use crate::sse::yuv_to_yuy2_sse;
+                _nav = yuv_to_yuy2_sse::<SAMPLING, YUY2_TARGET>(
                     _y_src,
                     _u_src,
                     _v_src,
                     _yuy2,
                     _width as u32,
-                    nav,
+                    _nav,
                 );
             }
-            _processed = nav.cx;
+            _processed = _nav.cx;
         }
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

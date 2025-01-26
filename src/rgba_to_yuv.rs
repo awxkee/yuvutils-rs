@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx2_rgba_to_yuv, avx2_rgba_to_yuv420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -36,11 +34,7 @@ use crate::avx512bw::{avx512_rgba_to_yuv, avx512_rgba_to_yuv420};
 #[allow(unused_imports)]
 use crate::internals::*;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{
-    neon_rgba_to_yuv, neon_rgba_to_yuv420, neon_rgba_to_yuv_rdm, neon_rgba_to_yuv_rdm420,
-};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_rgba_to_yuv_row, sse_rgba_to_yuv_row420};
+use crate::neon::{neon_rgba_to_yuv, neon_rgba_to_yuv420};
 use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -123,6 +117,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     }
                 }
 
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_yuv_dot_rgba;
                     return RgbEncoder {
@@ -130,11 +125,14 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
 
-                if std::arch::is_x86_feature_detected!("sse4.1") {
-                    use crate::sse::sse_rgba_to_yuv_dot_rgba;
-                    return RgbEncoder {
-                        handler: Some(sse_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
-                    };
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_yuv_dot_rgba;
+                        return RgbEncoder {
+                            handler: Some(sse_rgba_to_yuv_dot_rgba::<ORIGIN_CHANNELS, SAMPLING>),
+                        };
+                    }
                 }
             }
         }
@@ -144,15 +142,18 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                RgbEncoder {
-                    handler: Some(neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_rgba_to_yuv_rdm;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return RgbEncoder {
+                        handler: Some(neon_rgba_to_yuv_rdm::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                    };
                 }
-            } else {
-                RgbEncoder {
-                    handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-                }
+            }
+            RgbEncoder {
+                handler: Some(neon_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -173,18 +174,25 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
             }
-
-            let use_avx = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx {
-                return RgbEncoder {
-                    handler: Some(avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx {
+                    use crate::avx2::avx2_rgba_to_yuv;
+                    return RgbEncoder {
+                        handler: Some(avx2_rgba_to_yuv::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                    };
+                }
             }
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return RgbEncoder {
-                    handler: Some(sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                use crate::sse::sse_rgba_to_yuv_row;
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    return RgbEncoder {
+                        handler: Some(sse_rgba_to_yuv_row::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
@@ -306,6 +314,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     }
                 }
 
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_yuv_dot_rgba420;
                     return RgbEncoder420 {
@@ -313,6 +322,7 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
 
+                #[cfg(feature = "sse")]
                 if std::arch::is_x86_feature_detected!("sse4.1") {
                     use crate::sse::sse_rgba_to_yuv_dot_rgba420;
                     return RgbEncoder420 {
@@ -328,15 +338,18 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                RgbEncoder420 {
-                    handler: Some(neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS, PRECISION>),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_rgba_to_yuv_rdm420;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return RgbEncoder420 {
+                        handler: Some(neon_rgba_to_yuv_rdm420::<ORIGIN_CHANNELS, PRECISION>),
+                    };
                 }
-            } else {
-                RgbEncoder420 {
-                    handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
-                }
+            }
+            RgbEncoder420 {
+                handler: Some(neon_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -357,19 +370,26 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     };
                 }
             }
-
-            let use_avx = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx {
-                return RgbEncoder420 {
-                    handler: Some(avx2_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx {
+                    use crate::avx2::avx2_rgba_to_yuv420;
+                    return RgbEncoder420 {
+                        handler: Some(avx2_rgba_to_yuv420::<ORIGIN_CHANNELS, PRECISION>),
+                    };
+                }
             }
 
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return RgbEncoder420 {
-                    handler: Some(sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS, PRECISION>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                use crate::sse::sse_rgba_to_yuv_row420;
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    return RgbEncoder420 {
+                        handler: Some(sse_rgba_to_yuv_row420::<ORIGIN_CHANNELS, PRECISION>),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]

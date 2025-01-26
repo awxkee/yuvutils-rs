@@ -27,8 +27,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_ycgco_to_rgba_alpha;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -37,8 +35,6 @@ use crate::avx512bw::avx512_ycgco_to_rgba_alpha;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_ycgco_to_rgb_alpha_row;
 use crate::numerics::qrshr;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_ycgco_to_rgb_alpha_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvPlanarImageWithAlpha, YuvRange};
@@ -98,9 +94,9 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let a_stride = planar_image_with_alpha.a_stride;
     let a_plane = planar_image_with_alpha.a_plane;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let mut _use_avx2 = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -118,70 +114,80 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         let mut uv_x = 0usize;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
-                let processed = avx512_ycgco_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane,
-                    cg_plane,
-                    co_plane,
-                    a_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    a_offset,
-                    rgba_offset,
-                    width as usize,
-                    premultiply_alpha,
-                );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                unsafe {
+                    let processed = avx512_ycgco_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane,
+                        cg_plane,
+                        co_plane,
+                        a_plane,
+                        rgba,
+                        cx,
+                        uv_x,
+                        y_offset,
+                        u_offset,
+                        v_offset,
+                        a_offset,
+                        rgba_offset,
+                        width as usize,
+                        premultiply_alpha,
+                    );
+                    cx = processed.cx;
+                    uv_x = processed.ux;
+                }
             }
+            #[cfg(feature = "avx")]
             if _use_avx2 {
-                let processed = avx2_ycgco_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane,
-                    cg_plane,
-                    co_plane,
-                    a_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    a_offset,
-                    rgba_offset,
-                    width as usize,
-                    premultiply_alpha,
-                );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                use crate::avx2::avx2_ycgco_to_rgba_alpha;
+                unsafe {
+                    let processed = avx2_ycgco_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane,
+                        cg_plane,
+                        co_plane,
+                        a_plane,
+                        rgba,
+                        cx,
+                        uv_x,
+                        y_offset,
+                        u_offset,
+                        v_offset,
+                        a_offset,
+                        rgba_offset,
+                        width as usize,
+                        premultiply_alpha,
+                    );
+                    cx = processed.cx;
+                    uv_x = processed.ux;
+                }
             }
+            #[cfg(feature = "sse")]
             if _use_sse {
-                let processed = sse_ycgco_to_rgb_alpha_row::<DESTINATION_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane,
-                    cg_plane,
-                    co_plane,
-                    a_plane,
-                    rgba,
-                    cx,
-                    uv_x,
-                    y_offset,
-                    u_offset,
-                    v_offset,
-                    a_offset,
-                    rgba_offset,
-                    width as usize,
-                    premultiply_alpha,
-                );
-                cx = processed.cx;
-                uv_x = processed.ux;
+                use crate::sse::sse_ycgco_to_rgb_alpha_row;
+                unsafe {
+                    let processed = sse_ycgco_to_rgb_alpha_row::<DESTINATION_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane,
+                        cg_plane,
+                        co_plane,
+                        a_plane,
+                        rgba,
+                        cx,
+                        uv_x,
+                        y_offset,
+                        u_offset,
+                        v_offset,
+                        a_offset,
+                        rgba_offset,
+                        width as usize,
+                        premultiply_alpha,
+                    );
+                    cx = processed.cx;
+                    uv_x = processed.ux;
+                }
             }
         }
 

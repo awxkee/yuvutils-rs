@@ -64,42 +64,87 @@ impl<
     > Default for NVRowHandler<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
 {
     fn default() -> Self {
+        #[cfg(feature = "fast_mode")]
+        if PRECISION == 6 {
+            assert_eq!(PRECISION, 6);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_fast_row;
+                return NVRowHandler {
+                    handler: Some(
+                        neon_yuv_nv_to_rgba_fast_row::<
+                            UV_ORDER,
+                            DESTINATION_CHANNELS,
+                            YUV_CHROMA_SAMPLING,
+                        >,
+                    ),
+                };
+            }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_fast;
+                        return NVRowHandler {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_fast::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
+            }
+        }
+
+        if PRECISION != 13 {
+            return NVRowHandler { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            use crate::neon::{neon_yuv_nv_to_rgba_row, neon_yuv_nv_to_rgba_row_rdm};
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            return if is_rdm_available {
-                NVRowHandler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_row_rdm::<
-                            UV_ORDER,
-                            DESTINATION_CHANNELS,
-                            YUV_CHROMA_SAMPLING,
-                        >,
-                    ),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_row_rdm;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return NVRowHandler {
+                        handler: Some(
+                            neon_yuv_nv_to_rgba_row_rdm::<
+                                UV_ORDER,
+                                DESTINATION_CHANNELS,
+                                YUV_CHROMA_SAMPLING,
+                            >,
+                        ),
+                    };
                 }
-            } else {
-                NVRowHandler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_row::<
-                            PRECISION,
-                            UV_ORDER,
-                            DESTINATION_CHANNELS,
-                            YUV_CHROMA_SAMPLING,
-                        >,
-                    ),
-                }
-            };
+            }
+            use crate::neon::neon_yuv_nv_to_rgba_row;
+
+            NVRowHandler {
+                handler: Some(
+                    neon_yuv_nv_to_rgba_row::<
+                        PRECISION,
+                        UV_ORDER,
+                        DESTINATION_CHANNELS,
+                        YUV_CHROMA_SAMPLING,
+                    >,
+                ),
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
-
             #[cfg(feature = "nightly_avx512")]
             {
                 let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
                 let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
                 use crate::avx512bw::{avx512_yuv_nv_to_rgba, avx512_yuv_nv_to_rgba422};
+                let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
                 if use_avx512 {
                     return if subsampling == YuvChromaSubsampling::Yuv422
                         || subsampling == YuvChromaSubsampling::Yuv420
@@ -137,40 +182,52 @@ impl<
                 }
             }
 
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row422};
-                return NVRowHandler {
-                    handler: Some(
-                        if subsampling == YuvChromaSubsampling::Yuv420
-                            || subsampling == YuvChromaSubsampling::Yuv422
-                        {
-                            avx2_yuv_nv_to_rgba_row422::<UV_ORDER, DESTINATION_CHANNELS>
-                        } else {
-                            avx2_yuv_nv_to_rgba_row::<
-                                UV_ORDER,
-                                DESTINATION_CHANNELS,
-                                YUV_CHROMA_SAMPLING,
-                            >
-                        },
-                    ),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
+                if use_avx2 {
+                    use crate::avx2::{avx2_yuv_nv_to_rgba_row, avx2_yuv_nv_to_rgba_row422};
+                    return NVRowHandler {
+                        handler: Some(
+                            if subsampling == YuvChromaSubsampling::Yuv420
+                                || subsampling == YuvChromaSubsampling::Yuv422
+                            {
+                                avx2_yuv_nv_to_rgba_row422::<UV_ORDER, DESTINATION_CHANNELS>
+                            } else {
+                                avx2_yuv_nv_to_rgba_row::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >
+                            },
+                        ),
+                    };
+                }
             }
 
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                use crate::sse::{sse_yuv_nv_to_rgba, sse_yuv_nv_to_rgba422};
-                return NVRowHandler {
-                    handler: Some(
-                        if subsampling == YuvChromaSubsampling::Yuv420
-                            || subsampling == YuvChromaSubsampling::Yuv422
-                        {
-                            sse_yuv_nv_to_rgba422::<UV_ORDER, DESTINATION_CHANNELS>
-                        } else {
-                            sse_yuv_nv_to_rgba::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>
-                        },
-                    ),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let subsampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    use crate::sse::{sse_yuv_nv_to_rgba, sse_yuv_nv_to_rgba422};
+                    return NVRowHandler {
+                        handler: Some(
+                            if subsampling == YuvChromaSubsampling::Yuv420
+                                || subsampling == YuvChromaSubsampling::Yuv422
+                            {
+                                sse_yuv_nv_to_rgba422::<UV_ORDER, DESTINATION_CHANNELS>
+                            } else {
+                                sse_yuv_nv_to_rgba::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >
+                            },
+                        ),
+                    };
+                }
             }
         }
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -299,21 +356,59 @@ impl<
             return NVRow420Handler { handler: None };
         }
         assert_eq!(sampling, YuvChromaSubsampling::Yuv420);
+        #[cfg(feature = "fast_mode")]
+        if PRECISION == 6 {
+            assert_eq!(PRECISION, 6);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_fast_row420;
+                return NVRow420Handler {
+                    handler: Some(
+                        neon_yuv_nv_to_rgba_fast_row420::<UV_ORDER, DESTINATION_CHANNELS>,
+                    ),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_fast420;
+                        return NVRow420Handler {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+            }
+        }
+        if PRECISION != 13 {
+            return NVRow420Handler { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            use crate::neon::{neon_yuv_nv_to_rgba_row420, neon_yuv_nv_to_rgba_row_rdm420};
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            return if is_rdm_available {
-                NVRow420Handler {
-                    handler: Some(neon_yuv_nv_to_rgba_row_rdm420::<UV_ORDER, DESTINATION_CHANNELS>),
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_row_rdm420;
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available {
+                    return NVRow420Handler {
+                        handler: Some(
+                            neon_yuv_nv_to_rgba_row_rdm420::<UV_ORDER, DESTINATION_CHANNELS>,
+                        ),
+                    };
                 }
-            } else {
-                NVRow420Handler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_row420::<PRECISION, UV_ORDER, DESTINATION_CHANNELS>,
-                    ),
-                }
-            };
+            }
+
+            use crate::neon::neon_yuv_nv_to_rgba_row420;
+            NVRow420Handler {
+                handler: Some(
+                    neon_yuv_nv_to_rgba_row420::<PRECISION, UV_ORDER, DESTINATION_CHANNELS>,
+                ),
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -333,20 +428,26 @@ impl<
                 }
             }
 
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                use crate::avx2::avx2_yuv_nv_to_rgba_row420;
-                return NVRow420Handler {
-                    handler: Some(avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::avx2_yuv_nv_to_rgba_row420;
+                    return NVRow420Handler {
+                        handler: Some(avx2_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>),
+                    };
+                }
             }
 
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                use crate::sse::sse_yuv_nv_to_rgba420;
-                return NVRow420Handler {
-                    handler: Some(sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    use crate::sse::sse_yuv_nv_to_rgba420;
+                    return NVRow420Handler {
+                        handler: Some(sse_yuv_nv_to_rgba420::<UV_ORDER, DESTINATION_CHANNELS>),
+                    };
+                }
             }
         }
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -366,10 +467,11 @@ impl<
     }
 }
 
-fn yuv_nv12_to_rgbx<
+fn yuv_nv12_to_rgbx_impl<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
+    const PRECISION: i32,
 >(
     image: &YuvBiPlanarImage<u8>,
     bgra: &mut [u8],
@@ -393,7 +495,6 @@ fn yuv_nv12_to_rgbx<
     let chroma_range = get_yuv_range(8, range);
     let channels = dst_chans.get_channels_count();
     let kr_kb = matrix.get_kr_kb();
-    const PRECISION: i32 = 13;
 
     let inverse_transform =
         search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
@@ -758,6 +859,35 @@ fn yuv_nv12_to_rgbx<
     Ok(())
 }
 
+fn yuv_nv12_to_rgbx<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+>(
+    image: &YuvBiPlanarImage<u8>,
+    bgra: &mut [u8],
+    bgra_stride: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    _mode: YuvConversionMode,
+) -> Result<(), YuvError> {
+    match _mode {
+        #[cfg(feature = "fast_mode")]
+        YuvConversionMode::Fast => yuv_nv12_to_rgbx_impl::<
+            UV_ORDER,
+            DESTINATION_CHANNELS,
+            YUV_CHROMA_SAMPLING,
+            6,
+        >(image, bgra, bgra_stride, range, matrix),
+        YuvConversionMode::Balanced => yuv_nv12_to_rgbx_impl::<
+            UV_ORDER,
+            DESTINATION_CHANNELS,
+            YUV_CHROMA_SAMPLING,
+            13,
+        >(image, bgra, bgra_stride, range, matrix),
+    }
+}
+
 /// Convert YUV NV12 format to BGRA format.
 ///
 /// This function takes YUV NV12 data with 8-bit precision,
@@ -782,12 +912,13 @@ pub fn yuv_nv12_to_bgra(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV16 format to BGRA format.
@@ -814,12 +945,13 @@ pub fn yuv_nv16_to_bgra(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV61 format to BGRA format.
@@ -846,12 +978,13 @@ pub fn yuv_nv61_to_bgra(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV21 format to BGRA format.
@@ -878,12 +1011,13 @@ pub fn yuv_nv21_to_bgra(
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgra, bgra_stride, range, matrix)
+    >(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV16 format to RGBA format.
@@ -910,12 +1044,13 @@ pub fn yuv_nv16_to_rgba(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV61 format to RGBA format.
@@ -942,12 +1077,13 @@ pub fn yuv_nv61_to_rgba(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV12 format to RGBA format.
@@ -974,12 +1110,13 @@ pub fn yuv_nv12_to_rgba(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV21 format to RGBA format.
@@ -1006,12 +1143,13 @@ pub fn yuv_nv21_to_rgba(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV12 format to RGB format.
@@ -1038,12 +1176,13 @@ pub fn yuv_nv12_to_rgb(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV12 format to BGR format.
@@ -1070,12 +1209,13 @@ pub fn yuv_nv12_to_bgr(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV16 format to RGB format.
@@ -1102,12 +1242,13 @@ pub fn yuv_nv16_to_rgb(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV16 format to BGR format.
@@ -1134,12 +1275,13 @@ pub fn yuv_nv16_to_bgr(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV61 format to RGB format.
@@ -1166,12 +1308,13 @@ pub fn yuv_nv61_to_rgb(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV61 format to BGR format.
@@ -1198,12 +1341,13 @@ pub fn yuv_nv61_to_bgr(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
         { YuvChromaSubsampling::Yuv422 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV21 format to RGB format.
@@ -1230,12 +1374,13 @@ pub fn yuv_nv21_to_rgb(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV21 format to BGR format.
@@ -1262,12 +1407,13 @@ pub fn yuv_nv21_to_bgr(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
         { YuvChromaSubsampling::Yuv420 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV24 format to RGBA format.
@@ -1294,12 +1440,13 @@ pub fn yuv_nv42_to_rgba(
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgba, rgba_stride, range, matrix)
+    >(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV24 format to RGB format.
@@ -1326,12 +1473,13 @@ pub fn yuv_nv24_to_rgb(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV24 format to BGR format.
@@ -1358,12 +1506,13 @@ pub fn yuv_nv24_to_bgr(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgr as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV24 format to RGBA format.
@@ -1390,12 +1539,13 @@ pub fn yuv_nv24_to_rgba(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Rgba as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV24 format to BGRA format.
@@ -1422,12 +1572,13 @@ pub fn yuv_nv24_to_bgra(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::UV as u8 },
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV42 format to RGB format.
@@ -1454,12 +1605,13 @@ pub fn yuv_nv42_to_rgb(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Rgb as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV42 format to BGR format.
@@ -1486,12 +1638,13 @@ pub fn yuv_nv42_to_bgr(
     bgr_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgr as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, bgr, bgr_stride, range, matrix)
+    >(bi_planar_image, bgr, bgr_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV42 format to BGRA format.
@@ -1518,12 +1671,13 @@ pub fn yuv_nv42_to_bgra(
     rgb_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     yuv_nv12_to_rgbx::<
         { YuvNVOrder::VU as u8 },
         { YuvSourceChannels::Bgra as u8 },
         { YuvChromaSubsampling::Yuv444 as u8 },
-    >(bi_planar_image, rgb, rgb_stride, range, matrix)
+    >(bi_planar_image, rgb, rgb_stride, range, matrix, mode)
 }
 
 #[cfg(test)]
@@ -1596,6 +1750,7 @@ mod tests {
                 image_width as u32 * CHANNELS as u32,
                 YuvRange::Full,
                 YuvStandardMatrix::Bt709,
+                mode,
             )
             .unwrap();
 
@@ -1705,6 +1860,7 @@ mod tests {
                 image_width as u32 * CHANNELS as u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt709,
+                mode,
             )
             .unwrap();
 
@@ -1828,6 +1984,7 @@ mod tests {
                 image_width as u32 * CHANNELS as u32,
                 YuvRange::Full,
                 YuvStandardMatrix::Bt709,
+                mode,
             )
             .unwrap();
 
@@ -1953,6 +2110,7 @@ mod tests {
                 image_width as u32 * CHANNELS as u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt709,
+                mode,
             )
             .unwrap();
 
@@ -1997,7 +2155,7 @@ mod tests {
         }
         matrix(YuvConversionMode::Balanced, 10);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 14);
+        matrix(YuvConversionMode::Fast, 18);
     }
 
     #[test]
@@ -2106,6 +2264,7 @@ mod tests {
                 image_width as u32 * CHANNELS as u32,
                 YuvRange::Full,
                 YuvStandardMatrix::Bt709,
+                mode,
             )
             .unwrap();
 
@@ -2154,9 +2313,9 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 50);
+        matrix(YuvConversionMode::Balanced, 72);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 55);
+        matrix(YuvConversionMode::Fast, 74);
     }
 
     #[test]
@@ -2265,6 +2424,7 @@ mod tests {
                 image_width as u32 * CHANNELS as u32,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt709,
+                mode,
             )
             .unwrap();
 
@@ -2307,8 +2467,8 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 55);
+        matrix(YuvConversionMode::Balanced, 60);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 58);
+        matrix(YuvConversionMode::Fast, 72);
     }
 }

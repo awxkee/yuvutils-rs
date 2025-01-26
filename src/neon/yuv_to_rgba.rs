@@ -28,15 +28,13 @@
  */
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{
-    neon_store_half_rgb8, neon_store_rgb8, vdotl_laneq_s16, vdotl_laneq_s16_x2, vexpand8_to_10,
-    vexpand_high_8_to_10, vmullq_laneq_s16, xvld1q_u8_x2,
-};
+use crate::neon::utils::*;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm<
     const DESTINATION_CHANNELS: u8,
@@ -305,8 +303,7 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm<
     }
 
     while cx + 8 < width {
-        let y_values = vqsub_u8(vld1_u8(y_ptr.add(cx)), vget_low_u8(y_corr));
-
+        let yvl = vld1_u8(y_ptr.add(cx));
         let u_low_u8: uint8x8_t;
         let v_low_u8: uint8x8_t;
 
@@ -326,25 +323,23 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm<
                 v_low_u8 = v_values;
             }
         }
+        let y_values = vqsub_u8(yvl, vget_low_u8(y_corr));
 
-        let u_low = vsubq_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(u_low_u8)),
-            uv_corr,
-        );
-        let v_low = vsubq_s16(
-            vreinterpretq_s16_u16(vshll_n_u8::<SCALE>(v_low_u8)),
-            uv_corr,
-        );
-        let y_low =
-            vqrdmulhq_laneq_s16::<0>(vreinterpretq_s16_u16(vexpand8_to_10(y_values)), v_weights);
+        let ulw = vshll_n_u8::<SCALE>(u_low_u8);
+        let vlw = vshll_n_u8::<SCALE>(v_low_u8);
+        let ylw = vreinterpretq_s16_u16(vexpand8_to_10(y_values));
 
-        let r_low = vqmovun_s16(vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights));
-        let b_low = vqmovun_s16(vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights));
-        let g_low = vqmovun_s16(vqrdmlahq_laneq_s16::<4>(
-            vqrdmlahq_laneq_s16::<3>(y_low, v_low, v_weights),
-            u_low,
-            v_weights,
-        ));
+        let u_low = vsubq_s16(vreinterpretq_s16_u16(ulw), uv_corr);
+        let v_low = vsubq_s16(vreinterpretq_s16_u16(vlw), uv_corr);
+        let y_low = vqrdmulhq_laneq_s16::<0>(ylw, v_weights);
+
+        let rlc = vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights);
+        let blc = vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights);
+        let glc0 = vqrdmlahq_laneq_s16::<3>(y_low, v_low, v_weights);
+
+        let r_low = vqmovun_s16(rlc);
+        let b_low = vqmovun_s16(blc);
+        let g_low = vqmovun_s16(vqrdmlahq_laneq_s16::<4>(glc0, u_low, v_weights));
 
         let r_values = r_low;
         let g_values = g_low;
@@ -370,6 +365,100 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row_rdm<
                 uv_x += 8;
             }
         }
+    }
+
+    if cx < width {
+        let diff = width - cx;
+
+        assert!(diff <= 8);
+
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut u_buffer: [u8; 8] = [0; 8];
+        let mut v_buffer: [u8; 8] = [0; 8];
+
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let ux_diff = match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff.div_ceil(2),
+            YuvChromaSubsampling::Yuv444 => diff,
+        };
+
+        std::ptr::copy_nonoverlapping(
+            u_plane.get_unchecked(uv_x..).as_ptr(),
+            u_buffer.as_mut_ptr(),
+            ux_diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            v_plane.get_unchecked(uv_x..).as_ptr(),
+            v_buffer.as_mut_ptr(),
+            ux_diff,
+        );
+
+        let yvl = vld1_u8(y_buffer.as_ptr());
+        let u_low_u8: uint8x8_t;
+        let v_low_u8: uint8x8_t;
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                let u_values = vreinterpret_u8_u32(vld1_dup_u32(u_buffer.as_ptr() as *const u32));
+                let v_values = vreinterpret_u8_u32(vld1_dup_u32(v_buffer.as_ptr() as *const u32));
+
+                u_low_u8 = vzip1_u8(u_values, u_values);
+                v_low_u8 = vzip1_u8(v_values, v_values);
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                let u_values = vld1_u8(u_buffer.as_ptr());
+                let v_values = vld1_u8(v_buffer.as_ptr());
+
+                u_low_u8 = u_values;
+                v_low_u8 = v_values;
+            }
+        }
+        let y_values = vqsub_u8(yvl, vget_low_u8(y_corr));
+
+        let ulw = vshll_n_u8::<SCALE>(u_low_u8);
+        let vlw = vshll_n_u8::<SCALE>(v_low_u8);
+        let ylw = vreinterpretq_s16_u16(vexpand8_to_10(y_values));
+
+        let u_low = vsubq_s16(vreinterpretq_s16_u16(ulw), uv_corr);
+        let v_low = vsubq_s16(vreinterpretq_s16_u16(vlw), uv_corr);
+        let y_low = vqrdmulhq_laneq_s16::<0>(ylw, v_weights);
+
+        let rlc = vqrdmlahq_laneq_s16::<1>(y_low, v_low, v_weights);
+        let blc = vqrdmlahq_laneq_s16::<2>(y_low, u_low, v_weights);
+        let glc0 = vqrdmlahq_laneq_s16::<3>(y_low, v_low, v_weights);
+
+        let r_low = vqmovun_s16(rlc);
+        let b_low = vqmovun_s16(blc);
+        let g_low = vqmovun_s16(vqrdmlahq_laneq_s16::<4>(glc0, u_low, v_weights));
+
+        let r_values = r_low;
+        let g_values = g_low;
+        let b_values = b_low;
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            vget_low_u8(v_alpha),
+        );
+
+        let dst_shift = cx * channels;
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_mut_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
+        uv_x += ux_diff;
     }
 
     ProcessedOffset { cx, ux: uv_x }
@@ -674,6 +763,93 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row<
                 uv_x += 8;
             }
         }
+    }
+
+    if cx < width {
+        let diff = width - cx;
+
+        assert!(diff <= 8);
+
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut u_buffer: [u8; 8] = [0; 8];
+        let mut v_buffer: [u8; 8] = [0; 8];
+
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let ux_diff = match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff.div_ceil(2),
+            YuvChromaSubsampling::Yuv444 => diff,
+        };
+
+        std::ptr::copy_nonoverlapping(
+            u_plane.get_unchecked(uv_x..).as_ptr(),
+            u_buffer.as_mut_ptr(),
+            ux_diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            v_plane.get_unchecked(uv_x..).as_ptr(),
+            v_buffer.as_mut_ptr(),
+            ux_diff,
+        );
+
+        let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr()), vget_low_u8(y_corr));
+
+        let u_low_u8: uint8x8_t;
+        let v_low_u8: uint8x8_t;
+
+        match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                let u_values = vreinterpret_u8_u32(vld1_dup_u32(u_buffer.as_ptr() as *const u32));
+                let v_values = vreinterpret_u8_u32(vld1_dup_u32(v_buffer.as_ptr() as *const u32));
+
+                u_low_u8 = vzip1_u8(u_values, u_values);
+                v_low_u8 = vzip1_u8(v_values, v_values);
+            }
+            YuvChromaSubsampling::Yuv444 => {
+                let u_values = vld1_u8(u_buffer.as_ptr());
+                let v_values = vld1_u8(v_buffer.as_ptr());
+
+                u_low_u8 = u_values;
+                v_low_u8 = v_values;
+            }
+        }
+
+        let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
+        let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_low_u8)), uv_corr);
+
+        let y_low = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_u8(y_values)), v_weights);
+
+        let r_low = vdotl_laneq_s16::<PRECISION, 1>(y_low, v_low, v_weights);
+        let b_low = vdotl_laneq_s16::<PRECISION, 2>(y_low, u_low, v_weights);
+        let g_low = vdotl_laneq_s16_x2::<PRECISION, 3, 4>(y_low, v_low, u_low, v_weights);
+
+        let r_values = vqmovun_s16(r_low);
+        let g_values = vqmovun_s16(g_low);
+        let b_values = vqmovun_s16(b_low);
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            vget_low_u8(v_alpha),
+        );
+
+        let dst_shift = cx * channels;
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_mut_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
+        uv_x += ux_diff;
     }
 
     ProcessedOffset { cx, ux: uv_x }

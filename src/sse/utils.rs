@@ -40,20 +40,6 @@ pub(crate) const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn sse_interleave_even(x: __m128i) -> __m128i {
-    #[rustfmt::skip]
-    let shuffle = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6,
-                                     8, 8, 10, 10, 12, 12, 14, 14);
-    _mm_shuffle_epi8(x, shuffle)
-}
-
-#[inline(always)]
-pub(crate) unsafe fn sse_interleave_odd(x: __m128i) -> __m128i {
-    let shuffle = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
-    _mm_shuffle_epi8(x, shuffle)
-}
-
-#[inline(always)]
 pub(crate) unsafe fn sse_interleave_rgba(
     r: __m128i,
     g: __m128i,

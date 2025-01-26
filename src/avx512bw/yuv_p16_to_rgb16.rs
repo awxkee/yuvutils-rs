@@ -27,10 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::{_mm256_from_msb_epi16, _mm256_interleave_epi16};
 use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
-    _mm512_expand_bp_by2, _mm512_from_msb_epi16, avx512_create, avx512_store_rgba16_for_yuv,
+    _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm512_expand_bp_by2, _mm512_from_msb_epi16,
+    avx512_create, avx512_store_rgba16_for_yuv,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{

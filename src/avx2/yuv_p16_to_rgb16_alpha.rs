@@ -28,10 +28,10 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm256_store_interleave_rgb16_for_yuv,
+    _avx_from_msb_epi16, _mm256_from_msb_epi16, _mm256_interleave_epi16,
+    _mm256_store_interleave_rgb16_for_yuv,
 };
 use crate::internals::ProcessedOffset;
-use crate::sse::_mm_from_msb_epi16;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvSourceChannels,
@@ -322,8 +322,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_alpha_impl<
                     v_vals = _mm_shuffle_epi8(v_vals, big_endian_shuffle_flag_sse);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals = _mm_from_msb_epi16::<BIT_DEPTH>(u_vals);
-                    v_vals = _mm_from_msb_epi16::<BIT_DEPTH>(v_vals);
+                    u_vals = _avx_from_msb_epi16::<BIT_DEPTH>(u_vals);
+                    v_vals = _avx_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
 
                 let u_expanded = _mm256_set_m128i(

@@ -27,8 +27,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx2_rgb_to_ycgco_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -38,8 +36,6 @@ use crate::avx512bw::avx512_rgb_to_ycgco_row;
 use crate::internals::ProcessedOffset;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::neon_rgb_to_ycgco_row;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_rgb_to_ycgco_row;
 use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -79,9 +75,9 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut co_offset = 0usize;
     let mut rgba_offset = 0usize;
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
     #[cfg(all(
         any(target_arch = "x86", target_arch = "x86_64"),
@@ -109,64 +105,74 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             || y & 1 == 0;
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
+        {
             #[cfg(feature = "nightly_avx512")]
             if _use_avx512 {
-                let processed_offset = avx512_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane.as_mut_ptr(),
-                    cg_plane.as_mut_ptr(),
-                    co_plane.as_mut_ptr(),
-                    rgba,
-                    y_offset,
-                    cg_offset,
-                    co_offset,
-                    rgba_offset,
-                    cx,
-                    ux,
-                    image.width as usize,
-                    compute_uv_row,
-                );
-                cx = processed_offset.cx;
-                ux = processed_offset.ux;
+                unsafe {
+                    let processed_offset = avx512_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane.as_mut_ptr(),
+                        cg_plane.as_mut_ptr(),
+                        co_plane.as_mut_ptr(),
+                        rgba,
+                        y_offset,
+                        cg_offset,
+                        co_offset,
+                        rgba_offset,
+                        cx,
+                        ux,
+                        image.width as usize,
+                        compute_uv_row,
+                    );
+                    cx = processed_offset.cx;
+                    ux = processed_offset.ux;
+                }
             }
+            #[cfg(feature = "avx")]
             if _use_avx {
-                let processed_offset = avx2_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane.as_mut_ptr(),
-                    cg_plane.as_mut_ptr(),
-                    co_plane.as_mut_ptr(),
-                    rgba,
-                    y_offset,
-                    cg_offset,
-                    co_offset,
-                    rgba_offset,
-                    cx,
-                    ux,
-                    image.width as usize,
-                    compute_uv_row,
-                );
-                cx = processed_offset.cx;
-                ux = processed_offset.ux;
+                unsafe {
+                    use crate::avx2::avx2_rgb_to_ycgco_row;
+                    let processed_offset = avx2_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane.as_mut_ptr(),
+                        cg_plane.as_mut_ptr(),
+                        co_plane.as_mut_ptr(),
+                        rgba,
+                        y_offset,
+                        cg_offset,
+                        co_offset,
+                        rgba_offset,
+                        cx,
+                        ux,
+                        image.width as usize,
+                        compute_uv_row,
+                    );
+                    cx = processed_offset.cx;
+                    ux = processed_offset.ux;
+                }
             }
+            #[cfg(feature = "sse")]
             if _use_sse {
-                let processed_offset = sse_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
-                    &range,
-                    y_plane.as_mut_ptr(),
-                    cg_plane.as_mut_ptr(),
-                    co_plane.as_mut_ptr(),
-                    rgba,
-                    y_offset,
-                    cg_offset,
-                    co_offset,
-                    rgba_offset,
-                    cx,
-                    ux,
-                    image.width as usize,
-                    compute_uv_row,
-                );
-                cx = processed_offset.cx;
-                ux = processed_offset.ux;
+                unsafe {
+                    use crate::sse::sse_rgb_to_ycgco_row;
+                    let processed_offset = sse_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
+                        &range,
+                        y_plane.as_mut_ptr(),
+                        cg_plane.as_mut_ptr(),
+                        co_plane.as_mut_ptr(),
+                        rgba,
+                        y_offset,
+                        cg_offset,
+                        co_offset,
+                        rgba_offset,
+                        cx,
+                        ux,
+                        image.width as usize,
+                        compute_uv_row,
+                    );
+                    cx = processed_offset.cx;
+                    ux = processed_offset.ux;
+                }
             }
         }
 

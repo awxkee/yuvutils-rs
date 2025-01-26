@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::avx_yuv_p16_to_rgba_row;
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -37,10 +35,8 @@ use crate::avx512bw::avx512_yuv_p16_to_rgba16_row;
 use crate::internals::ProcessedOffset;
 use crate::internals::WideRowInversionHandler;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{neon_yuv_p16_to_rgba16_row, neon_yuv_p16_to_rgba16_row_rdm};
+use crate::neon::neon_yuv_p16_to_rgba16_row;
 use crate::numerics::{qrshr, to_ne};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::sse_yuv_p16_to_rgba_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_yuv_range, search_inverse_transform, CbCrInverseTransform, YuvBytesPacking, YuvChromaRange,
@@ -104,18 +100,37 @@ impl<
         let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         if is_rdm_available && BIT_DEPTH <= 12 {
-            return WideRowAnyHandler {
-                handler: Some(
-                    neon_yuv_p16_to_rgba16_row_rdm::<
-                        DESTINATION_CHANNELS,
-                        SAMPLING,
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        PRECISION,
-                        BIT_DEPTH,
-                    >,
-                ),
-            };
+            #[cfg(feature = "rdm")]
+            {
+                use crate::neon::neon_yuv_p16_to_rgba16_row_rdm;
+                return WideRowAnyHandler {
+                    handler: Some(
+                        neon_yuv_p16_to_rgba16_row_rdm::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            PRECISION,
+                            BIT_DEPTH,
+                        >,
+                    ),
+                };
+            }
+            #[cfg(not(feature = "rdm"))]
+            {
+                return WideRowAnyHandler {
+                    handler: Some(
+                        neon_yuv_p16_to_rgba16_row::<
+                            DESTINATION_CHANNELS,
+                            SAMPLING,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            PRECISION,
+                            BIT_DEPTH,
+                        >,
+                    ),
+                };
+            }
         } else if BIT_DEPTH <= 12 {
             return WideRowAnyHandler {
                 handler: Some(
@@ -132,7 +147,9 @@ impl<
         };
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "sse")]
             let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+            #[cfg(feature = "avx")]
             let use_avx = std::arch::is_x86_feature_detected!("avx2");
             #[cfg(feature = "nightly_avx512")]
             let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
@@ -151,7 +168,9 @@ impl<
                     ),
                 };
             }
+            #[cfg(feature = "avx")]
             if use_avx && BIT_DEPTH <= 12 {
+                use crate::avx2::avx_yuv_p16_to_rgba_row;
                 return WideRowAnyHandler {
                     handler: Some(
                         avx_yuv_p16_to_rgba_row::<
@@ -165,7 +184,9 @@ impl<
                     ),
                 };
             }
+            #[cfg(feature = "sse")]
             if use_sse && BIT_DEPTH <= 12 {
+                use crate::sse::sse_yuv_p16_to_rgba_row;
                 return WideRowAnyHandler {
                     handler: Some(
                         sse_yuv_p16_to_rgba_row::<

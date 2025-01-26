@@ -74,26 +74,36 @@ impl<const SRC: u8, const DST: u8> ShuffleConverter<u8, SRC, DST>
 impl ShuffleConverterFactory<u8> for u8 {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn make_converter<const SRC: u8, const DST: u8>() -> Box<dyn ShuffleConverter<u8, SRC, DST>> {
-        use crate::avx2::{ShuffleConverterAvx2, ShuffleQTableConverterAvx2};
-        use crate::sse::{ShuffleConverterSse, ShuffleQTableConverterSse};
-        let mut converter: Box<dyn ShuffleConverter<u8, SRC, DST>> =
+        let mut _converter: Box<dyn ShuffleConverter<u8, SRC, DST>> =
             Box::new(Rgba8DefaultConverter::default());
-        let src_channels: YuvSourceChannels = SRC.into();
-        let dst_channels: YuvSourceChannels = DST.into();
+        #[cfg(feature = "avx")]
         if std::arch::is_x86_feature_detected!("avx2") {
+            let src_channels: YuvSourceChannels = SRC.into();
+            let dst_channels: YuvSourceChannels = DST.into();
+            use crate::avx2::{ShuffleConverterAvx2, ShuffleQTableConverterAvx2};
             if src_channels.get_channels_count() == 4 && dst_channels.get_channels_count() == 4 {
-                converter = Box::new(ShuffleQTableConverterAvx2::<SRC, DST>::create());
+                _converter = Box::new(ShuffleQTableConverterAvx2::<SRC, DST>::create());
             } else {
-                converter = Box::new(ShuffleConverterAvx2::<SRC, DST>::default());
+                _converter = Box::new(ShuffleConverterAvx2::<SRC, DST>::default());
             }
-        } else if std::arch::is_x86_feature_detected!("sse4.1") {
-            if src_channels.get_channels_count() == 4 && dst_channels.get_channels_count() == 4 {
-                converter = Box::new(ShuffleQTableConverterSse::<SRC, DST>::create());
-            } else {
-                converter = Box::new(ShuffleConverterSse::<SRC, DST>::default());
+            return _converter;
+        }
+        #[cfg(feature = "sse")]
+        {
+            use crate::sse::{ShuffleConverterSse, ShuffleQTableConverterSse};
+            let src_channels: YuvSourceChannels = SRC.into();
+            let dst_channels: YuvSourceChannels = DST.into();
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                if src_channels.get_channels_count() == 4 && dst_channels.get_channels_count() == 4
+                {
+                    _converter = Box::new(ShuffleQTableConverterSse::<SRC, DST>::create());
+                } else {
+                    _converter = Box::new(ShuffleConverterSse::<SRC, DST>::default());
+                }
+                return _converter;
             }
         }
-        converter
+        _converter
     }
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

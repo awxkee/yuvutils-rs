@@ -27,13 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![forbid(unsafe_code)]
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::neon::{yuv_to_rgba_row_full, yuv_to_rgba_row_limited, yuv_to_rgba_row_limited_rdm};
 use crate::numerics::qrshr;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_yuv_to_rgba_row_full, sse_yuv_to_rgba_row_limited};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImage, YuvRange};
@@ -68,9 +64,9 @@ impl<T> Default for WideRowGbrProcessor<T> {
 
 struct WideRowGbrLimitedProcessor<T> {
     _phantom: PhantomData<T>,
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     _use_sse: bool,
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
     _use_avx: bool,
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     _use_rdm: bool,
@@ -80,9 +76,9 @@ impl<T> Default for WideRowGbrLimitedProcessor<T> {
     fn default() -> Self {
         WideRowGbrLimitedProcessor {
             _phantom: PhantomData,
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
             _use_sse: std::arch::is_x86_feature_detected!("sse4.1"),
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
             _use_avx: std::arch::is_x86_feature_detected!("avx2"),
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             _use_rdm: std::arch::is_aarch64_feature_detected!("rdm"),
@@ -129,12 +125,16 @@ impl FullRangeWideRow<u8> for WideRowGbrProcessor<u8> {
         let mut _cx = _start_cx;
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "avx")]
             if self._use_avx {
+                use crate::avx2::avx_yuv_to_rgba_row_full;
                 _cx = avx_yuv_to_rgba_row_full::<DEST>(
                     _g_plane, _b_plane, _r_plane, _rgba, _cx, _width,
                 );
             }
+            #[cfg(feature = "sse")]
             if self._use_sse {
+                use crate::sse::sse_yuv_to_rgba_row_full;
                 _cx = sse_yuv_to_rgba_row_full::<DEST>(
                     _g_plane, _b_plane, _r_plane, _rgba, _cx, _width,
                 );
@@ -177,12 +177,16 @@ impl LimitedRangeWideRow<u8> for WideRowGbrLimitedProcessor<u8> {
         let mut _cx = _start_cx;
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
+            #[cfg(feature = "avx")]
             if self._use_avx {
+                use crate::avx2::avx_yuv_to_rgba_row_limited;
                 _cx = avx_yuv_to_rgba_row_limited::<DEST>(
                     _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
                 );
             }
+            #[cfg(feature = "sse")]
             if self._use_sse {
+                use crate::sse::sse_yuv_to_rgba_row_limited;
                 _cx = sse_yuv_to_rgba_row_limited::<DEST>(
                     _g_plane, _b_plane, _r_plane, _rgba, _cx, _width, _y_bias, _y_coeff,
                 );

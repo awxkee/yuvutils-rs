@@ -26,8 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::avx2::{avx2_rgba_to_nv, avx2_rgba_to_nv420};
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),
     feature = "nightly_avx512"
@@ -38,12 +36,7 @@ use crate::internals::{
     ProcessedOffset, WideRowForwardBiPlanar420Handler, WideRowForwardBiPlanarHandler,
 };
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::{
-    neon_rgbx_to_nv_row, neon_rgbx_to_nv_row420, neon_rgbx_to_nv_row_rdm,
-    neon_rgbx_to_nv_row_rdm420,
-};
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::sse::{sse_rgba_to_nv_row, sse_rgba_to_nv_row420};
+use crate::neon::{neon_rgbx_to_nv_row, neon_rgbx_to_nv_row420};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::YuvError;
@@ -109,6 +102,7 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_nv_fast_rgba420;
                     return SemiPlanar420Encoder {
@@ -116,11 +110,14 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                     };
                 }
 
-                if std::arch::is_x86_feature_detected!("sse4.1") {
-                    use crate::sse::sse_rgba_to_nv_fast_rgba420;
-                    return SemiPlanar420Encoder {
-                        handler: Some(sse_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
-                    };
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_nv_fast_rgba420;
+                        return SemiPlanar420Encoder {
+                            handler: Some(sse_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
+                        };
+                    }
                 }
             }
         }
@@ -132,17 +129,21 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                SemiPlanar420Encoder {
-                    handler: Some(
-                        neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
-                    ),
+            #[cfg(feature = "rdm")]
+            {
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                use crate::neon::neon_rgbx_to_nv_row_rdm420;
+                if is_rdm_available {
+                    return SemiPlanar420Encoder {
+                        handler: Some(
+                            neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
+                        ),
+                    };
                 }
-            } else {
-                SemiPlanar420Encoder {
-                    handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
-                }
+            }
+
+            SemiPlanar420Encoder {
+                handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -168,17 +169,27 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                 }
             }
 
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                return SemiPlanar420Encoder {
-                    handler: Some(avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::avx2_rgba_to_nv420;
+                    return SemiPlanar420Encoder {
+                        handler: Some(avx2_rgba_to_nv420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+                    };
+                }
             }
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return SemiPlanar420Encoder {
-                    handler: Some(sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                use crate::sse::sse_rgba_to_nv_row420;
+                if use_sse {
+                    return SemiPlanar420Encoder {
+                        handler: Some(
+                            sse_rgba_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
+                        ),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
@@ -264,6 +275,7 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_nv_fast_rgba;
                     return SemiPlanarEncoder {
@@ -273,13 +285,16 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                     };
                 }
 
-                if std::arch::is_x86_feature_detected!("sse4.1") {
-                    use crate::sse::sse_rgba_to_nv_fast_rgba;
-                    return SemiPlanarEncoder {
-                        handler: Some(
-                            sse_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
-                        ),
-                    };
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_nv_fast_rgba;
+                        return SemiPlanarEncoder {
+                            handler: Some(
+                                sse_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                            ),
+                        };
+                    }
                 }
             }
         }
@@ -291,38 +306,50 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
 
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-            if is_rdm_available {
-                SemiPlanarEncoder {
-                    handler: Some(
-                        neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
+            #[cfg(feature = "rdm")]
+            {
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                use crate::neon::neon_rgbx_to_nv_row_rdm;
+                if is_rdm_available {
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            neon_rgbx_to_nv_row_rdm::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
                 }
-            } else {
-                SemiPlanarEncoder {
-                    handler: Some(
-                        neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
-                }
+            }
+
+            SemiPlanarEncoder {
+                handler: Some(
+                    neon_rgbx_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                ),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx2 {
-                return SemiPlanarEncoder {
-                    handler: Some(
-                        avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::avx2_rgba_to_nv;
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            avx2_rgba_to_nv::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
+                }
             }
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-            if use_sse {
-                return SemiPlanarEncoder {
-                    handler: Some(
-                        sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
-                    ),
-                };
+            #[cfg(feature = "sse")]
+            {
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                use crate::sse::sse_rgba_to_nv_row;
+                if use_sse {
+                    return SemiPlanarEncoder {
+                        handler: Some(
+                            sse_rgba_to_nv_row::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
+                }
             }
         }
         #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
