@@ -706,6 +706,9 @@ pub(crate) fn search_inverse_transform(
     }
 }
 
+/// Declares YUV conversion accuracy mode
+///
+/// In common case, each step for increasing accuracy have at least 30% slowdown.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
 pub enum YuvConversionMode {
     /// Minimal precision, but the fastest option. Same as libyuv does use.

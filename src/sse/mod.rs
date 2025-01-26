@@ -30,10 +30,18 @@
 mod gbr_to_rgb;
 mod rgb_to_nv;
 mod rgb_to_nv420;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_nv420_prof;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_nv_prof;
 mod rgb_to_y;
 mod rgb_to_ycgco;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_yuv420_prof;
 mod rgb_to_yuv_p16;
 mod rgb_to_yuv_p16_420;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_yuv_prof;
 #[cfg(feature = "fast_mode")]
 mod rgba_to_nv_fast;
 #[cfg(feature = "fast_mode")]
@@ -74,10 +82,18 @@ mod yuy2_to_yuv;
 pub(crate) use gbr_to_rgb::{sse_yuv_to_rgba_row_full, sse_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::sse_rgba_to_nv_row;
 pub(crate) use rgb_to_nv420::sse_rgba_to_nv_row420;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_nv420_prof::sse_rgba_to_nv420_prof;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_nv_prof::sse_rgba_to_nv_prof;
 pub(crate) use rgb_to_y::sse_rgb_to_y;
 pub(crate) use rgb_to_ycgco::sse_rgb_to_ycgco_row;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_yuv420_prof::sse_rgba_to_yuv420_prof;
 pub(crate) use rgb_to_yuv_p16::sse_rgba_to_yuv_p16;
 pub(crate) use rgb_to_yuv_p16_420::sse_rgba_to_yuv_p16_420;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_yuv_prof::sse_rgba_to_yuv_prof;
 #[cfg(feature = "fast_mode")]
 pub(crate) use rgba_to_nv_fast::sse_rgba_to_nv_fast_rgba;
 #[cfg(feature = "fast_mode")]

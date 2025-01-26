@@ -287,6 +287,28 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                     handler: Some(neon_rgba_to_yuv_prof::<ORIGIN_CHANNELS, SAMPLING>),
                 };
             }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx2_rgba_to_yuv_prof;
+                        return RgbEncoderProfessional {
+                            handler: Some(
+                                avx2_rgba_to_yuv_prof::<ORIGIN_CHANNELS, SAMPLING, PRECISION>,
+                            ),
+                        };
+                    }
+                }
+                #[cfg(feature = "sse")]
+                if std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_rgba_to_yuv_prof;
+                    return RgbEncoderProfessional {
+                        handler: Some(sse_rgba_to_yuv_prof::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
+                    };
+                }
+            }
         }
         RgbEncoderProfessional { handler: None }
     }
@@ -523,6 +545,26 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
                 return RgbEncoder420Professional {
                     handler: Some(neon_rgba_to_yuv_prof420::<ORIGIN_CHANNELS>),
                 };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx2_rgba_to_yuv420_prof;
+                        return RgbEncoder420Professional {
+                            handler: Some(avx2_rgba_to_yuv420_prof::<ORIGIN_CHANNELS, PRECISION>),
+                        };
+                    }
+                }
+                #[cfg(feature = "sse")]
+                if std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_rgba_to_yuv420_prof;
+                    return RgbEncoder420Professional {
+                        handler: Some(sse_rgba_to_yuv420_prof::<ORIGIN_CHANNELS, PRECISION>),
+                    };
+                }
             }
         }
 

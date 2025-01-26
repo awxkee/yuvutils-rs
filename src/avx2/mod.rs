@@ -34,10 +34,18 @@ mod f16_converter;
 mod gbr_to_rgb;
 mod rgb_to_nv;
 mod rgb_to_nv420;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_nv420_prof;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_nv_prof;
 mod rgb_to_y;
 mod rgb_to_ycgco;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_yuv420_prof;
 mod rgb_to_yuv_p16;
 mod rgb_to_yuv_p16_420;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_yuv_prof;
 #[cfg(feature = "fast_mode")]
 mod rgba_to_nv_fast;
 #[cfg(feature = "fast_mode")]
@@ -77,10 +85,18 @@ pub(crate) use f16_converter::{SurfaceU16ToFloat16Avx2, SurfaceU8ToFloat16Avx2};
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
 pub(crate) use rgb_to_nv::avx2_rgba_to_nv;
 pub(crate) use rgb_to_nv420::avx2_rgba_to_nv420;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_nv420_prof::avx2_rgba_to_nv420_prof;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_nv_prof::avx2_rgba_to_nv_prof;
 pub(crate) use rgb_to_y::avx2_rgb_to_y_row;
 pub(crate) use rgb_to_ycgco::avx2_rgb_to_ycgco_row;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_yuv420_prof::avx2_rgba_to_yuv420_prof;
 pub(crate) use rgb_to_yuv_p16::avx_rgba_to_yuv_p16;
 pub(crate) use rgb_to_yuv_p16_420::avx_rgba_to_yuv_p16_420;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_yuv_prof::avx2_rgba_to_yuv_prof;
 #[cfg(feature = "fast_mode")]
 pub(crate) use rgba_to_nv_fast::avx2_rgba_to_nv_fast_rgba;
 #[cfg(feature = "fast_mode")]
