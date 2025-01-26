@@ -80,7 +80,7 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
 
     let precision_uv = match chroma_subsampling {
         YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => PRECISION + 1,
-        YuvChromaSubsampling::Yuv444 => PRECISION
+        YuvChromaSubsampling::Yuv444 => PRECISION,
     };
     let rounding_const_uv = 1 << (precision_uv - 1) - 1;
 
@@ -123,7 +123,7 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PR
         let cr_l =
             _mm_affine_uv_dot::<PRECISION>(uv_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_cr_r_g, v_cr_b);
         let cr_h =
-            _mm_affine_uv_dot::<PRECISION>(uv_bias, rl_gh0, rl_gh1, b_h0, b_h1,  v_cr_r_g, v_cr_b);
+            _mm_affine_uv_dot::<PRECISION>(uv_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_cr_r_g, v_cr_b);
 
         let cb = _mm_packus_epi16(cb_l, cb_h);
         let cr = _mm_packus_epi16(cr_l, cr_h);

@@ -422,11 +422,11 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
 
         let r_high0 = vdotl_laneq_s16::<PRECISION, 1>(y_high0, v_high, v_weights);
         let b_high0 = vdotl_laneq_s16::<PRECISION, 2>(y_high0, u_high, v_weights);
-        let g_high0 = vaddn_dot::<PRECISION>(y_high0, g_coeff_hi);
+        let g_high0 = vraddn_dot::<PRECISION>(y_high0, g_coeff_hi);
 
         let r_high1 = vdotl_laneq_s16::<PRECISION, 1>(y_high1, v_high, v_weights);
         let b_high1 = vdotl_laneq_s16::<PRECISION, 2>(y_high1, u_high, v_weights);
-        let g_high1 = vaddn_dot::<PRECISION>(y_high1, g_coeff_hi);
+        let g_high1 = vraddn_dot::<PRECISION>(y_high1, g_coeff_hi);
 
         let u_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(u_low_u8)), uv_corr);
         let v_low = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(v_low_u8)), uv_corr);
@@ -444,11 +444,11 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
 
         let r_low0 = vdotl_laneq_s16::<PRECISION, 1>(y_low0, v_low, v_weights);
         let b_low0 = vdotl_laneq_s16::<PRECISION, 2>(y_low0, u_low, v_weights);
-        let g_low0 = vaddn_dot::<PRECISION>(y_low0, g_coeff_lo);
+        let g_low0 = vraddn_dot::<PRECISION>(y_low0, g_coeff_lo);
 
         let r_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, v_low, v_weights);
         let b_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, u_low, v_weights);
-        let g_low1 = vaddn_dot::<PRECISION>(y_low1, g_coeff_lo);
+        let g_low1 = vraddn_dot::<PRECISION>(y_low1, g_coeff_lo);
 
         let r_values0 = vcombine_u8(vqmovun_s16(r_low0), vqmovun_s16(r_high0));
         let g_values0 = vcombine_u8(vqmovun_s16(g_low0), vqmovun_s16(g_high0));
@@ -502,11 +502,11 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
 
         let r_low0 = vdotl_laneq_s16::<PRECISION, 1>(y_low0, v_low, v_weights);
         let b_low0 = vdotl_laneq_s16::<PRECISION, 2>(y_low0, u_low, v_weights);
-        let g_low0 = vaddn_dot::<PRECISION>(y_low0, g_coeff_lo);
+        let g_low0 = vraddn_dot::<PRECISION>(y_low0, g_coeff_lo);
 
         let r_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, v_low, v_weights);
         let b_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, u_low, v_weights);
-        let g_low1 = vaddn_dot::<PRECISION>(y_low1, g_coeff_lo);
+        let g_low1 = vraddn_dot::<PRECISION>(y_low1, g_coeff_lo);
 
         let r_values0 = vqmovun_s16(r_low0);
         let g_values0 = vqmovun_s16(g_low0);
@@ -597,11 +597,11 @@ pub(crate) unsafe fn neon_yuv_to_rgba_row420<
 
         let r_low0 = vdotl_laneq_s16::<PRECISION, 1>(y_low0, v_low, v_weights);
         let b_low0 = vdotl_laneq_s16::<PRECISION, 2>(y_low0, u_low, v_weights);
-        let g_low0 = vaddn_dot::<PRECISION>(y_low0, g_coeff_lo);
+        let g_low0 = vraddn_dot::<PRECISION>(y_low0, g_coeff_lo);
 
         let r_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, v_low, v_weights);
         let b_low1 = vdotl_laneq_s16::<PRECISION, 1>(y_low1, u_low, v_weights);
-        let g_low1 = vaddn_dot::<PRECISION>(y_low1, g_coeff_lo);
+        let g_low1 = vraddn_dot::<PRECISION>(y_low1, g_coeff_lo);
 
         let r_values0 = vqmovun_s16(r_low0);
         let g_values0 = vqmovun_s16(g_low0);

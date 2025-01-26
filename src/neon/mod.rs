@@ -76,6 +76,10 @@ mod yuv_nv_p10_to_rgba;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
+#[cfg(feature = "professional_mode")]
+mod yuv_nv_to_rgba420_prof;
+#[cfg(feature = "professional_mode")]
+mod yuv_nv_to_rgba_prof;
 #[cfg(feature = "fast_mode")]
 mod yuv_nv_to_rgbx_fast;
 #[cfg(feature = "fast_mode")]
@@ -166,6 +170,10 @@ pub(crate) use yuv_nv_to_rgba::neon_yuv_nv_to_rgba_row_rdm;
 pub(crate) use yuv_nv_to_rgba420::neon_yuv_nv_to_rgba_row420;
 #[cfg(feature = "rdm")]
 pub(crate) use yuv_nv_to_rgba420::neon_yuv_nv_to_rgba_row_rdm420;
+#[cfg(feature = "professional_mode")]
+pub(crate) use yuv_nv_to_rgba420_prof::neon_yuv_nv_to_rgba_row420_prof;
+#[cfg(feature = "professional_mode")]
+pub(crate) use yuv_nv_to_rgba_prof::neon_yuv_nv_to_rgba_row_prof;
 #[cfg(feature = "fast_mode")]
 pub(crate) use yuv_nv_to_rgbx_fast::neon_yuv_nv_to_rgba_fast_row;
 #[cfg(feature = "fast_mode")]

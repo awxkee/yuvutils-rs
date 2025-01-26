@@ -91,7 +91,7 @@ unsafe fn encode_32_part<
 
     let precision_uv = match chroma_subsampling {
         YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => PRECISION + 1,
-        YuvChromaSubsampling::Yuv444 => PRECISION
+        YuvChromaSubsampling::Yuv444 => PRECISION,
     };
     let rounding_const_uv = 1 << (precision_uv - 1) - 1;
 

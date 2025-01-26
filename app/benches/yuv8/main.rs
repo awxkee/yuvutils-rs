@@ -582,6 +582,21 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("yuvutils YUV NV12 -> RGB Professional", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 3 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv_nv12_to_rgb(
+                &fixed_bi_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 3u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Professional,
+            )
+            .unwrap();
+        })
+    });
+
     c.bench_function("yuvutils YUV NV12 -> RGBA Fast", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {

@@ -242,7 +242,7 @@ pub(crate) unsafe fn neon_rgba_to_nv_prof<
         assert!(diff <= 16);
         let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
         let mut y_buffer: [u8; 16] = [0; 16];
-        let mut uv_buffer: [u8; 16] = [0; 16];
+        let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
