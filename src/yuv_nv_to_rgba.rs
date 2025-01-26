@@ -83,6 +83,23 @@ impl<
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx_yuv_nv_to_rgba_fast;
+                        return NVRowHandler {
+                            handler: Some(
+                                avx_yuv_nv_to_rgba_fast::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
+
                 #[cfg(feature = "sse")]
                 {
                     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -370,6 +387,19 @@ impl<
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx_yuv_nv_to_rgba_fast420;
+                        return NVRow420Handler {
+                            handler: Some(
+                                avx_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+
                 #[cfg(feature = "sse")]
                 {
                     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
