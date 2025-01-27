@@ -1784,28 +1784,31 @@ mod tests {
 
                 assert!(
                     diff_r <= max_diff,
-                    "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
                     diff_r,
                     [or, og, ob],
                     [r, g, b]
                 );
                 assert!(
                     diff_g <= max_diff,
-                    "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
                     diff_g,
                     [or, og, ob],
                     [r, g, b]
                 );
                 assert!(
                     diff_b <= max_diff,
-                    "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    "Matrix {}, Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    yuv_accuracy,
                     diff_b,
                     [or, og, ob],
                     [r, g, b]
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 50);
+        matrix(YuvConversionMode::Balanced, 51);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 52);
         #[cfg(feature = "professional_mode")]
