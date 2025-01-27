@@ -356,6 +356,22 @@ impl<
                         };
                     }
                 }
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_row_prof;
+                        return NVRowHandlerProfessional {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_row_prof::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
             }
         }
 
@@ -681,6 +697,18 @@ impl<
                         return NVRow420HandlerProfessional {
                             handler: Some(
                                 avx2_yuv_nv_to_rgba_row420_prof::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_row420_prof;
+                        return NVRow420HandlerProfessional {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_row420_prof::<UV_ORDER, DESTINATION_CHANNELS>,
                             ),
                         };
                     }

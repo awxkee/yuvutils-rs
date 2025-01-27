@@ -876,3 +876,13 @@ pub(crate) unsafe fn _mm_set4r_epi(e0: i8, e1: i8, e2: i8, e3: i8) -> __m128i {
         e0, e1, e2, e3, e0, e1, e2, e3, e0, e1, e2, e3, e0, e1, e2, e3,
     )
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_mul_add_epi16(accumulator: __m128i, v0: __m128i, w0: __m128i) -> __m128i {
+    _mm_add_epi32(accumulator, _mm_madd_epi16(v0, w0))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_mul_sub_epi16(accumulator: __m128i, v0: __m128i, w0: __m128i) -> __m128i {
+    _mm_sub_epi32(accumulator, _mm_madd_epi16(v0, w0))
+}

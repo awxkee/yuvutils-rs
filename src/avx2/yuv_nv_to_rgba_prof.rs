@@ -99,7 +99,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl_prof<
     let g_trn1 = transform.g_coeff_1;
     let g_trn2 = transform.g_coeff_2;
     let v_g_coeff_1 = if order == YuvNVOrder::VU {
-        _mm256_set1_epi32((((g_trn1 as u32) << 16) | (g_trn2 as u32)) as i32)
+        _mm256_set1_epi32((((g_trn2 as u32) << 16) | (g_trn1 as u32)) as i32)
     } else {
         _mm256_set1_epi32((((g_trn1 as u32) << 16) | (g_trn2 as u32)) as i32)
     };
