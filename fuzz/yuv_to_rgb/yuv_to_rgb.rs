@@ -30,17 +30,11 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
-    yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgb, yuv422_to_rgba, yuv444_to_rgb, yuv444_to_rgba,
-    YuvPlanarImage, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{yuv420_to_rgb, yuv420_to_rgba, yuv420_with_alpha_to_rgba, yuv422_to_rgb, yuv422_to_rgba, yuv422_with_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba, yuv444_with_alpha_to_rgba, YuvPlanarImage, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix};
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
     fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4);
-    fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4);
     fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4);
-    fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4);
-    fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4);
     fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4);
 });
 
@@ -49,6 +43,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         return;
     }
     let y_plane = vec![y_value; i_height as usize * i_width as usize];
+    let a_plane = vec![y_value; i_height as usize * i_width as usize];
     let u_plane = vec![u_value; (i_width as usize).div_ceil(2) * (i_height as usize).div_ceil(2)];
     let v_plane = vec![v_value; (i_width as usize).div_ceil(2) * (i_height as usize).div_ceil(2)];
 
@@ -84,6 +79,28 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+
+    let planar_image_with_alpha = YuvPlanarImageWithAlpha {
+        y_plane: &y_plane,
+        y_stride: i_width as u32,
+        u_plane: &u_plane,
+        u_stride: (i_width as u32).div_ceil(2),
+        v_plane: &v_plane,
+        v_stride: (i_width as u32).div_ceil(2),
+        a_plane: &a_plane,
+        a_stride: i_width as u32,
+        width: i_width as u32,
+        height: i_height as u32,
+    };
+
+    yuv420_with_alpha_to_rgba(
+        &planar_image_with_alpha,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+        false,
+    ).unwrap();
 }
 
 fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
@@ -91,6 +108,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         return;
     }
     let y_plane = vec![y_value; i_height as usize * i_width as usize];
+    let a_plane = vec![y_value; i_height as usize * i_width as usize];
     let u_plane = vec![u_value; (i_width as usize).div_ceil(2) * i_height as usize];
     let v_plane = vec![v_value; (i_width as usize).div_ceil(2) * i_height as usize];
 
@@ -126,6 +144,28 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+
+    let planar_image_with_alpha = YuvPlanarImageWithAlpha {
+        y_plane: &y_plane,
+        y_stride: i_width as u32,
+        u_plane: &u_plane,
+        u_stride: (i_width as u32).div_ceil(2),
+        v_plane: &v_plane,
+        v_stride: (i_width as u32).div_ceil(2),
+        a_plane: &a_plane,
+        a_stride: i_width as u32,
+        width: i_width as u32,
+        height: i_height as u32,
+    };
+
+    yuv422_with_alpha_to_rgba(
+        &planar_image_with_alpha,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+        false,
+    ).unwrap();
 }
 
 fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
@@ -133,6 +173,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         return;
     }
     let y_plane = vec![y_value; i_height as usize * i_width as usize];
+    let a_plane = vec![y_value; i_height as usize * i_width as usize];
     let u_plane = vec![u_value; i_width as usize * i_height as usize];
     let v_plane = vec![v_value; i_width as usize * i_height as usize];
 
@@ -168,4 +209,26 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+
+    let planar_image_with_alpha = YuvPlanarImageWithAlpha {
+        y_plane: &y_plane,
+        y_stride: i_width as u32,
+        u_plane: &u_plane,
+        u_stride: i_width as u32,
+        v_plane: &v_plane,
+        v_stride: i_width as u32,
+        a_plane: &a_plane,
+        a_stride: i_width as u32,
+        width: i_width as u32,
+        height: i_height as u32,
+    };
+
+    yuv444_with_alpha_to_rgba(
+        &planar_image_with_alpha,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+        false,
+    ).unwrap();
 }

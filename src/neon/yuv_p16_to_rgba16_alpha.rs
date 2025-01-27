@@ -472,31 +472,20 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
         let a_values0 = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
         let a_values1 = vld1q_u16(a_ld_ptr.get_unchecked((cx + 8)..).as_ptr());
 
-        let r_values0 = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(r_vals0, zeros)),
-            v_max_values,
-        );
-        let g_values0 = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(g_vals0, zeros)),
-            v_max_values,
-        );
-        let b_values0 = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(b_vals0, zeros)),
-            v_max_values,
-        );
+        let rlv0 = vmaxq_s16(r_vals0, zeros);
+        let glv0 = vmaxq_s16(g_vals0, zeros);
+        let blv0 = vmaxq_s16(b_vals0, zeros);
+        let rlv1 = vmaxq_s16(r_vals1, zeros);
+        let glv1 = vmaxq_s16(g_vals1, zeros);
+        let blv1 = vmaxq_s16(b_vals1, zeros);
 
-        let r_values1 = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(r_vals1, zeros)),
-            v_max_values,
-        );
-        let g_values1 = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(g_vals1, zeros)),
-            v_max_values,
-        );
-        let b_values1 = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(b_vals1, zeros)),
-            v_max_values,
-        );
+        let r_values0 = vminq_u16(vreinterpretq_u16_s16(rlv0), v_max_values);
+        let g_values0 = vminq_u16(vreinterpretq_u16_s16(glv0), v_max_values);
+        let b_values0 = vminq_u16(vreinterpretq_u16_s16(blv0), v_max_values);
+
+        let r_values1 = vminq_u16(vreinterpretq_u16_s16(rlv1), v_max_values);
+        let g_values1 = vminq_u16(vreinterpretq_u16_s16(glv1), v_max_values);
+        let b_values1 = vminq_u16(vreinterpretq_u16_s16(blv1), v_max_values);
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
             rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
@@ -583,18 +572,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
             v_weights,
         );
 
-        let r_values = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(r_vals, zeros)),
-            v_max_values,
-        );
-        let g_values = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(g_vals, zeros)),
-            v_max_values,
-        );
-        let b_values = vminq_u16(
-            vreinterpretq_u16_s16(vmaxq_s16(b_vals, zeros)),
-            v_max_values,
-        );
+        let rlv = vmaxq_s16(r_vals, zeros);
+        let glv = vmaxq_s16(g_vals, zeros);
+        let blv = vmaxq_s16(b_vals, zeros);
+
+        let r_values = vminq_u16(vreinterpretq_u16_s16(rlv), v_max_values);
+        let g_values = vminq_u16(vreinterpretq_u16_s16(glv), v_max_values);
+        let b_values = vminq_u16(vreinterpretq_u16_s16(blv), v_max_values);
 
         let v_alpha = a_values_l;
 

@@ -107,9 +107,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
         let gpv = vpaddlq_u8(ghv);
         let bpv = vpaddlq_u8(bhv);
 
-        let rpv = vqrshrn_n_u16::<1>(rpv);
-        let gpv = vqrshrn_n_u16::<1>(gpv);
-        let bpv = vqrshrn_n_u16::<1>(bpv);
+        let rpv = vqshrn_n_u16::<1>(rpv);
+        let gpv = vqshrn_n_u16::<1>(gpv);
+        let bpv = vqshrn_n_u16::<1>(bpv);
 
         let mut cb_q = vmlal_u8(uv_bias, bpv, v_cb_b);
         let mut cr_q = vmlal_u8(uv_bias, rpv, v_cr_r);
@@ -210,9 +210,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
         let gpv = vpaddlq_u8(ghv);
         let bpv = vpaddlq_u8(bhv);
 
-        let rpv = vqrshrn_n_u16::<1>(rpv);
-        let gpv = vqrshrn_n_u16::<1>(gpv);
-        let bpv = vqrshrn_n_u16::<1>(bpv);
+        let rpv = vqshrn_n_u16::<1>(rpv);
+        let gpv = vqshrn_n_u16::<1>(gpv);
+        let bpv = vqshrn_n_u16::<1>(bpv);
 
         let mut cb_q = vmlal_u8(uv_bias, bpv, v_cb_b);
         let mut cr_q = vmlal_u8(uv_bias, rpv, v_cr_r);
