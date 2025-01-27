@@ -567,8 +567,8 @@ fn rgbx_to_nv_impl<
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    semi_planar_handler: impl WideRowForwardBiPlanarHandler<u8, i32>,
-    semi_planar_handler420: impl WideRowForwardBiPlanar420Handler<u8, i32>,
+    semi_planar_handler: impl WideRowForwardBiPlanarHandler<u8, i32> + Send + Sync,
+    semi_planar_handler420: impl WideRowForwardBiPlanar420Handler<u8, i32> + Send + Sync,
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();

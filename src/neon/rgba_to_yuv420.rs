@@ -517,7 +517,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv420<const ORIGIN_CHANNELS: u8>(
 
     const PRECISION: i32 = 13;
 
-    let rounding_const_bias: i32 = 1 << (PRECISION - 1) - 1;
+    let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 

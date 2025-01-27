@@ -728,9 +728,7 @@ pub enum YuvConversionMode {
     /// high precision.
     #[default]
     Balanced,
-    /// Maximises quality and lossless instead of speed.
-    /// Currently, only encoding is supported. When used on unsupported method [YuvConversionMode::Balanced]
-    /// will be used instead.
+    /// Maximizes quality and precision over speed while maintaining reasonable performance.
     #[cfg(feature = "professional_mode")]
     Professional,
 }

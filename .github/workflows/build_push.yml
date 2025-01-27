@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo clippy
+      - run: cargo clippy --all-features -- -D warnings
 
   clippy_x86_nightly:
     name: Clippy x86 Nightly
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: rustup component add clippy
-      - run: cargo clippy --features nightly_avx512
+      - run: cargo clippy --all-features -- -D warnings
 
   clippy_arm:
     name: Clippy ARM
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo clippy
+      - run: cargo clippy -- -D warnings
 
   tests_arm:
     name: Testing ARM

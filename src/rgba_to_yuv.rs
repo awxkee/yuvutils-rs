@@ -671,8 +671,8 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    row_handler: impl WideRowForwardHandler<u8, i32>,
-    row_handler420: impl WideRowForward420Handler<u8, i32>,
+    row_handler: impl WideRowForwardHandler<u8, i32> + Send + Sync,
+    row_handler420: impl WideRowForward420Handler<u8, i32> + Send + Sync,
 ) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();

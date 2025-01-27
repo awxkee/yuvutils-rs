@@ -47,10 +47,8 @@ impl ConverterFactoryFloat16<u8> for u8 {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     fn make_forward_converter(bit_depth: usize) -> Box<dyn SurfaceToFloat16<u8>> {
         use crate::neon::{SurfaceU8ToFloat16Neon, SurfaceU8ToFloat16NeonFallback};
-        if bit_depth <= 14 {
-            if std::arch::is_aarch64_feature_detected!("fp16") {
-                return Box::new(SurfaceU8ToFloat16Neon::default());
-            }
+        if bit_depth <= 14 && std::arch::is_aarch64_feature_detected!("fp16") {
+            return Box::new(SurfaceU8ToFloat16Neon::default());
         }
         Box::new(SurfaceU8ToFloat16NeonFallback::default())
     }
@@ -86,10 +84,8 @@ impl ConverterFactoryFloat16<u8> for u8 {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     fn make_inverse_converter(bit_depth: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u8>> {
         use crate::neon::{SurfaceF16ToUnsigned8Neon, SurfaceF16ToUnsigned8NeonFallback};
-        if bit_depth <= 14 {
-            if std::arch::is_aarch64_feature_detected!("fp16") {
-                return Box::new(SurfaceF16ToUnsigned8Neon::default());
-            }
+        if bit_depth <= 14 && std::arch::is_aarch64_feature_detected!("fp16") {
+            return Box::new(SurfaceF16ToUnsigned8Neon::default());
         }
         Box::new(SurfaceF16ToUnsigned8NeonFallback::default())
     }
@@ -116,10 +112,8 @@ impl ConverterFactoryFloat16<u16> for u16 {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     fn make_forward_converter(bit_depth: usize) -> Box<dyn SurfaceToFloat16<u16>> {
         use crate::neon::{SurfaceU16ToFloat16Neon, SurfaceU16ToFloat16NeonFallback};
-        if bit_depth <= 14 {
-            if std::arch::is_aarch64_feature_detected!("fp16") {
-                return Box::new(SurfaceU16ToFloat16Neon::default());
-            }
+        if bit_depth <= 14 && std::arch::is_aarch64_feature_detected!("fp16") {
+            return Box::new(SurfaceU16ToFloat16Neon::default());
         }
         Box::new(SurfaceU16ToFloat16NeonFallback::default())
     }
@@ -155,10 +149,8 @@ impl ConverterFactoryFloat16<u16> for u16 {
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     fn make_inverse_converter(bit_depth: usize) -> Box<dyn SurfaceFloat16ToUnsigned<u16>> {
         use crate::neon::{SurfaceF16ToUnsigned16Neon, SurfaceF16ToUnsigned16NeonFallback};
-        if bit_depth <= 14 {
-            if std::arch::is_aarch64_feature_detected!("fp16") {
-                return Box::new(SurfaceF16ToUnsigned16Neon::default());
-            }
+        if bit_depth <= 14 && std::arch::is_aarch64_feature_detected!("fp16") {
+            return Box::new(SurfaceF16ToUnsigned16Neon::default());
         }
         Box::new(SurfaceF16ToUnsigned16NeonFallback::default())
     }

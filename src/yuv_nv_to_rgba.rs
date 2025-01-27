@@ -338,6 +338,25 @@ impl<
                     ),
                 };
             }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx2_yuv_nv_to_rgba_row_prof;
+                        return NVRowHandlerProfessional {
+                            handler: Some(
+                                avx2_yuv_nv_to_rgba_row_prof::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
+            }
         }
 
         NVRowHandlerProfessional { handler: None }
@@ -483,47 +502,6 @@ impl<
             return NVRow420Handler { handler: None };
         }
         assert_eq!(sampling, YuvChromaSubsampling::Yuv420);
-        #[cfg(feature = "fast_mode")]
-        if PRECISION == 6 {
-            assert_eq!(PRECISION, 6);
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            {
-                use crate::neon::neon_yuv_nv_to_rgba_fast_row420;
-                return NVRow420Handler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_fast_row420::<UV_ORDER, DESTINATION_CHANNELS>,
-                    ),
-                };
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                #[cfg(feature = "avx")]
-                {
-                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
-                    if use_avx {
-                        use crate::avx2::avx_yuv_nv_to_rgba_fast420;
-                        return NVRow420Handler {
-                            handler: Some(
-                                avx_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS>,
-                            ),
-                        };
-                    }
-                }
-
-                #[cfg(feature = "sse")]
-                {
-                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-                    if use_sse {
-                        use crate::sse::sse_yuv_nv_to_rgba_fast420;
-                        return NVRow420Handler {
-                            handler: Some(
-                                sse_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS>,
-                            ),
-                        };
-                    }
-                }
-            }
-        }
         if PRECISION != 13 {
             return NVRow420Handler { handler: None };
         }
@@ -725,8 +703,8 @@ fn yuv_nv12_to_rgbx_impl<
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    row_handler: impl RowBiPlanarInversionHandler<u8, i32>,
-    row_handler420: impl RowBiPlanarInversion420Handler<u8, i32>,
+    row_handler: impl RowBiPlanarInversionHandler<u8, i32> + Sync + Send,
+    row_handler420: impl RowBiPlanarInversion420Handler<u8, i32> + Sync + Send,
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();

@@ -238,6 +238,7 @@ pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
 }
 
 #[inline(always)]
+#[cfg(feature = "professional_mode")]
 pub(crate) unsafe fn vqdmalq_laneq_s16<const LANE: i32>(
     a: int32x4_t,
     v: int16x8_t,

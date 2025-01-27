@@ -1004,6 +1004,15 @@ pub(crate) unsafe fn _mm256_mul_add_epi16<const HAS_DOT: bool>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_mul_sub_epi16(
+    accumulator: __m256i,
+    v0: __m256i,
+    w0: __m256i,
+) -> __m256i {
+    _mm256_sub_epi32(accumulator, _mm256_madd_epi16(v0, w0))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_affine_dot<const PRECISION: i32, const HAS_DOT: bool>(
     accumulator: __m256i,
     v0: __m256i,
