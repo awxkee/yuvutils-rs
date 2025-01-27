@@ -36,21 +36,78 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
+type RowHandle = Option<
+    unsafe fn(
+        range: &YuvChromaRange,
+        transform: &CbCrInverseTransform<i32>,
+        y_plane: &[u8],
+        u_plane: &[u8],
+        v_plane: &[u8],
+        rgba: &mut [u8],
+        start_cx: usize,
+        start_ux: usize,
+        width: usize,
+    ) -> ProcessedOffset,
+>;
+
+type RowHandle420 = Option<
+    unsafe fn(
+        range: &YuvChromaRange,
+        transform: &CbCrInverseTransform<i32>,
+        y_plane0: &[u8],
+        y_plane1: &[u8],
+        u_plane: &[u8],
+        v_plane: &[u8],
+        rgba0: &mut [u8],
+        rgba1: &mut [u8],
+        start_cx: usize,
+        start_ux: usize,
+        width: usize,
+    ) -> ProcessedOffset,
+>;
+
 struct RowHandler<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
-    handler: Option<
-        unsafe fn(
-            range: &YuvChromaRange,
-            transform: &CbCrInverseTransform<i32>,
-            y_plane: &[u8],
-            u_plane: &[u8],
-            v_plane: &[u8],
-            rgba: &mut [u8],
-            start_cx: usize,
-            start_ux: usize,
-            width: usize,
-        ) -> ProcessedOffset,
-    >,
+    handler: RowHandle,
 }
+
+macro_rules! impl_row_inversion_handler {
+    ($struct_name:ident) => {
+        impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
+            WideRowInversionHandler<u8, i32>
+            for $struct_name<DESTINATION_CHANNELS, SAMPLING, PRECISION>
+        {
+            fn handle_row(
+                &self,
+                y_plane: &[u8],
+                u_plane: &[u8],
+                v_plane: &[u8],
+                rgba: &mut [u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrInverseTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(
+                            &chroma,
+                            transform,
+                            y_plane,
+                            u_plane,
+                            v_plane,
+                            rgba,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    }
+                }
+                ProcessedOffset { cx: 0, ux: 0 }
+            }
+        }
+    };
+}
+
+impl_row_inversion_handler!(RowHandler);
 
 impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
     for RowHandler<DESTINATION_CHANNELS, SAMPLING, PRECISION>
@@ -181,54 +238,8 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
     }
 }
 
-impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
-    WideRowInversionHandler<u8, i32> for RowHandler<DESTINATION_CHANNELS, SAMPLING, PRECISION>
-{
-    fn handle_row(
-        &self,
-        y_plane: &[u8],
-        u_plane: &[u8],
-        v_plane: &[u8],
-        rgba: &mut [u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrInverseTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(
-                    &chroma,
-                    transform,
-                    y_plane,
-                    u_plane,
-                    v_plane,
-                    rgba,
-                    0,
-                    0,
-                    width as usize,
-                );
-            }
-        }
-        ProcessedOffset { cx: 0, ux: 0 }
-    }
-}
-
 struct RowHandler420<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
-    handler: Option<
-        unsafe fn(
-            range: &YuvChromaRange,
-            transform: &CbCrInverseTransform<i32>,
-            y_plane0: &[u8],
-            y_plane1: &[u8],
-            u_plane: &[u8],
-            v_plane: &[u8],
-            rgba0: &mut [u8],
-            rgba1: &mut [u8],
-            start_cx: usize,
-            start_ux: usize,
-            width: usize,
-        ) -> ProcessedOffset,
-    >,
+    handler: RowHandle420,
 }
 
 impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
@@ -316,49 +327,57 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
     }
 }
 
-impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
-    WideRow420InversionHandler<u8, i32>
-    for RowHandler420<DESTINATION_CHANNELS, SAMPLING, PRECISION>
-{
-    fn handle_row(
-        &self,
-        y0_plane: &[u8],
-        y1_plane: &[u8],
-        u_plane: &[u8],
-        v_plane: &[u8],
-        rgba0: &mut [u8],
-        rgba1: &mut [u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrInverseTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(
-                    &chroma,
-                    transform,
-                    y0_plane,
-                    y1_plane,
-                    u_plane,
-                    v_plane,
-                    rgba0,
-                    rgba1,
-                    0,
-                    0,
-                    width as usize,
-                );
+macro_rules! impl_row_420_inversion_handler {
+    ($struct_name:ident) => {
+        impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
+            WideRow420InversionHandler<u8, i32>
+            for $struct_name<DESTINATION_CHANNELS, SAMPLING, PRECISION>
+        {
+            fn handle_row(
+                &self,
+                y0_plane: &[u8],
+                y1_plane: &[u8],
+                u_plane: &[u8],
+                v_plane: &[u8],
+                rgba0: &mut [u8],
+                rgba1: &mut [u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrInverseTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(
+                            &chroma,
+                            transform,
+                            y0_plane,
+                            y1_plane,
+                            u_plane,
+                            v_plane,
+                            rgba0,
+                            rgba1,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    }
+                }
+                ProcessedOffset { cx: 0, ux: 0 }
             }
         }
-        ProcessedOffset { cx: 0, ux: 0 }
-    }
+    };
 }
 
-fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+impl_row_420_inversion_handler!(RowHandler420);
+
+fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>(
     image: &YuvPlanarImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    row_handler: impl WideRowInversionHandler<u8, i32> + Send + Sync,
+    row_handler420: impl WideRow420InversionHandler<u8, i32> + Send + Sync,
 ) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -370,8 +389,6 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let chroma_range = get_yuv_range(8, range);
     let kr_kb = matrix.get_kr_kb();
 
-    const PRECISION: i32 = 13;
-
     let inverse_transform =
         search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
     let cr_coef = inverse_transform.cr_coef;
@@ -382,9 +399,6 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 
     let bias_y = chroma_range.bias_y as i32;
     let bias_uv = chroma_range.bias_uv as i32;
-
-    let row_handler = RowHandler::<DESTINATION_CHANNELS, SAMPLING, PRECISION>::default();
-    let row_handler420 = RowHandler420::<DESTINATION_CHANNELS, SAMPLING, PRECISION>::default();
 
     const BIT_DEPTH: usize = 8;
 
@@ -746,6 +760,24 @@ fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     }
 
     Ok(())
+}
+
+fn yuv_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
+    image: &YuvPlanarImage<u8>,
+    rgba: &mut [u8],
+    rgba_stride: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+) -> Result<(), YuvError> {
+    yuv_to_rgbx_impl::<DESTINATION_CHANNELS, SAMPLING, 13>(
+        image,
+        rgba,
+        rgba_stride,
+        range,
+        matrix,
+        RowHandler::<DESTINATION_CHANNELS, SAMPLING, 13>::default(),
+        RowHandler420::<DESTINATION_CHANNELS, SAMPLING, 13>::default(),
+    )
 }
 
 /// Convert YUV 420 planar format to RGB format.
