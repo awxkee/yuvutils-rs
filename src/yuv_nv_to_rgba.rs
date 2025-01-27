@@ -1109,7 +1109,7 @@ fn yuv_nv12_to_rgbx<
                 matrix,
                 NVRowHandlerFast::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 6>::default(
                 ),
-                NVRow420Handler::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 6>::default(
+                NVRow420HandlerFast::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 6>::default(
                 ),
             )
         }
