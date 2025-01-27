@@ -118,6 +118,9 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl_prof<
                     _mm256_unpacklo_epi16(uv_values, uv_values),
                     _mm256_unpackhi_epi16(uv_values, uv_values),
                 );
+                const MASK: i32 = shuffle(3, 1, 2, 0);
+                uv_lo = _mm256_permute4x64_epi64::<MASK>(uv_lo);
+                uv_hi = _mm256_permute4x64_epi64::<MASK>(uv_hi);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let offset = uv_x;
@@ -126,14 +129,15 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl_prof<
                 let mut row1 = _mm256_loadu_si256(src_ptr.add(32) as *const __m256i);
                 row0 = _mm256_sub_epi8(row0, uv_corr);
                 row1 = _mm256_sub_epi8(row1, uv_corr);
-                (uv_lo, uv_hi) = (row0, row1);
+                let j0 = _mm256_permute2x128_si256::<0x20>(row0, row1);
+                let j1 = _mm256_permute2x128_si256::<0x31>(row0, row1);
+                const MASK: i32 = shuffle(3, 1, 2, 0);
+                uv_lo = _mm256_permute4x64_epi64::<MASK>(j0);
+                uv_hi = _mm256_permute4x64_epi64::<MASK>(j1);
             }
         }
 
         let y_values = _mm256_subs_epu8(y_vl, y_corr);
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-        uv_lo = _mm256_permute4x64_epi64::<MASK>(uv_lo);
-        uv_hi = _mm256_permute4x64_epi64::<MASK>(uv_hi);
 
         let y_vl0_lo = _mm256_unpacklo_epi8(y_values, _mm256_setzero_si256());
         let y_vl0_hi = _mm256_unpackhi_epi8(y_values, _mm256_setzero_si256());
@@ -285,20 +289,24 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl_prof<
                     _mm256_unpacklo_epi16(uv_values, uv_values),
                     _mm256_unpackhi_epi16(uv_values, uv_values),
                 );
+                const MASK: i32 = shuffle(3, 1, 2, 0);
+                uv_lo = _mm256_permute4x64_epi64::<MASK>(uv_lo);
+                uv_hi = _mm256_permute4x64_epi64::<MASK>(uv_hi);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let mut row0 = _mm256_loadu_si256(uv_buffer.as_ptr() as *const __m256i);
                 let mut row1 = _mm256_loadu_si256(uv_buffer.as_ptr().add(32) as *const __m256i);
                 row0 = _mm256_sub_epi8(row0, uv_corr);
                 row1 = _mm256_sub_epi8(row1, uv_corr);
-                (uv_lo, uv_hi) = (row0, row1);
+                let j0 = _mm256_permute2x128_si256::<0x20>(row0, row1);
+                let j1 = _mm256_permute2x128_si256::<0x31>(row0, row1);
+                const MASK: i32 = shuffle(3, 1, 2, 0);
+                uv_lo = _mm256_permute4x64_epi64::<MASK>(j0);
+                uv_hi = _mm256_permute4x64_epi64::<MASK>(j1);
             }
         }
 
         let y_values = _mm256_subs_epu8(y_vl, y_corr);
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-        uv_lo = _mm256_permute4x64_epi64::<MASK>(uv_lo);
-        uv_hi = _mm256_permute4x64_epi64::<MASK>(uv_hi);
 
         let y_vl0_lo = _mm256_unpacklo_epi8(y_values, _mm256_setzero_si256());
         let y_vl0_hi = _mm256_unpackhi_epi8(y_values, _mm256_setzero_si256());

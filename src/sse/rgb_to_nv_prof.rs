@@ -78,7 +78,7 @@ unsafe fn encode_16_part<
     let order: YuvNVOrder = UV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
-    let rounding_const_y = 1 << (PRECISION - 1) - 1;
+    let rounding_const_y = (1 << (PRECISION - 1)) - 1;
     let y_bias = _mm_set1_epi32(range.bias_y as i32 * (1 << PRECISION) + rounding_const_y);
     let v_yr_yg = _mm_set1_epi32(transform._interleaved_yr_yg());
     let v_yb = _mm_set1_epi32(transform.yb);
@@ -87,7 +87,7 @@ unsafe fn encode_16_part<
         YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => PRECISION + 1,
         YuvChromaSubsampling::Yuv444 => PRECISION,
     };
-    let rounding_const_uv = 1 << (precision_uv - 1) - 1;
+    let rounding_const_uv = (1 << (precision_uv - 1)) - 1;
 
     let uv_bias = _mm_set1_epi32(range.bias_uv as i32 * (1 << precision_uv) + rounding_const_uv);
     let v_cb_r_g = _mm_set1_epi32(transform._interleaved_cbr_cbg());
