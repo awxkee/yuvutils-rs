@@ -693,6 +693,21 @@ impl<
                     ),
                 };
             }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx2_yuv_nv_to_rgba_row420_prof;
+                        return NVRow420HandlerProfessional {
+                            handler: Some(
+                                avx2_yuv_nv_to_rgba_row420_prof::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+            }
         }
 
         NVRow420HandlerProfessional { handler: None }

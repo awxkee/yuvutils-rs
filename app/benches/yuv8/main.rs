@@ -122,7 +122,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let fixed_gray = gray_image.to_fixed();
 
-    c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
+   /* c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             gbr_to_rgba(
@@ -550,7 +550,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.1 as i32,
             );
         });
-    });
+    });*/
 
     c.bench_function("yuvutils YUV NV12 -> RGB Fast", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 3 * dimensions.1 as usize];

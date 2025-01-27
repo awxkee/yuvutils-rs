@@ -988,6 +988,22 @@ pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32, const HAS_DOT: b
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_mul_add_epi16<const HAS_DOT: bool>(
+    accumulator: __m256i,
+    v0: __m256i,
+    w0: __m256i,
+) -> __m256i {
+    #[cfg(feature = "nightly_avx512")]
+    if HAS_DOT {
+        _mm256_dpwssd_avx_epi32(accumulator, v0, w0)
+    } else {
+        _mm256_add_epi32(accumulator, _mm256_madd_epi16(v0, w0))
+    }
+    #[cfg(not(feature = "nightly_avx512"))]
+    _mm256_add_epi32(accumulator, _mm256_madd_epi16(v0, w0))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_affine_dot<const PRECISION: i32, const HAS_DOT: bool>(
     accumulator: __m256i,
     v0: __m256i,
