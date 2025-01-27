@@ -278,7 +278,7 @@ unsafe fn avx2_rgba_to_yuv_impl_prof<
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
-            let lst = (width as usize - 1) * channels;
+            let lst = (width - 1) * channels;
             let last_items = rgba.get_unchecked(lst..(lst + channels));
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));

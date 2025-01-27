@@ -629,6 +629,22 @@ impl<
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "nightly_avx512")]
+                {
+                    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+                    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                    if use_avx512 {
+                        use crate::avx512bw::avx512_yuv_nv_to_rgba_fast420;
+                        return NVRow420HandlerFast {
+                            handler: Some(if use_vbmi {
+                                avx512_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS, true>
+                            } else {
+                                avx512_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS, false>
+                            }),
+                        };
+                    }
+                }
+
                 #[cfg(feature = "avx")]
                 {
                     let use_avx = std::arch::is_x86_feature_detected!("avx2");

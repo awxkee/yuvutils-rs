@@ -58,12 +58,11 @@ impl ConverterFactoryFloat16<u8> for u8 {
         #[cfg(feature = "avx")]
         {
             use crate::avx2::SurfaceU8ToFloat16Avx2;
-            if _bit_depth <= 14 {
-                if std::arch::is_x86_feature_detected!("avx2")
-                    && std::arch::is_x86_feature_detected!("f16c")
-                {
-                    return Box::new(SurfaceU8ToFloat16Avx2::default());
-                }
+            if _bit_depth <= 14
+                && std::arch::is_x86_feature_detected!("avx2")
+                && std::arch::is_x86_feature_detected!("f16c")
+            {
+                return Box::new(SurfaceU8ToFloat16Avx2::default());
             }
         }
         Box::new(CommonSurfaceToFloat16::<u8> {
@@ -123,12 +122,11 @@ impl ConverterFactoryFloat16<u16> for u16 {
         #[cfg(feature = "avx")]
         {
             use crate::avx2::SurfaceU16ToFloat16Avx2;
-            if _bit_depth <= 14 {
-                if std::arch::is_x86_feature_detected!("avx2")
-                    && std::arch::is_x86_feature_detected!("f16c")
-                {
-                    return Box::new(SurfaceU16ToFloat16Avx2::default());
-                }
+            if _bit_depth <= 14
+                && std::arch::is_x86_feature_detected!("avx2")
+                && std::arch::is_x86_feature_detected!("f16c")
+            {
+                return Box::new(SurfaceU16ToFloat16Avx2::default());
             }
         }
         Box::new(CommonSurfaceToFloat16::<u16> {

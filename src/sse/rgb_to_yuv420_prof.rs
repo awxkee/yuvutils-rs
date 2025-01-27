@@ -219,7 +219,7 @@ unsafe fn sse_rgba_to_yuv420_prof_impl<const ORIGIN_CHANNELS: u8, const PRECISIO
 
         // Replicate last item to one more position for subsampling
         if diff % 2 != 0 {
-            let lst = (width as usize - 1) * channels;
+            let lst = (width - 1) * channels;
             let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
             let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
             let dvb = diff * channels;

@@ -715,6 +715,12 @@ pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8(a: __m512i, b: __m512i, f: i
 }
 
 #[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn avx512_pairwise_avg_epi16_epi8_j(a: __m512i, f: i8) -> __m512i {
+    _mm512_maddubs_epi16(a, _mm512_set1_epi8(f))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn avx512_pairwise_avg_epi8(a: __m512i, f: i8) -> __m512i {
     _mm512_maddubs_epi16(a, _mm512_set1_epi8(f))
 }
@@ -891,6 +897,39 @@ pub(crate) unsafe fn _mm512_affine_uv_dot<const PRECISION: u32, const HAS_DOT: b
             _mm512_add_epi32(_mm512_madd_epi16(v1, w0), _mm512_madd_epi16(b1, w1)),
         );
         _mm512_packus_epi32(
+            _mm512_srli_epi32::<PRECISION>(y_l_l),
+            _mm512_srli_epi32::<PRECISION>(y_l_h),
+        )
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm512_affine_dot<const PRECISION: u32, const HAS_DOT: bool>(
+    acc: __m512i,
+    v0: __m512i,
+    v1: __m512i,
+    b0: __m512i,
+    b1: __m512i,
+    w0: __m512i,
+    w1: __m512i,
+) -> __m512i {
+    if HAS_DOT {
+        let y_l_l = _mm512_dpwssd_epi32(_mm512_dpwssd_epi32(acc, v0, w0), b0, w1);
+        let y_l_h = _mm512_dpwssd_epi32(_mm512_dpwssd_epi32(acc, v1, w0), b1, w1);
+        avx512_pack_u32(
+            _mm512_srli_epi32::<PRECISION>(y_l_l),
+            _mm512_srli_epi32::<PRECISION>(y_l_h),
+        )
+    } else {
+        let y_l_l = _mm512_add_epi32(
+            acc,
+            _mm512_add_epi32(_mm512_madd_epi16(v0, w0), _mm512_madd_epi16(b0, w1)),
+        );
+        let y_l_h = _mm512_add_epi32(
+            acc,
+            _mm512_add_epi32(_mm512_madd_epi16(v1, w0), _mm512_madd_epi16(b1, w1)),
+        );
+        avx512_pack_u32(
             _mm512_srli_epi32::<PRECISION>(y_l_l),
             _mm512_srli_epi32::<PRECISION>(y_l_h),
         )

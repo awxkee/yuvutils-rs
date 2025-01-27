@@ -275,13 +275,13 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv_nv21_to_rgb(
+    yuv_nv12_to_rgb(
         &fixed_biplanar,
         &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt2020,
-        YuvConversionMode::Professional,
+        YuvConversionMode::Fast,
     )
     .unwrap();
 

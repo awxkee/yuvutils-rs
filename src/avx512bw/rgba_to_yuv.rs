@@ -220,14 +220,8 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const HA
         let cb = avx512_pack_u16(cbk, cbk);
         let cr = avx512_pack_u16(crk, crk);
 
-        _mm_storeu_si128(
-            u_dst.as_mut() as *mut _ as *mut __m128i,
-            _mm512_castsi512_si128(cb),
-        );
-        _mm_storeu_si128(
-            v_dst.as_mut_ptr() as *mut _ as *mut __m128i,
-            _mm512_castsi512_si128(cr),
-        );
+        _mm_storeu_si128(u_dst.as_mut_ptr() as *mut _, _mm512_castsi512_si128(cb));
+        _mm_storeu_si128(v_dst.as_mut_ptr() as *mut _, _mm512_castsi512_si128(cr));
     }
 }
 

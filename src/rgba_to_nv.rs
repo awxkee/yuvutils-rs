@@ -262,6 +262,28 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
+                #[cfg(feature = "nightly_avx512")]
+                {
+                    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+                    if use_avx512 {
+                        let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                        use crate::avx512bw::avx512_rgba_to_nv420_prof;
+                        return if use_vbmi {
+                            SemiPlanar420EncoderProfessional {
+                                handler: Some(
+                                    avx512_rgba_to_nv420_prof::<ORIGIN_CHANNELS, UV_ORDER, true>,
+                                ),
+                            }
+                        } else {
+                            SemiPlanar420EncoderProfessional {
+                                handler: Some(
+                                    avx512_rgba_to_nv420_prof::<ORIGIN_CHANNELS, UV_ORDER, false>,
+                                ),
+                            }
+                        };
+                    }
+                }
+
                 #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
                     use crate::avx2::avx2_rgba_to_nv420_prof;
