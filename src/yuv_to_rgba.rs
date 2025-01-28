@@ -1967,6 +1967,6 @@ mod tests {
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 74);
         #[cfg(feature = "professional_mode")]
-        matrix(YuvConversionMode::Professional, 55);
+        matrix(YuvConversionMode::Professional, 70);
     }
 }
