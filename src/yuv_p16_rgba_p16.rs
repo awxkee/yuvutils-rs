@@ -594,7 +594,7 @@ pub(crate) fn yuv_p16_to_image_p16_impl<
 /// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-/// * `bit_depth` - Bit depth of source YUV planes
+/// * `bit_depth` - Bit depth of source YUV planes.
 ///
 /// # Panics
 ///
