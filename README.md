@@ -19,6 +19,10 @@ Supports:
 
 All the methods support RGB, BGR, BGRA and RGBA
 
+#### Scaling
+
+If need scaling support then [pic-scale](https://github.com/awxkee/pic-scale) is available.
+
 # SIMD
 
 Runtime dispatch is used for use if available `sse4.1`, `avx2`, `avx512bw`, `avx512vbmi`, `avx512vnni`, `avxvnni`, `rdm` for NEON. 

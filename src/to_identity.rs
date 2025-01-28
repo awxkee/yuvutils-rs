@@ -84,7 +84,7 @@ where
 
     match yuv_range {
         YuvRange::Limited => {
-            const PRECISION: i32 = 11;
+            const PRECISION: i32 = 13;
             // All channels on identity should use Y range
             let range = get_yuv_range(BIT_DEPTH as u32, yuv_range);
             let range_rgba = (1 << BIT_DEPTH) - 1;
