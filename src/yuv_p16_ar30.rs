@@ -58,7 +58,7 @@ fn yuv_p16_to_image_ar30<
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
 
     image.check_constraints(chroma_subsampling)?;
-    check_rgba_destination(rgba, rgba_stride, image.width, image.height, 1)?;
+    check_rgba_destination(rgba, rgba_stride, image.width, image.height, 4)?;
 
     let kr_kb = matrix.get_kr_kb();
     const AR30_DEPTH: usize = 10;

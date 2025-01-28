@@ -633,9 +633,16 @@ impl Rgb30 {
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
-/// Defines storage byte order for RGBA1010102 or RGBA2101010
+/// Represents the byte order for storing RGBA data in 30-bit formats such as RGBA1010102 or RGBA2101010.
 ///
-/// Some systems require to be bytes in network byte order instead of host.
+/// # Overview
+/// RGBA1010102 and RGBA2101010 are 30-bit color formats where each component (R, G, B, and A)
+/// uses 10 bits for color depth, and the remaining 2 bits are used for additional purposes (e.g., alpha).
+///
+/// In certain systems, the byte order used for storage can differ:
+/// - **Host Byte Order**: Uses the native endianness of the host machine (little-endian or big-endian).
+/// - **Network Byte Order**: Always uses big-endian format, often required for consistent data
+///   transfer across different platforms or network protocols. Used by Apple.
 pub enum Rgb30ByteOrder {
     Host = 0,
     Network = 1,
