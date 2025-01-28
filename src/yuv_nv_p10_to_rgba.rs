@@ -586,6 +586,7 @@ fn yuv_nv_p10_to_image_impl<
 /// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -659,6 +660,7 @@ pub fn yuv_nv12_p10_to_bgra(
 /// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -732,6 +734,7 @@ pub fn yuv_nv12_p10_to_rgba(
 /// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -805,6 +808,7 @@ pub fn yuv_nv12_p10_to_bgr(
 /// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -878,6 +882,7 @@ pub fn yuv_nv12_p10_to_rgb(
 /// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -951,6 +956,7 @@ pub fn yuv_nv16_p10_to_bgra(
 /// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1024,6 +1030,7 @@ pub fn yuv_nv61_p10_to_bgra(
 /// * `bgra_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1097,6 +1104,7 @@ pub fn yuv_nv16_p10_to_bgr(
 /// * `bgra_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1170,6 +1178,7 @@ pub fn yuv_nv61_p10_to_bgr(
 /// * `bgra_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1243,6 +1252,7 @@ pub fn yuv_nv16_p10_to_rgb(
 /// * `bgra_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1316,6 +1326,7 @@ pub fn yuv_nv61_p10_to_rgb(
 /// * `bgra_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1385,10 +1396,11 @@ pub fn yuv_nv16_p10_to_rgba(
 /// # Arguments
 ///
 /// * `bi_planar_image` - Source Bi-Planar 10-bit image.
-/// * `bgra` - A mutable slice to store the converted RGBA data.
-/// * `bgra_stride` - The stride (components per row) for the RGBA image data.
+/// * `rgba` - A mutable slice to store the converted RGBA data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1397,8 +1409,8 @@ pub fn yuv_nv16_p10_to_rgba(
 ///
 pub fn yuv_nv61_p10_to_rgba(
     bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u8],
-    bgra_stride: u32,
+    rgba: &mut [u8],
+    rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
     endianness: YuvEndianness,
@@ -1447,7 +1459,7 @@ pub fn yuv_nv61_p10_to_rgba(
             }
         },
     };
-    dispatcher(bi_planar_image, bgra, bgra_stride, range, matrix, mode)
+    dispatcher(bi_planar_image, rgba, rgba_stride, range, matrix, mode)
 }
 
 /// Convert YUV NV21 format with 10-bit pixel format to BGR format.
@@ -1462,6 +1474,7 @@ pub fn yuv_nv61_p10_to_rgba(
 /// * `bgr_stride` - The stride (components per row) for the BGR image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1535,6 +1548,7 @@ pub fn yuv_nv21_p10_to_bgr(
 /// * `bgra_stride` - The stride (components per row) for the BGRA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1608,6 +1622,7 @@ pub fn yuv_nv21_p10_to_bgra(
 /// * `rgb_stride` - The stride (components per row) for the RGB image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///
@@ -1681,6 +1696,7 @@ pub fn yuv_nv21_p10_to_rgb(
 /// * `rgba_stride` - The stride (components per row) for the RGBA image data.
 /// * `endianness` - The endianness of stored bytes
 /// * `bytes_packing` - see [YuvBytesPacking] for more info.
+/// * `mode` - See [YuvConversionMode] for more info.
 ///
 /// # Panics
 ///

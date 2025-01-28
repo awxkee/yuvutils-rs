@@ -187,14 +187,17 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let rl = vmlal_laneq_s16::<1>(y_low, v_low, v_weights);
         let bl = vmlal_laneq_s16::<2>(y_low, u_low, v_weights);
         let gl = vmlal_laneq_s16::<3>(y_low, v_low, v_weights);
+        let ghi = vmlal_laneq_s16::<4>(gh, u_high, v_weights);
 
         let r_high = vshrn_n_s32::<PRECISION>(rh);
         let b_high = vshrn_n_s32::<PRECISION>(bh);
-        let g_high = vshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gh, u_high, v_weights));
+        let g_high = vshrn_n_s32::<PRECISION>(ghi);
+
+        let glv = vmlal_laneq_s16::<4>(gl, u_low, v_weights);
 
         let r_low = vshrn_n_s32::<PRECISION>(rl);
         let b_low = vshrn_n_s32::<PRECISION>(bl);
-        let g_low = vshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gl, u_low, v_weights));
+        let g_low = vshrn_n_s32::<PRECISION>(glv);
 
         let r_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(r_low, r_high));
         let g_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(g_low, g_high));
@@ -252,7 +255,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         let (u_low, v_low, u_high, v_high) =
             deinterleave_10_bit_uv::<NV_ORDER, SAMPLING, ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                uv_plane.get_unchecked(ux..),
+                uv_buffer.as_slice(),
                 uv_corr_q,
             );
 
@@ -272,9 +275,11 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
         let b_high = vshrn_n_s32::<PRECISION>(bh);
         let g_high = vshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gh, u_high, v_weights));
 
+        let glv = vmlal_laneq_s16::<4>(gl, u_low, v_weights);
+
         let r_low = vshrn_n_s32::<PRECISION>(rl);
         let b_low = vshrn_n_s32::<PRECISION>(bl);
-        let g_low = vshrn_n_s32::<PRECISION>(vmlal_laneq_s16::<4>(gl, u_low, v_weights));
+        let g_low = vshrn_n_s32::<PRECISION>(glv);
 
         let r_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(r_low, r_high));
         let g_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(g_low, g_high));

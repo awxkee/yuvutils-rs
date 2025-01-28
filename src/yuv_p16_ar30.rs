@@ -47,7 +47,7 @@ fn yuv_p16_to_image_ar30<
     const BIT_DEPTH: usize,
 >(
     image: &YuvPlanarImage<u16>,
-    rgba: &mut [u32],
+    rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
@@ -58,11 +58,11 @@ fn yuv_p16_to_image_ar30<
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
 
     image.check_constraints(chroma_subsampling)?;
-    check_rgba_destination(rgba, rgba_stride, image.width, image.height, 1)?;
+    check_rgba_destination(rgba, rgba_stride, image.width, image.height, 4)?;
 
     let kr_kb = matrix.get_kr_kb();
     const AR30_DEPTH: usize = 10;
-    const PRECISION: i32 = 12;
+    const PRECISION: i32 = 13;
     let i_transform = search_inverse_transform(
         PRECISION,
         BIT_DEPTH as u32,
@@ -85,9 +85,9 @@ fn yuv_p16_to_image_ar30<
     let process_halved_chroma_row = |y_plane: &[u16],
                                      u_plane: &[u16],
                                      v_plane: &[u16],
-                                     rgba: &mut [u32]| {
+                                     rgba: &mut [u8]| {
         for (((rgba, y_src), &u_src), &v_src) in rgba
-            .chunks_exact_mut(2)
+            .chunks_exact_mut(2 * 4)
             .zip(y_plane.chunks_exact(2))
             .zip(u_plane.iter())
             .zip(v_plane.iter())
@@ -103,10 +103,13 @@ fn yuv_p16_to_image_ar30<
                 y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
             );
 
-            let rgba_2 = &mut rgba[0..2];
+            let rgba_2 = &mut rgba[0..8];
 
-            let pixel0 = ar30_layout.pack::<AR30_STORE>(r0, g0, b0);
-            rgba_2[0] = pixel0;
+            let pixel0 = ar30_layout.pack::<AR30_STORE>(r0, g0, b0).to_ne_bytes();
+            rgba_2[0] = pixel0[0];
+            rgba_2[1] = pixel0[1];
+            rgba_2[2] = pixel0[2];
+            rgba_2[3] = pixel0[3];
 
             let y_value1 =
                 (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32 - bias_y) * y_coef;
@@ -116,8 +119,11 @@ fn yuv_p16_to_image_ar30<
             let g1 =
                 qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value);
 
-            let pixel1 = ar30_layout.pack::<AR30_STORE>(r1, g1, b1);
-            rgba_2[1] = pixel1;
+            let pixel1 = ar30_layout.pack::<AR30_STORE>(r1, g1, b1).to_ne_bytes();
+            rgba_2[4] = pixel1[0];
+            rgba_2[5] = pixel1[1];
+            rgba_2[6] = pixel1[2];
+            rgba_2[7] = pixel1[3];
         }
 
         if image.width & 1 != 0 {
@@ -131,14 +137,17 @@ fn yuv_p16_to_image_ar30<
             let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*v_plane.last().unwrap(), msb_shift)
                 as i32
                 - bias_uv;
-            let rgba = rgba.chunks_exact_mut(2).last().unwrap();
+            let rgba = rgba.chunks_exact_mut(4).last().unwrap();
 
             let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
             let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
             let g0 =
                 qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
-            let pixel0 = ar30_layout.pack::<AR30_STORE>(r0, g0, b0);
-            rgba[0] = pixel0;
+            let pixel0 = ar30_layout.pack::<AR30_STORE>(r0, g0, b0).to_ne_bytes();
+            rgba[0] = pixel0[0];
+            rgba[1] = pixel0[1];
+            rgba[2] = pixel0[2];
+            rgba[3] = pixel0[3];
         }
     };
 
@@ -161,9 +170,8 @@ fn yuv_p16_to_image_ar30<
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
             for (((rgba, &y_src), &u_src), &v_src) in rgba
-                .iter_mut()
+                .chunks_exact_mut(4)
                 .zip(y_plane.iter())
                 .zip(u_plane.iter())
                 .zip(v_plane.iter())
@@ -182,8 +190,11 @@ fn yuv_p16_to_image_ar30<
                     y_value - g_coef_1 * cr_value - g_coef_2 * cb_value,
                 );
 
-                let pixel0 = ar30_layout.pack::<AR30_STORE>(r, g, b);
-                *rgba = pixel0;
+                let pixel0 = ar30_layout.pack::<AR30_STORE>(r, g, b).to_ne_bytes();
+                rgba[0] = pixel0[0];
+                rgba[1] = pixel0[1];
+                rgba[2] = pixel0[2];
+                rgba[3] = pixel0[3];
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
@@ -205,7 +216,12 @@ fn yuv_p16_to_image_ar30<
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            process_halved_chroma_row(y_plane, u_plane, v_plane, rgba);
+            process_halved_chroma_row(
+                &y_plane[0..image.width as usize],
+                &u_plane[0..(image.width as usize).div_ceil(2)],
+                &v_plane[0..(image.width as usize).div_ceil(2)],
+                &mut rgba[0..image.width as usize * 4],
+            );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let iter;
@@ -234,7 +250,7 @@ fn yuv_p16_to_image_ar30<
                     &y_plane[0..image.width as usize],
                     &u_plane[0..(image.width as usize).div_ceil(2)],
                     &v_plane[0..(image.width as usize).div_ceil(2)],
-                    &mut rgba[0..image.width as usize],
+                    &mut rgba[0..image.width as usize * 4],
                 );
             }
         });
@@ -260,7 +276,7 @@ fn yuv_p16_to_image_ar30<
                 &y_plane[0..image.width as usize],
                 &u_plane[0..(image.width as usize).div_ceil(2)],
                 &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba[0..image.width as usize],
+                &mut rgba[0..image.width as usize * 4],
             );
         }
     } else {
@@ -277,7 +293,7 @@ pub(crate) fn yuv_p16_to_image_ar30_impl<
     const BYTES_POSITION: u8,
 >(
     planar_image: &YuvPlanarImage<u16>,
-    rgba: &mut [u32],
+    rgba: &mut [u8],
     rgba_stride: u32,
     store_type: Rgb30ByteOrder,
     range: YuvRange,
@@ -351,7 +367,7 @@ pub(crate) fn yuv_p16_to_image_ar30_impl<
 ///
 pub fn yuv420_p16_to_ar30(
     planar_image: &YuvPlanarImage<u16>,
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -433,7 +449,7 @@ pub fn yuv420_p16_to_ar30(
 ///
 pub fn yuv422_p16_to_ar30(
     planar_image: &YuvPlanarImage<u16>,
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -515,7 +531,7 @@ pub fn yuv422_p16_to_ar30(
 ///
 pub fn yuv444_p16_to_ar30(
     planar_image: &YuvPlanarImage<u16>,
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -597,7 +613,7 @@ pub fn yuv444_p16_to_ar30(
 ///
 pub fn yuv420_p16_to_ab30(
     planar_image: &YuvPlanarImage<u16>,
-    ab30: &mut [u32],
+    ab30: &mut [u8],
     ab30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -679,7 +695,7 @@ pub fn yuv420_p16_to_ab30(
 ///
 pub fn yuv422_p16_to_ab30(
     planar_image: &YuvPlanarImage<u16>,
-    ab30: &mut [u32],
+    ab30: &mut [u8],
     ab30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -761,7 +777,7 @@ pub fn yuv422_p16_to_ab30(
 ///
 pub fn yuv444_p16_to_ab30(
     planar_image: &YuvPlanarImage<u16>,
-    ab30: &mut [u32],
+    ab30: &mut [u8],
     ab30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -843,7 +859,7 @@ pub fn yuv444_p16_to_ab30(
 ///
 pub fn yuv420_p16_to_ra30(
     planar_image: &YuvPlanarImage<u16>,
-    ra30: &mut [u32],
+    ra30: &mut [u8],
     ra30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -925,7 +941,7 @@ pub fn yuv420_p16_to_ra30(
 ///
 pub fn yuv422_p16_to_ra30(
     planar_image: &YuvPlanarImage<u16>,
-    ra30: &mut [u32],
+    ra30: &mut [u8],
     ra30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,
@@ -1007,7 +1023,7 @@ pub fn yuv422_p16_to_ra30(
 ///
 pub fn yuv444_p16_to_ra30(
     planar_image: &YuvPlanarImage<u16>,
-    ra30: &mut [u32],
+    ra30: &mut [u8],
     ra30_stride: u32,
     byte_order: Rgb30ByteOrder,
     bit_depth: usize,

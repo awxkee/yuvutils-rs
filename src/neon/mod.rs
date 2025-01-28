@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![deny(unreachable_code, unreachable_pub)]
+mod ar30_utils;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
 #[cfg(feature = "nightly_f16")]
@@ -96,6 +97,7 @@ mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
+mod yuv_nv_p10_to_ar30;
 
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{
@@ -202,3 +204,4 @@ pub(crate) use yuv_to_rgba_alpha::neon_yuv_to_rgba_alpha_rdm;
 pub(crate) use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_neon;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_neon_impl;
+pub(crate) use yuv_nv_p10_to_ar30::neon_yuv_nv12_p10_to_ar30_row;

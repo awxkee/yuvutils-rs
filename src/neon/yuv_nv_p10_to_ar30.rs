@@ -29,33 +29,30 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{neon_store_half_rgb8, vldq_s16_endian, vpackuq_n_shift16};
+use crate::neon::ar30_utils::vzipq_4_ar30;
+use crate::neon::utils::vldq_s16_endian;
 use crate::neon::yuv_nv_p10_to_rgba::deinterleave_10_bit_uv;
-use crate::yuv_support::{
-    CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling};
 
-pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row_prof<
-    const DESTINATION_CHANNELS: u8,
+pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
     const NV_ORDER: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
-    const BIT_DEPTH: usize,
+    const AR30_LAYOUT: usize,
+    const AR30_STORE: usize,
 >(
     y_plane: &[u16],
     uv_plane: &[u16],
-    bgra: &mut [u8],
+    ar30: &mut [u8],
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
     start_cx: usize,
     start_ux: usize,
 ) -> ProcessedOffset {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
+    const CN: usize = 4;
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let dst_ptr = bgra.as_mut_ptr();
 
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
@@ -81,9 +78,9 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row_prof<
         0,
     ];
 
-    let v_weights = vld1q_s16(weights_arr.as_ptr());
+    const BIT_DEPTH: usize = 10;
 
-    let v_alpha = vdup_n_u8(255u8);
+    let v_weights = vld1q_s16(weights_arr.as_ptr());
 
     let base_val = vdupq_n_s32((1 << PRECISION) - 1);
 
@@ -116,26 +113,31 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row_prof<
         bl = vqdmlal_laneq_s16::<3>(bl, u_low, v_weights);
         let ghi = vqdmlal_laneq_s16::<5>(gh, u_high, v_weights);
 
-        let r_high = vshrn_n_s32::<PRECISION>(rh);
-        let b_high = vshrn_n_s32::<PRECISION>(bh);
-        let g_high = vshrn_n_s32::<PRECISION>(ghi);
+        let r_high = vqshrun_n_s32::<PRECISION>(rh);
+        let b_high = vqshrun_n_s32::<PRECISION>(bh);
+        let g_high = vqshrun_n_s32::<PRECISION>(ghi);
 
         let glv = vqdmlal_laneq_s16::<5>(gl, u_low, v_weights);
 
-        let r_low = vshrn_n_s32::<PRECISION>(rl);
-        let b_low = vshrn_n_s32::<PRECISION>(bl);
-        let g_low = vshrn_n_s32::<PRECISION>(glv);
+        let r_low = vqshrun_n_s32::<PRECISION>(rl);
+        let b_low = vqshrun_n_s32::<PRECISION>(bl);
+        let g_low = vqshrun_n_s32::<PRECISION>(glv);
 
-        let r_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(r_low, r_high));
-        let g_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(g_low, g_high));
-        let b_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(b_low, b_high));
+        let v_max = vdupq_n_u16((1 << 10) - 1);
 
-        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst_ptr.add(cx * channels),
-            r_values,
-            g_values,
-            b_values,
-            v_alpha,
+        let rw = vminq_u16(vcombine_u16(r_low, r_high), v_max);
+        let gw = vminq_u16(vcombine_u16(g_low, g_high), v_max);
+        let bw = vminq_u16(vcombine_u16(b_low, b_high), v_max);
+
+        let zipped_ar30 = vzipq_4_ar30::<AR30_LAYOUT, AR30_STORE>(uint16x8x3_t(rw, gw, bw));
+
+        vst1q_u32(
+            ar30.get_unchecked_mut(cx * CN..).as_mut_ptr() as *mut _,
+            zipped_ar30.0,
+        );
+        vst1q_u32(
+            ar30.get_unchecked_mut((cx + 4) * CN..).as_mut_ptr() as *mut _,
+            zipped_ar30.1,
         );
 
         cx += 8;
@@ -201,33 +203,34 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row_prof<
         bl = vqdmlal_laneq_s16::<3>(bl, u_low, v_weights);
         let ghi = vqdmlal_laneq_s16::<5>(gh, u_high, v_weights);
 
-        let r_high = vshrn_n_s32::<PRECISION>(rh);
-        let b_high = vshrn_n_s32::<PRECISION>(bh);
-        let g_high = vshrn_n_s32::<PRECISION>(ghi);
+        let r_high = vqshrun_n_s32::<PRECISION>(rh);
+        let b_high = vqshrun_n_s32::<PRECISION>(bh);
+        let g_high = vqshrun_n_s32::<PRECISION>(ghi);
 
         let glv = vqdmlal_laneq_s16::<5>(gl, u_low, v_weights);
 
-        let r_low = vshrn_n_s32::<PRECISION>(rl);
-        let b_low = vshrn_n_s32::<PRECISION>(bl);
-        let g_low = vshrn_n_s32::<PRECISION>(glv);
+        let r_low = vqshrun_n_s32::<PRECISION>(rl);
+        let b_low = vqshrun_n_s32::<PRECISION>(bl);
+        let g_low = vqshrun_n_s32::<PRECISION>(glv);
 
-        let r_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(r_low, r_high));
-        let g_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(g_low, g_high));
-        let b_values = vpackuq_n_shift16::<BIT_DEPTH>(vcombine_s16(b_low, b_high));
+        let v_max = vdupq_n_u16((1 << 10) - 1);
 
-        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst_buffer.as_mut_ptr(),
-            r_values,
-            g_values,
-            b_values,
-            v_alpha,
+        let rw = vminq_u16(vcombine_u16(r_low, r_high), v_max);
+        let gw = vminq_u16(vcombine_u16(g_low, g_high), v_max);
+        let bw = vminq_u16(vcombine_u16(b_low, b_high), v_max);
+
+        let zipped_ar30 = vzipq_4_ar30::<AR30_LAYOUT, AR30_STORE>(uint16x8x3_t(rw, gw, bw));
+
+        vst1q_u32(dst_buffer.as_mut_ptr() as *mut _, zipped_ar30.0);
+        vst1q_u32(
+            dst_buffer.get_unchecked_mut(CN * 4..).as_mut_ptr() as *mut _,
+            zipped_ar30.1,
         );
 
-        let dst_shift = cx * channels;
         std::ptr::copy_nonoverlapping(
             dst_buffer.as_mut_ptr(),
-            bgra.get_unchecked_mut(dst_shift..).as_mut_ptr(),
-            diff * channels,
+            ar30.get_unchecked_mut(cx * CN..).as_mut_ptr(),
+            diff * CN,
         );
 
         cx += diff;

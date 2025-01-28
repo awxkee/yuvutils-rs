@@ -35,7 +35,7 @@ fn rgb_to_ar30_impl<
     const AR30_BYTE_ORDER: usize,
     const RGBA_LAYOUT: u8,
 >(
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     rgba: &[u8],
     rgba_stride: u32,
@@ -57,9 +57,11 @@ fn rgb_to_ar30_impl<
         .chunks_exact(rgba_stride as usize)
         .zip(ar30.chunks_exact_mut(ar30_stride as usize))
     {
+        let src = &src[0..width as usize * rgba_layout.get_channels_count()];
+        let dst = &mut dst[0..width as usize * 4];
         for (src, dst) in src
             .chunks_exact(rgba_layout.get_channels_count())
-            .zip(dst.iter_mut())
+            .zip(dst.chunks_exact_mut(4))
         {
             let r = src[rgba_layout.get_r_channel_offset()];
             let g = src[rgba_layout.get_g_channel_offset()];
@@ -79,7 +81,11 @@ fn rgb_to_ar30_impl<
             } else {
                 ar30_layout.pack::<AR30_BYTE_ORDER>(r as i32, g as i32, b as i32)
             };
-            *dst = packed;
+            let v_bytes = packed.to_ne_bytes();
+            dst[0] = v_bytes[0];
+            dst[1] = v_bytes[2];
+            dst[2] = v_bytes[3];
+            dst[3] = v_bytes[3];
         }
     }
     Ok(())
@@ -98,7 +104,7 @@ fn rgb_to_ar30_impl<
 /// * `height`: Image height
 ///
 pub fn rgb8_to_ar30(
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgb: &[u8],
@@ -133,7 +139,7 @@ pub fn rgb8_to_ar30(
 /// * `height`: Image height
 ///
 pub fn rgb8_to_ra30(
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgb: &[u8],
@@ -168,7 +174,7 @@ pub fn rgb8_to_ra30(
 /// * `height`: Image height
 ///
 pub fn rgba8_to_ar30(
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgba: &[u8],
@@ -203,7 +209,7 @@ pub fn rgba8_to_ar30(
 /// * `height`: Image height
 ///
 pub fn rgba8_to_ra30(
-    ar30: &mut [u32],
+    ar30: &mut [u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgba: &[u8],

@@ -57,7 +57,6 @@
     ),
     feature(stdarch_neon_i8mm)
 )]
-extern crate core;
 
 mod ar30_rgb;
 #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
@@ -101,6 +100,7 @@ mod ycgco_to_rgb;
 mod ycgco_to_rgb_alpha;
 mod ycgcor_support;
 mod yuv_error;
+mod yuv_nv_p10_to_ar30;
 mod yuv_nv_p10_to_rgba;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
@@ -490,6 +490,12 @@ pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
 pub use shuffle::{
     bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
     rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
+};
+pub use yuv_nv_p10_to_ar30::{
+    yuv_nv12_p10_to_ab30, yuv_nv12_p10_to_ar30, yuv_nv12_p10_to_ba30, yuv_nv12_p10_to_ra30,
+    yuv_nv16_p10_to_ab30, yuv_nv16_p10_to_ar30, yuv_nv16_p10_to_ba30, yuv_nv16_p10_to_ra30,
+    yuv_nv21_p10_to_ab30, yuv_nv21_p10_to_ar30, yuv_nv21_p10_to_ba30, yuv_nv21_p10_to_ra30,
+    yuv_nv61_p10_to_ab30, yuv_nv61_p10_to_ar30, yuv_nv61_p10_to_ba30, yuv_nv61_p10_to_ra30,
 };
 pub use yuv_p16_ar30::{
     yuv420_p16_to_ab30, yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ab30,
