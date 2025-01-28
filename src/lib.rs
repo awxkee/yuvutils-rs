@@ -28,11 +28,35 @@
  */
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 #![allow(clippy::manual_clamp)]
-#![cfg_attr(feature = "nightly_avx512", feature(cfg_version))]
-#![cfg_attr(feature = "nightly_avx512", feature(avx512_target_feature))]
-#![cfg_attr(feature = "nightly_avx512", feature(stdarch_x86_avx512))]
+#![cfg_attr(
+    all(
+        feature = "nightly_avx512",
+        any(target_arch = "x86", target_arch = "x86_64")
+    ),
+    feature(cfg_version)
+)]
+#![cfg_attr(
+    all(
+        feature = "nightly_avx512",
+        any(target_arch = "x86", target_arch = "x86_64")
+    ),
+    feature(avx512_target_feature)
+)]
+#![cfg_attr(
+    all(
+        feature = "nightly_avx512",
+        any(target_arch = "x86", target_arch = "x86_64")
+    ),
+    feature(stdarch_x86_avx512)
+)]
 #![cfg_attr(feature = "nightly_f16", feature(f16))]
-#![cfg_attr(feature = "nightly_i8mm", feature(stdarch_neon_i8mm))]
+#![cfg_attr(
+    all(
+        feature = "nightly_i8mm",
+        all(target_arch = "aarch64", target_feature = "neon")
+    ),
+    feature(stdarch_neon_i8mm)
+)]
 extern crate core;
 
 mod ar30_rgb;

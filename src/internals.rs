@@ -75,6 +75,18 @@ pub(crate) trait RowBiPlanarInversionHandler<V, K> {
     ) -> ProcessedOffset;
 }
 
+pub(crate) trait RowDBiPlanarInversionHandler<V, T, K> {
+    fn handle_row(
+        &self,
+        y_plane: &[V],
+        uv_plane: &[V],
+        rgba: &mut [T],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrInverseTransform<K>,
+    ) -> ProcessedOffset;
+}
+
 pub(crate) trait RowBiPlanarInversion420Handler<V, K> {
     fn handle_row(
         &self,

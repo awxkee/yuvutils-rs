@@ -317,12 +317,8 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
         assert!(diff <= 8);
-
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut y_buffer: [u16; 8] = [0; 8];
         let mut u_buffer: [u16; 8] = [0; 8];
@@ -694,12 +690,8 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
         assert!(diff <= 8);
-
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mut y_buffer: [u16; 8] = [0; 8];
         let mut u_buffer: [u16; 8] = [0; 8];
@@ -783,9 +775,13 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
             v_weights,
         );
 
-        let r_values = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(r_vals, zeros)), v_alpha);
-        let g_values = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(g_vals, zeros)), v_alpha);
-        let b_values = vminq_u16(vreinterpretq_u16_s16(vmaxq_s16(b_vals, zeros)), v_alpha);
+        let rlv = vmaxq_s16(r_vals, zeros);
+        let glv = vmaxq_s16(g_vals, zeros);
+        let blv = vmaxq_s16(b_vals, zeros);
+
+        let r_values = vminq_u16(vreinterpretq_u16_s16(rlv), v_alpha);
+        let g_values = vminq_u16(vreinterpretq_u16_s16(glv), v_alpha);
+        let b_values = vminq_u16(vreinterpretq_u16_s16(blv), v_alpha);
 
         let mut buffer: [u16; 8 * 4] = [0; 8 * 4];
 

@@ -32,6 +32,36 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
 
 #[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn vqddotl_laneq_s16<const PRECISION: i32, const LANE: i32>(
+    acc: (int32x4_t, int32x4_t),
+    v0: int16x8_t,
+    c0: int16x8_t,
+) -> int16x8_t {
+    let hi = vqdmlal_high_laneq_s16::<LANE>(acc.1, v0, c0);
+    let lo = vqdmlal_laneq_s16::<LANE>(acc.0, vget_low_s16(v0), c0);
+    vcombine_s16(vshrn_n_s32::<PRECISION>(lo), vshrn_n_s32::<PRECISION>(hi))
+}
+
+#[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn vqddotl_overflow_laneq_s16<
+    const PRECISION: i32,
+    const LANE0: i32,
+    const LANE1: i32,
+>(
+    acc: (int32x4_t, int32x4_t),
+    v0: int16x8_t,
+    c0: int16x8_t,
+) -> int16x8_t {
+    let mut hi = vqdmlal_high_laneq_s16::<LANE0>(acc.1, v0, c0);
+    let mut lo = vqdmlal_laneq_s16::<LANE0>(acc.0, vget_low_s16(v0), c0);
+    hi = vqdmlal_high_laneq_s16::<LANE1>(hi, v0, c0);
+    lo = vqdmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v0), c0);
+    vcombine_s16(vshrn_n_s32::<PRECISION>(lo), vshrn_n_s32::<PRECISION>(hi))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn vdotl_laneq_s16<const PRECISION: i32, const LANE: i32>(
     acc: (int32x4_t, int32x4_t),
     v0: int16x8_t,
@@ -83,6 +113,29 @@ pub(crate) unsafe fn vdotl_laneq_s16_x3<
 }
 
 #[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn vqddotl_laneq_s16_x3<
+    const PRECISION: i32,
+    const LANE0: i32,
+    const LANE1: i32,
+    const LANE2: i32,
+>(
+    base: int32x4_t,
+    v0: int16x8_t,
+    v1: int16x8_t,
+    v2: int16x8_t,
+    c0: int16x8_t,
+) -> int16x8_t {
+    let mut hi = vqdmlal_high_laneq_s16::<LANE0>(base, v0, c0);
+    let mut lo = vqdmlal_laneq_s16::<LANE0>(base, vget_low_s16(v0), c0);
+    hi = vqdmlal_high_laneq_s16::<LANE1>(hi, v1, c0);
+    lo = vqdmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c0);
+    hi = vqdmlal_high_laneq_s16::<LANE2>(hi, v2, c0);
+    lo = vqdmlal_laneq_s16::<LANE2>(lo, vget_low_s16(v2), c0);
+    vcombine_s16(vshrn_n_s32::<PRECISION>(lo), vshrn_n_s32::<PRECISION>(hi))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn vdotl_laneq_u16_x3<
     const PRECISION: i32,
     const LANE0: i32,
@@ -105,13 +158,25 @@ pub(crate) unsafe fn vdotl_laneq_u16_x3<
 }
 
 #[inline(always)]
-pub(crate) unsafe fn vaddn_dot<const PRECISION: i32>(
+pub(crate) unsafe fn vraddn_dot<const PRECISION: i32>(
     acc: (int32x4_t, int32x4_t),
     w: (int32x4_t, int32x4_t),
 ) -> int16x8_t {
     vcombine_s16(
         vrshrn_n_s32::<PRECISION>(vaddq_s32(acc.0, w.0)),
         vrshrn_n_s32::<PRECISION>(vaddq_s32(acc.1, w.1)),
+    )
+}
+
+#[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn vaddn_dot<const PRECISION: i32>(
+    acc: (int32x4_t, int32x4_t),
+    w: (int32x4_t, int32x4_t),
+) -> int16x8_t {
+    vcombine_s16(
+        vshrn_n_s32::<PRECISION>(vaddq_s32(acc.0, w.0)),
+        vshrn_n_s32::<PRECISION>(vaddq_s32(acc.1, w.1)),
     )
 }
 
@@ -129,6 +194,20 @@ pub(crate) unsafe fn vweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
 }
 
 #[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn vqdweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
+    v0: int16x8_t,
+    v1: int16x8_t,
+    c1: int16x8_t,
+) -> (int32x4_t, int32x4_t) {
+    let mut lo = vqdmull_laneq_s16::<LANE0>(vget_low_s16(v0), c1);
+    let mut hi = vqdmull_high_laneq_s16::<LANE0>(v0, c1);
+    lo = vqdmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c1);
+    hi = vqdmlal_high_laneq_s16::<LANE1>(hi, v1, c1);
+    (lo, hi)
+}
+
+#[inline(always)]
 pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
     v: int16x8_t,
     q: int16x8_t,
@@ -136,6 +215,19 @@ pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
     (
         vmull_laneq_s16::<LANE>(vget_low_s16(v), q),
         vmull_high_laneq_s16::<LANE>(v, q),
+    )
+}
+
+#[inline(always)]
+#[cfg(feature = "professional_mode")]
+pub(crate) unsafe fn vqdmalq_laneq_s16<const LANE: i32>(
+    a: int32x4_t,
+    v: int16x8_t,
+    q: int16x8_t,
+) -> (int32x4_t, int32x4_t) {
+    (
+        vqdmlal_laneq_s16::<LANE>(a, vget_low_s16(v), q),
+        vqdmlal_high_laneq_s16::<LANE>(a, v, q),
     )
 }
 

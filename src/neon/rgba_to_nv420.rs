@@ -35,11 +35,7 @@ use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSo
 
 #[inline(always)]
 #[cfg(feature = "rdm")]
-unsafe fn encode_16_part_rdm<
-    const ORIGIN_CHANNELS: u8,
-    const UV_ORDER: u8,
-    const PRECISION: i32,
->(
+unsafe fn encode_16_part_rdm<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8>(
     src0: &[u8],
     src1: &[u8],
     y_dst0: &mut [u8],
@@ -138,11 +134,7 @@ unsafe fn encode_16_part_rdm<
 #[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 /// Special path for BiPlanar YUV 4:2:0 for aarch64 with RDM available
-pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
-    const ORIGIN_CHANNELS: u8,
-    const UV_ORDER: u8,
-    const PRECISION: i32,
->(
+pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8>(
     y_plane0: &mut [u8],
     y_plane1: &mut [u8],
     uv_plane: &mut [u8],
@@ -178,7 +170,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     let mut ux = start_ux;
 
     while cx + 16 < width as usize {
-        encode_16_part_rdm::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
+        encode_16_part_rdm::<ORIGIN_CHANNELS, UV_ORDER>(
             rgba0.get_unchecked(cx * channels..),
             rgba1.get_unchecked(cx * channels..),
             y_plane0.get_unchecked_mut(cx..),
@@ -233,7 +225,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
             diff * channels,
         );
 
-        encode_16_part_rdm::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
+        encode_16_part_rdm::<ORIGIN_CHANNELS, UV_ORDER>(
             src_buffer0.as_slice(),
             src_buffer1.as_slice(),
             y_buffer0.as_mut_slice(),
@@ -270,11 +262,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<
     ProcessedOffset { cx, ux }
 }
 
-pub(crate) unsafe fn neon_rgbx_to_nv_row420<
-    const ORIGIN_CHANNELS: u8,
-    const UV_ORDER: u8,
-    const PRECISION: i32,
->(
+pub(crate) unsafe fn neon_rgbx_to_nv_row420<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8>(
     y_plane0: &mut [u8],
     y_plane1: &mut [u8],
     uv_plane: &mut [u8],
@@ -289,6 +277,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<
     let order: YuvNVOrder = UV_ORDER.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
+
+    const PRECISION: i32 = 13;
+
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;

@@ -31,6 +31,8 @@ mod avx512_rgb_to_yuv;
 mod avx512_setr;
 mod avx512_utils;
 mod rgb_to_nv420;
+#[cfg(feature = "professional_mode")]
+mod rgb_to_nv420_prof;
 mod rgb_to_y;
 mod rgb_to_ycgco;
 mod rgb_to_yuv_p16;
@@ -38,15 +40,17 @@ mod rgb_to_yuv_p16_420;
 mod rgba_to_yuv;
 mod rgba_to_yuv420;
 #[cfg(feature = "fast_mode")]
-mod rgba_to_yuv_dot;
+mod rgba_to_yuv_fast;
 #[cfg(feature = "fast_mode")]
-mod rgba_to_yuv_dot420;
+mod rgba_to_yuv_fast420;
 mod y_to_rgb;
 mod ycgco_to_rgb;
 mod ycgco_to_rgba_alpha;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
 mod yuv_nv_to_rgba422;
+#[cfg(feature = "fast_mode")]
+mod yuv_nv_to_rgba_fast420;
 mod yuv_p16_to_rgb16;
 mod yuv_p16_to_rgb8;
 mod yuv_to_rgba;
@@ -55,6 +59,8 @@ mod yuv_to_rgba422;
 mod yuv_to_rgba_alpha;
 
 pub(crate) use rgb_to_nv420::avx512_rgba_to_nv420;
+#[cfg(feature = "professional_mode")]
+pub(crate) use rgb_to_nv420_prof::avx512_rgba_to_nv420_prof;
 pub(crate) use rgb_to_y::avx512_row_rgb_to_y;
 pub(crate) use rgb_to_ycgco::avx512_rgb_to_ycgco_row;
 pub(crate) use rgb_to_yuv_p16::avx512_rgba_to_yuv_p16;
@@ -62,9 +68,9 @@ pub(crate) use rgb_to_yuv_p16_420::avx512_rgba_to_yuv_p16_420;
 pub(crate) use rgba_to_yuv::avx512_rgba_to_yuv;
 pub(crate) use rgba_to_yuv420::avx512_rgba_to_yuv420;
 #[cfg(feature = "fast_mode")]
-pub(crate) use rgba_to_yuv_dot::{avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi};
+pub(crate) use rgba_to_yuv_fast::{avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yuv_dot_rgba_bmi};
 #[cfg(feature = "fast_mode")]
-pub(crate) use rgba_to_yuv_dot420::{
+pub(crate) use rgba_to_yuv_fast420::{
     avx512_rgba_to_yuv_dot_rgba420, avx512_rgba_to_yuv_dot_rgba420_vbmi,
 };
 pub(crate) use y_to_rgb::avx512_y_to_rgb_row;
@@ -73,6 +79,8 @@ pub(crate) use ycgco_to_rgba_alpha::avx512_ycgco_to_rgba_alpha;
 pub(crate) use yuv_nv_to_rgba::avx512_yuv_nv_to_rgba;
 pub(crate) use yuv_nv_to_rgba420::avx512_yuv_nv_to_rgba420;
 pub(crate) use yuv_nv_to_rgba422::avx512_yuv_nv_to_rgba422;
+#[cfg(feature = "fast_mode")]
+pub(crate) use yuv_nv_to_rgba_fast420::avx512_yuv_nv_to_rgba_fast420;
 pub(crate) use yuv_p16_to_rgb16::avx512_yuv_p16_to_rgba16_row;
 pub(crate) use yuv_p16_to_rgb8::avx512_yuv_p16_to_rgba8_row;
 pub(crate) use yuv_to_rgba::avx512_yuv_to_rgba;

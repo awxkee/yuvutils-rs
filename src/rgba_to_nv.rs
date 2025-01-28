@@ -45,26 +45,61 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
+type SemiPlanarRowHandler = Option<
+    unsafe fn(
+        y_plane0: &mut [u8],
+        y_plane1: &mut [u8],
+        uv_plane: &mut [u8],
+        rgba0: &[u8],
+        rgba1: &[u8],
+        width: u32,
+        range: &YuvChromaRange,
+        transform: &CbCrForwardTransform<i32>,
+        start_cx: usize,
+        start_ux: usize,
+    ) -> ProcessedOffset,
+>;
+
+type SemiPlanarRow420Handler = Option<
+    unsafe fn(
+        y_plane: &mut [u8],
+        uv_plane: &mut [u8],
+        rgba0: &[u8],
+        width: u32,
+        range: &YuvChromaRange,
+        transform: &CbCrForwardTransform<i32>,
+        start_cx: usize,
+        start_ux: usize,
+    ) -> ProcessedOffset,
+>;
+
 struct SemiPlanar420Encoder<
     const ORIGIN_CHANNELS: u8,
     const UV_ORDER: u8,
     const SAMPLING: u8,
     const PRECISION: i32,
 > {
-    handler: Option<
-        unsafe fn(
-            y_plane0: &mut [u8],
-            y_plane1: &mut [u8],
-            uv_plane: &mut [u8],
-            rgba0: &[u8],
-            rgba1: &[u8],
-            width: u32,
-            range: &YuvChromaRange,
-            transform: &CbCrForwardTransform<i32>,
-            start_cx: usize,
-            start_ux: usize,
-        ) -> ProcessedOffset,
-    >,
+    handler: SemiPlanarRowHandler,
+}
+
+#[cfg(feature = "professional_mode")]
+struct SemiPlanar420EncoderProfessional<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: SemiPlanarRowHandler,
+}
+
+#[cfg(feature = "fast_mode")]
+struct SemiPlanar420EncoderFast<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: SemiPlanarRowHandler,
 }
 
 impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
@@ -74,52 +109,6 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
         let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
         if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
             return SemiPlanar420Encoder { handler: None };
-        }
-
-        #[cfg(feature = "fast_mode")]
-        if PRECISION == 7 {
-            assert_eq!(PRECISION, 7);
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            {
-                #[cfg(feature = "nightly_i8mm")]
-                {
-                    let cn: YuvSourceChannels = ORIGIN_CHANNELS.into();
-                    use crate::neon::neon_rgba_to_nv_dot_rgba420;
-                    if std::arch::is_aarch64_feature_detected!("i8mm")
-                        && (cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra)
-                    {
-                        assert!(cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra);
-                        return SemiPlanar420Encoder {
-                            handler: Some(neon_rgba_to_nv_dot_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
-                        };
-                    }
-                }
-                use crate::neon::neon_rgbx_to_nv_fast420;
-                return SemiPlanar420Encoder {
-                    handler: Some(neon_rgbx_to_nv_fast420::<ORIGIN_CHANNELS, UV_ORDER>),
-                };
-            }
-
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                #[cfg(feature = "avx")]
-                if std::arch::is_x86_feature_detected!("avx2") {
-                    use crate::avx2::avx2_rgba_to_nv_fast_rgba420;
-                    return SemiPlanar420Encoder {
-                        handler: Some(avx2_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
-                    };
-                }
-
-                #[cfg(feature = "sse")]
-                {
-                    if std::arch::is_x86_feature_detected!("sse4.1") {
-                        use crate::sse::sse_rgba_to_nv_fast_rgba420;
-                        return SemiPlanar420Encoder {
-                            handler: Some(sse_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
-                        };
-                    }
-                }
-            }
         }
 
         if PRECISION != 13 {
@@ -135,15 +124,13 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
                 use crate::neon::neon_rgbx_to_nv_row_rdm420;
                 if is_rdm_available {
                     return SemiPlanar420Encoder {
-                        handler: Some(
-                            neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
-                        ),
+                        handler: Some(neon_rgbx_to_nv_row_rdm420::<ORIGIN_CHANNELS, UV_ORDER>),
                     };
                 }
             }
 
             SemiPlanar420Encoder {
-                handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>),
+                handler: Some(neon_rgbx_to_nv_row420::<ORIGIN_CHANNELS, UV_ORDER>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -197,79 +184,35 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
     }
 }
 
+#[cfg(feature = "fast_mode")]
 impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
-    WideRowForwardBiPlanar420Handler<u8, i32>
-    for SemiPlanar420Encoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
-{
-    fn handle_rows(
-        &self,
-        rgba0: &[u8],
-        rgba1: &[u8],
-        y_plane0: &mut [u8],
-        y_plane1: &mut [u8],
-        uv_plane: &mut [u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrForwardTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(
-                    y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, &chroma, transform, 0, 0,
-                );
-            }
-        }
-        ProcessedOffset { cx: 0, ux: 0 }
-    }
-}
-
-struct SemiPlanarEncoder<
-    const ORIGIN_CHANNELS: u8,
-    const UV_ORDER: u8,
-    const SAMPLING: u8,
-    const PRECISION: i32,
-> {
-    handler: Option<
-        unsafe fn(
-            y_plane: &mut [u8],
-            uv_plane: &mut [u8],
-            rgba0: &[u8],
-            width: u32,
-            range: &YuvChromaRange,
-            transform: &CbCrForwardTransform<i32>,
-            start_cx: usize,
-            start_ux: usize,
-        ) -> ProcessedOffset,
-    >,
-}
-
-impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
-    Default for SemiPlanarEncoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+    Default for SemiPlanar420EncoderFast<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        #[cfg(feature = "fast_mode")]
+        let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+        if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
+            return SemiPlanar420EncoderFast { handler: None };
+        }
         if PRECISION == 7 {
             assert_eq!(PRECISION, 7);
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
-                #[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
+                #[cfg(feature = "nightly_i8mm")]
                 {
                     let cn: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    use crate::neon::neon_rgba_to_nv_dot_rgba420;
                     if std::arch::is_aarch64_feature_detected!("i8mm")
-                        && (cn == YuvSourceChannels::Bgra || cn == YuvSourceChannels::Rgba)
+                        && (cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra)
                     {
-                        use crate::neon::neon_rgba_to_nv_dot_rgba;
-                        return SemiPlanarEncoder {
-                            handler: Some(
-                                neon_rgba_to_nv_dot_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
-                            ),
+                        assert!(cn == YuvSourceChannels::Rgba || cn == YuvSourceChannels::Bgra);
+                        return SemiPlanar420EncoderFast {
+                            handler: Some(neon_rgba_to_nv_dot_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
                         };
                     }
                 }
-
-                use crate::neon::neon_rgbx_to_nv_fast;
-                return SemiPlanarEncoder {
-                    handler: Some(neon_rgbx_to_nv_fast::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>),
+                use crate::neon::neon_rgbx_to_nv_fast420;
+                return SemiPlanar420EncoderFast {
+                    handler: Some(neon_rgbx_to_nv_fast420::<ORIGIN_CHANNELS, UV_ORDER>),
                 };
             }
 
@@ -277,28 +220,169 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
             {
                 #[cfg(feature = "avx")]
                 if std::arch::is_x86_feature_detected!("avx2") {
-                    use crate::avx2::avx2_rgba_to_nv_fast_rgba;
-                    return SemiPlanarEncoder {
-                        handler: Some(
-                            avx2_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
-                        ),
+                    use crate::avx2::avx2_rgba_to_nv_fast_rgba420;
+                    return SemiPlanar420EncoderFast {
+                        handler: Some(avx2_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
                     };
                 }
 
                 #[cfg(feature = "sse")]
                 {
                     if std::arch::is_x86_feature_detected!("sse4.1") {
-                        use crate::sse::sse_rgba_to_nv_fast_rgba;
-                        return SemiPlanarEncoder {
-                            handler: Some(
-                                sse_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
-                            ),
+                        use crate::sse::sse_rgba_to_nv_fast_rgba420;
+                        return SemiPlanar420EncoderFast {
+                            handler: Some(sse_rgba_to_nv_fast_rgba420::<ORIGIN_CHANNELS, UV_ORDER>),
                         };
                     }
                 }
             }
         }
 
+        SemiPlanar420EncoderFast { handler: None }
+    }
+}
+
+#[cfg(feature = "professional_mode")]
+impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
+    Default for SemiPlanar420EncoderProfessional<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+        if chroma_subsampling != YuvChromaSubsampling::Yuv420 {
+            return SemiPlanar420EncoderProfessional { handler: None };
+        }
+        if PRECISION == 15 {
+            assert_eq!(PRECISION, 15);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_rgba_to_nv_prof420;
+                return SemiPlanar420EncoderProfessional {
+                    handler: Some(neon_rgba_to_nv_prof420::<ORIGIN_CHANNELS, SAMPLING>),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "nightly_avx512")]
+                {
+                    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+                    if use_avx512 {
+                        let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                        use crate::avx512bw::avx512_rgba_to_nv420_prof;
+                        return if use_vbmi {
+                            SemiPlanar420EncoderProfessional {
+                                handler: Some(
+                                    avx512_rgba_to_nv420_prof::<ORIGIN_CHANNELS, UV_ORDER, true>,
+                                ),
+                            }
+                        } else {
+                            SemiPlanar420EncoderProfessional {
+                                handler: Some(
+                                    avx512_rgba_to_nv420_prof::<ORIGIN_CHANNELS, UV_ORDER, false>,
+                                ),
+                            }
+                        };
+                    }
+                }
+
+                #[cfg(feature = "avx")]
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_nv420_prof;
+                    return SemiPlanar420EncoderProfessional {
+                        handler: Some(
+                            avx2_rgba_to_nv420_prof::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
+                        ),
+                    };
+                }
+                #[cfg(feature = "sse")]
+                if std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_rgba_to_nv420_prof;
+                    return SemiPlanar420EncoderProfessional {
+                        handler: Some(
+                            sse_rgba_to_nv420_prof::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>,
+                        ),
+                    };
+                }
+            }
+        }
+
+        SemiPlanar420EncoderProfessional { handler: None }
+    }
+}
+
+macro_rules! define_biplanar420_handler {
+    ($struct_name:ident) => {
+        impl<
+                const ORIGIN_CHANNELS: u8,
+                const UV_ORDER: u8,
+                const SAMPLING: u8,
+                const PRECISION: i32,
+            > WideRowForwardBiPlanar420Handler<u8, i32>
+            for $struct_name<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+        {
+            fn handle_rows(
+                &self,
+                rgba0: &[u8],
+                rgba1: &[u8],
+                y_plane0: &mut [u8],
+                y_plane1: &mut [u8],
+                uv_plane: &mut [u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrForwardTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(
+                            y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, &chroma, transform,
+                            0, 0,
+                        );
+                    }
+                }
+                ProcessedOffset { cx: 0, ux: 0 }
+            }
+        }
+    };
+}
+
+define_biplanar420_handler!(SemiPlanar420Encoder);
+#[cfg(feature = "fast_mode")]
+define_biplanar420_handler!(SemiPlanar420EncoderFast);
+#[cfg(feature = "professional_mode")]
+define_biplanar420_handler!(SemiPlanar420EncoderProfessional);
+
+struct SemiPlanarEncoder<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: SemiPlanarRow420Handler,
+}
+
+#[cfg(feature = "professional_mode")]
+struct SemiPlanarEncoderProfessional<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: SemiPlanarRow420Handler,
+}
+
+#[cfg(feature = "fast_mode")]
+struct SemiPlanarEncoderFast<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: SemiPlanarRow420Handler,
+}
+
+impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
+    Default for SemiPlanarEncoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
         if PRECISION != 13 {
             return SemiPlanarEncoder { handler: None };
         }
@@ -357,27 +441,142 @@ impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PR
     }
 }
 
+#[cfg(feature = "fast_mode")]
 impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
-    WideRowForwardBiPlanarHandler<u8, i32>
-    for SemiPlanarEncoder<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+    Default for SemiPlanarEncoderFast<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
 {
-    fn handle_row(
-        &self,
-        rgba: &[u8],
-        y_plane: &mut [u8],
-        uv_plane: &mut [u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrForwardTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(y_plane, uv_plane, rgba, width, &chroma, transform, 0, 0);
+    fn default() -> Self {
+        if PRECISION == 7 {
+            assert_eq!(PRECISION, 7);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                #[cfg(all(feature = "nightly_i8mm", feature = "fast_mode"))]
+                {
+                    let cn: YuvSourceChannels = ORIGIN_CHANNELS.into();
+                    if std::arch::is_aarch64_feature_detected!("i8mm")
+                        && (cn == YuvSourceChannels::Bgra || cn == YuvSourceChannels::Rgba)
+                    {
+                        use crate::neon::neon_rgba_to_nv_dot_rgba;
+                        return SemiPlanarEncoderFast {
+                            handler: Some(
+                                neon_rgba_to_nv_dot_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                            ),
+                        };
+                    }
+                }
+
+                use crate::neon::neon_rgbx_to_nv_fast;
+                return SemiPlanarEncoderFast {
+                    handler: Some(neon_rgbx_to_nv_fast::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>),
+                };
+            }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_nv_fast_rgba;
+                    return SemiPlanarEncoderFast {
+                        handler: Some(
+                            avx2_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                        ),
+                    };
+                }
+
+                #[cfg(feature = "sse")]
+                {
+                    if std::arch::is_x86_feature_detected!("sse4.1") {
+                        use crate::sse::sse_rgba_to_nv_fast_rgba;
+                        return SemiPlanarEncoderFast {
+                            handler: Some(
+                                sse_rgba_to_nv_fast_rgba::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>,
+                            ),
+                        };
+                    }
+                }
             }
         }
-        ProcessedOffset { cx: 0, ux: 0 }
+
+        SemiPlanarEncoderFast { handler: None }
     }
 }
+
+#[cfg(feature = "professional_mode")]
+impl<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8, const PRECISION: i32>
+    Default for SemiPlanarEncoderProfessional<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        if PRECISION == 15 {
+            assert_eq!(PRECISION, 15);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_rgba_to_nv_prof;
+                return SemiPlanarEncoderProfessional {
+                    handler: Some(neon_rgba_to_nv_prof::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_rgba_to_nv_prof;
+                    return SemiPlanarEncoderProfessional {
+                        handler: Some(
+                            avx2_rgba_to_nv_prof::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
+                }
+                #[cfg(feature = "sse")]
+                if std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_rgba_to_nv_prof;
+                    return SemiPlanarEncoderProfessional {
+                        handler: Some(
+                            sse_rgba_to_nv_prof::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>,
+                        ),
+                    };
+                }
+            }
+        }
+
+        SemiPlanarEncoderProfessional { handler: None }
+    }
+}
+
+macro_rules! define_forward_biplanar_handler {
+    ($struct_name:ident) => {
+        impl<
+                const ORIGIN_CHANNELS: u8,
+                const UV_ORDER: u8,
+                const SAMPLING: u8,
+                const PRECISION: i32,
+            > WideRowForwardBiPlanarHandler<u8, i32>
+            for $struct_name<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>
+        {
+            fn handle_row(
+                &self,
+                rgba: &[u8],
+                y_plane: &mut [u8],
+                uv_plane: &mut [u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrForwardTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(y_plane, uv_plane, rgba, width, &chroma, transform, 0, 0);
+                    }
+                }
+                ProcessedOffset { cx: 0, ux: 0 }
+            }
+        }
+    };
+}
+
+define_forward_biplanar_handler!(SemiPlanarEncoder);
+#[cfg(feature = "fast_mode")]
+define_forward_biplanar_handler!(SemiPlanarEncoderFast);
+#[cfg(feature = "professional_mode")]
+define_forward_biplanar_handler!(SemiPlanarEncoderProfessional);
 
 fn rgbx_to_nv_impl<
     const ORIGIN_CHANNELS: u8,
@@ -390,6 +589,8 @@ fn rgbx_to_nv_impl<
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    semi_planar_handler: impl WideRowForwardBiPlanarHandler<u8, i32> + Send + Sync,
+    semi_planar_handler420: impl WideRowForwardBiPlanar420Handler<u8, i32> + Send + Sync,
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
@@ -409,9 +610,6 @@ fn rgbx_to_nv_impl<
     let bias_uv = chroma_range.bias_uv as i32 * (1 << PRECISION) + rnd_bias;
 
     let width = image.width;
-
-    let semi_planar_handler =
-        SemiPlanarEncoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>::default();
 
     let process_halved_row = |y_dst: &mut [u8], uv_dst: &mut [u8], rgba: &[u8]| {
         let offset = semi_planar_handler.handle_row(
@@ -483,9 +681,6 @@ fn rgbx_to_nv_impl<
             }
         }
     };
-
-    let semi_planar_handler420 =
-        SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>::default();
 
     let process_double_row = |y_dst0: &mut [u8],
                               y_dst1: &mut [u8],
@@ -743,6 +938,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                 rgba_stride,
                 range,
                 matrix,
+                SemiPlanarEncoderFast::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 7>::default(),
+                SemiPlanar420EncoderFast::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 7>::default(),
             ),
             YuvConversionMode::Balanced => {
                 rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>(
@@ -751,6 +948,20 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     rgba_stride,
                     range,
                     matrix,
+                    SemiPlanarEncoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>::default(),
+                    SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>::default(),
+                )
+            }
+            #[cfg(feature = "professional_mode")]
+            YuvConversionMode::Professional => {
+                rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 15>(
+                    image,
+                    rgba,
+                    rgba_stride,
+                    range,
+                    matrix,
+                    SemiPlanarEncoderProfessional::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 15>::default(),
+                    SemiPlanar420EncoderProfessional::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 15>::default(),
                 )
             }
         }
@@ -766,6 +977,8 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             rgba_stride,
             range,
             matrix,
+            SemiPlanarEncoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>::default(),
+            SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>::default(),
         )
     }
 }

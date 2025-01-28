@@ -756,7 +756,7 @@ pub(crate) unsafe fn sse_pairwise_avg_epi8_j(a: __m128i, f: i8) -> __m128i {
 
 #[inline(always)]
 pub(crate) unsafe fn _mm_affine_dot<const PRECISION: i32>(
-    slope: __m128i,
+    acc: __m128i,
     r: __m128i,
     g: __m128i,
     b: __m128i,
@@ -764,24 +764,41 @@ pub(crate) unsafe fn _mm_affine_dot<const PRECISION: i32>(
     w1: __m128i,
 ) -> __m128i {
     let r_intl_g_lo = _mm_interleave_epi16(r, g);
+    let unbpl = _mm_unpacklo_epi16(b, _mm_setzero_si128());
+    let unbph = _mm_unpackhi_epi16(b, _mm_setzero_si128());
 
-    let zeros = _mm_setzero_si128();
+    let r0w0 = _mm_madd_epi16(r_intl_g_lo.0, w0);
+    let b0w1 = _mm_madd_epi16(unbpl, w1);
+    let r1w0 = _mm_madd_epi16(r_intl_g_lo.1, w0);
+    let b1w1 = _mm_madd_epi16(unbph, w1);
 
-    let y_l_l = _mm_add_epi32(
-        slope,
-        _mm_add_epi32(
-            _mm_madd_epi16(r_intl_g_lo.0, w0),
-            _mm_madd_epi16(_mm_unpacklo_epi16(b, zeros), w1),
-        ),
-    );
+    let y_l_l = _mm_add_epi32(acc, _mm_add_epi32(r0w0, b0w1));
+    let y_l_h = _mm_add_epi32(acc, _mm_add_epi32(r1w0, b1w1));
 
-    let y_l_h = _mm_add_epi32(
-        slope,
-        _mm_add_epi32(
-            _mm_madd_epi16(r_intl_g_lo.1, w0),
-            _mm_madd_epi16(_mm_unpackhi_epi16(b, zeros), w1),
-        ),
-    );
+    _mm_packus_epi32(
+        _mm_srli_epi32::<PRECISION>(y_l_l),
+        _mm_srli_epi32::<PRECISION>(y_l_h),
+    )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_affine_uv_dot<const PRECISION: i32>(
+    acc: __m128i,
+    r0: __m128i,
+    r1: __m128i,
+    b0: __m128i,
+    b1: __m128i,
+    w0: __m128i,
+    w1: __m128i,
+) -> __m128i {
+    let r0w0 = _mm_madd_epi16(r0, w0);
+    let b0w1 = _mm_madd_epi16(b0, w1);
+    let r1w0 = _mm_madd_epi16(r1, w0);
+    let b1w1 = _mm_madd_epi16(b1, w1);
+
+    let y_l_l = _mm_add_epi32(acc, _mm_add_epi32(r0w0, b0w1));
+    let y_l_h = _mm_add_epi32(acc, _mm_add_epi32(r1w0, b1w1));
+
     _mm_packus_epi32(
         _mm_srli_epi32::<PRECISION>(y_l_l),
         _mm_srli_epi32::<PRECISION>(y_l_h),
@@ -858,4 +875,14 @@ pub(crate) unsafe fn _mm_set4r_epi(e0: i8, e1: i8, e2: i8, e3: i8) -> __m128i {
     _mm_setr_epi8(
         e0, e1, e2, e3, e0, e1, e2, e3, e0, e1, e2, e3, e0, e1, e2, e3,
     )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_mul_add_epi16(accumulator: __m128i, v0: __m128i, w0: __m128i) -> __m128i {
+    _mm_add_epi32(accumulator, _mm_madd_epi16(v0, w0))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_mul_sub_epi16(accumulator: __m128i, v0: __m128i, w0: __m128i) -> __m128i {
+    _mm_sub_epi32(accumulator, _mm_madd_epi16(v0, w0))
 }

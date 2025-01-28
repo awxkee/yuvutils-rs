@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode"], default-features = false }
+yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode", "professional_mode"], default-features = false }
 
 [features]
 default = []
@@ -36,6 +36,13 @@ bench = false
 [[bin]]
 name = "yuv_nv16_to_rgb16"
 path = "yuv_nv16_to_rgb16/yuv_nv16_to_rgb16.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "yuv_nv10_to_rgb"
+path = "yuv_nv10_to_rgb/yuv_nv10_to_rgb.rs"
 test = false
 doc = false
 bench = false

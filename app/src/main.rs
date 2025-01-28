@@ -41,15 +41,16 @@ use yuvutils_rs::{
     convert_rgb_f16_to_rgb16, convert_rgb_to_f16, gbr_to_rgb, mirror_rgb, rgb_to_bgra, rgb_to_gbr,
     rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422,
     rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16,
-    rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba_to_bgr, rgba_to_bgra, rgba_to_yuv420, rgba_to_yuv422,
-    rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv24, rotate_rgba, yuv400_to_rgb,
+    rgb_to_yuv_nv16, rgb_to_yuv_nv21, rgb_to_yuv_nv24, rgba_to_bgr, rgba_to_bgra, rgba_to_yuv420,
+    rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv24, rotate_rgba, yuv400_to_rgb,
     yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_rgba, yuv420_to_yuyv422,
     yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16,
-    yuv444_to_rgb, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba,
-    yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv24_to_rgb, yuv_nv24_to_rgba, yuyv422_to_rgb,
-    yuyv422_to_yuv420, MirrorMode, RotationMode, SharpYuvGammaTransfer, YuvBiPlanarImageMut,
-    YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvGrayImageMut,
-    YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    yuv444_to_rgb, yuv444_to_rgba, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16,
+    yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv21_to_rgb, yuv_nv24_to_rgb,
+    yuv_nv24_to_rgba, yuyv422_to_rgb, yuyv422_to_yuv420, MirrorMode, RotationMode,
+    SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
+    YuvConversionMode, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut,
+    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -106,8 +107,11 @@ fn main() {
     let mut y_nv_plane = vec![0u8; width as usize * height as usize];
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
-    let mut bi_planar_image =
-        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+    let mut bi_planar_image = YuvBiPlanarImageMut::<u16>::alloc(
+        width as u32,
+        height as u32,
+        YuvChromaSubsampling::Yuv420,
+    );
 
     let mut planar_image =
         YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
@@ -115,13 +119,15 @@ fn main() {
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv16(
+    rgb_to_yuv_nv12_p16(
         &mut bi_planar_image,
-        &src_bytes,
+        &bytes_16,
         rgba_stride as u32,
-        YuvRange::Limited,
-        YuvStandardMatrix::Bt601,
-        YuvConversionMode::Fast,
+        10,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt2020,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::MostSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -274,13 +280,15 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv_nv16_to_rgb(
+    yuv_nv12_p10_to_rgb(
         &fixed_biplanar,
         &mut rgba,
         rgba_stride as u32,
-        YuvRange::Limited,
-        YuvStandardMatrix::Bt601,
-        YuvConversionMode::Fast,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt2020,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::MostSignificantBytes,
+        YuvConversionMode::Professional,
     )
     .unwrap();
 

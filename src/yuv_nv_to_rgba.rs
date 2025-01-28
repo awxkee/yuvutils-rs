@@ -36,24 +36,61 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
+type TRowHandler = Option<
+    unsafe fn(
+        range: &YuvChromaRange,
+        transform: &CbCrInverseTransform<i32>,
+        y_plane: &[u8],
+        uv_plane: &[u8],
+        rgba: &mut [u8],
+        start_cx: usize,
+        start_ux: usize,
+        width: usize,
+    ) -> ProcessedOffset,
+>;
+
+type TRowHandler420 = Option<
+    unsafe fn(
+        range: &YuvChromaRange,
+        transform: &CbCrInverseTransform<i32>,
+        y_plane0: &[u8],
+        y_plane1: &[u8],
+        uv_plane: &[u8],
+        rgba0: &mut [u8],
+        rgba1: &mut [u8],
+        start_cx: usize,
+        start_ux: usize,
+        width: usize,
+    ) -> ProcessedOffset,
+>;
+
 struct NVRowHandler<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
     const YUV_CHROMA_SAMPLING: u8,
     const PRECISION: i32,
 > {
-    handler: Option<
-        unsafe fn(
-            range: &YuvChromaRange,
-            transform: &CbCrInverseTransform<i32>,
-            y_plane: &[u8],
-            uv_plane: &[u8],
-            rgba: &mut [u8],
-            start_cx: usize,
-            start_ux: usize,
-            width: usize,
-        ) -> ProcessedOffset,
-    >,
+    handler: TRowHandler,
+}
+
+#[cfg(feature = "fast_mode")]
+struct NVRowHandlerFast<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: TRowHandler,
+}
+
+#[cfg(feature = "professional_mode")]
+struct NVRowHandlerProfessional<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: TRowHandler,
 }
 
 impl<
@@ -64,44 +101,6 @@ impl<
     > Default for NVRowHandler<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        #[cfg(feature = "fast_mode")]
-        if PRECISION == 6 {
-            assert_eq!(PRECISION, 6);
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            {
-                use crate::neon::neon_yuv_nv_to_rgba_fast_row;
-                return NVRowHandler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_fast_row::<
-                            UV_ORDER,
-                            DESTINATION_CHANNELS,
-                            YUV_CHROMA_SAMPLING,
-                        >,
-                    ),
-                };
-            }
-
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                #[cfg(feature = "sse")]
-                {
-                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-                    if use_sse {
-                        use crate::sse::sse_yuv_nv_to_rgba_fast;
-                        return NVRowHandler {
-                            handler: Some(
-                                sse_yuv_nv_to_rgba_fast::<
-                                    UV_ORDER,
-                                    DESTINATION_CHANNELS,
-                                    YUV_CHROMA_SAMPLING,
-                                >,
-                            ),
-                        };
-                    }
-                }
-            }
-        }
-
         if PRECISION != 13 {
             return NVRowHandler { handler: None };
         }
@@ -247,40 +246,183 @@ impl<
     }
 }
 
+#[cfg(feature = "fast_mode")]
 impl<
         const UV_ORDER: u8,
         const DESTINATION_CHANNELS: u8,
         const YUV_CHROMA_SAMPLING: u8,
         const PRECISION: i32,
-    > RowBiPlanarInversionHandler<u8, i32>
-    for NVRowHandler<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
+    > Default for NVRowHandlerFast<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
 {
-    fn handle_row(
-        &self,
-        y_plane: &[u8],
-        uv_plane: &[u8],
-        rgba: &mut [u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrInverseTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(
-                    &chroma,
-                    transform,
-                    y_plane,
-                    uv_plane,
-                    rgba,
-                    0,
-                    0,
-                    width as usize,
-                );
+    fn default() -> Self {
+        if PRECISION == 6 {
+            assert_eq!(PRECISION, 6);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_fast_row;
+                return NVRowHandlerFast {
+                    handler: Some(
+                        neon_yuv_nv_to_rgba_fast_row::<
+                            UV_ORDER,
+                            DESTINATION_CHANNELS,
+                            YUV_CHROMA_SAMPLING,
+                        >,
+                    ),
+                };
+            }
+
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx_yuv_nv_to_rgba_fast;
+                        return NVRowHandlerFast {
+                            handler: Some(
+                                avx_yuv_nv_to_rgba_fast::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
+
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_fast;
+                        return NVRowHandlerFast {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_fast::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
             }
         }
-        ProcessedOffset { ux: 0, cx: 0 }
+
+        NVRowHandlerFast { handler: None }
     }
 }
+
+#[cfg(feature = "professional_mode")]
+impl<
+        const UV_ORDER: u8,
+        const DESTINATION_CHANNELS: u8,
+        const YUV_CHROMA_SAMPLING: u8,
+        const PRECISION: i32,
+    > Default
+    for NVRowHandlerProfessional<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        if PRECISION == 14 {
+            assert_eq!(PRECISION, 14);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_row_prof;
+                return NVRowHandlerProfessional {
+                    handler: Some(
+                        neon_yuv_nv_to_rgba_row_prof::<
+                            UV_ORDER,
+                            DESTINATION_CHANNELS,
+                            YUV_CHROMA_SAMPLING,
+                        >,
+                    ),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx2_yuv_nv_to_rgba_row_prof;
+                        return NVRowHandlerProfessional {
+                            handler: Some(
+                                avx2_yuv_nv_to_rgba_row_prof::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_row_prof;
+                        return NVRowHandlerProfessional {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_row_prof::<
+                                    UV_ORDER,
+                                    DESTINATION_CHANNELS,
+                                    YUV_CHROMA_SAMPLING,
+                                >,
+                            ),
+                        };
+                    }
+                }
+            }
+        }
+
+        NVRowHandlerProfessional { handler: None }
+    }
+}
+
+macro_rules! impl_row_biplanar_inversion_handler {
+    ($struct_name:ident) => {
+        impl<
+                const UV_ORDER: u8,
+                const DESTINATION_CHANNELS: u8,
+                const YUV_CHROMA_SAMPLING: u8,
+                const PRECISION: i32,
+            > RowBiPlanarInversionHandler<u8, i32>
+            for $struct_name<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
+        {
+            fn handle_row(
+                &self,
+                y_plane: &[u8],
+                uv_plane: &[u8],
+                rgba: &mut [u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrInverseTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(
+                            &chroma,
+                            transform,
+                            y_plane,
+                            uv_plane,
+                            rgba,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    }
+                }
+                ProcessedOffset { ux: 0, cx: 0 }
+            }
+        }
+    };
+}
+
+impl_row_biplanar_inversion_handler!(NVRowHandler);
+#[cfg(feature = "fast_mode")]
+impl_row_biplanar_inversion_handler!(NVRowHandlerFast);
+#[cfg(feature = "professional_mode")]
+impl_row_biplanar_inversion_handler!(NVRowHandlerProfessional);
 
 struct NVRow420Handler<
     const UV_ORDER: u8,
@@ -288,60 +430,80 @@ struct NVRow420Handler<
     const YUV_CHROMA_SAMPLING: u8,
     const PRECISION: i32,
 > {
-    handler: Option<
-        unsafe fn(
-            range: &YuvChromaRange,
-            transform: &CbCrInverseTransform<i32>,
-            y_plane0: &[u8],
-            y_plane1: &[u8],
-            uv_plane: &[u8],
-            rgba0: &mut [u8],
-            rgba1: &mut [u8],
-            start_cx: usize,
-            start_ux: usize,
-            width: usize,
-        ) -> ProcessedOffset,
-    >,
+    handler: TRowHandler420,
 }
 
-impl<
-        const UV_ORDER: u8,
-        const DESTINATION_CHANNELS: u8,
-        const YUV_CHROMA_SAMPLING: u8,
-        const PRECISION: i32,
-    > RowBiPlanarInversion420Handler<u8, i32>
-    for NVRow420Handler<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
-{
-    fn handle_row(
-        &self,
-        y_plane0: &[u8],
-        y_plane1: &[u8],
-        uv_plane: &[u8],
-        rgba0: &mut [u8],
-        rgba1: &mut [u8],
-        width: u32,
-        chroma: YuvChromaRange,
-        transform: &CbCrInverseTransform<i32>,
-    ) -> ProcessedOffset {
-        if let Some(handler) = self.handler {
-            unsafe {
-                return handler(
-                    &chroma,
-                    transform,
-                    y_plane0,
-                    y_plane1,
-                    uv_plane,
-                    rgba0,
-                    rgba1,
-                    0,
-                    0,
-                    width as usize,
-                );
+#[cfg(feature = "fast_mode")]
+struct NVRow420HandlerFast<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: TRowHandler420,
+}
+
+#[cfg(feature = "professional_mode")]
+struct NVRow420HandlerProfessional<
+    const UV_ORDER: u8,
+    const DESTINATION_CHANNELS: u8,
+    const YUV_CHROMA_SAMPLING: u8,
+    const PRECISION: i32,
+> {
+    handler: TRowHandler420,
+}
+
+macro_rules! impl_row_biplanar_inversion_420_handler {
+    ($struct_name:ident, $handler_trait:ident) => {
+        impl<
+                const UV_ORDER: u8,
+                const DESTINATION_CHANNELS: u8,
+                const YUV_CHROMA_SAMPLING: u8,
+                const PRECISION: i32,
+            > $handler_trait<u8, i32>
+            for $struct_name<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
+        {
+            fn handle_row(
+                &self,
+                y_plane0: &[u8],
+                y_plane1: &[u8],
+                uv_plane: &[u8],
+                rgba0: &mut [u8],
+                rgba1: &mut [u8],
+                width: u32,
+                chroma: YuvChromaRange,
+                transform: &CbCrInverseTransform<i32>,
+            ) -> ProcessedOffset {
+                if let Some(handler) = self.handler {
+                    unsafe {
+                        return handler(
+                            &chroma,
+                            transform,
+                            y_plane0,
+                            y_plane1,
+                            uv_plane,
+                            rgba0,
+                            rgba1,
+                            0,
+                            0,
+                            width as usize,
+                        );
+                    }
+                }
+                ProcessedOffset { cx: 0, ux: 0 }
             }
         }
-        ProcessedOffset { cx: 0, ux: 0 }
-    }
+    };
 }
+
+impl_row_biplanar_inversion_420_handler!(NVRow420Handler, RowBiPlanarInversion420Handler);
+#[cfg(feature = "fast_mode")]
+impl_row_biplanar_inversion_420_handler!(NVRow420HandlerFast, RowBiPlanarInversion420Handler);
+#[cfg(feature = "professional_mode")]
+impl_row_biplanar_inversion_420_handler!(
+    NVRow420HandlerProfessional,
+    RowBiPlanarInversion420Handler
+);
 
 impl<
         const UV_ORDER: u8,
@@ -356,34 +518,6 @@ impl<
             return NVRow420Handler { handler: None };
         }
         assert_eq!(sampling, YuvChromaSubsampling::Yuv420);
-        #[cfg(feature = "fast_mode")]
-        if PRECISION == 6 {
-            assert_eq!(PRECISION, 6);
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            {
-                use crate::neon::neon_yuv_nv_to_rgba_fast_row420;
-                return NVRow420Handler {
-                    handler: Some(
-                        neon_yuv_nv_to_rgba_fast_row420::<UV_ORDER, DESTINATION_CHANNELS>,
-                    ),
-                };
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                #[cfg(feature = "sse")]
-                {
-                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-                    if use_sse {
-                        use crate::sse::sse_yuv_nv_to_rgba_fast420;
-                        return NVRow420Handler {
-                            handler: Some(
-                                sse_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS>,
-                            ),
-                        };
-                    }
-                }
-            }
-        }
         if PRECISION != 13 {
             return NVRow420Handler { handler: None };
         }
@@ -467,6 +601,141 @@ impl<
     }
 }
 
+#[cfg(feature = "fast_mode")]
+impl<
+        const UV_ORDER: u8,
+        const DESTINATION_CHANNELS: u8,
+        const YUV_CHROMA_SAMPLING: u8,
+        const PRECISION: i32,
+    > Default
+    for NVRow420HandlerFast<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        let sampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
+        if sampling != YuvChromaSubsampling::Yuv420 {
+            return NVRow420HandlerFast { handler: None };
+        }
+        assert_eq!(sampling, YuvChromaSubsampling::Yuv420);
+        if PRECISION == 6 {
+            assert_eq!(PRECISION, 6);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_fast_row420;
+                return NVRow420HandlerFast {
+                    handler: Some(
+                        neon_yuv_nv_to_rgba_fast_row420::<UV_ORDER, DESTINATION_CHANNELS>,
+                    ),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "nightly_avx512")]
+                {
+                    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+                    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                    if use_avx512 {
+                        use crate::avx512bw::avx512_yuv_nv_to_rgba_fast420;
+                        return NVRow420HandlerFast {
+                            handler: Some(if use_vbmi {
+                                avx512_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS, true>
+                            } else {
+                                avx512_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS, false>
+                            }),
+                        };
+                    }
+                }
+
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx_yuv_nv_to_rgba_fast420;
+                        return NVRow420HandlerFast {
+                            handler: Some(
+                                avx_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_fast420;
+                        return NVRow420HandlerFast {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_fast420::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+            }
+        }
+
+        NVRow420HandlerFast { handler: None }
+    }
+}
+
+#[cfg(feature = "professional_mode")]
+impl<
+        const UV_ORDER: u8,
+        const DESTINATION_CHANNELS: u8,
+        const YUV_CHROMA_SAMPLING: u8,
+        const PRECISION: i32,
+    > Default
+    for NVRow420HandlerProfessional<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        let sampling: YuvChromaSubsampling = YUV_CHROMA_SAMPLING.into();
+        if sampling != YuvChromaSubsampling::Yuv420 {
+            return NVRow420HandlerProfessional { handler: None };
+        }
+        assert_eq!(sampling, YuvChromaSubsampling::Yuv420);
+        if PRECISION == 14 {
+            assert_eq!(PRECISION, 14);
+            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+            {
+                use crate::neon::neon_yuv_nv_to_rgba_row420_prof;
+                return NVRow420HandlerProfessional {
+                    handler: Some(
+                        neon_yuv_nv_to_rgba_row420_prof::<UV_ORDER, DESTINATION_CHANNELS>,
+                    ),
+                };
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                #[cfg(feature = "avx")]
+                {
+                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                    if use_avx {
+                        use crate::avx2::avx2_yuv_nv_to_rgba_row420_prof;
+                        return NVRow420HandlerProfessional {
+                            handler: Some(
+                                avx2_yuv_nv_to_rgba_row420_prof::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+                #[cfg(feature = "sse")]
+                {
+                    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                    if use_sse {
+                        use crate::sse::sse_yuv_nv_to_rgba_row420_prof;
+                        return NVRow420HandlerProfessional {
+                            handler: Some(
+                                sse_yuv_nv_to_rgba_row420_prof::<UV_ORDER, DESTINATION_CHANNELS>,
+                            ),
+                        };
+                    }
+                }
+            }
+        }
+
+        NVRow420HandlerProfessional { handler: None }
+    }
+}
+
 fn yuv_nv12_to_rgbx_impl<
     const UV_ORDER: u8,
     const DESTINATION_CHANNELS: u8,
@@ -478,6 +747,8 @@ fn yuv_nv12_to_rgbx_impl<
     bgra_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
+    row_handler: impl RowBiPlanarInversionHandler<u8, i32> + Sync + Send,
+    row_handler420: impl RowBiPlanarInversion420Handler<u8, i32> + Sync + Send,
 ) -> Result<(), YuvError> {
     let order: YuvNVOrder = UV_ORDER.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -507,17 +778,11 @@ fn yuv_nv12_to_rgbx_impl<
     let bias_y = chroma_range.bias_y as i32;
     let bias_uv = chroma_range.bias_uv as i32;
 
-    let row_handle =
-        NVRowHandler::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>::default();
-    let row_handle420 =
-        NVRow420Handler::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, PRECISION>::default(
-        );
-
     let width = image.width;
 
     let process_double_chroma_row =
         |y_src0: &[u8], y_src1: &[u8], uv_src: &[u8], rgba0: &mut [u8], rgba1: &mut [u8]| {
-            let processed = row_handle420.handle_row(
+            let processed = row_handler420.handle_row(
                 y_src0,
                 y_src1,
                 uv_src,
@@ -661,7 +926,7 @@ fn yuv_nv12_to_rgbx_impl<
 
     let process_halved_chroma_row = |y_src: &[u8], uv_src: &[u8], rgba: &mut [u8]| {
         let processed =
-            row_handle.handle_row(y_src, uv_src, rgba, width, chroma_range, &inverse_transform);
+            row_handler.handle_row(y_src, uv_src, rgba, width, chroma_range, &inverse_transform);
 
         if processed.cx != image.width as usize {
             for ((rgba, y_src), uv_src) in rgba
@@ -759,8 +1024,14 @@ fn yuv_nv12_to_rgbx_impl<
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
             let y_src = &y_src[0..image.width as usize];
-            let processed =
-                row_handle.handle_row(y_src, uv_src, rgba, width, chroma_range, &inverse_transform);
+            let processed = row_handler.handle_row(
+                y_src,
+                uv_src,
+                rgba,
+                width,
+                chroma_range,
+                &inverse_transform,
+            );
 
             for ((rgba, &y_src), uv_src) in rgba
                 .chunks_exact_mut(channels)
@@ -873,18 +1144,48 @@ fn yuv_nv12_to_rgbx<
 ) -> Result<(), YuvError> {
     match _mode {
         #[cfg(feature = "fast_mode")]
-        YuvConversionMode::Fast => yuv_nv12_to_rgbx_impl::<
-            UV_ORDER,
-            DESTINATION_CHANNELS,
-            YUV_CHROMA_SAMPLING,
-            6,
-        >(image, bgra, bgra_stride, range, matrix),
-        YuvConversionMode::Balanced => yuv_nv12_to_rgbx_impl::<
-            UV_ORDER,
-            DESTINATION_CHANNELS,
-            YUV_CHROMA_SAMPLING,
-            13,
-        >(image, bgra, bgra_stride, range, matrix),
+        YuvConversionMode::Fast => {
+            yuv_nv12_to_rgbx_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 6>(
+                image,
+                bgra,
+                bgra_stride,
+                range,
+                matrix,
+                NVRowHandlerFast::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 6>::default(
+                ),
+                NVRow420HandlerFast::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 6>::default(
+                ),
+            )
+        }
+        YuvConversionMode::Balanced => {
+            yuv_nv12_to_rgbx_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 13>(
+                image,
+                bgra,
+                bgra_stride,
+                range,
+                matrix,
+                NVRowHandler::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 13>::default(),
+                NVRow420Handler::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 13>::default(
+                ),
+            )
+        }
+        #[cfg(feature = "professional_mode")]
+        YuvConversionMode::Professional => {
+            yuv_nv12_to_rgbx_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 14>(
+                image,
+                bgra,
+                bgra_stride,
+                range,
+                matrix,
+                NVRowHandlerProfessional::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 14>::default(),
+                NVRow420HandlerProfessional::<
+                    UV_ORDER,
+                    DESTINATION_CHANNELS,
+                    YUV_CHROMA_SAMPLING,
+                    14,
+                >::default(),
+            )
+        }
     }
 }
 
@@ -1794,6 +2095,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 3);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 6);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 3);
     }
 
     #[test]
@@ -1903,7 +2206,9 @@ mod tests {
         }
         matrix(YuvConversionMode::Balanced, 37);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 45);
+        matrix(YuvConversionMode::Fast, 50);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 37);
     }
 
     #[test]
@@ -2030,6 +2335,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 3);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 6);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 3);
     }
 
     #[test]
@@ -2153,9 +2460,11 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 10);
+        matrix(YuvConversionMode::Balanced, 14);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 18);
+        matrix(YuvConversionMode::Fast, 20);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 12);
     }
 
     #[test]
@@ -2316,6 +2625,8 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 72);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 74);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 72);
     }
 
     #[test]
@@ -2470,5 +2781,7 @@ mod tests {
         matrix(YuvConversionMode::Balanced, 60);
         #[cfg(feature = "fast_mode")]
         matrix(YuvConversionMode::Fast, 72);
+        #[cfg(feature = "professional_mode")]
+        matrix(YuvConversionMode::Professional, 60);
     }
 }

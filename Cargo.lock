@@ -301,9 +301,9 @@ dependencies = [
 
 [[package]]
 name = "fast_transpose"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca71a3e99f170442a9ce6269cd8082dabeadafa761034e6dd1dd680ce92ec2c3"
+checksum = "9c2d2b59e139013dffe85ab5023a5768d706e5adced64affd9f2c1260228e03b"
 dependencies = [
  "bytemuck",
 ]
@@ -997,7 +997,7 @@ dependencies = [
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.5.15"
+version = "0.6.0"
 dependencies = [
  "fast_transpose",
  "num-traits",
