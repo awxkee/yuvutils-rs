@@ -35,7 +35,7 @@ fn ar30_to_rgb8_impl<
     const AR30_BYTE_ORDER: usize,
     const RGBA_LAYOUT: u8,
 >(
-    ar30: &[u32],
+    ar30: &[u8],
     ar30_stride: u32,
     rgba: &mut [u8],
     rgba_stride: u32,
@@ -44,7 +44,7 @@ fn ar30_to_rgb8_impl<
 ) -> Result<(), YuvError> {
     let rgba_layout: YuvSourceChannels = RGBA_LAYOUT.into();
     let ar30_layout: Rgb30 = AR30_LAYOUT.into();
-    check_rgba_destination(ar30, ar30_stride, width, height, 1)?;
+    check_rgba_destination(ar30, ar30_stride, width, height, 4)?;
     check_rgba_destination(
         rgba,
         rgba_stride,
@@ -57,11 +57,14 @@ fn ar30_to_rgb8_impl<
         .chunks_exact_mut(rgba_stride as usize)
         .zip(ar30.chunks_exact(ar30_stride as usize))
     {
-        for (dst, &src) in dst
+        let src = &src[0..width as usize * 4];
+        let dst = &mut dst[0..width as usize * rgba_layout.get_channels_count()];
+        for (dst, src) in dst
             .chunks_exact_mut(rgba_layout.get_channels_count())
-            .zip(src.iter())
+            .zip(src.chunks_exact(4))
         {
-            let unpacked = ar30_layout.unpack::<AR30_BYTE_ORDER>(src);
+            let ar30_v = u32::from_ne_bytes([src[0], src[1], src[2], src[3]]);
+            let unpacked = ar30_layout.unpack::<AR30_BYTE_ORDER>(ar30_v);
             let r = unpacked.0 >> 2;
             let g = unpacked.1 >> 2;
             let b = unpacked.2 >> 2;
@@ -91,7 +94,7 @@ fn ar30_to_rgb8_impl<
 /// * `height`: Image height
 ///
 pub fn ar30_to_rgb8(
-    ar30: &[u32],
+    ar30: &[u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgb: &mut [u8],
@@ -126,7 +129,7 @@ pub fn ar30_to_rgb8(
 /// * `height`: Image height
 ///
 pub fn ab30_to_rgb8(
-    ab30: &[u32],
+    ab30: &[u8],
     ab30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgb: &mut [u8],
@@ -161,7 +164,7 @@ pub fn ab30_to_rgb8(
 /// * `height`: Image height
 ///
 pub fn ra30_to_rgb8(
-    ar30: &[u32],
+    ar30: &[u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgb: &mut [u8],
@@ -196,7 +199,7 @@ pub fn ra30_to_rgb8(
 /// * `height`: Image height
 ///
 pub fn ba30_to_rgb8(
-    ar30: &[u32],
+    ar30: &[u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgb: &mut [u8],
@@ -231,7 +234,7 @@ pub fn ba30_to_rgb8(
 /// * `height`: Image height
 ///
 pub fn ar30_to_rgba8(
-    ar30: &[u32],
+    ar30: &[u8],
     ar30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgba: &mut [u8],
@@ -266,7 +269,7 @@ pub fn ar30_to_rgba8(
 /// * `height`: Image height
 ///
 pub fn ra30_to_rgba8(
-    ra30: &[u32],
+    ra30: &[u8],
     ra30_stride: u32,
     byte_order: Rgb30ByteOrder,
     rgba: &mut [u8],
