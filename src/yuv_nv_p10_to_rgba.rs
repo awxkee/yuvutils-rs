@@ -201,6 +201,7 @@ macro_rules! impl_row_handler {
 }
 
 impl_row_handler!(RowHandlerBalanced);
+#[cfg(feature = "professional_mode")]
 impl_row_handler!(RowHandlerProfessional);
 
 fn yuv_nv_p10_to_image_impl_d<
