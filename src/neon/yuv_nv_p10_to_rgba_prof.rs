@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+use core::slice::SlicePattern;
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
@@ -180,7 +180,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row_prof<
 
         let (u_low, v_low, u_high, v_high) =
             deinterleave_10_bit_uv::<NV_ORDER, SAMPLING, ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                uv_plane.get_unchecked(ux..),
+                uv_buffer.as_slice(),
                 uv_corr_q,
             );
 

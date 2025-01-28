@@ -58,6 +58,7 @@
     feature(stdarch_neon_i8mm)
 )]
 extern crate core;
+extern crate core;
 
 mod ar30_rgb;
 #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]

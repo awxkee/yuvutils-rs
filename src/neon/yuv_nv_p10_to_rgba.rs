@@ -252,7 +252,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         let (u_low, v_low, u_high, v_high) =
             deinterleave_10_bit_uv::<NV_ORDER, SAMPLING, ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                uv_plane.get_unchecked(ux..),
+                uv_buffer.as_slice(),
                 uv_corr_q,
             );
 
