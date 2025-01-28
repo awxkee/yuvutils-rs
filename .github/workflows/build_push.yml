@@ -98,6 +98,7 @@ jobs:
       - run: cargo fuzz run y16_to_rgb16 --no-default-features -- -max_total_time=15
       - run: cargo fuzz run yuv_to_yuyu2 --no-default-features -- -max_total_time=15
       - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features -- -max_total_time=15
       - run: cargo fuzz run shuffle --no-default-features -- -max_total_time=15
       - run: cargo fuzz run rgb_to_f16 --no-default-features -- -max_total_time=15
 
@@ -120,6 +121,7 @@ jobs:
       - run: cargo fuzz run y16_to_rgb16 --no-default-features --features rdm -- -max_total_time=15
       - run: cargo fuzz run yuv_to_yuyu2 --no-default-features --features rdm -- -max_total_time=15
       - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features rdm -- -max_total_time=15
       - run: cargo fuzz run shuffle --no-default-features --features rdm -- -max_total_time=15
       - run: cargo fuzz run rgb_to_f16 --no-default-features --features rdm -- -max_total_time=15
 
@@ -145,5 +147,6 @@ jobs:
       - run: cargo fuzz run y16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=15
       - run: cargo fuzz run yuv_to_yuyu2 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=15
       - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=15
+      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=15
       - run: cargo fuzz run shuffle --no-default-features --features ${{ matrix.feature }} -- -max_total_time=15
       - run: cargo fuzz run rgb_to_f16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=15

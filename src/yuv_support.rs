@@ -358,13 +358,17 @@ impl From<u8> for YuvEndianness {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[allow(clippy::too_long_first_doc_paragraph)]
-/// Most of the cases of storage bytes is least significant whereas b`0000000111111` integers stored in low part,
-/// however most modern hardware encoders (Apple, Android manufacturers) uses most significant bytes
+/// Most of the cases of storage bytes is least significant whereas b`0000000111111` integers stored in low part.
+///
+/// However most modern hardware encoders (Apple, Android manufacturers) uses most significant bytes
 /// where same number stored as b`111111000000` and need to be shifted right before working with this.
 /// This is not the same and endianness. I never met `big endian` packing with `most significant bytes`
 /// so this case may not work fully correct, however, `little endian` + `most significant bytes`
-/// can be easily derived from HDR camera stream on android and apple platforms
+/// can be easily derived from HDR camera stream on android and apple platforms.
+/// This may also correspond to either [YCBCR_P010](https://developer.android.com/reference/android/graphics/ImageFormat#YCBCR_P010)
+/// or [YCBCR_P210](https://developer.android.com/reference/android/graphics/ImageFormat#YCBCR_P210)
+/// or [kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange](https://developer.apple.com/documentation/CoreVideo/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange)
+/// or [kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange](https://developer.apple.com/documentation/CoreVideo/kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange).
 pub enum YuvBytesPacking {
     MostSignificantBytes = 0,
     LeastSignificantBytes = 1,

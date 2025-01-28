@@ -30,7 +30,11 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{yuv420_to_rgb, yuv420_to_rgba, yuv420_with_alpha_to_rgba, yuv422_to_rgb, yuv422_to_rgba, yuv422_with_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba, yuv444_with_alpha_to_rgba, YuvPlanarImage, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{
+    yuv420_to_rgb, yuv420_to_rgba, yuv420_with_alpha_to_rgba, yuv422_to_rgb, yuv422_to_rgba,
+    yuv422_with_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba, yuv444_with_alpha_to_rgba,
+    YuvPlanarImage, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
+};
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
     fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4);
@@ -100,7 +104,8 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
         false,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
@@ -165,7 +170,8 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
         false,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
@@ -230,5 +236,6 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
         false,
-    ).unwrap();
+    )
+    .unwrap();
 }
