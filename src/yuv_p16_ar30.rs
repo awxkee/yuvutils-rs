@@ -62,7 +62,7 @@ fn yuv_p16_to_image_ar30<
 
     let kr_kb = matrix.get_kr_kb();
     const AR30_DEPTH: usize = 10;
-    const PRECISION: i32 = 12;
+    const PRECISION: i32 = 13;
     let i_transform = search_inverse_transform(
         PRECISION,
         BIT_DEPTH as u32,

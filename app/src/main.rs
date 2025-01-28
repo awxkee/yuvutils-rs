@@ -36,22 +36,7 @@ use std::io::Read;
 use std::thread::available_parallelism;
 use std::time::Instant;
 use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24, rs_RGB24ToI420};
-use yuvutils_rs::{
-    bgr_to_rgba, bgra_to_rgba, convert_rgb16_to_f16, convert_rgb_f16_to_rgb,
-    convert_rgb_f16_to_rgb16, convert_rgb_to_f16, gbr_to_rgb, mirror_rgb, rgb_to_bgra, rgb_to_gbr,
-    rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422,
-    rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16,
-    rgb_to_yuv_nv16, rgb_to_yuv_nv21, rgb_to_yuv_nv24, rgba_to_bgr, rgba_to_bgra, rgba_to_yuv420,
-    rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv24, rotate_rgba, yuv400_to_rgb,
-    yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_rgba, yuv420_to_yuyv422,
-    yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16,
-    yuv444_to_rgb, yuv444_to_rgba, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16,
-    yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv21_to_rgb, yuv_nv24_to_rgb,
-    yuv_nv24_to_rgba, yuyv422_to_rgb, yuyv422_to_yuv420, MirrorMode, RotationMode,
-    SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling,
-    YuvConversionMode, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{ab30_to_rgb8, bgr_to_rgba, bgra_to_rgba, convert_rgb16_to_f16, convert_rgb_f16_to_rgb, convert_rgb_f16_to_rgb16, convert_rgb_to_f16, gbr_to_rgb, mirror_rgb, rgb_to_bgra, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16, rgb_to_yuv_nv21, rgb_to_yuv_nv24, rgba_to_bgr, rgba_to_bgra, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv24, rotate_rgba, yuv400_to_rgb, yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_rgba, yuv420_to_yuyv422, yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16, yuv444_to_rgb, yuv444_to_rgba, yuv_nv12_p10_to_ab30, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv21_to_rgb, yuv_nv24_to_rgb, yuv_nv24_to_rgba, yuyv422_to_rgb, yuyv422_to_yuv420, MirrorMode, Rgb30ByteOrder, RotationMode, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -235,7 +220,7 @@ fn main() {
     // bytes_16.resize(width as usize * height as usize * 4, 0u16);
     // rgba.resize(width as usize * height as usize * 4, 0u8);
 
-    let mut ar30 = vec![0u32; width as usize * height as usize];
+    let mut ar30 = vec![0u8; width as usize * height as usize * 4];
 
     // rgb8_to_ra30(
     //     &mut ar30,
@@ -280,17 +265,31 @@ fn main() {
 
     // bytes_16.fill(0);
 
-    yuv_nv12_p10_to_rgb(
+    yuv_nv12_p10_to_ab30(
         &fixed_biplanar,
-        &mut rgba,
-        rgba_stride as u32,
+        &mut ar30,
+        width * 4 ,
+        Rgb30ByteOrder::Host,
         YuvRange::Full,
         YuvStandardMatrix::Bt2020,
         YuvEndianness::LittleEndian,
         YuvBytesPacking::MostSignificantBytes,
-        YuvConversionMode::Professional,
-    )
-    .unwrap();
+    ).unwrap();
+
+    rgba.fill(0);
+    ab30_to_rgb8(&ar30, width * 4, Rgb30ByteOrder::Host, &mut rgba, rgba_stride as u32, width, height).unwrap();
+
+    // yuv_nv12_p10_to_rgb(
+    //     &fixed_biplanar,
+    //     &mut rgba,
+    //     rgba_stride as u32,
+    //     YuvRange::Full,
+    //     YuvStandardMatrix::Bt2020,
+    //     YuvEndianness::LittleEndian,
+    //     YuvBytesPacking::MostSignificantBytes,
+    //     YuvConversionMode::Professional,
+    // )
+    // .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 

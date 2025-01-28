@@ -31,9 +31,9 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    yuv_nv16_p10_to_rgb, yuv_nv16_p10_to_rgba, yuv_nv21_p10_to_rgb, yuv_nv21_p10_to_rgba,
-    YuvBiPlanarImage, YuvBytesPacking, YuvConversionMode, YuvEndianness, YuvRange,
-    YuvStandardMatrix,
+    yuv_nv16_p10_to_ar30, yuv_nv16_p10_to_rgb, yuv_nv16_p10_to_rgba, yuv_nv21_p10_to_ar30,
+    yuv_nv21_p10_to_rgb, yuv_nv21_p10_to_rgba, Rgb30ByteOrder, YuvBiPlanarImage, YuvBytesPacking,
+    YuvConversionMode, YuvEndianness, YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
@@ -90,6 +90,18 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvC
         mode,
     )
     .unwrap();
+
+    yuv_nv21_p10_to_ar30(
+        &planar_image,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        Rgb30ByteOrder::Host,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
+    )
+    .unwrap();
 }
 
 fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvConversionMode) {
@@ -133,6 +145,18 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvC
         YuvEndianness::LittleEndian,
         YuvBytesPacking::LeastSignificantBytes,
         mode,
+    )
+    .unwrap();
+
+    yuv_nv16_p10_to_ar30(
+        &planar_image,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        Rgb30ByteOrder::Host,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }
