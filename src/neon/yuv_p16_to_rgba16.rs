@@ -690,7 +690,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
     }
 
     if cx < width as usize {
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
         assert!(diff <= 8);
 
         let mut y_buffer: [u16; 8] = [0; 8];
