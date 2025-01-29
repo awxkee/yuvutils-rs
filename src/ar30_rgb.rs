@@ -30,6 +30,7 @@ use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{Rgb30, YuvSourceChannels};
 use crate::{Rgb30ByteOrder, YuvError};
 
+#[inline]
 fn ar30_to_rgb8_impl<
     const AR30_LAYOUT: usize,
     const AR30_BYTE_ORDER: usize,
