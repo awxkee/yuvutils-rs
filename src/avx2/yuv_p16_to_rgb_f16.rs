@@ -130,7 +130,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
     #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag_sse =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
-    
+
     while cx + 16 < width as usize {
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
@@ -202,8 +202,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             }
         }
 
-        u_values = _mm256_expand_bp_by2::<BIT_DEPTH>(u_values);
-        v_values = _mm256_expand_bp_by2::<BIT_DEPTH>(v_values);
+        u_values = _mm256_slli_epi16::<2>(u_values);
+        v_values = _mm256_slli_epi16::<2>(v_values);
         y_values = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values);
 
         let rl = _mm256_mulhrs_epi16(v_values, v_cr_coeff);

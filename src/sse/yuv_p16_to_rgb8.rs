@@ -33,7 +33,10 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::sse::{_mm_from_msb_epi16, _mm_store_interleave_rgb_for_yuv, _mm_store_shr_epi16_epi8};
+use crate::sse::{
+    _mm_from_msb_epi16, _mm_store_interleave_half_rgb_for_yuv,
+    _mm_store_shr_epi16_epi8,
+};
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvSourceChannels,
@@ -208,7 +211,7 @@ unsafe fn sse_yuv_p16_to_rgba8_row_impl<
             _mm_setzero_si128(),
         );
 
-        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
             dst_ptr.as_mut_ptr(),
             r_values,
             g_values,
