@@ -34,10 +34,11 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 use yuvutils_rs::{
-    ab30_to_rgb8, convert_rgb_f16_to_rgb, rgb8_to_ar30, rgb_to_yuv420_p16,
-    yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_p16_to_rgb_f16, Rgb30ByteOrder,
-    YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut,
-    YuvRange, YuvStandardMatrix,
+    ab30_to_rgb8, convert_rgb_f16_to_rgb, p410_to_rgb, p410_to_rgb16, p410_to_rgba, p410_to_rgba16,
+    rgb16_to_p410, rgb8_to_ar30, rgb_to_yuv420_p16, yuv420_p16_to_rgb, yuv420_p16_to_rgb16,
+    yuv420_p16_to_rgb_f16, Rgb30ByteOrder, YuvBiPlanarImageMut, YuvBytesPacking,
+    YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvPlanarImageMut, YuvRange,
+    YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -96,7 +97,7 @@ fn main() {
     let mut bi_planar_image = YuvBiPlanarImageMut::<u16>::alloc(
         width as u32,
         height as u32,
-        YuvChromaSubsampling::Yuv420,
+        YuvChromaSubsampling::Yuv444,
     );
 
     let mut planar_image =
@@ -105,17 +106,15 @@ fn main() {
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv420_p16(
-        &mut planar_image,
+    rgb16_to_p410(
+        &mut bi_planar_image,
         &bytes_16,
         rgba_stride as u32,
-        10,
         YuvRange::Full,
         YuvStandardMatrix::Bt2020,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
+
     // bytes_16.fill(0);
     //
     // println!("rgb_to_yuv_nv12 time: {:?}", start_time.elapsed());
@@ -202,6 +201,15 @@ fn main() {
     let fixed_biplanar = bi_planar_image.to_fixed();
     let fixed_planar = planar_image.to_fixed();
     // bytes_16.fill(0);
+
+    p410_to_rgb16(
+        &fixed_biplanar,
+        &mut bytes_16,
+        rgba_stride as u32,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt2020,
+    )
+    .unwrap();
 
     // let a_plane = vec![1023u16; width as usize * height as usize];
     // let planar_with_alpha = YuvPlanarImageWithAlpha {

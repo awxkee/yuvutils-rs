@@ -154,7 +154,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvC
         return;
     }
     let y_plane = vec![y_value as u16; i_height as usize * i_width as usize];
-    let uv_plane = vec![uv_value as u16; i_width as usize * i_height as usize];
+    let uv_plane = vec![uv_value as u16; i_width as usize * 2 * i_height as usize];
 
     let planar_image = YuvBiPlanarImage {
         y_plane: &y_plane,

@@ -540,67 +540,354 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
     };
 }
 
-build_cnv!(i010_to_rgba, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgba, 10, "YUV 420 10-bit", "RGBA", "rgba", YuvEndianness::LittleEndian);
+build_cnv!(
+    i010_to_rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 420 10-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i010_be_to_rgba, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgba, 10, "YUV 420 10-bit", "RGBA", "rgba", YuvEndianness::BigEndian);
+build_cnv!(
+    i010_be_to_rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 420 10-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i010_to_bgra, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Bgra, 10, "YUV 420 10-bit", "BGRA", "bgra", YuvEndianness::LittleEndian);
+build_cnv!(
+    i010_to_bgra,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Bgra,
+    10,
+    "YUV 420 10-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i010_be_to_bgra, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgba, 10, "YUV 420 10-bit", "BGRA", "bgra", YuvEndianness::BigEndian);
+build_cnv!(
+    i010_be_to_bgra,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 420 10-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i010_to_rgb, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgb, 10, "YUV 420 10-bit", "RGB", "rgb", YuvEndianness::LittleEndian);
+build_cnv!(
+    i010_to_rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgb,
+    10,
+    "YUV 420 10-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i010_be_to_rgb, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgb, 10, "YUV 420 10-bit", "RGB", "rgb", YuvEndianness::BigEndian);
+build_cnv!(
+    i010_be_to_rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgb,
+    10,
+    "YUV 420 10-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i010_to_bgr, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Bgr, 10, "YUV 420 10-bit", "BGR", "bgr", YuvEndianness::LittleEndian);
+build_cnv!(
+    i010_to_bgr,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Bgr,
+    10,
+    "YUV 420 10-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i010_be_to_bgr, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Bgr, 10, "YUV 420 10-bit", "BGR", "bgr", YuvEndianness::BigEndian);
+build_cnv!(
+    i010_be_to_bgr,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Bgr,
+    10,
+    "YUV 420 10-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i210_to_rgba, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgba, 10, "YUV 420 10-bit", "RGBA", "rgba", YuvEndianness::LittleEndian);
+build_cnv!(
+    i210_to_rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 420 10-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i210_be_to_rgba, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgba, 10, "YUV 420 10-bit", "RGBA", "rgba", YuvEndianness::BigEndian);
+build_cnv!(
+    i210_be_to_rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 420 10-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i210_to_bgra, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Bgra, 10, "YUV 420 10-bit", "BGRA", "bgra", YuvEndianness::LittleEndian);
+build_cnv!(
+    i210_to_bgra,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Bgra,
+    10,
+    "YUV 420 10-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i210_be_to_bgra, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgba, 10, "YUV 420 10-bit", "BGRA", "bgra", YuvEndianness::BigEndian);
+build_cnv!(
+    i210_be_to_bgra,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 420 10-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i210_to_rgb, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgb, 10, "YUV 420 10-bit", "RGB", "rgb", YuvEndianness::LittleEndian);
+build_cnv!(
+    i210_to_rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgb,
+    10,
+    "YUV 420 10-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i210_be_to_rgb, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgb, 10, "YUV 420 10-bit", "RGB", "rgb", YuvEndianness::BigEndian);
+build_cnv!(
+    i210_be_to_rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgb,
+    10,
+    "YUV 420 10-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i210_to_bgr, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Bgr, 10, "YUV 420 10-bit", "BGR", "bgr", YuvEndianness::LittleEndian);
+build_cnv!(
+    i210_to_bgr,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Bgr,
+    10,
+    "YUV 420 10-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i210_be_to_bgr, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Bgr, 10, "YUV 420 10-bit", "BGR", "bgr", YuvEndianness::BigEndian);
+build_cnv!(
+    i210_be_to_bgr,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Bgr,
+    10,
+    "YUV 420 10-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::BigEndian
+);
 
-
-build_cnv!(i012_to_rgba, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgba, 12, "YUV 420 12-bit", "RGBA", "rgba", YuvEndianness::LittleEndian);
+build_cnv!(
+    i012_to_rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgba,
+    12,
+    "YUV 420 12-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i012_be_to_rgba, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgba, 12, "YUV 420 12-bit", "RGBA", "rgba", YuvEndianness::BigEndian);
+build_cnv!(
+    i012_be_to_rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgba,
+    12,
+    "YUV 420 12-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i012_to_bgra, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Bgra, 12, "YUV 420 12-bit", "BGRA", "bgra", YuvEndianness::LittleEndian);
+build_cnv!(
+    i012_to_bgra,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Bgra,
+    12,
+    "YUV 420 12-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i012_be_to_bgra, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgba, 12, "YUV 420 12-bit", "BGRA", "bgra", YuvEndianness::BigEndian);
+build_cnv!(
+    i012_be_to_bgra,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgba,
+    12,
+    "YUV 420 12-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i012_to_rgb, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgb, 12, "YUV 420 12-bit", "RGB", "rgb", YuvEndianness::LittleEndian);
+build_cnv!(
+    i012_to_rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgb,
+    12,
+    "YUV 420 12-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i012_be_to_rgb, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Rgb, 12, "YUV 420 12-bit", "RGB", "rgb", YuvEndianness::BigEndian);
+build_cnv!(
+    i012_be_to_rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Rgb,
+    12,
+    "YUV 420 12-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i012_to_bgr, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Bgr, 12, "YUV 420 12-bit", "BGR", "bgr", YuvEndianness::LittleEndian);
+build_cnv!(
+    i012_to_bgr,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Bgr,
+    12,
+    "YUV 420 12-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i012_be_to_bgr, YuvChromaSubsampling::Yuv420, YuvSourceChannels::Bgr, 12, "YUV 420 12-bit", "BGR", "bgr", YuvEndianness::BigEndian);
+build_cnv!(
+    i012_be_to_bgr,
+    YuvChromaSubsampling::Yuv420,
+    YuvSourceChannels::Bgr,
+    12,
+    "YUV 420 12-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i212_to_rgba, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgba, 12, "YUV 420 12-bit", "RGBA", "rgba", YuvEndianness::LittleEndian);
+build_cnv!(
+    i212_to_rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgba,
+    12,
+    "YUV 420 12-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i212_be_to_rgba, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgba, 12, "YUV 420 12-bit", "RGBA", "rgba", YuvEndianness::BigEndian);
+build_cnv!(
+    i212_be_to_rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgba,
+    12,
+    "YUV 420 12-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i212_to_bgra, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Bgra, 12, "YUV 420 12-bit", "BGRA", "bgra", YuvEndianness::LittleEndian);
+build_cnv!(
+    i212_to_bgra,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Bgra,
+    12,
+    "YUV 420 12-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i212_be_to_bgra, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgba, 12, "YUV 420 12-bit", "BGRA", "bgra", YuvEndianness::BigEndian);
+build_cnv!(
+    i212_be_to_bgra,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgba,
+    12,
+    "YUV 420 12-bit",
+    "BGRA",
+    "bgra",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i212_to_rgb, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgb, 12, "YUV 420 12-bit", "RGB", "rgb", YuvEndianness::LittleEndian);
+build_cnv!(
+    i212_to_rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgb,
+    12,
+    "YUV 420 12-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i212_be_to_rgb, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Rgb, 12, "YUV 420 12-bit", "RGB", "rgb", YuvEndianness::BigEndian);
+build_cnv!(
+    i212_be_to_rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Rgb,
+    12,
+    "YUV 420 12-bit",
+    "RGB",
+    "rgb",
+    YuvEndianness::BigEndian
+);
 
-build_cnv!(i212_to_bgr, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Bgr, 12, "YUV 420 12-bit", "BGR", "bgr", YuvEndianness::LittleEndian);
+build_cnv!(
+    i212_to_bgr,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Bgr,
+    12,
+    "YUV 420 12-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::LittleEndian
+);
 #[cfg(feature = "big_endian")]
-build_cnv!(i212_be_to_bgr, YuvChromaSubsampling::Yuv422, YuvSourceChannels::Bgr, 12, "YUV 420 12-bit", "BGR", "bgr", YuvEndianness::BigEndian);
+build_cnv!(
+    i212_be_to_bgr,
+    YuvChromaSubsampling::Yuv422,
+    YuvSourceChannels::Bgr,
+    12,
+    "YUV 420 12-bit",
+    "BGR",
+    "bgr",
+    YuvEndianness::BigEndian
+);

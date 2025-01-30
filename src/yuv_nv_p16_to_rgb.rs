@@ -482,17 +482,100 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
     };
 }
 
-d_cnv!(p010_to_rgba16, YuvSourceChannels::Rgba, YuvChromaSubsampling::Yuv420, "P010", "RGBA", 10);
-d_cnv!(p010_to_rgb16, YuvSourceChannels::Rgb, YuvChromaSubsampling::Yuv420, "P010", "RGB", 10);
-d_cnv!(p210_to_rgba16, YuvSourceChannels::Rgba, YuvChromaSubsampling::Yuv422, "P210", "RGBA", 10);
-d_cnv!(p210_to_rgb16, YuvSourceChannels::Rgb, YuvChromaSubsampling::Yuv422, "P210", "RGB", 10);
-d_cnv!(p410_to_rgba16, YuvSourceChannels::Rgba, YuvChromaSubsampling::Yuv444, "P410", "RGBA", 10);
-d_cnv!(p410_to_rgb16, YuvSourceChannels::Rgb, YuvChromaSubsampling::Yuv444, "P410", "RGB", 10);
+d_cnv!(
+    p010_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "P010",
+    "RGBA",
+    10
+);
+d_cnv!(
+    p010_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "P010",
+    "RGB",
+    10
+);
+d_cnv!(
+    p210_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "P210",
+    "RGBA",
+    10
+);
+d_cnv!(
+    p210_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "P210",
+    "RGB",
+    10
+);
+d_cnv!(
+    p410_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "P410",
+    "RGBA",
+    10
+);
+d_cnv!(
+    p410_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "P410",
+    "RGB",
+    10
+);
 
-d_cnv!(p012_to_rgba16, YuvSourceChannels::Rgba, YuvChromaSubsampling::Yuv420, "P012", "RGBA", 12);
-d_cnv!(p012_to_rgb16, YuvSourceChannels::Rgb, YuvChromaSubsampling::Yuv420, "P012", "RGB", 12);
-d_cnv!(p212_to_rgba16, YuvSourceChannels::Rgba, YuvChromaSubsampling::Yuv422, "P212", "RGBA", 12);
-d_cnv!(p212_to_rgb16, YuvSourceChannels::Rgb, YuvChromaSubsampling::Yuv422, "P212", "RGB", 12);
-d_cnv!(p412_to_rgba16, YuvSourceChannels::Rgba, YuvChromaSubsampling::Yuv444, "P412", "RGBA", 12);
-d_cnv!(p412_to_rgb16, YuvSourceChannels::Rgb, YuvChromaSubsampling::Yuv444, "P412", "RGB", 12);
-
+d_cnv!(
+    p012_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "P012",
+    "RGBA",
+    12
+);
+d_cnv!(
+    p012_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "P012",
+    "RGB",
+    12
+);
+d_cnv!(
+    p212_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "P212",
+    "RGBA",
+    12
+);
+d_cnv!(
+    p212_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "P212",
+    "RGB",
+    12
+);
+d_cnv!(
+    p412_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "P412",
+    "RGBA",
+    12
+);
+d_cnv!(
+    p412_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "P412",
+    "RGB",
+    12
+);

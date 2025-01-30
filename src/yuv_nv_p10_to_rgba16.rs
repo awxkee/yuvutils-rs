@@ -28,6 +28,7 @@
  */
 use crate::internals::{ProcessedOffset, RowDBiPlanarInversionHandler};
 use crate::numerics::{qrshr, to_ne};
+use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvBiPlanarImage, YuvError};
 #[cfg(feature = "rayon")]
@@ -228,6 +229,7 @@ fn yuv_nv_p10_to_image_impl_d<
     const BIT_DEPTH: usize = 10;
 
     image.check_constraints(chroma_subsampling)?;
+    check_rgba_destination(bgra, bgra_stride, image.width, image.height, channels)?;
 
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
     let kr_kb = matrix.get_kr_kb();
