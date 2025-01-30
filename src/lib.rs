@@ -413,8 +413,7 @@ pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
 pub use from_identity_alpha::{
-    gbr_with_alpha_to_bgra, gbr_with_alpha_to_bgra_p16, gbr_with_alpha_to_rgba,
-    gbr_with_alpha_to_rgba_p16,
+    gbr_with_alpha_to_bgra, gbr_with_alpha_to_rgba, gbr_with_alpha_to_rgba_p16,
 };
 pub use images::{
     BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayAlphaImage, YuvGrayImage,
