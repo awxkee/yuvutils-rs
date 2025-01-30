@@ -172,7 +172,7 @@ unsafe fn avx_rgba_to_yuv_impl<
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
@@ -194,7 +194,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     let v_cb_b = _mm256_set1_epi16(transform.cb_b as i16);
     let v_crr_vcrg = _mm256_set1_epi32(transform._interleaved_crr_crg());
     let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
-
+    #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag = _mm256_setr_epi8(
         1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10,
         13, 12, 15, 14,
@@ -224,7 +224,8 @@ unsafe fn avx_rgba_to_yuv_impl<
             y_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y_vl);
         }
 
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = _mm256_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
 
@@ -246,8 +247,8 @@ unsafe fn avx_rgba_to_yuv_impl<
                 cb_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_vl);
                 cr_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_vl);
             }
-
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb_vl = _mm256_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
                 cr_vl = _mm256_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
             }
@@ -281,8 +282,8 @@ unsafe fn avx_rgba_to_yuv_impl<
                 cb_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_s);
                 cr_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_s);
             }
-
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb_s = _mm256_shuffle_epi8(cb_s, big_endian_shuffle_flag);
                 cr_s = _mm256_shuffle_epi8(cr_s, big_endian_shuffle_flag);
             }
