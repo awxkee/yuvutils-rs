@@ -54,7 +54,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
@@ -105,7 +105,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
             y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
 
@@ -169,7 +170,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
                 cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cb_vl)));
                 cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
             }
@@ -207,7 +209,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
                 cr_s = vtomsb_u16::<BIT_DEPTH>(cr_s);
             }
 
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb_s = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cb_s)));
                 cr_s = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr_s)));
             }
@@ -246,7 +249,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
@@ -300,7 +303,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
 
@@ -327,7 +331,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cb_vl)));
                 cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
             }
@@ -361,7 +366,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr = vtomsb_u16::<BIT_DEPTH>(cr);
             }
 
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cb)));
                 cr = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr)));
             }

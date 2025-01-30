@@ -109,6 +109,8 @@ mod yuv_p16_ar30;
 mod yuv_p16_rgba;
 mod yuv_p16_rgba16_alpha;
 mod yuv_p16_rgba_alpha;
+#[cfg(feature = "nightly_f16")]
+mod yuv_p16_rgba_f16;
 mod yuv_p16_rgba_p16;
 mod yuv_support;
 mod yuv_to_rgba;
@@ -142,28 +144,16 @@ pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_bgra;
 pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgb;
 pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgba;
 
-pub use yuv_nv_p16_to_rgb::yuv_nv12_to_bgr_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv12_to_bgra_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgb_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv16_to_bgr_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv16_to_bgra_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv16_to_rgb_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv16_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv21_to_bgr_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv21_to_bgra_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv21_to_rgb_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv21_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv24_to_bgr_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv24_to_bgra_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv24_to_rgb_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv24_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv42_to_bgr_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv42_to_bgra_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv42_to_rgb_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv42_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv61_to_bgr_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv61_to_bgra_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv61_to_rgb_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv61_to_rgba_p16;
 
@@ -346,21 +336,13 @@ pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
 pub use from_identity::{
-    gbr_to_bgr, gbr_to_bgr_p16, gbr_to_bgra, gbr_to_bgra_p16, gbr_to_rgb, gbr_to_rgb_p16,
-    gbr_to_rgba, gbr_to_rgba_p16,
+    gbr_to_bgr, gbr_to_bgra, gbr_to_rgb, gbr_to_rgb_p16, gbr_to_rgba, gbr_to_rgba_p16,
 };
 
 pub use to_identity::{
-    bgr16_to_gbr16, bgr_to_gbr, bgra16_to_gbr16, bgra_to_gbr, rgb16_to_gbr16, rgb_to_gbr,
-    rgba16_to_gbr16, rgba_to_gbr,
+    bgr_to_gbr, bgra_to_gbr, rgb16_to_gbr16, rgb_to_gbr, rgba16_to_gbr16, rgba_to_gbr,
 };
 
-pub use rgb_to_nv_p16::bgr_to_yuv_nv12_p16;
-pub use rgb_to_nv_p16::bgr_to_yuv_nv16_p16;
-pub use rgb_to_nv_p16::bgr_to_yuv_nv21_p16;
-pub use rgb_to_nv_p16::bgr_to_yuv_nv24_p16;
-pub use rgb_to_nv_p16::bgr_to_yuv_nv42_p16;
-pub use rgb_to_nv_p16::bgr_to_yuv_nv61_p16;
 pub use rgb_to_nv_p16::bgra_to_yuv_nv12_p16;
 pub use rgb_to_nv_p16::bgra_to_yuv_nv16_p16;
 pub use rgb_to_nv_p16::bgra_to_yuv_nv21_p16;
@@ -423,20 +405,12 @@ pub use yuv_to_yuy2_p16::yuv444_to_vyuy422_p16;
 pub use yuv_to_yuy2_p16::yuv444_to_yuyv422_p16;
 pub use yuv_to_yuy2_p16::yuv444_to_yvyu422_p16;
 
-pub use yuy2_to_rgb_p16::uyvy422_to_bgr_p16;
-pub use yuy2_to_rgb_p16::uyvy422_to_bgra_p16;
 pub use yuy2_to_rgb_p16::uyvy422_to_rgb_p16;
 pub use yuy2_to_rgb_p16::uyvy422_to_rgba_p16;
-pub use yuy2_to_rgb_p16::vyuy422_to_bgr_p16;
-pub use yuy2_to_rgb_p16::vyuy422_to_bgra_p16;
 pub use yuy2_to_rgb_p16::vyuy422_to_rgb_p16;
 pub use yuy2_to_rgb_p16::vyuy422_to_rgba_p16;
-pub use yuy2_to_rgb_p16::yuyv422_to_bgr_p16;
-pub use yuy2_to_rgb_p16::yuyv422_to_bgra_p16;
 pub use yuy2_to_rgb_p16::yuyv422_to_rgb_p16;
 pub use yuy2_to_rgb_p16::yuyv422_to_rgba_p16;
-pub use yuy2_to_rgb_p16::yvyu422_to_bgr_p16;
-pub use yuy2_to_rgb_p16::yvyu422_to_bgra_p16;
 pub use yuy2_to_rgb_p16::yvyu422_to_rgb_p16;
 pub use yuy2_to_rgb_p16::yvyu422_to_rgba_p16;
 
@@ -492,13 +466,18 @@ pub use shuffle::{
     rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
 };
 pub use yuv_nv_p10_to_ar30::{
-    yuv_nv12_p10_to_ab30, yuv_nv12_p10_to_ar30, yuv_nv12_p10_to_ba30, yuv_nv12_p10_to_ra30,
-    yuv_nv16_p10_to_ab30, yuv_nv16_p10_to_ar30, yuv_nv16_p10_to_ba30, yuv_nv16_p10_to_ra30,
-    yuv_nv21_p10_to_ab30, yuv_nv21_p10_to_ar30, yuv_nv21_p10_to_ba30, yuv_nv21_p10_to_ra30,
-    yuv_nv61_p10_to_ab30, yuv_nv61_p10_to_ar30, yuv_nv61_p10_to_ba30, yuv_nv61_p10_to_ra30,
+    p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30, yuv_nv12_p10_to_ar30,
+    yuv_nv12_p10_to_ra30, yuv_nv16_p10_to_ar30, yuv_nv16_p10_to_ra30, yuv_nv21_p10_to_ar30,
+    yuv_nv21_p10_to_ra30, yuv_nv61_p10_to_ar30, yuv_nv61_p10_to_ra30,
 };
 pub use yuv_p16_ar30::{
-    yuv420_p16_to_ab30, yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ab30,
-    yuv422_p16_to_ar30, yuv422_p16_to_ra30, yuv444_p16_to_ab30, yuv444_p16_to_ar30,
-    yuv444_p16_to_ra30,
+    yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ar30, yuv422_p16_to_ra30,
+    yuv444_p16_to_ar30, yuv444_p16_to_ra30,
+};
+
+#[cfg(feature = "nightly_f16")]
+pub use yuv_p16_rgba_f16::{
+    i010_to_rgb_f16, i010_to_rgba_f16, i210_to_rgb_f16, i210_to_rgba_f16, yuv420_p16_to_rgb_f16,
+    yuv420_p16_to_rgba_f16, yuv422_p16_to_rgb_f16, yuv422_p16_to_rgba_f16, yuv444_p16_to_rgb_f16,
+    yuv444_p16_to_rgba_f16,
 };

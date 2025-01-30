@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#[cfg(feature = "big_endian")]
 use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
     _mm512_affine_transform, _mm512_affine_uv_dot, _mm512_havg_epi16_epi32,
@@ -172,7 +173,7 @@ unsafe fn avx_rgba_to_yuv_impl<
 ) -> ProcessedOffset {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
@@ -195,6 +196,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     let v_crr_vcrg = _mm512_set1_epi32(transform._interleaved_crr_crg());
     let v_cr_b = _mm512_set1_epi16(transform.cr_b as i16);
 
+    #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag = _v512_setr_epu8(
         1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22, 25,
         24, 27, 26, 29, 28, 31, 30, 33, 32, 35, 34, 37, 36, 39, 38, 41, 40, 43, 42, 45, 44, 47, 46,
@@ -227,7 +229,8 @@ unsafe fn avx_rgba_to_yuv_impl<
             y_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(y_vl);
         }
 
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = _mm512_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
 
@@ -247,7 +250,8 @@ unsafe fn avx_rgba_to_yuv_impl<
                 cr_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(cr_vl);
             }
 
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb_vl = _mm512_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
                 cr_vl = _mm512_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
             }
@@ -276,7 +280,8 @@ unsafe fn avx_rgba_to_yuv_impl<
                 cr_s = _mm512_to_msb_epi16::<BIT_DEPTH>(cr_s);
             }
 
-            if endianness == YuvEndianness::BigEndian {
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
                 cb_s = _mm512_shuffle_epi8(cb_s, big_endian_shuffle_flag);
                 cr_s = _mm512_shuffle_epi8(cr_s, big_endian_shuffle_flag);
             }

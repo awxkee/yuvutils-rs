@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
+ * Copyright (c) Radzivon Bartoshyk, 01/2025. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -26,16 +26,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    feature = "nightly_avx512"
-))]
-use crate::avx512bw::avx512_yuv_p16_to_rgba16_row;
-#[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
-use crate::internals::WideRowInversionHandler;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_p16_to_rgba16_row;
+use crate::internals::WideDRowInversionHandler;
 use crate::numerics::{qrshr, to_ne};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
@@ -43,6 +35,7 @@ use crate::yuv_support::{
     YuvChromaSubsampling, YuvEndianness, YuvRange, YuvSourceChannels, YuvStandardMatrix,
 };
 use crate::{YuvError, YuvPlanarImage};
+use core::f16;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
@@ -61,7 +54,7 @@ struct WideRowAnyHandler<
             y_ld_ptr: &[u16],
             u_ld_ptr: &[u16],
             v_ld_ptr: &[u16],
-            rgba: &mut [u16],
+            rgba: &mut [f16],
             width: u32,
             range: &YuvChromaRange,
             transform: &CbCrInverseTransform<i32>,
@@ -96,16 +89,17 @@ impl<
         PRECISION,
         BIT_DEPTH,
     > {
+        if PRECISION != 13 {
+            return WideRowAnyHandler { handler: None };
+        }
+        assert_eq!(PRECISION, 13);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        if is_rdm_available && BIT_DEPTH <= 12 {
-            #[cfg(feature = "rdm")]
-            {
-                use crate::neon::neon_yuv_p16_to_rgba16_row_rdm;
+        {
+            if BIT_DEPTH <= 12 {
+                use crate::neon::neon_yuv_p16_to_rgba_f16_row;
                 return WideRowAnyHandler {
                     handler: Some(
-                        neon_yuv_p16_to_rgba16_row_rdm::<
+                        neon_yuv_p16_to_rgba_f16_row::<
                             DESTINATION_CHANNELS,
                             SAMPLING,
                             ENDIANNESS,
@@ -116,89 +110,28 @@ impl<
                     ),
                 };
             }
-            #[cfg(not(feature = "rdm"))]
-            {
-                return WideRowAnyHandler {
-                    handler: Some(
-                        neon_yuv_p16_to_rgba16_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            PRECISION,
-                            BIT_DEPTH,
-                        >,
-                    ),
-                };
-            }
-        } else if BIT_DEPTH <= 12 {
-            return WideRowAnyHandler {
-                handler: Some(
-                    neon_yuv_p16_to_rgba16_row::<
-                        DESTINATION_CHANNELS,
-                        SAMPLING,
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        PRECISION,
-                        BIT_DEPTH,
-                    >,
-                ),
-            };
-        };
+        }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            #[cfg(feature = "sse")]
-            let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
             #[cfg(feature = "avx")]
-            let use_avx = std::arch::is_x86_feature_detected!("avx2");
-            #[cfg(feature = "nightly_avx512")]
-            let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
-            #[cfg(feature = "nightly_avx512")]
-            if use_avx512 && BIT_DEPTH <= 12 {
-                return WideRowAnyHandler {
-                    handler: Some(
-                        avx512_yuv_p16_to_rgba16_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            BIT_DEPTH,
-                            PRECISION,
-                        >,
-                    ),
-                };
-            }
-            #[cfg(feature = "avx")]
-            if use_avx && BIT_DEPTH <= 12 {
-                use crate::avx2::avx_yuv_p16_to_rgba_row;
-                return WideRowAnyHandler {
-                    handler: Some(
-                        avx_yuv_p16_to_rgba_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            BIT_DEPTH,
-                            PRECISION,
-                        >,
-                    ),
-                };
-            }
-            #[cfg(feature = "sse")]
-            if use_sse && BIT_DEPTH <= 12 {
-                use crate::sse::sse_yuv_p16_to_rgba_row;
-                return WideRowAnyHandler {
-                    handler: Some(
-                        sse_yuv_p16_to_rgba_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            BIT_DEPTH,
-                            PRECISION,
-                        >,
-                    ),
-                };
+            {
+                let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                let has_f16c = std::arch::is_x86_feature_detected!("f16c");
+                if use_avx && has_f16c && BIT_DEPTH <= 12 {
+                    use crate::avx2::avx_yuv_p16_to_rgba_f16_row;
+                    return WideRowAnyHandler {
+                        handler: Some(
+                            avx_yuv_p16_to_rgba_f16_row::<
+                                DESTINATION_CHANNELS,
+                                SAMPLING,
+                                ENDIANNESS,
+                                BYTES_POSITION,
+                                BIT_DEPTH,
+                                PRECISION,
+                            >,
+                        ),
+                    };
+                }
             }
         }
         WideRowAnyHandler { handler: None }
@@ -212,7 +145,7 @@ impl<
         const BYTES_POSITION: u8,
         const PRECISION: i32,
         const BIT_DEPTH: usize,
-    > WideRowInversionHandler<u16, i32>
+    > WideDRowInversionHandler<u16, f16, i32>
     for WideRowAnyHandler<
         DESTINATION_CHANNELS,
         SAMPLING,
@@ -228,7 +161,7 @@ impl<
         y_plane: &[u16],
         u_plane: &[u16],
         v_plane: &[u16],
-        rgba: &mut [u16],
+        rgba: &mut [f16],
         width: u32,
         yuv_chroma_range: YuvChromaRange,
         transform: &CbCrInverseTransform<i32>,
@@ -260,7 +193,7 @@ fn yuv_p16_to_image_p16_ant<
     const BIT_DEPTH: usize,
 >(
     image: &YuvPlanarImage<u16>,
-    rgba16: &mut [u16],
+    rgba16: &mut [f16],
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
@@ -276,6 +209,7 @@ fn yuv_p16_to_image_p16_ant<
 
     let kr_kb = matrix.get_kr_kb();
     let max_range_p16 = ((1u32 << BIT_DEPTH as u32) - 1) as i32;
+
     const PRECISION: i32 = 13;
 
     let i_transform = search_inverse_transform(
@@ -306,10 +240,12 @@ fn yuv_p16_to_image_p16_ant<
         BIT_DEPTH,
     >::default();
 
+    let default_scale = (1f32 / max_range_p16 as f32) as f16;
+
     let process_halved_chroma_row = |y_plane: &[u16],
                                      u_plane: &[u16],
                                      v_plane: &[u16],
-                                     rgba: &mut [u16]| {
+                                     rgba: &mut [f16]| {
         let cx = wide_row_handler
             .handle_row(
                 y_plane,
@@ -334,35 +270,43 @@ fn yuv_p16_to_image_p16_ant<
             let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
             let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
 
-            let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
-            let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+            let r0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16 * default_scale;
+            let b0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16 * default_scale;
             let g0 =
-                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value)
+                    as f16
+                    * default_scale;
 
             let rgba0 = &mut rgba[0..channels];
 
-            rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
-            rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
-            rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
+            rgba0[dst_chans.get_r_channel_offset()] = r0;
+            rgba0[dst_chans.get_g_channel_offset()] = g0;
+            rgba0[dst_chans.get_b_channel_offset()] = b0;
             if dst_chans.has_alpha() {
-                rgba0[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+                rgba0[dst_chans.get_a_channel_offset()] = 1.;
             }
 
             let y_value1 =
                 (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32 - bias_y) * y_coef;
 
-            let r1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value);
-            let b1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value);
+            let r1 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value) as f16 * default_scale;
+            let b1 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value) as f16 * default_scale;
             let g1 =
-                qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+                qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value)
+                    as f16
+                    * default_scale;
 
             let rgba1 = &mut rgba[channels..channels * 2];
 
-            rgba1[dst_chans.get_r_channel_offset()] = r1 as u16;
-            rgba1[dst_chans.get_g_channel_offset()] = g1 as u16;
-            rgba1[dst_chans.get_b_channel_offset()] = b1 as u16;
+            rgba1[dst_chans.get_r_channel_offset()] = r1;
+            rgba1[dst_chans.get_g_channel_offset()] = g1;
+            rgba1[dst_chans.get_b_channel_offset()] = b1;
             if dst_chans.has_alpha() {
-                rgba1[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+                rgba1[dst_chans.get_a_channel_offset()] = 1.;
             }
         }
 
@@ -380,15 +324,19 @@ fn yuv_p16_to_image_p16_ant<
             let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
             let rgba0 = &mut rgba[0..channels];
 
-            let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
-            let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+            let r0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16 * default_scale;
+            let b0 =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16 * default_scale;
             let g0 =
-                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
-            rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
-            rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
-            rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
+                qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value)
+                    as f16
+                    * default_scale;
+            rgba0[dst_chans.get_r_channel_offset()] = r0;
+            rgba0[dst_chans.get_g_channel_offset()] = g0;
+            rgba0[dst_chans.get_b_channel_offset()] = b0;
             if dst_chans.has_alpha() {
-                rgba0[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+                rgba0[dst_chans.get_a_channel_offset()] = 1.;
             }
         }
     };
@@ -440,17 +388,20 @@ fn yuv_p16_to_image_p16_ant<
                 let cr_value =
                     to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
 
-                let r = qrshr::<PRECISION, BIT_DEPTH>(y_value + cr_coef * cr_value);
-                let b = qrshr::<PRECISION, BIT_DEPTH>(y_value + cb_coef * cb_value);
+                let r = qrshr::<PRECISION, BIT_DEPTH>(y_value + cr_coef * cr_value) as f16
+                    * default_scale;
+                let b = qrshr::<PRECISION, BIT_DEPTH>(y_value + cb_coef * cb_value) as f16
+                    * default_scale;
                 let g = qrshr::<PRECISION, BIT_DEPTH>(
                     y_value - g_coef_1 * cr_value - g_coef_2 * cb_value,
-                );
+                ) as f16
+                    * default_scale;
 
-                rgba[dst_chans.get_r_channel_offset()] = r as u16;
-                rgba[dst_chans.get_g_channel_offset()] = g as u16;
-                rgba[dst_chans.get_b_channel_offset()] = b as u16;
+                rgba[dst_chans.get_r_channel_offset()] = r;
+                rgba[dst_chans.get_g_channel_offset()] = g;
+                rgba[dst_chans.get_b_channel_offset()] = b;
                 if dst_chans.has_alpha() {
-                    rgba[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+                    rgba[dst_chans.get_a_channel_offset()] = 1.;
                 }
             }
         });
@@ -553,7 +504,7 @@ pub(crate) fn yuv_p16_to_image_p16_impl<
     const BYTES_POSITION: u8,
 >(
     planar_image: &YuvPlanarImage<u16>,
-    rgba16: &mut [u16],
+    rgba16: &mut [f16],
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
@@ -587,7 +538,7 @@ pub(crate) fn yuv_p16_to_image_p16_impl<
 macro_rules! d_cnv {
     ($method: ident, $px_fmt: expr, $sampling: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
         #[doc = concat!("
-Convert ",$sampling_written, " planar format with 8+ bit pixel format to ", $px_written," 8+ bit-depth format.
+Convert ",$sampling_written, " planar format with 8+ bit pixel format to ", $px_written," float16 format.
 
 This function takes ", $sampling_written, " planar data with 8+ bit precision.
 and converts it to ", $px_written," format with 8+ bit-depth precision per channel
@@ -595,8 +546,8 @@ and converts it to ", $px_written," format with 8+ bit-depth precision per chann
 # Arguments
 
 * `planar_image` - Source ",$sampling_written," planar image.
-* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," 8+ bit-depth data.
-* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," 8+ bit-depth data.
+* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," float16 format.
+* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," float16 format.
 * `range` - The YUV range (limited or full).
 * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 * `endianness` - The endianness of stored bytes
@@ -609,7 +560,7 @@ This function panics if the lengths of the planes or the input ", $px_written," 
 on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
         pub fn $method(
             planar_image: &YuvPlanarImage<u16>,
-            dst: &mut [u16],
+            dst: &mut [f16],
             dst_stride: u32,
             bit_depth: usize,
             range: YuvRange,
@@ -662,56 +613,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
 }
 
 d_cnv!(
-    yuv420_p16_to_bgra16,
-    YuvSourceChannels::Bgra,
-    YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "BGRA",
-    "bgra"
-);
-d_cnv!(
-    yuv420_p16_to_bgr16,
-    YuvSourceChannels::Bgr,
-    YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "BGR",
-    "bgr"
-);
-d_cnv!(
-    yuv422_p16_to_bgra16,
-    YuvSourceChannels::Bgra,
-    YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "BGRA",
-    "bgra"
-);
-d_cnv!(
-    yuv422_p16_to_bgr16,
-    YuvSourceChannels::Bgr,
-    YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "BGR",
-    "bgr"
-);
-d_cnv!(
-    yuv444_p16_to_bgra16,
-    YuvSourceChannels::Bgra,
-    YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "BGRA",
-    "bgra"
-);
-d_cnv!(
-    yuv444_p16_to_bgr16,
-    YuvSourceChannels::Bgr,
-    YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "BGR",
-    "bgr"
-);
-
-d_cnv!(
-    yuv420_p16_to_rgba16,
+    yuv420_p16_to_rgba_f16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     "YUV 420",
@@ -719,7 +621,7 @@ d_cnv!(
     "rgba"
 );
 d_cnv!(
-    yuv420_p16_to_rgb16,
+    yuv420_p16_to_rgb_f16,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "YUV 420",
@@ -727,7 +629,7 @@ d_cnv!(
     "rgb"
 );
 d_cnv!(
-    yuv422_p16_to_rgba16,
+    yuv422_p16_to_rgba_f16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     "YUV 422",
@@ -735,7 +637,7 @@ d_cnv!(
     "rgba"
 );
 d_cnv!(
-    yuv422_p16_to_rgb16,
+    yuv422_p16_to_rgb_f16,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "YUV 422",
@@ -743,7 +645,7 @@ d_cnv!(
     "rgb"
 );
 d_cnv!(
-    yuv444_p16_to_rgba16,
+    yuv444_p16_to_rgba_f16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     "YUV 444",
@@ -751,7 +653,7 @@ d_cnv!(
     "rgba"
 );
 d_cnv!(
-    yuv444_p16_to_rgb16,
+    yuv444_p16_to_rgb_f16,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "YUV 444",
@@ -759,7 +661,77 @@ d_cnv!(
     "rgb"
 );
 
-#[cfg(test)]
+macro_rules! build_cnv {
+    ($method: ident, $worker: expr, $bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
+        #[doc = concat!("
+Convert ",$sampling_written, " planar format with ", $bit_depth," bit pixel format to ", $px_written," float16 format.
+
+This function takes ", $sampling_written, " planar data with ",$bit_depth," bit precision.
+and converts it to ", $px_written," format with 8+ bit-depth precision per channel
+
+# Arguments
+
+* `planar_image` - Source ",$sampling_written," planar image.
+* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," float16 format.
+* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," float16 format.
+* `range` - The YUV range (limited or full).
+* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+* `endianness` - The endianness of stored bytes
+* `bytes_packing` - see [YuvBytesPacking] for more info.
+
+# Panics
+
+This function panics if the lengths of the planes or the input ", $px_written," data are not valid based
+on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
+        pub fn $method(
+            planar_image: &YuvPlanarImage<u16>,
+            dst: &mut [f16],
+            dst_stride: u32,
+            range: YuvRange,
+            matrix: YuvStandardMatrix,
+        ) -> Result<(), YuvError> {
+            $worker(planar_image, dst, dst_stride, $bit_depth, range, matrix, YuvEndianness::LittleEndian, YuvBytesPacking::LeastSignificantBytes)
+        }
+    };
+}
+
+build_cnv!(
+    i010_to_rgba_f16,
+    yuv420_p16_to_rgba_f16,
+    10,
+    "I010",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i010_to_rgb_f16,
+    yuv420_p16_to_rgb_f16,
+    10,
+    "YUV 420",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
+    i210_to_rgba_f16,
+    yuv422_p16_to_rgba_f16,
+    10,
+    "I210",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i210_to_rgb_f16,
+    yuv422_p16_to_rgb_f16,
+    10,
+    "I210",
+    "RGB",
+    "rgb"
+);
+
+/*#[cfg(test)]
 mod tests {
     use super::*;
     use crate::{rgb_to_yuv420_p16, rgb_to_yuv422_p16, rgb_to_yuv444_p16, YuvPlanarImageMut};
@@ -1241,3 +1213,4 @@ mod tests {
         }
     }
 }
+*/

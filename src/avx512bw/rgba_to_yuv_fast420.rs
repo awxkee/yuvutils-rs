@@ -332,14 +332,14 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_ubs420_impl<const ORIGIN_CHANNELS: u8
 
     if cx < width {
         let diff = width - cx;
-        assert!(diff <= 32);
+        assert!(diff <= 64);
 
-        let mut src_buffer0: [u8; 32 * 4] = [0; 32 * 4];
-        let mut src_buffer1: [u8; 32 * 4] = [0; 32 * 4];
-        let mut y_buffer0: [u8; 32] = [0; 32];
-        let mut y_buffer1: [u8; 32] = [0; 32];
-        let mut u_buffer: [u8; 32] = [0; 32];
-        let mut v_buffer: [u8; 32] = [0; 32];
+        let mut src_buffer0: [u8; 64 * 4] = [0; 64 * 4];
+        let mut src_buffer1: [u8; 64 * 4] = [0; 64 * 4];
+        let mut y_buffer0: [u8; 64] = [0; 64];
+        let mut y_buffer1: [u8; 64] = [0; 64];
+        let mut u_buffer: [u8; 64] = [0; 64];
+        let mut v_buffer: [u8; 64] = [0; 64];
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
@@ -723,14 +723,14 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot420_impl<const ORIGIN_CHANNELS: u8
 
     if cx < width {
         let diff = width - cx;
-        assert!(diff <= 32);
+        assert!(diff <= 64);
 
-        let mut src_buffer0: [u8; 32 * 4] = [0; 32 * 4];
-        let mut src_buffer1: [u8; 32 * 4] = [0; 32 * 4];
-        let mut y_buffer0: [u8; 32] = [0; 32];
-        let mut y_buffer1: [u8; 32] = [0; 32];
-        let mut u_buffer: [u8; 32] = [0; 32];
-        let mut v_buffer: [u8; 32] = [0; 32];
+        let mut src_buffer0: [u8; 64 * 4] = [0; 64 * 4];
+        let mut src_buffer1: [u8; 64 * 4] = [0; 64 * 4];
+        let mut y_buffer0: [u8; 64] = [0; 64];
+        let mut y_buffer1: [u8; 64] = [0; 64];
+        let mut u_buffer: [u8; 64] = [0; 64];
+        let mut v_buffer: [u8; 64] = [0; 64];
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),

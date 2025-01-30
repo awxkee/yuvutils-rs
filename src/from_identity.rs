@@ -512,44 +512,6 @@ pub fn gbr_to_rgb_p16(
     }
 }
 
-/// Convert YUV Identity Matrix ( aka 'GBR ) to BGR
-///
-/// This function takes GBR interleaved format data with 8+ bit precision,
-/// and converts it to BGR format with 8+ bit per channel precision.
-///
-/// # Arguments
-///
-/// * `image` - Source GBR image.
-/// * `bgr` - A slice to store the BGR plane data.
-/// * `bgr_stride` - The stride (components per row) for the BGR plane.
-/// * `bit_depth` - YUV and RGB bit depth, only 10 and 12 is supported.
-/// * `range` - Yuv values range.
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides is provided.
-///
-pub fn gbr_to_bgr_p16(
-    image: &YuvPlanarImage<u16>,
-    bgr: &mut [u16],
-    bgr_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit supported"
-    );
-    if bit_depth == 10 {
-        gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Bgr as u8 }, 10>(image, bgr, bgr_stride, range)
-    } else if bit_depth == 12 {
-        gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Bgr as u8 }, 12>(image, bgr, bgr_stride, range)
-    } else {
-        unreachable!();
-    }
-}
-
 /// Convert YUV Identity Matrix ( aka 'GBR ) to RGBA
 ///
 /// This function takes GBR interleaved format data with 8+ bit precision,
@@ -591,54 +553,6 @@ pub fn gbr_to_rgba_p16(
             image,
             rgba,
             rgba_stride,
-            range,
-        )
-    } else {
-        unreachable!();
-    }
-}
-
-/// Convert YUV Identity Matrix ( aka 'GBR ) to BGRA
-///
-/// This function takes GBR interleaved format data with 8+ bit precision,
-/// and converts it to BGRA format with 8+ bit per channel precision.
-///
-/// # Arguments
-///
-/// * `image` - Source GBR image.
-/// * `bgra` - A slice to store the BGRA plane data.
-/// * `bgra_stride` - The stride (components per row) for the BGRA plane.
-/// * `bit_depth` - YUV and RGB bit depth.
-/// * `range` - Yuv values range.
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides is provided.
-///
-pub fn gbr_to_bgra_p16(
-    image: &YuvPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit supported"
-    );
-    if bit_depth == 10 {
-        gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Bgra as u8 }, 10>(
-            image,
-            bgra,
-            bgra_stride,
-            range,
-        )
-    } else if bit_depth == 12 {
-        gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Bgra as u8 }, 12>(
-            image,
-            bgra,
-            bgra_stride,
             range,
         )
     } else {

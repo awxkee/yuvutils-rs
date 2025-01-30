@@ -443,80 +443,6 @@ fn yuv_nv_p16_to_image<
     }
 }
 
-/// Convert YUV NV12 format with 10/12-bit pixel format to BGRA format.
-///
-/// This function takes YUV NV12 data with 10/12-bit precision
-/// and converts it to BGRA format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (elements per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv12_to_bgra_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
-}
-
 /// Convert YUV NV12 format with 10/12-bit pixel format to RGBA format.
 ///
 /// This function takes YUV NV12 data with 10/12-bit precision
@@ -547,6 +473,7 @@ pub fn yuv_nv12_to_rgba_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -591,80 +518,6 @@ pub fn yuv_nv12_to_rgba_p16(
     dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
 }
 
-/// Convert YUV NV12 format with 10/12-bit pixel format to BGR format.
-///
-/// This function takes YUV NV12 data with 10/12-bit precision
-/// and converts it to BGR format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (elements per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv12_to_bgr_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgr: &mut [u16],
-    bgr_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
-}
-
 /// Convert YUV NV12 format with 10/12-bit pixel format to RGB format.
 ///
 /// This function takes YUV NV12 data with 10/12-bit precision
@@ -695,6 +548,7 @@ pub fn yuv_nv12_to_rgb_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -739,302 +593,6 @@ pub fn yuv_nv12_to_rgb_p16(
     dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
-/// Convert YUV NV16 format with 10/12-bit pixel format to BGRA format.
-///
-/// This function takes YUV NV16 data with 10/12-bit precision.
-/// and converts it to BGRA format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (elements per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv16_to_bgra_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV61 format with 10/12-bit pixel format to BGRA format.
-///
-/// This function takes YUV NV61 data with 10/12-bit precision.
-/// and converts it to BGRA format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (elements per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv61_to_bgra_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV16 format with 10/12-bit pixel format to BGR format.
-///
-/// This function takes YUV NV16 data with 10/12-bit precision.
-/// and converts it to BGR format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGR data.
-/// * `bgra_stride` - The stride (elements per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv16_to_bgr_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV61 format with 10/12-bit pixel format to BGR format.
-///
-/// This function takes YUV NV61 data with 10/12-bit precision.
-/// and converts it to BGR format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGR data.
-/// * `bgra_stride` - The stride (elements per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv61_to_bgr_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
-}
-
 /// Convert YUV NV16 format with 10/12-bit pixel format to RGB format.
 ///
 /// This function takes YUV NV16 data with 10/12-bit precision.
@@ -1067,6 +625,7 @@ pub fn yuv_nv16_to_rgb_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1143,6 +702,7 @@ pub fn yuv_nv61_to_rgb_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1217,6 +777,7 @@ pub fn yuv_nv16_to_rgba_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1291,6 +852,7 @@ pub fn yuv_nv61_to_rgba_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1326,154 +888,6 @@ pub fn yuv_nv61_to_rgba_p16(
                     { YuvSourceChannels::Rgba as u8 },
                     { YuvNVOrder::VU as u8 },
                     { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV21 format with 10/12-bit pixel format to BGR format.
-///
-/// This function takes YUV NV21 data with 10/12-bit precision
-/// and converts it to BGR format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (elements per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv21_to_bgr_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgr: &mut [u16],
-    bgr_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV21 format with 10/12-bit pixel format to BGRA format.
-///
-/// This function takes YUV NV21 data with 10/12-bit precision
-/// and converts it to BGRA format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (elements per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv21_to_bgra_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::LeastSignificantBytes as u8 },
                 >
@@ -1513,6 +927,7 @@ pub fn yuv_nv21_to_rgb_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1587,6 +1002,7 @@ pub fn yuv_nv21_to_rgba_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1663,6 +1079,7 @@ pub fn yuv_nv24_to_rgb_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1739,6 +1156,7 @@ pub fn yuv_nv42_to_rgb_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1815,6 +1233,7 @@ pub fn yuv_nv24_to_rgba_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1891,6 +1310,7 @@ pub fn yuv_nv42_to_rgba_p16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p16_to_image::<
@@ -1933,308 +1353,4 @@ pub fn yuv_nv42_to_rgba_p16(
         },
     };
     dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV24 format with 10/12-bit pixel format to BGR format.
-///
-/// This function takes YUV NV24 data with 10/12-bit precision.
-/// and converts it to BGR format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgr` - A mutable slice to store the converted BGR data.
-/// * `bgr_stride` - The stride (elements per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv24_to_bgr_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgr: &mut [u16],
-    bgr_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV42 format with 10/12-bit pixel format to BGR format.
-///
-/// This function takes YUV NV42 data with 10/12-bit precision.
-/// and converts it to BGR format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `rgba` - A mutable slice to store the converted BGR data.
-/// * `rgba_stride` - The stride (elements per row) for the BGR image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv42_to_bgr_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgr: &mut [u16],
-    bgr_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgr, bgr_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV24 format with 10/12-bit pixel format to BGRA format.
-///
-/// This function takes YUV NV24 data with 10/12-bit precision.
-/// and converts it to BGRA format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (elements per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv24_to_bgra_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgra as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
-}
-
-/// Convert YUV NV42 format with 10/12-bit pixel format to BGRA format.
-///
-/// This function takes YUV NV42 data with 10/12-bit precision.
-/// and converts it to BGR format.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Source Bi-Planar 10/12-bit image.
-/// * `bgra` - A mutable slice to store the converted BGRA data.
-/// * `bgra_stride` - The stride (elements per row) for the BGRA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv_nv42_to_bgra_p16(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_nv_p16_to_image::<
-                    { YuvSourceChannels::Bgr as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, bgra, bgra_stride, bit_depth, range, matrix)
 }

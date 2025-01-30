@@ -30,13 +30,10 @@
 mod support;
 
 use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageReader};
-use std::cmp::max;
 use std::fs::File;
 use std::io::Read;
-use std::thread::available_parallelism;
 use std::time::Instant;
-use yuv_sys::{rs_I420ToRGB24, rs_NV12ToRGB24, rs_NV21ToABGR, rs_NV21ToRGB24, rs_RGB24ToI420};
-use yuvutils_rs::{ab30_to_rgb8, bgr_to_rgba, bgra_to_rgba, convert_rgb16_to_f16, convert_rgb_f16_to_rgb, convert_rgb_f16_to_rgb16, convert_rgb_to_f16, gbr_to_rgb, mirror_rgb, rgb8_to_ar30, rgb8_to_ra30, rgb_to_bgra, rgb_to_gbr, rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv420_p16, rgb_to_yuv422, rgb_to_yuv422_p16, rgb_to_yuv444, rgb_to_yuv444_p16, rgb_to_yuv_nv12, rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16, rgb_to_yuv_nv21, rgb_to_yuv_nv24, rgba_to_bgr, rgba_to_bgra, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv24, rotate_rgba, yuv400_to_rgb, yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_to_rgb, yuv420_to_rgba, yuv420_to_yuyv422, yuv422_p16_to_rgb, yuv422_p16_to_rgb16, yuv422_to_rgb, yuv422_to_rgba, yuv444_p16_to_rgb16, yuv444_to_rgb, yuv444_to_rgba, yuv_nv12_p10_to_ab30, yuv_nv12_p10_to_rgb, yuv_nv12_to_rgb, yuv_nv12_to_rgb_p16, yuv_nv12_to_rgba, yuv_nv12_to_rgba_p16, yuv_nv16_to_rgb, yuv_nv21_to_rgb, yuv_nv24_to_rgb, yuv_nv24_to_rgba, yuyv422_to_rgb, yuyv422_to_yuv420, MirrorMode, Rgb30ByteOrder, RotationMode, SharpYuvGammaTransfer, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{ab30_to_rgb8, convert_rgb_f16_to_rgb, rgb8_to_ar30, rgb_to_yuv420_p16, rgb_to_yuv_nv12_p16, yuv420_p16_to_rgb, yuv420_p16_to_rgb16, yuv420_p16_to_rgb_f16, Rgb30ByteOrder, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -52,7 +49,6 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     Ok(buffer)
 }
 use core::f16;
-use image::imageops::FilterType;
 
 fn main() {
     let j = (1. / u16::MAX as f32) as f16;
@@ -99,20 +95,20 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv12_p16(
-        &mut bi_planar_image,
+    rgb_to_yuv420_p16(
+        &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
         10,
         YuvRange::Full,
         YuvStandardMatrix::Bt2020,
         YuvEndianness::LittleEndian,
-        YuvBytesPacking::MostSignificantBytes,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -220,39 +216,29 @@ fn main() {
     // bytes_16.resize(width as usize * height as usize * 4, 0u16);
     // rgba.resize(width as usize * height as usize * 4, 0u8);
 
-    let mut ar30 = vec![0u8; width as usize * height as usize * 4];
+    let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
 
-    rgb8_to_ar30(
-        &mut ar30,
-        width * 4,
-        Rgb30ByteOrder::Host,
-        &src_bytes,
+    yuv420_p16_to_rgb_f16(
+        &fixed_planar,
+        &mut rgba_f16,
         rgba_stride as u32,
-        width,
-        height,
+        10,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt2020,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
-    let start_time = Instant::now();
-
-    rgba.fill(0);
-    ab30_to_rgb8(&ar30, width * 4, Rgb30ByteOrder::Host, &mut rgba, rgba_stride as u32, width, height).unwrap();
-
-    // yuv_nv12_p10_to_rgb(
-    //     &fixed_biplanar,
-    //     &mut rgba,
-    //     rgba_stride as u32,
-    //     YuvRange::Full,
-    //     YuvStandardMatrix::Bt2020,
-    //     YuvEndianness::LittleEndian,
-    //     YuvBytesPacking::MostSignificantBytes,
-    //     YuvConversionMode::Professional,
-    // )
-    // .unwrap();
-
     println!("Backward time: {:?}", start_time.elapsed());
 
+    rgba.fill(0);
+
+    // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
+
     // rgba = bytes_16.iter().map(|&x| (x >> 2) axs u8).collect();
+
+    rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 
     image::save_buffer(
         "converted_sharp151.png",

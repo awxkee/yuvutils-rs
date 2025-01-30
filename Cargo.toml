@@ -2,7 +2,7 @@ workspace = { members = ["app", "fuzz"] }
 
 [package]
 name = "yuvutils-rs"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"
@@ -42,6 +42,8 @@ nightly_i8mm = []
 fast_mode = []
 professional_mode = []
 rayon = ["dep:rayon"]
+# Support for Big-Endian YUV
+big_endian = []
 
 [profile.dev.package]
 miniz_oxide.opt-level = 3

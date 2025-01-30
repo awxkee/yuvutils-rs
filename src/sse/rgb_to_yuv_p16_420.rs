@@ -86,7 +86,7 @@ unsafe fn sse_rgba_to_yuv_impl<
     width: usize,
 ) -> ProcessedOffset {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let channels = source_channels.get_channels_count();
 
@@ -105,7 +105,7 @@ unsafe fn sse_rgba_to_yuv_impl<
     let v_cb_b = _mm_set1_epi16(transform.cb_b as i16);
     let v_crr_vcrg = _mm_set1_epi32(transform._interleaved_crr_crg());
     let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
-
+    #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
@@ -140,8 +140,8 @@ unsafe fn sse_rgba_to_yuv_impl<
             y0_vl = _mm_to_msb_epi16::<BIT_DEPTH>(y0_vl);
             y1_vl = _mm_to_msb_epi16::<BIT_DEPTH>(y1_vl);
         }
-
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y0_vl = _mm_shuffle_epi8(y0_vl, big_endian_shuffle_flag);
             y1_vl = _mm_shuffle_epi8(y1_vl, big_endian_shuffle_flag);
         }
@@ -171,8 +171,8 @@ unsafe fn sse_rgba_to_yuv_impl<
             cb_s = _mm_to_msb_epi16::<BIT_DEPTH>(cb_s);
             cr_s = _mm_to_msb_epi16::<BIT_DEPTH>(cr_s);
         }
-
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
             cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
         }

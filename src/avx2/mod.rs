@@ -76,6 +76,8 @@ mod yuv_p16_to_rgb16;
 mod yuv_p16_to_rgb16_alpha;
 mod yuv_p16_to_rgb8;
 mod yuv_p16_to_rgb8_alpha;
+#[cfg(feature = "nightly_f16")]
+mod yuv_p16_to_rgb_f16;
 mod yuv_to_rgba;
 mod yuv_to_rgba420;
 mod yuv_to_rgba422;
@@ -131,6 +133,8 @@ pub(crate) use yuv_p16_to_rgb16::avx_yuv_p16_to_rgba_row;
 pub(crate) use yuv_p16_to_rgb16_alpha::avx_yuv_p16_to_rgba_alpha_row;
 pub(crate) use yuv_p16_to_rgb8::avx_yuv_p16_to_rgba8_row;
 pub(crate) use yuv_p16_to_rgb8_alpha::avx_yuv_p16_to_rgba8_alpha_row;
+#[cfg(feature = "nightly_f16")]
+pub(crate) use yuv_p16_to_rgb_f16::avx_yuv_p16_to_rgba_f16_row;
 pub(crate) use yuv_to_rgba::avx2_yuv_to_rgba_row;
 pub(crate) use yuv_to_rgba420::avx2_yuv_to_rgba_row420;
 pub(crate) use yuv_to_rgba422::avx2_yuv_to_rgba_row422;

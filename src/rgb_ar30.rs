@@ -104,7 +104,7 @@ macro_rules! rgb102_cnv {
         $rgb_l: expr
     ) => {
         #[doc = concat!("Converts ",$rgb_l," 8 bit depth to ",$ab_format, " (", $ab_f_format, ")\n",
-"# Arguments
+                                                                "# Arguments
 
 * `", $ab_l_format, "`: Dest ", $ab_format, " data
 * `", $ab_l_format, "_stride`: Dest ", $ab_format, " stride
@@ -140,10 +140,46 @@ macro_rules! rgb102_cnv {
     };
 }
 
-rgb102_cnv!(rgb8_to_ar30, "AR30", "ARGB2101010", "ar30", Rgb30::Ar30, YuvSourceChannels::Rgb, "rgb", "RGB");
-rgb102_cnv!(rgb8_to_ra30, "RA30", "RGBA1010102", "ra30", Rgb30::Ra30, YuvSourceChannels::Rgb, "rgb", "RGB");
-rgb102_cnv!(rgba8_to_ar30, "AR30", "ARGB2101010", "ar30", Rgb30::Ar30, YuvSourceChannels::Rgba, "rgba", "RGBA");
-rgb102_cnv!(rgba8_to_ra30, "RA30", "RGBA1010102", "ra30", Rgb30::Ra30, YuvSourceChannels::Rgba, "rgba", "RGBA");
+rgb102_cnv!(
+    rgb8_to_ar30,
+    "AR30",
+    "ARGB2101010",
+    "ar30",
+    Rgb30::Ar30,
+    YuvSourceChannels::Rgb,
+    "rgb",
+    "RGB"
+);
+rgb102_cnv!(
+    rgb8_to_ra30,
+    "RA30",
+    "RGBA1010102",
+    "ra30",
+    Rgb30::Ra30,
+    YuvSourceChannels::Rgb,
+    "rgb",
+    "RGB"
+);
+rgb102_cnv!(
+    rgba8_to_ar30,
+    "AR30",
+    "ARGB2101010",
+    "ar30",
+    Rgb30::Ar30,
+    YuvSourceChannels::Rgba,
+    "rgba",
+    "RGBA"
+);
+rgb102_cnv!(
+    rgba8_to_ra30,
+    "RA30",
+    "RGBA1010102",
+    "ra30",
+    Rgb30::Ra30,
+    YuvSourceChannels::Rgba,
+    "rgba",
+    "RGBA"
+);
 
 #[cfg(test)]
 mod tests {
@@ -156,12 +192,12 @@ mod tests {
         let image_width = 64usize;
         let image_height = 64usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+        let random_point_x = rand::rng().random_range(0..image_width);
+        let random_point_y = rand::rng().random_range(0..image_height);
 
-        let random_r = rand::thread_rng().gen_range(0..255) as u8;
-        let random_g = rand::thread_rng().gen_range(0..255) as u8;
-        let random_b = rand::thread_rng().gen_range(0..255) as u8;
+        let random_r = rand::rng().random_range(0..255) as u8;
+        let random_g = rand::rng().random_range(0..255) as u8;
+        let random_b = rand::rng().random_range(0..255) as u8;
 
         const CN: usize = 3;
 
@@ -230,12 +266,12 @@ mod tests {
         let image_width = 64usize;
         let image_height = 64usize;
 
-        let random_point_x = rand::thread_rng().gen_range(0..image_width);
-        let random_point_y = rand::thread_rng().gen_range(0..image_height);
+        let random_point_x = rand::rng().random_range(0..image_width);
+        let random_point_y = rand::rng().random_range(0..image_height);
 
-        let random_r = rand::thread_rng().gen_range(0..255) as u8;
-        let random_g = rand::thread_rng().gen_range(0..255) as u8;
-        let random_b = rand::thread_rng().gen_range(0..255) as u8;
+        let random_r = rand::rng().random_range(0..255) as u8;
+        let random_g = rand::rng().random_range(0..255) as u8;
+        let random_b = rand::rng().random_range(0..255) as u8;
 
         const CN: usize = 3;
 
