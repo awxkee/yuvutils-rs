@@ -495,172 +495,10 @@ fn yuv_nv_p10_to_image_impl<
     }
 }
 
-macro_rules! yuv_to_ar30_conversion {
-    (
-        $method_name:ident,
-        $ab_format:expr,
-        $chroma_subsampling:expr,
-        $chroma_interleaved_order: expr,
-        $uv_format_name: expr,
-        $ab_format_name: expr
-    ) => {
-        #[doc = concat!("Convert YUV ", $uv_format_name, " format with 10-bit pixel format to ", $ab_format_name, " format.
-
-This function takes YUV ", $uv_format_name, " data with 10-bit precision
-and converts it to ", $ab_format_name," format.
-
-# Arguments
-
-* `bi_planar_image` - Source Bi-Planar 10-bit image.
-* `dst` - A mutable slice to store the converted ", $ab_format_name, " data.
-* `dst_stride` - The stride for the ", $ab_format_name, " image data.
-* `byte_order` - see [Rgb30ByteOrder] for more info
-* `endianness` - The endianness of stored bytes
-* `bytes_packing` - see [YuvBytesPacking] for more info.
-* `range` - range of YUV, see [YuvRange] for more info.
-* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-
-# Panics
-
-This function panics if the lengths of the planes or the input ", $ab_format_name," data are not valid based
-on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
-        pub fn $method_name(
-            bi_planar_image: &YuvBiPlanarImage<u16>,
-            dst: &mut [u8],
-            dst_stride: u32,
-            byte_order: Rgb30ByteOrder,
-            range: YuvRange,
-            matrix: YuvStandardMatrix,
-            endianness: YuvEndianness,
-            bytes_packing: YuvBytesPacking,
-        ) -> Result<(), YuvError> {
-            let dispatcher = match endianness {
-                #[cfg(feature = "big_endian")]
-                YuvEndianness::BigEndian => match bytes_packing {
-                    YuvBytesPacking::MostSignificantBytes => {
-                        yuv_nv_p10_to_image_impl::<
-                            { $ab_format as usize },
-                            { $chroma_interleaved_order as u8 },
-                            { $chroma_subsampling as u8 },
-                            { YuvEndianness::BigEndian as u8 },
-                            { YuvBytesPacking::MostSignificantBytes as u8 },
-                        >
-                    }
-                    YuvBytesPacking::LeastSignificantBytes => {
-                        yuv_nv_p10_to_image_impl::<
-                            { $ab_format as usize },
-                            { YuvNVOrder::UV as u8 },
-                            { $chroma_subsampling as u8 },
-                            { YuvEndianness::BigEndian as u8 },
-                            { YuvBytesPacking::LeastSignificantBytes as u8 },
-                        >
-                    }
-                },
-                YuvEndianness::LittleEndian => match bytes_packing {
-                    YuvBytesPacking::MostSignificantBytes => {
-                        yuv_nv_p10_to_image_impl::<
-                            { $ab_format as usize },
-                            { $chroma_interleaved_order as u8 },
-                            { $chroma_subsampling as u8 },
-                            { YuvEndianness::LittleEndian as u8 },
-                            { YuvBytesPacking::MostSignificantBytes as u8 },
-                        >
-                    }
-                    YuvBytesPacking::LeastSignificantBytes => {
-                        yuv_nv_p10_to_image_impl::<
-                            { $ab_format as usize },
-                            { $chroma_interleaved_order as u8 },
-                            { $chroma_subsampling as u8 },
-                            { YuvEndianness::LittleEndian as u8 },
-                            { YuvBytesPacking::LeastSignificantBytes as u8 },
-                        >
-                    }
-                },
-            };
-            dispatcher(
-                bi_planar_image,
-                dst,
-                dst_stride,
-                byte_order,
-                range,
-                matrix,
-            )
-        }
-    };
-}
-
-yuv_to_ar30_conversion!(
-    yuv_nv12_p10_to_ar30,
-    Rgb30::Ar30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::UV,
-    "NV12",
-    "AR30"
-);
-yuv_to_ar30_conversion!(
-    yuv_nv12_p10_to_ra30,
-    Rgb30::Ra30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::UV,
-    "NV12",
-    "RA30"
-);
-
-yuv_to_ar30_conversion!(
-    yuv_nv21_p10_to_ar30,
-    Rgb30::Ar30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::VU,
-    "NV21",
-    "AR30"
-);
-yuv_to_ar30_conversion!(
-    yuv_nv21_p10_to_ra30,
-    Rgb30::Ra30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::VU,
-    "NV21",
-    "RA30"
-);
-
-yuv_to_ar30_conversion!(
-    yuv_nv16_p10_to_ar30,
-    Rgb30::Ar30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::UV,
-    "NV16",
-    "AR30"
-);
-yuv_to_ar30_conversion!(
-    yuv_nv16_p10_to_ra30,
-    Rgb30::Ra30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::UV,
-    "NV16",
-    "RA30"
-);
-
-yuv_to_ar30_conversion!(
-    yuv_nv61_p10_to_ar30,
-    Rgb30::Ar30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::VU,
-    "NV61",
-    "AR30"
-);
-yuv_to_ar30_conversion!(
-    yuv_nv61_p10_to_ra30,
-    Rgb30::Ra30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::VU,
-    "NV61",
-    "RA30"
-);
-
 macro_rules! define_cnv {
-    ($method: ident, $cvt: ident, $name: expr, $ar_name:expr) => {
+    ($method: ident, $cvt: ident, $name: expr, $ar_name:expr, $px_fmt: expr, $chroma_subsampling: expr) => {
         #[doc = concat!("
-Converts ", $name, "to ", $ar_name," format.
+Converts ", $name, " to ", $ar_name," format.
 This function takes ", $name, " data with 10-bit precision
 and converts it to ", $name," format.
 
@@ -685,21 +523,51 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             range: YuvRange,
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            $cvt(
+            yuv_nv_p10_to_image_impl::<{ $px_fmt as usize },
+                { YuvNVOrder::UV as u8 },
+                { $chroma_subsampling as u8 },
+                { YuvEndianness::LittleEndian as u8 },
+                { YuvBytesPacking::MostSignificantBytes as u8 }>(
                 bi_planar_image,
                 dst,
                 dst_stride,
                 byte_order,
                 range,
                 matrix,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::MostSignificantBytes,
             )
         }
     };
 }
 
-define_cnv!(p010_to_ar30, yuv_nv12_p10_to_ar30, "P010", "AR30");
-define_cnv!(p010_to_ra30, yuv_nv12_p10_to_ra30, "P010", "RA30");
-define_cnv!(p210_to_ar30, yuv_nv12_p10_to_ar30, "P210", "AR30");
-define_cnv!(p210_to_ra30, yuv_nv12_p10_to_ra30, "P210", "RA30");
+define_cnv!(
+    p010_to_ar30,
+    yuv_nv12_p10_to_ar30,
+    "P010",
+    "AR30",
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv420
+);
+define_cnv!(
+    p010_to_ra30,
+    yuv_nv12_p10_to_ra30,
+    "P010",
+    "RA30",
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv420
+);
+define_cnv!(
+    p210_to_ar30,
+    yuv_nv12_p10_to_ar30,
+    "P210",
+    "AR30",
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv422
+);
+define_cnv!(
+    p210_to_ra30,
+    yuv_nv12_p10_to_ra30,
+    "P210",
+    "RA30",
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv422
+);

@@ -127,22 +127,10 @@ pub use yuv_support::{
     YuvRange, YuvStandardMatrix,
 };
 
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgba;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_rgba;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgba;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgba;
+pub use yuv_nv_p10_to_rgba::{
+    p010_to_bgr, p010_to_bgra, p010_to_rgb, p010_to_rgba, p210_to_bgr, p210_to_bgra, p210_to_rgb,
+    p210_to_rgba, p410_to_bgr, p410_to_bgra, p410_to_rgb, p410_to_rgba,
+};
 
 pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgb_p16;
 pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgba_p16;
@@ -452,16 +440,10 @@ pub use shuffle::{
     bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
     rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
 };
-pub use yuv_nv_p10_to_ar30::{
-    p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30, yuv_nv12_p10_to_ar30,
-    yuv_nv12_p10_to_ra30, yuv_nv16_p10_to_ar30, yuv_nv16_p10_to_ra30, yuv_nv21_p10_to_ar30,
-    yuv_nv21_p10_to_ra30, yuv_nv61_p10_to_ar30, yuv_nv61_p10_to_ra30,
-};
+pub use yuv_nv_p10_to_ar30::{p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30};
 pub use yuv_p16_ar30::{
     i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i210_to_ar30, i210_to_ra30,
     i212_to_ar30, i212_to_ra30, i410_to_ar30, i410_to_ra30, i412_to_ar30, i412_to_ra30,
-    yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ar30, yuv422_p16_to_ra30,
-    yuv444_p16_to_ar30, yuv444_p16_to_ra30,
 };
 
 #[cfg(feature = "nightly_f16")]

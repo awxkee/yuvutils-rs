@@ -31,9 +31,8 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    yuv_nv16_p10_to_ar30, yuv_nv16_p10_to_rgb, yuv_nv16_p10_to_rgba, yuv_nv21_p10_to_ar30,
-    yuv_nv21_p10_to_rgb, yuv_nv21_p10_to_rgba, Rgb30ByteOrder, YuvBiPlanarImage, YuvBytesPacking,
-    YuvConversionMode, YuvEndianness, YuvRange, YuvStandardMatrix,
+    p010_to_ar30, p010_to_rgb, p210_to_ar30, p210_to_rgb, p210_to_rgba, p410_to_rgb, p410_to_rgba,
+    Rgb30ByteOrder, YuvBiPlanarImage, YuvConversionMode, YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
@@ -44,6 +43,7 @@ fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
     };
     fuzz_yuv_420(data.0, data.1, data.2, data.3, mode);
     fuzz_yuv_422(data.0, data.1, data.2, data.3, mode);
+    fuzz_yuv_444(data.0, data.1, data.2, data.3, mode);
 });
 
 fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvConversionMode) {
@@ -65,41 +65,35 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvC
 
     let mut target_rgb = vec![0u8; i_width as usize * i_height as usize * 3];
 
-    yuv_nv21_p10_to_rgb(
+    p010_to_rgb(
         &planar_image,
         &mut target_rgb,
         i_width as u32 * 3,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
         mode,
     )
     .unwrap();
 
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
-    yuv_nv21_p10_to_rgba(
+    p010_to_rgb(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
         mode,
     )
     .unwrap();
 
-    yuv_nv21_p10_to_ar30(
+    p010_to_ar30(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
         Rgb30ByteOrder::Host,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }
@@ -122,41 +116,76 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvC
 
     let mut target_rgb = vec![0u8; i_width as usize * i_height as usize * 3];
 
-    yuv_nv16_p10_to_rgb(
+    p210_to_rgb(
         &planar_image,
         &mut target_rgb,
         i_width as u32 * 3,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
         mode,
     )
     .unwrap();
 
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
-    yuv_nv16_p10_to_rgba(
+    p210_to_rgba(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
         mode,
     )
     .unwrap();
 
-    yuv_nv16_p10_to_ar30(
+    p210_to_ar30(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
         Rgb30ByteOrder::Host,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
+    )
+    .unwrap();
+}
+
+fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvConversionMode) {
+    if i_height == 0 || i_width == 0 {
+        return;
+    }
+    let y_plane = vec![y_value as u16; i_height as usize * i_width as usize];
+    let uv_plane = vec![uv_value as u16; i_width as usize * i_height as usize];
+
+    let planar_image = YuvBiPlanarImage {
+        y_plane: &y_plane,
+        y_stride: i_width as u32,
+        uv_plane: &uv_plane,
+        uv_stride: i_width as u32,
+        width: i_width as u32,
+        height: i_height as u32,
+    };
+
+    let mut target_rgb = vec![0u8; i_width as usize * i_height as usize * 3];
+
+    p410_to_rgb(
+        &planar_image,
+        &mut target_rgb,
+        i_width as u32 * 3,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+        mode,
+    )
+    .unwrap();
+
+    let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
+
+    p410_to_rgba(
+        &planar_image,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+        mode,
     )
     .unwrap();
 }
