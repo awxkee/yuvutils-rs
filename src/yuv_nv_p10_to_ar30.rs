@@ -495,7 +495,7 @@ fn yuv_nv_p10_to_image_impl<
     }
 }
 
-macro_rules! yuv_to_ab30_conversion {
+macro_rules! yuv_to_ar30_conversion {
     (
         $method_name:ident,
         $ab_format:expr,
@@ -533,6 +533,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             bytes_packing: YuvBytesPacking,
         ) -> Result<(), YuvError> {
             let dispatcher = match endianness {
+                #[cfg(feature = "big_endian")]
                 YuvEndianness::BigEndian => match bytes_packing {
                     YuvBytesPacking::MostSignificantBytes => {
                         yuv_nv_p10_to_image_impl::<
@@ -586,15 +587,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
     };
 }
 
-yuv_to_ab30_conversion!(
-    yuv_nv12_p10_to_ab30,
-    Rgb30::Ab30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::UV,
-    "NV12",
-    "AB30"
-);
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv12_p10_to_ar30,
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv420,
@@ -602,7 +595,7 @@ yuv_to_ab30_conversion!(
     "NV12",
     "AR30"
 );
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv12_p10_to_ra30,
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv420,
@@ -610,24 +603,8 @@ yuv_to_ab30_conversion!(
     "NV12",
     "RA30"
 );
-yuv_to_ab30_conversion!(
-    yuv_nv12_p10_to_ba30,
-    Rgb30::Ba30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::UV,
-    "NV12",
-    "BA30"
-);
 
-yuv_to_ab30_conversion!(
-    yuv_nv21_p10_to_ab30,
-    Rgb30::Ab30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::VU,
-    "NV21",
-    "AB30"
-);
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv21_p10_to_ar30,
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv420,
@@ -635,7 +612,7 @@ yuv_to_ab30_conversion!(
     "NV21",
     "AR30"
 );
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv21_p10_to_ra30,
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv420,
@@ -643,24 +620,8 @@ yuv_to_ab30_conversion!(
     "NV21",
     "RA30"
 );
-yuv_to_ab30_conversion!(
-    yuv_nv21_p10_to_ba30,
-    Rgb30::Ba30,
-    YuvChromaSubsampling::Yuv420,
-    YuvNVOrder::VU,
-    "NV21",
-    "BA30"
-);
 
-yuv_to_ab30_conversion!(
-    yuv_nv16_p10_to_ab30,
-    Rgb30::Ab30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::UV,
-    "NV16",
-    "AB30"
-);
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv16_p10_to_ar30,
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv422,
@@ -668,7 +629,7 @@ yuv_to_ab30_conversion!(
     "NV16",
     "AR30"
 );
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv16_p10_to_ra30,
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv422,
@@ -676,24 +637,8 @@ yuv_to_ab30_conversion!(
     "NV16",
     "RA30"
 );
-yuv_to_ab30_conversion!(
-    yuv_nv16_p10_to_ba30,
-    Rgb30::Ba30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::UV,
-    "NV16",
-    "BA30"
-);
 
-yuv_to_ab30_conversion!(
-    yuv_nv61_p10_to_ab30,
-    Rgb30::Ab30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::VU,
-    "NV61",
-    "AB30"
-);
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv61_p10_to_ar30,
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv422,
@@ -701,19 +646,11 @@ yuv_to_ab30_conversion!(
     "NV61",
     "AR30"
 );
-yuv_to_ab30_conversion!(
+yuv_to_ar30_conversion!(
     yuv_nv61_p10_to_ra30,
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv422,
     YuvNVOrder::VU,
     "NV61",
     "RA30"
-);
-yuv_to_ab30_conversion!(
-    yuv_nv61_p10_to_ba30,
-    Rgb30::Ba30,
-    YuvChromaSubsampling::Yuv422,
-    YuvNVOrder::VU,
-    "NV61",
-    "BA30"
 );

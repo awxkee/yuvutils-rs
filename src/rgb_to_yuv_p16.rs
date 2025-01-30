@@ -60,6 +60,7 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_D
         YuvBytesPacking::LeastSignificantBytes => v,
     } as u16;
     match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => packed_bytes.to_be(),
         YuvEndianness::LittleEndian => packed_bytes.to_le(),
     }
@@ -735,6 +736,7 @@ pub fn rgb_to_yuv422_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -811,6 +813,8 @@ pub fn bgr_to_yuv422_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -887,6 +891,8 @@ pub fn rgba_to_yuv422_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -963,6 +969,7 @@ pub fn bgra_to_yuv422_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1039,6 +1046,7 @@ pub fn rgb_to_yuv420_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1115,6 +1123,7 @@ pub fn bgr_to_yuv420_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1191,6 +1200,7 @@ pub fn rgba_to_yuv420_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1267,6 +1277,7 @@ pub fn bgra_to_yuv420_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1343,6 +1354,7 @@ pub fn rgb_to_yuv444_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1419,6 +1431,7 @@ pub fn bgr_to_yuv444_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1495,6 +1508,7 @@ pub fn rgba_to_yuv444_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<
@@ -1571,6 +1585,7 @@ pub fn bgra_to_yuv444_p16(
         "Only 10 and 12 bit depth is supported"
     );
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 rgbx_to_yuv::<

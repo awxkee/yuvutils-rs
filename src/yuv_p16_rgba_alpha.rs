@@ -485,6 +485,7 @@ pub fn yuv420_p16_with_alpha_to_bgra(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
@@ -565,6 +566,7 @@ pub fn yuv422_p16_with_alpha_to_bgra(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
@@ -644,6 +646,7 @@ pub fn yuv420_p16_with_alpha_to_rgba(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
@@ -723,6 +726,7 @@ pub fn yuv422_p16_with_alpha_to_rgba(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
@@ -802,6 +806,7 @@ pub fn yuv444_p16_with_alpha_to_rgba(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<
@@ -881,6 +886,7 @@ pub fn yuv444_p16_with_alpha_to_bgra(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_p16_to_image_alpha_impl::<

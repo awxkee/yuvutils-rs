@@ -161,6 +161,7 @@ pub fn yuv400_p16_with_alpha_to_rgba16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let callee = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv400_p16_with_alpha_to_rgbx::<
@@ -233,6 +234,7 @@ pub fn yuv400_p16_with_alpha_to_bgra16(
     bytes_packing: YuvBytesPacking,
 ) -> Result<(), YuvError> {
     let callee = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv400_p16_with_alpha_to_rgbx::<

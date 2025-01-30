@@ -339,6 +339,7 @@ impl From<u8> for YuvChromaSubsampling {
 #[derive(Copy, Clone, PartialEq, Eq)]
 /// This controls endianness of YUV storage format
 pub enum YuvEndianness {
+    #[cfg(feature = "big_endian")]
     BigEndian = 0,
     LittleEndian = 1,
 }
@@ -347,6 +348,7 @@ impl From<u8> for YuvEndianness {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
+            #[cfg(feature = "big_endian")]
             0 => YuvEndianness::BigEndian,
             1 => YuvEndianness::LittleEndian,
             _ => {

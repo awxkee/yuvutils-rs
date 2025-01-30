@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#[cfg(feature = "big_endian")]
 use crate::avx512bw::avx512_setr::_v512_setr_epu8;
 use crate::avx512bw::avx512_utils::{
     _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm512_expand_bp_by2, _mm512_from_msb_epi16,
@@ -96,7 +96,7 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let cr_coef = transform.cr_coef;
     let cb_coef = transform.cb_coef;
@@ -121,11 +121,13 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
+    #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag = _v512_setr_epu8(
         1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22, 25,
         24, 27, 26, 29, 28, 31, 30, 33, 32, 35, 34, 37, 36, 39, 38, 41, 40, 43, 42, 45, 44, 47, 46,
         49, 48, 51, 50, 53, 52, 55, 54, 57, 56, 59, 58, 61, 60, 63, 62,
     );
+    #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag_avx = _mm256_setr_epi8(
         1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10,
         13, 12, 15, 14,
@@ -136,7 +138,8 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
         let mut y_vl = _mm512_loadu_si512(y_plane.get_unchecked(cx..).as_ptr() as *const i32);
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = _mm512_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -153,8 +156,8 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
                     _mm256_loadu_si256(u_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
                 let mut v_vals =
                     _mm256_loadu_si256(v_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
-
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     u_vals = _mm256_shuffle_epi8(u_vals, big_endian_shuffle_flag_avx);
                     v_vals = _mm256_shuffle_epi8(v_vals, big_endian_shuffle_flag_avx);
                 }
@@ -174,8 +177,8 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
                     _mm512_loadu_si512(u_plane.get_unchecked(ux..).as_ptr() as *const i32);
                 let mut v_vals =
                     _mm512_loadu_si512(v_plane.get_unchecked(ux..).as_ptr() as *const i32);
-
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     u_vals = _mm512_shuffle_epi8(u_vals, big_endian_shuffle_flag);
                     v_vals = _mm512_shuffle_epi8(v_vals, big_endian_shuffle_flag);
                 }
@@ -244,7 +247,8 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
 
         let mut y_vl =
             _mm512_maskz_loadu_epi16(mask, y_plane.get_unchecked(cx..).as_ptr() as *const i16);
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = _mm512_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -266,8 +270,8 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
                     halved_mask,
                     v_plane.get_unchecked(ux..).as_ptr() as *const i16,
                 ));
-
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     u_vals = _mm256_shuffle_epi8(u_vals, big_endian_shuffle_flag_avx);
                     v_vals = _mm256_shuffle_epi8(v_vals, big_endian_shuffle_flag_avx);
                 }
@@ -291,8 +295,8 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
                     mask,
                     v_plane.get_unchecked(ux..).as_ptr() as *const i16,
                 );
-
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     u_vals = _mm512_shuffle_epi8(u_vals, big_endian_shuffle_flag);
                     v_vals = _mm512_shuffle_epi8(v_vals, big_endian_shuffle_flag);
                 }

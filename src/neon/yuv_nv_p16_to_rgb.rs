@@ -58,7 +58,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
 
     let bias_y = range.bias_y as i32;
@@ -89,7 +89,8 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
         let dst_ptr = bgra.get_unchecked_mut(cx * channels..).as_mut_ptr();
 
         let mut y_vl = vld1q_u16(y_ld_ptr.get_unchecked(cx..).as_ptr());
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -171,7 +172,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
 
     let bias_y = range.bias_y as i32;
@@ -206,7 +207,8 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
         let dst_ptr = bgra.get_unchecked_mut(cx * channels..).as_mut_ptr();
 
         let mut y_vl = vld1q_u16(y_ld_ptr.get_unchecked(cx..).as_ptr());
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {

@@ -97,7 +97,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
     let channels = destination_channels.get_channels_count();
     let uv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let cr_coef = transform.cr_coef;
     let cb_coef = transform.cb_coef;
@@ -126,6 +126,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
+    #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
@@ -138,7 +139,8 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
         let mut y_vl = _mm_loadu_si128(y_ld_ptr.get_unchecked(cx..).as_ptr() as *const __m128i);
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -159,11 +161,13 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                 }
 
                 let mut u_vl = uv_values_u.0;
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     u_vl = _mm_shuffle_epi8(u_vl, big_endian_shuffle_flag);
                 }
                 let mut v_vl = uv_values_u.1;
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     v_vl = _mm_shuffle_epi8(v_vl, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -191,11 +195,13 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                     uv_values_u = (uv_values_u.1, uv_values_u.0);
                 }
                 let mut u_vl = uv_values_u.0;
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     u_vl = _mm_shuffle_epi8(u_vl, big_endian_shuffle_flag);
                 }
                 let mut v_vl = uv_values_u.1;
-                if endianness == YuvEndianness::BigEndian {
+                #[cfg(feature = "big_endian")]
+                if _endianness == YuvEndianness::BigEndian {
                     v_vl = _mm_shuffle_epi8(v_vl, big_endian_shuffle_flag);
                 }
                 if bytes_position == YuvBytesPacking::MostSignificantBytes {

@@ -604,6 +604,7 @@ pub fn yuv_nv12_p10_to_bgra(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -678,6 +679,7 @@ pub fn yuv_nv12_p10_to_rgba(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -752,6 +754,7 @@ pub fn yuv_nv12_p10_to_bgr(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -826,6 +829,7 @@ pub fn yuv_nv12_p10_to_rgb(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -900,6 +904,7 @@ pub fn yuv_nv16_p10_to_bgra(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -974,6 +979,7 @@ pub fn yuv_nv61_p10_to_bgra(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1048,6 +1054,7 @@ pub fn yuv_nv16_p10_to_bgr(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1122,6 +1129,7 @@ pub fn yuv_nv61_p10_to_bgr(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1196,6 +1204,7 @@ pub fn yuv_nv16_p10_to_rgb(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1270,6 +1279,7 @@ pub fn yuv_nv61_p10_to_rgb(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1344,6 +1354,7 @@ pub fn yuv_nv16_p10_to_rgba(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1418,6 +1429,7 @@ pub fn yuv_nv61_p10_to_rgba(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1492,6 +1504,7 @@ pub fn yuv_nv21_p10_to_bgr(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1566,6 +1579,7 @@ pub fn yuv_nv21_p10_to_bgra(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1640,6 +1654,7 @@ pub fn yuv_nv21_p10_to_rgb(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<
@@ -1714,6 +1729,7 @@ pub fn yuv_nv21_p10_to_rgba(
     mode: YuvConversionMode,
 ) -> Result<(), YuvError> {
     let dispatcher = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => match bytes_packing {
             YuvBytesPacking::MostSignificantBytes => {
                 yuv_nv_p10_to_image_impl::<

@@ -50,6 +50,7 @@ pub(crate) fn to_ne<const ENDIANNESS: u8, const BYTES_POSITION: u8>(v: u16, msb:
     let endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let new_v = match endianness {
+        #[cfg(feature = "big_endian")]
         YuvEndianness::BigEndian => u16::from_be(v),
         YuvEndianness::LittleEndian => u16::from_le(v),
     };

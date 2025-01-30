@@ -66,7 +66,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     );
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let dst_ptr = rgba.as_mut_ptr();
 
@@ -92,7 +92,8 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     while cx + 8 < width as usize {
         let mut a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
 
-        if endianness == YuvEndianness::BigEndian {
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
             a_values_l = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(a_values_l)));
         }
 

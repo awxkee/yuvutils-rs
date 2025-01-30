@@ -261,10 +261,11 @@ pub(crate) unsafe fn vld_s16_endian<
 >(
     ptr: *const u16,
 ) -> int16x4_t {
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let mut v = vld1_u16(ptr);
-    if endianness == YuvEndianness::BigEndian {
+    #[cfg(feature = "big_endian")]
+    if _endianness == YuvEndianness::BigEndian {
         v = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v)));
     }
     if bytes_position == YuvBytesPacking::MostSignificantBytes {
@@ -287,10 +288,11 @@ pub(crate) unsafe fn vldq_s16_endian<
 >(
     ptr: *const u16,
 ) -> int16x8_t {
-    let endianness: YuvEndianness = ENDIANNESS.into();
+    let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let mut v = vld1q_u16(ptr);
-    if endianness == YuvEndianness::BigEndian {
+    #[cfg(feature = "big_endian")]
+    if _endianness == YuvEndianness::BigEndian {
         v = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v)));
     }
     if bytes_position == YuvBytesPacking::MostSignificantBytes {
