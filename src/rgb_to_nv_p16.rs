@@ -414,974 +414,141 @@ fn rgbx_to_yuv_bi_planar_10<
     }
 }
 
-/// Convert RGB image data to YUV 420 bi-planar (NV12 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGB to YUV conversion and stores the result in YUV420 bi-planar format,
-/// with separate planes for Y (luminance), UV (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `bgr` - The input RGB image data slice.
-/// * `bgr_stride` - The stride (components per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_yuv_nv12_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgb: &[u16],
-    rgb_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
+macro_rules! d_cnv {
+    ($method:ident, $px_fmt: expr, $subsampling: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr) => {
+        #[doc = concat!("Convert ",$rgb_name," image data to ", $yuv_name, " format.
+
+This function performs ",$rgb_name," to ",$yuv_name," conversion and stores the result in ", $yuv_name, " format,
+with separate planes for Y (luminance), UV (chrominance) components.
+
+# Arguments
+
+* `bi_planar_image` - Target Bi-Planar ", $yuv_name," image.
+* `dst` - The input ", $rgb_name," image data slice.
+* `dst_stride` - The stride (components per row) for the ", $rgb_name," image data.
+* `range` - The YUV range (limited or full).
+* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+
+# Panics
+
+This function panics if the lengths of the planes or the input ", $rgb_name," data are not valid based
+on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
+        pub fn $method(
+            bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
+            dst: &[u16],
+            dst_stride: u32,
+            range: YuvRange,
+            matrix: YuvStandardMatrix,
+        ) -> Result<(), YuvError> {
+            assert!(
+                $bit_depth == 10 || $bit_depth == 12,
+                "Only 10 and 12 bit depth is supported"
+            );
+            rgbx_to_yuv_bi_planar_10::<
+                { $px_fmt as u8 },
+                { YuvNVOrder::UV as u8 },
+                { $subsampling as u8 },
+                { YuvEndianness::LittleEndian as u8 },
+                { YuvBytesPacking::MostSignificantBytes as u8 },
+            >(bi_planar_image, dst, dst_stride, $bit_depth, range, matrix)
+        }
     };
-    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
 }
 
-/// Convert RGB image data to YUV 420 bi-planar (NV21 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGB to YUV conversion and stores the result in YUV420 bi-planar format,
-/// with separate planes for Y (luminance), VU (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `bgr` - The input RGB image data slice.
-/// * `bgr_stride` - The stride (components per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_yuv_nv21_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgb: &[u16],
-    rgb_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
-}
+d_cnv!(
+    rgba16_to_p010,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "P010",
+    "RGBA",
+    10
+);
+d_cnv!(
+    rgb16_to_p010,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "P010",
+    "RGB",
+    10
+);
+d_cnv!(
+    rgba16_to_p210,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "P210",
+    "RGBA",
+    10
+);
+d_cnv!(
+    rgb16_to_p210,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "P210",
+    "RGB",
+    10
+);
+d_cnv!(
+    rgba16_to_p410,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "P410",
+    "RGBA",
+    10
+);
+d_cnv!(
+    rgb16_to_p410,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "P410",
+    "RGB",
+    10
+);
 
-/// Convert RGBA image data to YUV 420 bi-planar (NV12 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGBA to YUV conversion and stores the result in YUV422 bi-planar format,
-/// with separate planes for Y (luminance), UV (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_yuv_nv12_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgba: &[u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGBA image data to YUV 420 bi-planar (NV21 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGBA to YUV conversion and stores the result in YUV422 bi-planar format,
-/// with separate planes for Y (luminance), UV (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_yuv_nv21_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgba: &[u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGB image data to YUV 422 bi-planar (NV16 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGB to YUV conversion and stores the result in YUV422 bi-planar format,
-/// with separate planes for Y (luminance), UV (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (components per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_yuv_nv16_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgb: &[u16],
-    rgb_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGB image data to YUV 422 bi-planar (NV61 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGB to YUV conversion and stores the result in YUV422 bi-planar format,
-/// with separate planes for Y (luminance), VU (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (components per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_yuv_nv61_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgb: &[u16],
-    rgb_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGBA image data to YUV 422 bi-planar (NV16 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGBA to YUV conversion and stores the result in YUV422 bi-planar format,
-/// with separate planes for Y (luminance), UV (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_yuv_nv16_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgba: &[u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGBA image data to YUV 422 bi-planar (NV61 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGBA to YUV conversion and stores the result in YUV422 bi-planar format,
-/// with separate planes for Y (luminance), VU (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_yuv_nv61_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgba: &[u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGB image data to YUV 444 bi-planar (NV24 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGB to YUV conversion and stores the result in YUV444 bi-planar format,
-/// with separate planes for Y (luminance), UV (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `bgr` - The input RGB image data slice.
-/// * `bgr_stride` - The stride (components per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_yuv_nv24_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgb: &[u16],
-    rgb_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGB image data to YUV 444 bi-planar (NV42 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGB to YUV conversion and stores the result in YUV444 bi-planar format,
-/// with separate planes for Y (luminance), VU (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `bgr` - The input RGB image data slice.
-/// * `bgr_stride` - The stride (components per row) for the RGB image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_yuv_nv42_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgb: &[u16],
-    rgb_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgb as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgb, rgb_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGBA image data to YUV 444 bi-planar (NV24 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGBA to YUV conversion and stores the result in YUV444 bi-planar format,
-/// with separate planes for Y (luminance), UV (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_yuv_nv24_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgba: &[u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::UV as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
-}
-
-/// Convert RGBA image data to YUV 444 bi-planar (NV42 10-bit) format with 10 or 12 bit depth.
-///
-/// This function performs RGBA to YUV conversion and stores the result in YUV444 bi-planar format,
-/// with separate planes for Y (luminance), VU (chrominance) components.
-///
-/// # Arguments
-///
-/// * `bi_planar_image` - Target Bi-Planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `bit_depth` - Only 10 or 12 bit-depth is supported.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of final YUV
-/// * `bytes_packing` - position of significant bytes for YUV ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_yuv_nv42_p16(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgba: &[u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    assert!(
-        bit_depth == 10 || bit_depth == 12,
-        "Only 10 and 12 bit depth is supported"
-    );
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                rgbx_to_yuv_bi_planar_10::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvNVOrder::VU as u8 },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(bi_planar_image, rgba, rgba_stride, bit_depth, range, matrix)
-}
+d_cnv!(
+    rgba16_to_p012,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "P012",
+    "RGBA",
+    12
+);
+d_cnv!(
+    rgb16_to_p012,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "P012",
+    "RGB",
+    12
+);
+d_cnv!(
+    rgba16_to_p212,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "P212",
+    "RGBA",
+    12
+);
+d_cnv!(
+    rgb16_to_p212,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "P212",
+    "RGB",
+    12
+);
+d_cnv!(
+    rgba16_to_p412,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "P412",
+    "RGBA",
+    12
+);
+d_cnv!(
+    rgb16_to_p412,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "P412",
+    "RGB",
+    12
+);

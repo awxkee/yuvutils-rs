@@ -31,9 +31,8 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    rgb_to_yuv_nv12_p16, rgb_to_yuv_nv16_p16, rgb_to_yuv_nv24_p16, rgba_to_yuv_nv12_p16,
-    rgba_to_yuv_nv16_p16, rgba_to_yuv_nv24_p16, BufferStoreMut, YuvBiPlanarImageMut,
-    YuvBytesPacking, YuvEndianness, YuvRange, YuvStandardMatrix,
+    rgb16_to_p010, rgb16_to_p210, rgb16_to_p410, rgba16_to_p010, rgba16_to_p210, rgba16_to_p410,
+    BufferStoreMut, YuvBiPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8)| {
@@ -61,29 +60,23 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    rgb_to_yuv_nv12_p16(
+    rgb16_to_p010(
         &mut bi_planar_image,
         &target_rgb,
         i_width as u32 * 3,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
     let target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    rgba_to_yuv_nv12_p16(
+    rgba16_to_p010(
         &mut bi_planar_image,
         &target_rgba,
         i_width as u32 * 4,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }
@@ -106,29 +99,23 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    rgb_to_yuv_nv16_p16(
+    rgb16_to_p210(
         &mut planar_image,
         &target_rgb,
         i_width as u32 * 3,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
     let target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    rgba_to_yuv_nv16_p16(
+    rgba16_to_p210(
         &mut planar_image,
         &target_rgba,
         i_width as u32 * 4,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }
@@ -151,29 +138,23 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    rgb_to_yuv_nv24_p16(
+    rgb16_to_p410(
         &mut planar_image,
         &target_rgb,
         i_width as u32 * 3,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
     let target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    rgba_to_yuv_nv24_p16(
+    rgba16_to_p410(
         &mut planar_image,
         &target_rgba,
         i_width as u32 * 4,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }

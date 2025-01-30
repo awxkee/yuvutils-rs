@@ -266,19 +266,22 @@ fn yuv_p16_to_image_p16_ant<
                 .zip(v_plane.iter())
                 .skip(cx / 2)
             {
-                let y_value0 =
-                    (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[0], msb_shift) as i32 - bias_y) * y_coef;
-                let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
-                let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
+                let y_value0 = (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[0], msb_shift) as i32
+                    - bias_y)
+                    * y_coef;
+                let cb_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
+                let cr_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
 
-                let r0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16 * default_scale;
-                let b0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16 * default_scale;
-                let g0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value)
-                        as f16
-                        * default_scale;
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16
+                    * default_scale;
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16
+                    * default_scale;
+                let g0 = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                ) as f16
+                    * default_scale;
 
                 let rgba0 = &mut rgba[0..channels];
 
@@ -289,17 +292,18 @@ fn yuv_p16_to_image_p16_ant<
                     rgba0[dst_chans.get_a_channel_offset()] = 1.;
                 }
 
-                let y_value1 =
-                    (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32 - bias_y) * y_coef;
+                let y_value1 = (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32
+                    - bias_y)
+                    * y_coef;
 
-                let r1 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value) as f16 * default_scale;
-                let b1 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value) as f16 * default_scale;
-                let g1 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value)
-                        as f16
-                        * default_scale;
+                let r1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value) as f16
+                    * default_scale;
+                let b1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value) as f16
+                    * default_scale;
+                let g1 = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                ) as f16
+                    * default_scale;
 
                 let rgba1 = &mut rgba[channels..channels * 2];
 
@@ -312,27 +316,28 @@ fn yuv_p16_to_image_p16_ant<
             }
 
             if image.width & 1 != 0 {
-                let y_value0 = (to_ne::<ENDIANNESS, BYTES_POSITION>(*y_plane.last().unwrap(), msb_shift)
-                    as i32
-                    - bias_y)
-                    * y_coef;
-                let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*u_plane.last().unwrap(), msb_shift)
-                    as i32
-                    - bias_uv;
-                let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*v_plane.last().unwrap(), msb_shift)
-                    as i32
-                    - bias_uv;
+                let y_value0 =
+                    (to_ne::<ENDIANNESS, BYTES_POSITION>(*y_plane.last().unwrap(), msb_shift)
+                        as i32
+                        - bias_y)
+                        * y_coef;
+                let cb_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(*u_plane.last().unwrap(), msb_shift) as i32
+                        - bias_uv;
+                let cr_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(*v_plane.last().unwrap(), msb_shift) as i32
+                        - bias_uv;
                 let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
                 let rgba0 = &mut rgba[0..channels];
 
-                let r0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16 * default_scale;
-                let b0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16 * default_scale;
-                let g0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value)
-                        as f16
-                        * default_scale;
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16
+                    * default_scale;
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16
+                    * default_scale;
+                let g0 = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                ) as f16
+                    * default_scale;
                 rgba0[dst_chans.get_r_channel_offset()] = r0;
                 rgba0[dst_chans.get_g_channel_offset()] = g0;
                 rgba0[dst_chans.get_b_channel_offset()] = b0;

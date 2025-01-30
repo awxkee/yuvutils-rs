@@ -720,4 +720,3 @@ pub fn yuv444_p16_with_alpha_to_rgba16(
         bit_depth,
     )
 }
-

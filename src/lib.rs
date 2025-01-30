@@ -325,18 +325,10 @@ pub use to_identity::{
     bgr_to_gbr, bgra_to_gbr, rgb16_to_gbr16, rgb_to_gbr, rgba16_to_gbr16, rgba_to_gbr,
 };
 
-pub use rgb_to_nv_p16::rgb_to_yuv_nv12_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv16_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv21_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv24_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv42_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv61_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv12_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv16_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv21_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv24_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv42_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv61_p16;
+pub use rgb_to_nv_p16::{
+    rgb16_to_p010, rgb16_to_p012, rgb16_to_p210, rgb16_to_p212, rgb16_to_p410, rgb16_to_p412,
+    rgba16_to_p010, rgba16_to_p012, rgba16_to_p210, rgba16_to_p212, rgba16_to_p410, rgba16_to_p412,
+};
 
 pub use yuy2_to_rgb::uyvy422_to_bgr;
 pub use yuy2_to_rgb::uyvy422_to_bgra;

@@ -31,8 +31,7 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    i010_to_ar30, i210_to_ar30, i410_to_ar30, yuv420_p16_to_ar30, yuv422_p16_to_ar30,
-    yuv444_p16_to_ar30, Rgb30ByteOrder, YuvBytesPacking, YuvEndianness, YuvPlanarImage, YuvRange,
+    i010_to_ar30, i210_to_ar30, i410_to_ar30, Rgb30ByteOrder, YuvPlanarImage, YuvRange,
     YuvStandardMatrix,
 };
 
