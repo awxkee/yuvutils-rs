@@ -137,12 +137,12 @@ where
     pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsampling) -> Self {
         let chroma_width = match subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                ((width as usize + 1) / 2) * 2
+                (width as usize).div_ceil(2) * 2
             }
             YuvChromaSubsampling::Yuv444 => width as usize * 2,
         };
         let chroma_height = match subsampling {
-            YuvChromaSubsampling::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSubsampling::Yuv420 => (height as usize).div_ceil(2),
             YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];
@@ -386,11 +386,13 @@ where
     /// Allocates mutable target planar image with required chroma subsampling
     pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsampling) -> Self {
         let chroma_width = match subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => (width as usize + 1) / 2,
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
+                (width as usize).div_ceil(2)
+            }
             YuvChromaSubsampling::Yuv444 => width as usize,
         };
         let chroma_height = match subsampling {
-            YuvChromaSubsampling::Yuv420 => (height as usize + 1) / 2,
+            YuvChromaSubsampling::Yuv420 => (height as usize).div_ceil(2),
             YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => height as usize,
         };
         let y_target = vec![T::default(); width as usize * height as usize];

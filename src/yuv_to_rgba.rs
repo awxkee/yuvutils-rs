@@ -1201,8 +1201,8 @@ mod tests {
             let image_width = 256usize;
             let image_height = 256usize;
 
-            let random_point_x = rand::thread_rng().gen_range(0..image_width);
-            let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::rng().random_range(0..image_width);
+            let random_point_y = rand::rng().random_range(0..image_height);
 
             let pixel_points = [
                 [0, 0],
@@ -1220,9 +1220,9 @@ mod tests {
             ];
             let mut image_rgb = vec![0u8; image_width * image_height * 3];
 
-            let or = rand::thread_rng().gen_range(0..256) as u8;
-            let og = rand::thread_rng().gen_range(0..256) as u8;
-            let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
 
             for point in &pixel_points {
                 image_rgb[point[0] * 3 + point[1] * image_width * 3] = or;
@@ -1306,8 +1306,8 @@ mod tests {
             let image_width = 256usize;
             let image_height = 256usize;
 
-            let random_point_x = rand::thread_rng().gen_range(0..image_width);
-            let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::rng().random_range(0..image_width);
+            let random_point_y = rand::rng().random_range(0..image_height);
 
             let pixel_points = [
                 [0, 0],
@@ -1325,9 +1325,9 @@ mod tests {
             ];
             let mut image_rgb = vec![0u8; image_width * image_height * 3];
 
-            let or = rand::thread_rng().gen_range(0..256) as u8;
-            let og = rand::thread_rng().gen_range(0..256) as u8;
-            let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
 
             for point in &pixel_points {
                 image_rgb[point[0] * 3 + point[1] * image_width * 3] = or;
@@ -1412,8 +1412,8 @@ mod tests {
             let image_width = 256usize;
             let image_height = 256usize;
 
-            let random_point_x = rand::thread_rng().gen_range(0..image_width);
-            let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::rng().random_range(0..image_width);
+            let random_point_y = rand::rng().random_range(0..image_height);
 
             const CHANNELS: usize = 3;
 
@@ -1434,9 +1434,9 @@ mod tests {
 
             let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-            let or = rand::thread_rng().gen_range(0..256) as u8;
-            let og = rand::thread_rng().gen_range(0..256) as u8;
-            let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
 
             for point in &pixel_points {
                 source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
@@ -1539,8 +1539,8 @@ mod tests {
             let image_width = 256usize;
             let image_height = 256usize;
 
-            let random_point_x = rand::thread_rng().gen_range(0..image_width);
-            let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::rng().random_range(0..image_width);
+            let random_point_y = rand::rng().random_range(0..image_height);
 
             const CHANNELS: usize = 3;
 
@@ -1561,9 +1561,9 @@ mod tests {
 
             let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-            let or = rand::thread_rng().gen_range(0..256) as u8;
-            let og = rand::thread_rng().gen_range(0..256) as u8;
-            let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
 
             for point in &pixel_points {
                 source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
@@ -1666,8 +1666,8 @@ mod tests {
             let image_width = 256usize;
             let image_height = 256usize;
 
-            let random_point_x = rand::thread_rng().gen_range(0..image_width);
-            let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::rng().random_range(0..image_width);
+            let random_point_y = rand::rng().random_range(0..image_height);
 
             const CHANNELS: usize = 3;
 
@@ -1688,9 +1688,9 @@ mod tests {
 
             let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-            let or = rand::thread_rng().gen_range(0..256) as u8;
-            let og = rand::thread_rng().gen_range(0..256) as u8;
-            let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
 
             for point in &pixel_points {
                 source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;
@@ -1821,8 +1821,8 @@ mod tests {
             let image_width = 256usize;
             let image_height = 256usize;
 
-            let random_point_x = rand::thread_rng().gen_range(0..image_width);
-            let random_point_y = rand::thread_rng().gen_range(0..image_height);
+            let random_point_x = rand::rng().random_range(0..image_width);
+            let random_point_y = rand::rng().random_range(0..image_height);
 
             const CHANNELS: usize = 3;
 
@@ -1843,9 +1843,9 @@ mod tests {
 
             let mut source_rgb = vec![0u8; image_width * image_height * CHANNELS];
 
-            let or = rand::thread_rng().gen_range(0..256) as u8;
-            let og = rand::thread_rng().gen_range(0..256) as u8;
-            let ob = rand::thread_rng().gen_range(0..256) as u8;
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
 
             for point in &pixel_points {
                 source_rgb[point[0] * CHANNELS + point[1] * image_width * CHANNELS] = or;

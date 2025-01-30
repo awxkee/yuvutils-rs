@@ -208,11 +208,11 @@ pub(crate) fn check_chroma_channel<V>(
         return Err(YuvError::ZeroBaseSize);
     }
     let chroma_min_width = match sampling {
-        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => (image_width + 1) / 2,
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => image_width.div_ceil(2),
         YuvChromaSubsampling::Yuv444 => image_width,
     };
     let chroma_height = match sampling {
-        YuvChromaSubsampling::Yuv420 => (image_height + 1) / 2,
+        YuvChromaSubsampling::Yuv420 => image_height.div_ceil(2),
         YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => image_height,
     };
     check_overflow_v2(stride as usize, chroma_height as usize)?;
@@ -246,11 +246,11 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
         return Err(YuvError::ZeroBaseSize);
     }
     let chroma_min_width = match sampling {
-        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => ((image_width + 1) / 2) * 2,
+        YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => image_width.div_ceil(2),
         YuvChromaSubsampling::Yuv444 => image_width * 2,
     };
     let chroma_height = match sampling {
-        YuvChromaSubsampling::Yuv420 => (image_height + 1) / 2,
+        YuvChromaSubsampling::Yuv420 => image_height.div_ceil(2),
         YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => image_height,
     };
     check_overflow_v2(stride as usize, chroma_height as usize)?;

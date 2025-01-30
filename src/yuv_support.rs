@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::built_coefficients::{get_built_forward_transform, get_built_inverse_transform};
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Copy, Clone)]
 pub struct CbCrInverseTransform<T> {
@@ -396,6 +396,17 @@ pub enum YuvSourceChannels {
     Rgba = 1,
     Bgra = 2,
     Bgr = 3,
+}
+
+impl Display for YuvSourceChannels {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            YuvSourceChannels::Rgb => f.write_str("YuvSourceChannels::Rgb"),
+            YuvSourceChannels::Rgba => f.write_str("YuvSourceChannels::Rgba"),
+            YuvSourceChannels::Bgra => f.write_str("YuvSourceChannels::Bgra"),
+            YuvSourceChannels::Bgr => f.write_str("YuvSourceChannels::Bgr"),
+        }
+    }
 }
 
 impl From<u8> for YuvSourceChannels {
