@@ -675,7 +675,7 @@ macro_rules! build_cnv {
 Convert ",$sampling_written, " planar format with ", $bit_depth," bit pixel format to ", $px_written," float16 format.
 
 This function takes ", $sampling_written, " planar data with ",$bit_depth," bit precision.
-and converts it to ", $px_written," format with 8+ bit-depth precision per channel
+and converts it to ", $px_written," format with float16 image.
 
 # Arguments
 

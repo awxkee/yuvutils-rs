@@ -101,7 +101,7 @@ mod ycgco_to_rgb_alpha;
 mod ycgcor_support;
 mod yuv_error;
 mod yuv_nv_p10_to_ar30;
-mod yuv_nv_p10_to_rgba;
+mod yuv_nv_p10_to_rgba16;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_p10_rgba;
@@ -127,23 +127,15 @@ pub use yuv_support::{
     YuvRange, YuvStandardMatrix,
 };
 
-pub use yuv_nv_p10_to_rgba::{
+pub use yuv_nv_p10_to_rgba16::{
     p010_to_bgr, p010_to_bgra, p010_to_rgb, p010_to_rgba, p210_to_bgr, p210_to_bgra, p210_to_rgb,
     p210_to_rgba, p410_to_bgr, p410_to_bgra, p410_to_rgb, p410_to_rgba,
 };
 
-pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv16_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv16_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv21_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv21_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv24_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv24_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv42_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv42_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv61_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv61_to_rgba_p16;
+pub use yuv_nv_p16_to_rgb::{
+    p010_to_rgb16, p010_to_rgba16, p012_to_rgb16, p012_to_rgba16, p210_to_rgb16, p210_to_rgba16,
+    p212_to_rgb16, p212_to_rgba16, p410_to_rgb16, p410_to_rgba16, p412_to_rgb16, p412_to_rgba16,
+};
 
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgr;
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgra;
@@ -236,18 +228,18 @@ pub use y_to_rgb::yuv400_to_bgra;
 pub use y_to_rgb::yuv400_to_rgb;
 pub use y_to_rgb::yuv400_to_rgba;
 
-pub use yuv_p10_rgba::yuv420_p10_to_bgr;
-pub use yuv_p10_rgba::yuv420_p10_to_bgra;
-pub use yuv_p10_rgba::yuv420_p10_to_rgb;
-pub use yuv_p10_rgba::yuv420_p10_to_rgba;
-pub use yuv_p10_rgba::yuv422_p10_to_bgr;
-pub use yuv_p10_rgba::yuv422_p10_to_bgra;
-pub use yuv_p10_rgba::yuv422_p10_to_rgb;
-pub use yuv_p10_rgba::yuv422_p10_to_rgba;
-pub use yuv_p10_rgba::yuv444_p10_to_bgr;
-pub use yuv_p10_rgba::yuv444_p10_to_bgra;
-pub use yuv_p10_rgba::yuv444_p10_to_rgb;
-pub use yuv_p10_rgba::yuv444_p10_to_rgba;
+#[cfg(feature = "big_endian")]
+pub use yuv_p10_rgba::{
+    i010_be_to_bgr, i010_be_to_bgra, i010_be_to_rgb, i010_be_to_rgba, i012_be_to_bgr,
+    i012_be_to_bgra, i012_be_to_rgb, i012_be_to_rgba, i210_be_to_bgr, i210_be_to_bgra,
+    i210_be_to_rgb, i210_be_to_rgba, i212_be_to_bgr, i212_be_to_bgra, i212_be_to_rgb,
+    i212_be_to_rgba,
+};
+pub use yuv_p10_rgba::{
+    i010_to_bgr, i010_to_bgra, i010_to_rgb, i010_to_rgba, i012_to_bgr, i012_to_bgra, i012_to_rgb,
+    i012_to_rgba, i210_to_bgr, i210_to_bgra, i210_to_rgb, i210_to_rgba, i212_to_bgr, i212_to_bgra,
+    i212_to_rgb, i212_to_rgba,
+};
 
 pub use rgb_to_ycgco::bgr_to_ycgco420;
 pub use rgb_to_ycgco::bgr_to_ycgco422;
