@@ -34,8 +34,7 @@ use std::arch::x86_64::*;
 
 use crate::internals::ProcessedOffset;
 use crate::sse::{
-    _mm_from_msb_epi16, _mm_store_interleave_half_rgb_for_yuv,
-    _mm_store_shr_epi16_epi8,
+    _mm_from_msb_epi16, _mm_store_interleave_half_rgb_for_yuv, _mm_store_shr_epi16_epi8,
 };
 use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,

@@ -225,12 +225,6 @@ pub use rgba_to_yuv::rgba_to_yuv420;
 pub use rgba_to_yuv::rgba_to_yuv422;
 pub use rgba_to_yuv::rgba_to_yuv444;
 
-pub use rgb_to_yuv_p16::bgr_to_yuv420_p16;
-pub use rgb_to_yuv_p16::bgr_to_yuv422_p16;
-pub use rgb_to_yuv_p16::bgr_to_yuv444_p16;
-pub use rgb_to_yuv_p16::bgra_to_yuv420_p16;
-pub use rgb_to_yuv_p16::bgra_to_yuv422_p16;
-pub use rgb_to_yuv_p16::bgra_to_yuv444_p16;
 pub use rgb_to_yuv_p16::rgb_to_yuv420_p16;
 pub use rgb_to_yuv_p16::rgb_to_yuv422_p16;
 pub use rgb_to_yuv_p16::rgb_to_yuv444_p16;
@@ -343,12 +337,6 @@ pub use to_identity::{
     bgr_to_gbr, bgra_to_gbr, rgb16_to_gbr16, rgb_to_gbr, rgba16_to_gbr16, rgba_to_gbr,
 };
 
-pub use rgb_to_nv_p16::bgra_to_yuv_nv12_p16;
-pub use rgb_to_nv_p16::bgra_to_yuv_nv16_p16;
-pub use rgb_to_nv_p16::bgra_to_yuv_nv21_p16;
-pub use rgb_to_nv_p16::bgra_to_yuv_nv24_p16;
-pub use rgb_to_nv_p16::bgra_to_yuv_nv42_p16;
-pub use rgb_to_nv_p16::bgra_to_yuv_nv61_p16;
 pub use rgb_to_nv_p16::rgb_to_yuv_nv12_p16;
 pub use rgb_to_nv_p16::rgb_to_yuv_nv16_p16;
 pub use rgb_to_nv_p16::rgb_to_yuv_nv21_p16;
@@ -471,13 +459,16 @@ pub use yuv_nv_p10_to_ar30::{
     yuv_nv21_p10_to_ra30, yuv_nv61_p10_to_ar30, yuv_nv61_p10_to_ra30,
 };
 pub use yuv_p16_ar30::{
+    i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i210_to_ar30, i210_to_ra30,
+    i212_to_ar30, i212_to_ra30, i410_to_ar30, i410_to_ra30, i412_to_ar30, i412_to_ra30,
     yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ar30, yuv422_p16_to_ra30,
     yuv444_p16_to_ar30, yuv444_p16_to_ra30,
 };
 
 #[cfg(feature = "nightly_f16")]
 pub use yuv_p16_rgba_f16::{
-    i010_to_rgb_f16, i010_to_rgba_f16, i210_to_rgb_f16, i210_to_rgba_f16, yuv420_p16_to_rgb_f16,
-    yuv420_p16_to_rgba_f16, yuv422_p16_to_rgb_f16, yuv422_p16_to_rgba_f16, yuv444_p16_to_rgb_f16,
-    yuv444_p16_to_rgba_f16,
+    i010_to_rgb_f16, i010_to_rgba_f16, i012_to_rgb_f16, i012_to_rgba_f16, i210_to_rgb_f16,
+    i210_to_rgba_f16, i212_to_rgb_f16, i212_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16,
+    i412_to_rgb_f16, i412_to_rgba_f16, yuv420_p16_to_rgb_f16, yuv420_p16_to_rgba_f16,
+    yuv422_p16_to_rgb_f16, yuv422_p16_to_rgba_f16, yuv444_p16_to_rgb_f16, yuv444_p16_to_rgba_f16,
 };

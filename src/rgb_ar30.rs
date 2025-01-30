@@ -104,7 +104,7 @@ macro_rules! rgb102_cnv {
         $rgb_l: expr
     ) => {
         #[doc = concat!("Converts ",$rgb_l," 8 bit depth to ",$ab_format, " (", $ab_f_format, ")\n",
-                                                                "# Arguments
+                                                                        "# Arguments
 
 * `", $ab_l_format, "`: Dest ", $ab_format, " data
 * `", $ab_l_format, "_stride`: Dest ", $ab_format, " stride

@@ -840,3 +840,51 @@ pub fn yuv444_p16_to_ra30(
         bit_depth,
     )
 }
+
+macro_rules! build_cnv {
+    ($method: ident, $worker: expr, $bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
+        #[doc = concat!("
+Convert ",$sampling_written, " planar format with ", $bit_depth," bit pixel format to ", $px_written," format.
+
+This function takes ", $sampling_written, " planar data with ",$bit_depth," bit precision.
+and converts it to ", $px_written," format with 8+ bit-depth precision per channel
+
+# Arguments
+
+* `planar_image` - Source ",$sampling_written," planar image.
+* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," format.
+* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," format.
+* `range` - The YUV range (limited or full).
+* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+
+# Panics
+
+This function panics if the lengths of the planes or the input ", $px_written," data are not valid based
+on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
+        pub fn $method(
+           planar_image: &YuvPlanarImage<u16>,
+    dst: &mut [u8],
+    dst_stride: u32,
+    byte_order: Rgb30ByteOrder,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+        ) -> Result<(), YuvError> {
+            $worker(planar_image, dst, dst_stride, byte_order, $bit_depth, range, matrix, YuvEndianness::LittleEndian, YuvBytesPacking::LeastSignificantBytes)
+        }
+    };
+}
+
+build_cnv!(i010_to_ar30, yuv420_p16_to_ar30, 10, "I010", "AR30", "ar30");
+build_cnv!(i012_to_ar30, yuv420_p16_to_ar30, 12, "I012", "AR30", "ar30");
+build_cnv!(i010_to_ra30, yuv420_p16_to_ra30, 10, "I010", "RA30", "ra30");
+build_cnv!(i012_to_ra30, yuv420_p16_to_ra30, 12, "I012", "RA30", "ra30");
+
+build_cnv!(i210_to_ar30, yuv422_p16_to_ar30, 10, "I210", "AR30", "ar30");
+build_cnv!(i212_to_ar30, yuv422_p16_to_ar30, 12, "I212", "AR30", "ar30");
+build_cnv!(i210_to_ra30, yuv422_p16_to_ra30, 10, "I210", "RA30", "ra30");
+build_cnv!(i212_to_ra30, yuv422_p16_to_ra30, 12, "I212", "RA30", "ra30");
+
+build_cnv!(i410_to_ar30, yuv444_p16_to_ar30, 10, "I410", "AR30", "ar30");
+build_cnv!(i412_to_ar30, yuv444_p16_to_ar30, 12, "I412", "AR30", "ar30");
+build_cnv!(i410_to_ra30, yuv444_p16_to_ra30, 10, "I410", "RA30", "ra30");
+build_cnv!(i412_to_ra30, yuv444_p16_to_ra30, 12, "I412", "RA30", "ra30");

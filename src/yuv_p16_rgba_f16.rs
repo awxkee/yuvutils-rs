@@ -676,8 +676,6 @@ and converts it to ", $px_written," format with 8+ bit-depth precision per chann
 * `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," float16 format.
 * `range` - The YUV range (limited or full).
 * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-* `endianness` - The endianness of stored bytes
-* `bytes_packing` - see [YuvBytesPacking] for more info.
 
 # Panics
 
@@ -714,6 +712,24 @@ build_cnv!(
 );
 
 build_cnv!(
+    i012_to_rgba_f16,
+    yuv420_p16_to_rgba_f16,
+    12,
+    "I010",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i012_to_rgb_f16,
+    yuv420_p16_to_rgb_f16,
+    12,
+    "YUV 420",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
     i210_to_rgba_f16,
     yuv422_p16_to_rgba_f16,
     10,
@@ -727,6 +743,60 @@ build_cnv!(
     yuv422_p16_to_rgb_f16,
     10,
     "I210",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
+    i212_to_rgba_f16,
+    yuv422_p16_to_rgba_f16,
+    12,
+    "I212",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i212_to_rgb_f16,
+    yuv422_p16_to_rgb_f16,
+    12,
+    "I210",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
+    i410_to_rgba_f16,
+    yuv444_p16_to_rgba_f16,
+    10,
+    "I410",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i410_to_rgb_f16,
+    yuv444_p16_to_rgb_f16,
+    10,
+    "I410",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
+    i412_to_rgba_f16,
+    yuv444_p16_to_rgba_f16,
+    12,
+    "I410",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i412_to_rgb_f16,
+    yuv444_p16_to_rgb_f16,
+    12,
+    "I410",
     "RGB",
     "rgb"
 );
