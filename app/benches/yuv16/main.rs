@@ -26,15 +26,17 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#![feature(f16)]
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use yuv_sys::{rs_I010ToABGR, rs_I210ToABGR};
 use yuvutils_rs::{
     rgb_to_yuv420_p16, rgb_to_yuv422_p16, rgb_to_yuv444_p16, rgb_to_yuv_nv12_p16,
     rgba_to_yuv420_p16, rgba_to_yuv422_p16, rgba_to_yuv444_p16, yuv420_p16_to_rgb,
-    yuv420_p16_to_rgb16, yuv420_p16_to_rgba16, yuv422_p16_to_rgba, yuv422_p16_to_rgba16,
-    yuv444_p16_to_rgba16, yuv_nv12_to_rgba_p16, YuvBiPlanarImageMut, YuvBytesPacking,
-    YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    yuv420_p16_to_rgb16, yuv420_p16_to_rgba16, yuv420_p16_to_rgba_f16, yuv422_p16_to_rgba,
+    yuv422_p16_to_rgba16, yuv444_p16_to_rgba16, yuv_nv12_to_rgba_p16, YuvBiPlanarImageMut,
+    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange,
+    YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -206,6 +208,24 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             yuv420_p16_to_rgba16(
+                &fixed_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                10,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::LeastSignificantBytes,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YUV10 4:2:0 -> RGBAF16", |b| {
+        use core::f16;
+        let mut rgb_bytes: Vec<f16> = vec![0.; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv420_p16_to_rgba_f16(
                 &fixed_planar,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,

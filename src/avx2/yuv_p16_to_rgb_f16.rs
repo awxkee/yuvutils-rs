@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _avx_from_msb_epi16, _mm256_expand_bp_by2, _mm256_from_msb_epi16, _mm256_interleave_epi16,
+    _avx_from_msb_epi16, _mm256_expand_bp_by2, _mm256_from_msb_epi16,
     _mm256_store_interleave_rgb16_for_yuv,
 };
 use crate::internals::ProcessedOffset;
@@ -36,12 +36,13 @@ use crate::yuv_support::{
     CbCrInverseTransform, YuvBytesPacking, YuvChromaRange, YuvChromaSubsampling, YuvEndianness,
     YuvSourceChannels,
 };
+use core::f16;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) unsafe fn avx_yuv_p16_to_rgba_row<
+pub(crate) unsafe fn avx_yuv_p16_to_rgba_f16_row<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -52,7 +53,7 @@ pub(crate) unsafe fn avx_yuv_p16_to_rgba_row<
     y_plane: &[u16],
     u_plane: &[u16],
     v_plane: &[u16],
-    bgra: &mut [u16],
+    bgra: &mut [f16],
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -73,7 +74,7 @@ pub(crate) unsafe fn avx_yuv_p16_to_rgba_row<
     }
 }
 
-#[target_feature(enable = "avx2")]
+#[target_feature(enable = "avx2", enable = "f16c")]
 unsafe fn avx_yuv_p16_to_rgba_row_impl<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
@@ -85,7 +86,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
     y_plane: &[u16],
     u_plane: &[u16],
     v_plane: &[u16],
-    bgra: &mut [u16],
+    bgra: &mut [f16],
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
@@ -109,16 +110,13 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
     let dst_ptr = bgra;
 
     let v_max_colors = _mm256_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
-
-    let y_corr = _mm256_set1_epi16(bias_y as i16);
-    let uv_corr = _mm256_set1_epi16(bias_uv as i16);
-    let uv_corr_q = _mm256_set1_epi16(bias_uv as i16);
     let v_luma_coeff = _mm256_set1_epi16(y_coef as i16);
     let v_cr_coeff = _mm256_set1_epi16(cr_coef as i16);
     let v_cb_coeff = _mm256_set1_epi16(cb_coef as i16);
     let zeros = _mm256_setzero_si256();
     let v_g_coeff_1 = _mm256_set1_epi16(-(g_coef_1 as i16));
     let v_g_coeff_2 = _mm256_set1_epi16(-(g_coef_2 as i16));
+    let f_multiplier = _mm256_set1_ps(1. / (((1 << BIT_DEPTH) - 1) as f32));
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -132,167 +130,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
     #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag_sse =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
-
-    const SCALE: i32 = 2;
-
-    while cx + 32 < width as usize {
-        let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
-
-        let mut y_vl0 = _mm256_loadu_si256(y_plane.get_unchecked(cx..).as_ptr() as *const __m256i);
-        let mut y_vl1 =
-            _mm256_loadu_si256(y_plane.get_unchecked((cx + 16)..).as_ptr() as *const __m256i);
-
-        #[cfg(feature = "big_endian")]
-        if _endianness == YuvEndianness::BigEndian {
-            y_vl0 = _mm256_shuffle_epi8(y_vl0, big_endian_shuffle_flag);
-            y_vl1 = _mm256_shuffle_epi8(y_vl1, big_endian_shuffle_flag);
-        }
-        if bytes_position == YuvBytesPacking::MostSignificantBytes {
-            y_vl0 = _mm256_from_msb_epi16::<BIT_DEPTH>(y_vl0);
-            y_vl1 = _mm256_from_msb_epi16::<BIT_DEPTH>(y_vl1);
-        }
-        let mut y_values0 = _mm256_subs_epu16(y_vl0, y_corr);
-        let mut y_values1 = _mm256_subs_epu16(y_vl1, y_corr);
-
-        let mut u_values0;
-        let mut v_values0;
-
-        let mut u_values1;
-        let mut v_values1;
-
-        match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let mut u_vals =
-                    _mm256_loadu_si256(u_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
-                let mut v_vals =
-                    _mm256_loadu_si256(v_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
-
-                #[cfg(feature = "big_endian")]
-                if _endianness == YuvEndianness::BigEndian {
-                    u_vals = _mm256_shuffle_epi8(u_vals, big_endian_shuffle_flag);
-                    v_vals = _mm256_shuffle_epi8(v_vals, big_endian_shuffle_flag);
-                }
-                if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals);
-                    v_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals);
-                }
-
-                (u_values0, u_values1) = _mm256_interleave_epi16(u_vals, u_vals);
-                (v_values0, v_values1) = _mm256_interleave_epi16(v_vals, v_vals);
-
-                u_values0 = _mm256_sub_epi16(u_values0, uv_corr);
-                v_values0 = _mm256_sub_epi16(v_values0, uv_corr);
-
-                u_values1 = _mm256_sub_epi16(u_values1, uv_corr);
-                v_values1 = _mm256_sub_epi16(v_values1, uv_corr);
-            }
-            YuvChromaSubsampling::Yuv444 => {
-                let mut u_vals0 =
-                    _mm256_loadu_si256(u_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
-                let mut v_vals0 =
-                    _mm256_loadu_si256(v_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
-                let mut u_vals1 = _mm256_loadu_si256(
-                    u_plane.get_unchecked((ux + 16)..).as_ptr() as *const __m256i
-                );
-                let mut v_vals1 = _mm256_loadu_si256(
-                    v_plane.get_unchecked((ux + 16)..).as_ptr() as *const __m256i
-                );
-
-                #[cfg(feature = "big_endian")]
-                if _endianness == YuvEndianness::BigEndian {
-                    u_vals0 = _mm256_shuffle_epi8(u_vals0, big_endian_shuffle_flag);
-                    v_vals0 = _mm256_shuffle_epi8(v_vals0, big_endian_shuffle_flag);
-
-                    u_vals1 = _mm256_shuffle_epi8(u_vals1, big_endian_shuffle_flag);
-                    v_vals1 = _mm256_shuffle_epi8(v_vals1, big_endian_shuffle_flag);
-                }
-                if bytes_position == YuvBytesPacking::MostSignificantBytes {
-                    u_vals0 = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals0);
-                    v_vals0 = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals0);
-                    u_vals1 = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals1);
-                    v_vals1 = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals1);
-                }
-                u_values0 = _mm256_sub_epi16(u_vals0, uv_corr);
-                v_values0 = _mm256_sub_epi16(v_vals0, uv_corr);
-
-                u_values1 = _mm256_sub_epi16(u_vals1, uv_corr);
-                v_values1 = _mm256_sub_epi16(v_vals1, uv_corr);
-            }
-        }
-
-        u_values0 = _mm256_slli_epi16::<SCALE>(u_values0);
-        v_values0 = _mm256_slli_epi16::<SCALE>(v_values0);
-        y_values0 = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values0);
-
-        u_values1 = _mm256_slli_epi16::<SCALE>(u_values1);
-        v_values1 = _mm256_slli_epi16::<SCALE>(v_values1);
-        y_values1 = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values1);
-
-        let y_vals0 = _mm256_mulhrs_epi16(y_values0, v_luma_coeff);
-        let y_vals1 = _mm256_mulhrs_epi16(y_values1, v_luma_coeff);
-
-        let rvl0 = _mm256_mulhrs_epi16(v_values0, v_cr_coeff);
-        let bvl0 = _mm256_mulhrs_epi16(u_values0, v_cb_coeff);
-        let gvl0 = _mm256_mulhrs_epi16(v_values0, v_g_coeff_1);
-        let gvl1 = _mm256_mulhrs_epi16(u_values0, v_g_coeff_2);
-
-        let r_vals0 = _mm256_add_epi16(y_vals0, rvl0);
-        let b_vals0 = _mm256_add_epi16(y_vals0, bvl0);
-        let g_vals0 = _mm256_add_epi16(_mm256_add_epi16(y_vals0, gvl0), gvl1);
-
-        let rvl1 = _mm256_mulhrs_epi16(v_values1, v_cr_coeff);
-        let bvl1 = _mm256_mulhrs_epi16(u_values1, v_cb_coeff);
-        let gvl10 = _mm256_mulhrs_epi16(v_values1, v_g_coeff_1);
-        let gvl11 = _mm256_mulhrs_epi16(u_values1, v_g_coeff_2);
-
-        let r_vals1 = _mm256_add_epi16(y_vals1, rvl1);
-        let b_vals1 = _mm256_add_epi16(y_vals1, bvl1);
-        let g_vals1 = _mm256_add_epi16(_mm256_add_epi16(y_vals1, gvl10), gvl11);
-
-        let zr0 = _mm256_max_epi16(r_vals0, zeros);
-        let zg0 = _mm256_max_epi16(g_vals0, zeros);
-        let zb0 = _mm256_max_epi16(b_vals0, zeros);
-
-        let zr1 = _mm256_max_epi16(r_vals1, zeros);
-        let zg1 = _mm256_max_epi16(g_vals1, zeros);
-        let zb1 = _mm256_max_epi16(b_vals1, zeros);
-
-        let r_values0 = _mm256_min_epu16(zr0, v_max_colors);
-        let g_values0 = _mm256_min_epu16(zg0, v_max_colors);
-        let b_values0 = _mm256_min_epu16(zb0, v_max_colors);
-
-        let r_values1 = _mm256_min_epu16(zr1, v_max_colors);
-        let g_values1 = _mm256_min_epu16(zg1, v_max_colors);
-        let b_values1 = _mm256_min_epu16(zb1, v_max_colors);
-
-        _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
-            dst_ptr.as_mut_ptr(),
-            r_values0,
-            g_values0,
-            b_values0,
-            v_max_colors,
-        );
-
-        _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
-            dst_ptr.get_unchecked_mut(16 * channels..).as_mut_ptr(),
-            r_values1,
-            g_values1,
-            b_values1,
-            v_max_colors,
-        );
-
-        cx += 32;
-
-        match chroma_subsampling {
-            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                ux += 16;
-            }
-            YuvChromaSubsampling::Yuv444 => {
-                ux += 32;
-            }
-        }
-    }
-
+    
     while cx + 16 < width as usize {
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
@@ -306,6 +144,10 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm256_from_msb_epi16::<BIT_DEPTH>(y_vl);
         }
+
+        let y_corr = _mm256_set1_epi16(bias_y as i16);
+        let uv_corr = _mm256_set1_epi16(bias_uv as i16);
+
         let mut y_values = _mm256_subs_epu16(y_vl, y_corr);
 
         let mut u_values;
@@ -355,33 +197,66 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
                     u_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals);
                     v_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
-                u_values = _mm256_sub_epi16(u_vals, uv_corr_q);
-                v_values = _mm256_sub_epi16(v_vals, uv_corr_q);
+                u_values = _mm256_sub_epi16(u_vals, uv_corr);
+                v_values = _mm256_sub_epi16(v_vals, uv_corr);
             }
         }
 
-        u_values = _mm256_slli_epi16::<SCALE>(u_values);
-        v_values = _mm256_slli_epi16::<SCALE>(v_values);
+        u_values = _mm256_expand_bp_by2::<BIT_DEPTH>(u_values);
+        v_values = _mm256_expand_bp_by2::<BIT_DEPTH>(v_values);
         y_values = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values);
 
+        let rl = _mm256_mulhrs_epi16(v_values, v_cr_coeff);
+        let b0 = _mm256_mulhrs_epi16(u_values, v_cb_coeff);
         let y_vals = _mm256_mulhrs_epi16(y_values, v_luma_coeff);
+        let g0 = _mm256_mulhrs_epi16(v_values, v_g_coeff_1);
+        let g1 = _mm256_mulhrs_epi16(u_values, v_g_coeff_2);
 
-        let r_vals = _mm256_add_epi16(y_vals, _mm256_mulhrs_epi16(v_values, v_cr_coeff));
-        let b_vals = _mm256_add_epi16(y_vals, _mm256_mulhrs_epi16(u_values, v_cb_coeff));
-        let g_vals = _mm256_add_epi16(
-            _mm256_add_epi16(y_vals, _mm256_mulhrs_epi16(v_values, v_g_coeff_1)),
-            _mm256_mulhrs_epi16(u_values, v_g_coeff_2),
-        );
+        let r_vals = _mm256_add_epi16(y_vals, rl);
+        let b_vals = _mm256_add_epi16(y_vals, b0);
+        let g_vals = _mm256_add_epi16(_mm256_add_epi16(y_vals, g0), g1);
 
-        let r_values = _mm256_min_epu16(_mm256_max_epi16(r_vals, zeros), v_max_colors);
-        let g_values = _mm256_min_epu16(_mm256_max_epi16(g_vals, zeros), v_max_colors);
-        let b_values = _mm256_min_epu16(_mm256_max_epi16(b_vals, zeros), v_max_colors);
+        let rm = _mm256_max_epi16(r_vals, zeros);
+        let gm = _mm256_max_epi16(g_vals, zeros);
+        let bm = _mm256_max_epi16(b_vals, zeros);
+
+        let r_values = _mm256_min_epu16(rm, v_max_colors);
+        let g_values = _mm256_min_epu16(gm, v_max_colors);
+        let b_values = _mm256_min_epu16(bm, v_max_colors);
+
+        let r_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(r_values));
+        let r_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(r_values));
+        let g_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(g_values));
+        let g_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(g_values));
+        let b_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(b_values));
+        let b_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(b_values));
+
+        let mut r_lo = _mm256_cvtepi32_ps(r_lo);
+        let mut r_hi = _mm256_cvtepi32_ps(r_hi);
+        let mut g_lo = _mm256_cvtepi32_ps(g_lo);
+        let mut g_hi = _mm256_cvtepi32_ps(g_hi);
+        let mut b_lo = _mm256_cvtepi32_ps(b_lo);
+        let mut b_hi = _mm256_cvtepi32_ps(b_hi);
+
+        r_lo = _mm256_mul_ps(r_lo, f_multiplier);
+        r_hi = _mm256_mul_ps(r_hi, f_multiplier);
+        g_lo = _mm256_mul_ps(g_lo, f_multiplier);
+        g_hi = _mm256_mul_ps(g_hi, f_multiplier);
+        b_lo = _mm256_mul_ps(b_lo, f_multiplier);
+        b_hi = _mm256_mul_ps(b_hi, f_multiplier);
+
+        let r_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_lo);
+        let r_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_hi);
+        let g_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(g_lo);
+        let g_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(g_hi);
+        let b_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_lo);
+        let b_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_hi);
 
         _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
-            dst_ptr.as_mut_ptr(),
-            r_values,
-            g_values,
-            b_values,
+            dst_ptr.as_mut_ptr() as *mut _,
+            _mm256_setr_m128i(r_lo, r_hi),
+            _mm256_setr_m128i(g_lo, g_hi),
+            _mm256_setr_m128i(b_lo, b_hi),
             v_max_colors,
         );
 
@@ -422,6 +297,10 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = _mm256_from_msb_epi16::<BIT_DEPTH>(y_vl);
         }
+
+        let y_corr = _mm256_set1_epi16(bias_y as i16);
+        let uv_corr = _mm256_set1_epi16(bias_uv as i16);
+
         let mut y_values = _mm256_subs_epu16(y_vl, y_corr);
 
         let mut u_values;
@@ -488,35 +367,68 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
                     u_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(u_vals);
                     v_vals = _mm256_from_msb_epi16::<BIT_DEPTH>(v_vals);
                 }
-                u_values = _mm256_sub_epi16(u_vals, uv_corr_q);
-                v_values = _mm256_sub_epi16(v_vals, uv_corr_q);
+                u_values = _mm256_sub_epi16(u_vals, uv_corr);
+                v_values = _mm256_sub_epi16(v_vals, uv_corr);
             }
         }
 
-        u_values = _mm256_slli_epi16::<SCALE>(u_values);
-        v_values = _mm256_slli_epi16::<SCALE>(v_values);
+        let mut buffer: [f16; 16 * 4] = [0.; 16 * 4];
+
+        u_values = _mm256_expand_bp_by2::<BIT_DEPTH>(u_values);
+        v_values = _mm256_expand_bp_by2::<BIT_DEPTH>(v_values);
         y_values = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values);
 
+        let rl = _mm256_mulhrs_epi16(v_values, v_cr_coeff);
+        let b0 = _mm256_mulhrs_epi16(u_values, v_cb_coeff);
         let y_vals = _mm256_mulhrs_epi16(y_values, v_luma_coeff);
+        let g0 = _mm256_mulhrs_epi16(v_values, v_g_coeff_1);
+        let g1 = _mm256_mulhrs_epi16(u_values, v_g_coeff_2);
 
-        let r_vals = _mm256_add_epi16(y_vals, _mm256_mulhrs_epi16(v_values, v_cr_coeff));
-        let b_vals = _mm256_add_epi16(y_vals, _mm256_mulhrs_epi16(u_values, v_cb_coeff));
-        let g_vals = _mm256_add_epi16(
-            _mm256_add_epi16(y_vals, _mm256_mulhrs_epi16(v_values, v_g_coeff_1)),
-            _mm256_mulhrs_epi16(u_values, v_g_coeff_2),
-        );
+        let r_vals = _mm256_add_epi16(y_vals, rl);
+        let b_vals = _mm256_add_epi16(y_vals, b0);
+        let g_vals = _mm256_add_epi16(_mm256_add_epi16(y_vals, g0), g1);
 
-        let r_values = _mm256_min_epu16(_mm256_max_epi16(r_vals, zeros), v_max_colors);
-        let g_values = _mm256_min_epu16(_mm256_max_epi16(g_vals, zeros), v_max_colors);
-        let b_values = _mm256_min_epu16(_mm256_max_epi16(b_vals, zeros), v_max_colors);
+        let rm = _mm256_max_epi16(r_vals, zeros);
+        let gm = _mm256_max_epi16(g_vals, zeros);
+        let bm = _mm256_max_epi16(b_vals, zeros);
 
-        let mut buffer: [u16; 16 * 4] = [0u16; 16 * 4];
+        let r_values = _mm256_min_epu16(rm, v_max_colors);
+        let g_values = _mm256_min_epu16(gm, v_max_colors);
+        let b_values = _mm256_min_epu16(bm, v_max_colors);
+
+        let r_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(r_values));
+        let r_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(r_values));
+        let g_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(g_values));
+        let g_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(g_values));
+        let b_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(b_values));
+        let b_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(b_values));
+
+        let mut r_lo = _mm256_cvtepi32_ps(r_lo);
+        let mut r_hi = _mm256_cvtepi32_ps(r_hi);
+        let mut g_lo = _mm256_cvtepi32_ps(g_lo);
+        let mut g_hi = _mm256_cvtepi32_ps(g_hi);
+        let mut b_lo = _mm256_cvtepi32_ps(b_lo);
+        let mut b_hi = _mm256_cvtepi32_ps(b_hi);
+
+        r_lo = _mm256_mul_ps(r_lo, f_multiplier);
+        r_hi = _mm256_mul_ps(r_hi, f_multiplier);
+        g_lo = _mm256_mul_ps(g_lo, f_multiplier);
+        g_hi = _mm256_mul_ps(g_hi, f_multiplier);
+        b_lo = _mm256_mul_ps(b_lo, f_multiplier);
+        b_hi = _mm256_mul_ps(b_hi, f_multiplier);
+
+        let r_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_lo);
+        let r_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_hi);
+        let g_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(g_lo);
+        let g_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(g_hi);
+        let b_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_lo);
+        let b_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_hi);
 
         _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
-            buffer.as_mut_ptr(),
-            r_values,
-            g_values,
-            b_values,
+            buffer.as_mut_ptr() as *mut _,
+            _mm256_setr_m128i(r_lo, r_hi),
+            _mm256_setr_m128i(g_lo, g_hi),
+            _mm256_setr_m128i(b_lo, b_hi),
             v_max_colors,
         );
 

@@ -109,6 +109,8 @@ mod yuv_p16_ar30;
 mod yuv_p16_rgba;
 mod yuv_p16_rgba16_alpha;
 mod yuv_p16_rgba_alpha;
+#[cfg(feature = "nightly_f16")]
+mod yuv_p16_rgba_f16;
 mod yuv_p16_rgba_p16;
 mod yuv_support;
 mod yuv_to_rgba;
@@ -498,4 +500,11 @@ pub use yuv_nv_p10_to_ar30::{
 pub use yuv_p16_ar30::{
     yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ar30, yuv422_p16_to_ra30,
     yuv444_p16_to_ar30, yuv444_p16_to_ra30,
+};
+
+#[cfg(feature = "nightly_f16")]
+pub use yuv_p16_rgba_f16::{
+    yuv420_p16_to_bgr_f16, yuv420_p16_to_bgra_f16, yuv420_p16_to_rgb_f16, yuv420_p16_to_rgba_f16,
+    yuv422_p16_to_bgr_f16, yuv422_p16_to_bgra_f16, yuv422_p16_to_rgb_f16, yuv422_p16_to_rgba_f16,
+    yuv444_p16_to_bgr_f16, yuv444_p16_to_bgra_f16, yuv444_p16_to_rgb_f16, yuv444_p16_to_rgba_f16,
 };

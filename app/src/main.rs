@@ -33,11 +33,7 @@ use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageRea
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{
-    ab30_to_rgb8, rgb8_to_ar30, rgb_to_yuv_nv12_p16, Rgb30ByteOrder, YuvBiPlanarImageMut,
-    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
-};
+use yuvutils_rs::{ab30_to_rgb8, convert_rgb_f16_to_rgb, rgb8_to_ar30, rgb_to_yuv420_p16, rgb_to_yuv_nv12_p16, yuv420_p16_to_rgb_f16, Rgb30ByteOrder, YuvBiPlanarImageMut, YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -99,20 +95,20 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    rgb_to_yuv_nv12_p16(
-        &mut bi_planar_image,
+    rgb_to_yuv420_p16(
+        &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
         10,
         YuvRange::Full,
         YuvStandardMatrix::Bt2020,
         YuvEndianness::LittleEndian,
-        YuvBytesPacking::MostSignificantBytes,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
     // bytes_16.fill(0);
@@ -220,48 +216,30 @@ fn main() {
     // bytes_16.resize(width as usize * height as usize * 4, 0u16);
     // rgba.resize(width as usize * height as usize * 4, 0u8);
 
-    let mut ar30 = vec![0u8; width as usize * height as usize * 4];
+    let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
 
-    rgb8_to_ar30(
-        &mut ar30,
-        width * 4,
-        Rgb30ByteOrder::Host,
-        &src_bytes,
+    yuv420_p16_to_rgb_f16(
+        &fixed_planar,
+        &mut rgba_f16,
         rgba_stride as u32,
-        width,
-        height,
+        10,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt2020,
+        YuvEndianness::LittleEndian,
+        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
-
-    let start_time = Instant::now();
-
-    rgba.fill(0);
-    ab30_to_rgb8(
-        &ar30,
-        width * 4,
-        Rgb30ByteOrder::Host,
-        &mut rgba,
-        rgba_stride as u32,
-        width,
-        height,
-    )
-    .unwrap();
-
-    // yuv_nv12_p10_to_rgb(
-    //     &fixed_biplanar,
-    //     &mut rgba,
-    //     rgba_stride as u32,
-    //     YuvRange::Full,
-    //     YuvStandardMatrix::Bt2020,
-    //     YuvEndianness::LittleEndian,
-    //     YuvBytesPacking::MostSignificantBytes,
-    //     YuvConversionMode::Professional,
-    // )
-    // .unwrap();
 
     println!("Backward time: {:?}", start_time.elapsed());
 
+    rgba.fill(0);
+
+    // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
+
     // rgba = bytes_16.iter().map(|&x| (x >> 2) axs u8).collect();
+
+    rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
+
 
     image::save_buffer(
         "converted_sharp151.png",
