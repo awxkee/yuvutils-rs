@@ -517,6 +517,8 @@ and converts it to ", $ab_format_name," format.
 * `byte_order` - see [Rgb30ByteOrder] for more info
 * `endianness` - The endianness of stored bytes
 * `bytes_packing` - see [YuvBytesPacking] for more info.
+* `range` - range of YUV, see [YuvRange] for more info.
+* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 
 # Panics
 
@@ -654,3 +656,50 @@ yuv_to_ar30_conversion!(
     "NV61",
     "RA30"
 );
+
+macro_rules! define_cnv {
+    ($method: ident, $cvt: ident, $name: expr, $ar_name:expr) => {
+        #[doc = concat!("
+Converts ", $name, "to ", $ar_name," format.
+This function takes ", $name, " data with 10-bit precision
+and converts it to ", $name," format.
+
+# Arguments
+
+* `bi_planar_image` - Source Bi-Planar 10-bit image.
+* `dst` - A mutable slice to store the converted ", $ar_name, " data.
+* `dst_stride` - The stride for the ", $ar_name, " image data.
+* `byte_order` - see [Rgb30ByteOrder] for more info.
+* `range` - range of YUV, see [YuvRange] for more info.
+* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+
+# Panics
+
+This function panics if the lengths of the planes or the input ", $ar_name," data are not valid based
+on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
+        pub fn $method(
+            bi_planar_image: &YuvBiPlanarImage<u16>,
+            dst: &mut [u8],
+            dst_stride: u32,
+            byte_order: Rgb30ByteOrder,
+            range: YuvRange,
+            matrix: YuvStandardMatrix,
+        ) -> Result<(), YuvError> {
+            $cvt(
+                bi_planar_image,
+                dst,
+                dst_stride,
+                byte_order,
+                range,
+                matrix,
+                YuvEndianness::LittleEndian,
+                YuvBytesPacking::MostSignificantBytes,
+            )
+        }
+    };
+}
+
+define_cnv!(p010_to_ar30, yuv_nv12_p10_to_ar30, "P010", "AR30");
+define_cnv!(p010_to_ra30, yuv_nv12_p10_to_ra30, "P010", "RA30");
+define_cnv!(p210_to_ar30, yuv_nv12_p10_to_ar30, "P210", "AR30");
+define_cnv!(p210_to_ra30, yuv_nv12_p10_to_ra30, "P210", "RA30");

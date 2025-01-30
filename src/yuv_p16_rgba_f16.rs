@@ -613,55 +613,6 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
 }
 
 d_cnv!(
-    yuv420_p16_to_bgra_f16,
-    YuvSourceChannels::Bgra,
-    YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "BGRA",
-    "bgra"
-);
-d_cnv!(
-    yuv420_p16_to_bgr_f16,
-    YuvSourceChannels::Bgr,
-    YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "BGR",
-    "bgr"
-);
-d_cnv!(
-    yuv422_p16_to_bgra_f16,
-    YuvSourceChannels::Bgra,
-    YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "BGRA",
-    "bgra"
-);
-d_cnv!(
-    yuv422_p16_to_bgr_f16,
-    YuvSourceChannels::Bgr,
-    YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "BGR",
-    "bgr"
-);
-d_cnv!(
-    yuv444_p16_to_bgra_f16,
-    YuvSourceChannels::Bgra,
-    YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "BGRA",
-    "bgra"
-);
-d_cnv!(
-    yuv444_p16_to_bgr_f16,
-    YuvSourceChannels::Bgr,
-    YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "BGR",
-    "bgr"
-);
-
-d_cnv!(
     yuv420_p16_to_rgba_f16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
@@ -706,6 +657,76 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "YUV 444",
+    "RGB",
+    "rgb"
+);
+
+macro_rules! build_cnv {
+    ($method: ident, $worker: expr, $bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
+        #[doc = concat!("
+Convert ",$sampling_written, " planar format with ", $bit_depth," bit pixel format to ", $px_written," float16 format.
+
+This function takes ", $sampling_written, " planar data with ",$bit_depth," bit precision.
+and converts it to ", $px_written," format with 8+ bit-depth precision per channel
+
+# Arguments
+
+* `planar_image` - Source ",$sampling_written," planar image.
+* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," float16 format.
+* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," float16 format.
+* `range` - The YUV range (limited or full).
+* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+* `endianness` - The endianness of stored bytes
+* `bytes_packing` - see [YuvBytesPacking] for more info.
+
+# Panics
+
+This function panics if the lengths of the planes or the input ", $px_written," data are not valid based
+on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
+        pub fn $method(
+            planar_image: &YuvPlanarImage<u16>,
+            dst: &mut [f16],
+            dst_stride: u32,
+            range: YuvRange,
+            matrix: YuvStandardMatrix,
+        ) -> Result<(), YuvError> {
+            $worker(planar_image, dst, dst_stride, $bit_depth, range, matrix, YuvEndianness::LittleEndian, YuvBytesPacking::LeastSignificantBytes)
+        }
+    };
+}
+
+build_cnv!(
+    i010_to_rgba_f16,
+    yuv420_p16_to_rgba_f16,
+    10,
+    "I010",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i010_to_rgb_f16,
+    yuv420_p16_to_rgb_f16,
+    10,
+    "YUV 420",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
+    i210_to_rgba_f16,
+    yuv422_p16_to_rgba_f16,
+    10,
+    "I210",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i210_to_rgb_f16,
+    yuv422_p16_to_rgb_f16,
+    10,
+    "I210",
     "RGB",
     "rgb"
 );
