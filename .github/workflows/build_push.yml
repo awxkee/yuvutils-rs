@@ -63,9 +63,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo test
-      - run: cargo test --no-default-features
-      - run: cargo test --no-default-features --features fast_mode,professional_mode
-      - run: cargo test --features fast_mode,professional_mode
+      - run: cargo test --no-default-features --features nightly_f16
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,nightly_f16
+      - run: cargo test --features fast_mode,professional_mode,nightly_f16
 
   tests_x86:
     name: Testing x86
@@ -74,11 +74,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo test
-      - run: cargo test --features fast_mode,professional_mode
-      - run: cargo test --no-default-features
-      - run: cargo test --no-default-features --features fast_mode,professional_mode,sse
-      - run: cargo test --no-default-features --features fast_mode,professional_mode,avx
-      - run: cargo test --no-default-features --features fast_mode,professional_mode
+      - run: cargo test --features fast_mode,professional_mode,nightly_f16
+      - run: cargo test --no-default-features --features nightly_f16
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,sse,nightly_f16
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,avx,nightly_f16
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,nightly_f16
 
   fuzz_arm:
     name: Fuzzing ARM
@@ -86,22 +86,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cargo install cargo-fuzz
-      - run: cargo fuzz run rgb_to_yuv --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_nv --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_y --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run rgb16_to_nv16 --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run yuv_to_rgb --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run y_to_rgb --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run yuv16_to_ar30 --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run y16_to_rgb16 --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run shuffle --no-default-features -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_f16 --no-default-features -- -max_total_time=8
+      - run: cargo fuzz run rgb_to_yuv --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_nv --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_y --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run rgb16_to_nv16 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run yuv_to_rgb --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run gbr_to_rgb --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run y_to_rgb --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run yuv16_to_ar30 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run y16_to_rgb16 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run shuffle --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_f16 --no-default-features -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_yuv --no-default-features --features nightly_i8mm -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_nv --no-default-features --features nightly_i8mm -- -max_total_time=7
 
   fuzz_arm_rdm:
     name: Fuzzing ARM RDM
@@ -110,22 +113,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
-      - run: cargo fuzz run rgb_to_yuv --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_nv --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_y --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run rgb16_to_nv16 --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run yuv_to_rgb --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run y_to_rgb --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run yuv16_to_ar30 --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run y16_to_rgb16 --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run shuffle --no-default-features --features rdm -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_f16 --no-default-features --features rdm -- -max_total_time=8
+      - run: cargo fuzz run rgb_to_yuv --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_nv --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_y --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run rgb16_to_nv16 --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run yuv_to_rgb --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run gbr_to_rgb --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run y_to_rgb --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run yuv16_to_ar30 --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run y16_to_rgb16 --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run shuffle --no-default-features --features rdm -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_f16 --no-default-features --features rdm -- -max_total_time=7
 
   fuzz_x86:
     name: Fuzzing x86
@@ -137,19 +141,20 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
-      - run: cargo fuzz run rgb_to_yuv --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_nv --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_y --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run rgb16_to_nv16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run yuv_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run y_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run yuv16_to_ar30 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run y16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run shuffle --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
-      - run: cargo fuzz run rgb_to_f16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=8
+      - run: cargo fuzz run rgb_to_yuv --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_nv --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_y --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run rgb16_to_yuv16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run rgb16_to_nv16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run yuv_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run gbr_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run y_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run yuv16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run yuv16_to_ar30 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run y16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run yuv_to_yuyu2 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run shuffle --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7
+      - run: cargo fuzz run rgb_to_f16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=7

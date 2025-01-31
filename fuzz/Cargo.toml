@@ -27,6 +27,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "gbr_to_rgb"
+path = "gbr_to_rgb/gbr_to_rgb.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "yuv_nv_to_rgb"
 path = "yuv_nv_to_rgb/yuv_nv_to_rgb.rs"
 test = false

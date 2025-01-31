@@ -461,7 +461,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
-    "YUVA 420P10",
+    "AYUV 420P10",
     "RGBA",
     "rgba",
     10
@@ -472,7 +472,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
-    "YUVA 420P10 BE",
+    "AYUV 420P10 BE",
     "RGBA",
     "rgba",
     10
@@ -483,7 +483,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
-    "YUVA 422P10",
+    "AYUV 422P10",
     "RGBA",
     "rgba",
     10
@@ -494,7 +494,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::BigEndian,
-    "YUVA 422P10 BE",
+    "AYUV 422P10 BE",
     "RGBA",
     "rgba",
     10
@@ -504,7 +504,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
-    "YUVA 444P10",
+    "AYUV 444P10",
     "RGBA",
     "rgba",
     10
@@ -515,7 +515,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
-    "YUVA 444P10 BE",
+    "AYUV 444P10 BE",
     "RGBA",
     "rgba",
     10
@@ -526,7 +526,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
-    "YUVA 420P12",
+    "AYUV 420P12",
     "RGBA",
     "rgba",
     12
@@ -537,7 +537,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
-    "YUVA 420P12 BE",
+    "AYUV 420P12 BE",
     "RGBA",
     "rgba",
     12
@@ -547,7 +547,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
-    "YUVA 422P12",
+    "AYUV 422P12",
     "RGBA",
     "rgba",
     12
@@ -558,7 +558,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::BigEndian,
-    "YUVA 422P12 BE",
+    "AYUV 422P12 BE",
     "RGBA",
     "rgba",
     12
@@ -568,7 +568,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
-    "YUVA 444P12",
+    "AYUV 444P12",
     "RGBA",
     "rgba",
     12
@@ -579,7 +579,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
-    "YUVA 444P12 BE",
+    "AYUV 444P12 BE",
     "RGBA",
     "rgba",
     12
