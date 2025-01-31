@@ -30,7 +30,9 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{neon_store_rgb16, vldq_s16_endian};
+use crate::neon::utils::{
+    neon_store_half_rgb8, neon_store_rgb16, vldq_s16_endian, vmullq_laneq_s16,
+};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 
 pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
@@ -54,7 +56,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     let y_corr = vdupq_n_u16(range.bias_y as u16);
     let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
     let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
-    let v_max_values = vdupq_n_s32((1 << BIT_DEPTH) - 1);
+    let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
     let rnd_base = vdupq_n_s32((1 << (PRECISION - 1)) - 1);
 
     let mut cx = start_cx;
@@ -73,13 +75,10 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         let rhm = vshrq_n_s32::<PRECISION>(y_high);
         let rlm = vshrq_n_s32::<PRECISION>(y_low);
 
-        let rhim = vminq_s32(rhm, v_max_values);
-        let rlim = vminq_s32(rlm, v_max_values);
+        let r_high = vqmovun_s32(rhm);
+        let r_low = vqmovun_s32(rlm);
 
-        let r_high = vqmovun_s32(rhim);
-        let r_low = vqmovun_s32(rlim);
-
-        let r_values = vcombine_u16(r_low, r_high);
+        let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_max_values);
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
             dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
@@ -90,6 +89,56 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         );
 
         cx += 8;
+    }
+
+    if cx < width as usize {
+        let diff = width as usize - cx;
+        assert!(diff <= 8);
+
+        let mut y_buffer: [u16; 8] = [0; 8];
+        let mut dst_buffer: [u16; 8 * 4] = [0; 8 * 4];
+
+        std::ptr::copy_nonoverlapping(
+            y_ld_ptr.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+            vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
+                y_buffer.as_ptr(),
+            )),
+            y_corr,
+        ));
+
+        let y_high = vmlal_high_s16(rnd_base, y_values, v_luma_coeff);
+        let y_low = vmlal_s16(rnd_base, vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
+
+        let rhm = vshrq_n_s32::<PRECISION>(y_high);
+        let rlm = vshrq_n_s32::<PRECISION>(y_low);
+
+        let r_high = vqmovun_s32(rhm);
+        let r_low = vqmovun_s32(rlm);
+
+        let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_max_values);
+
+        neon_store_rgb16::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+
+        cx += diff;
     }
 
     ProcessedOffset { cx, ux: 0 }

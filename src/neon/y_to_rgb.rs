@@ -164,10 +164,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
             diff,
         );
 
-        let y_values = vqsub_u8(
-            vld1_u8(y_plane.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
+        let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr()), vget_low_u8(y_corr));
 
         let y_high = vqrdmulhq_n_s16(
             vreinterpretq_s16_u16(vexpand8_to_10(y_values)),
