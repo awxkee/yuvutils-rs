@@ -313,7 +313,8 @@ pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
 pub use from_identity::{
-    gb10_to_rgb10, gb12_to_rgb12, gb12_to_rgba12, gbr_to_bgr, gbr_to_bgra, gbr_to_rgb, gbr_to_rgba,
+    gb10_to_rgb10, gb10_to_rgba10, gb12_to_rgb12, gb12_to_rgba12, gbr_to_bgr, gbr_to_bgra,
+    gbr_to_rgb, gbr_to_rgba,
 };
 
 pub use to_identity::{
@@ -389,7 +390,7 @@ pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
 pub use from_identity_alpha::{
-    gbr_with_alpha_to_bgra, gbr_with_alpha_to_rgba, gbr_with_alpha_to_rgba_p16,
+    gb10_alpha_to_rgba10, gb12_alpha_to_rgba12, gbr_with_alpha_to_bgra, gbr_with_alpha_to_rgba,
 };
 pub use images::{
     BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayAlphaImage, YuvGrayImage,
