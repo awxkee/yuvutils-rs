@@ -100,6 +100,8 @@ mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
+#[cfg(feature = "nightly_f16")]
+mod yuva_p16_to_rgba_f16;
 
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{
@@ -209,3 +211,5 @@ pub(crate) use yuv_to_rgba_alpha::neon_yuv_to_rgba_alpha_rdm;
 pub(crate) use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_neon;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_neon_impl;
+#[cfg(feature = "nightly_f16")]
+pub(crate) use yuva_p16_to_rgba_f16::neon_yuva_p16_to_rgba_f16_row;

@@ -116,6 +116,8 @@ mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuv_to_yuy2_p16;
+#[cfg(feature = "nightly_f16")]
+mod yuva_p16_rgba_f16;
 mod yuy2_to_rgb;
 mod yuy2_to_rgb_p16;
 mod yuy2_to_yuv;
@@ -430,6 +432,12 @@ pub use yuv_p16_rgba_p16::{
 pub use yuv_p16_rgba_p16::{
     i010_to_rgb10, i010_to_rgba10, i012_to_rgb12, i012_to_rgba12, i210_to_rgb10, i210_to_rgba10,
     i212_to_rgb12, i212_to_rgba12, i410_to_rgb10, i410_to_rgba10, i412_to_rgb12, i412_to_rgba12,
+};
+
+#[cfg(feature = "nightly_f16")]
+pub use yuva_p16_rgba_f16::{
+    i010_alpha_to_rgba_f16, i012_alpha_to_rgba_f16, i210_alpha_to_rgba_f16, i212_alpha_to_rgba_f16,
+    i410_alpha_to_rgba_f16, i412_alpha_to_rgba_f16,
 };
 
 pub use ar30_rgb::{

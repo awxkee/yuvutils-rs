@@ -72,10 +72,10 @@ impl<T, const DEST: u8, const BIT_DEPTH: usize> Default
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             use crate::neon::yuv_to_rgba_row_full;
-            return WideRowGbrProcessor {
+            WideRowGbrProcessor {
                 _phantom: Default::default(),
                 handler: Some(yuv_to_rgba_row_full::<DEST>),
-            };
+            }
         }
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -137,10 +137,10 @@ impl<T, const DEST: u8, const BIT_DEPTH: usize, const PRECISION: i32> Default
                 };
             }
             use crate::neon::yuv_to_rgba_row_limited;
-            return WideRowGbrLimitedProcessor {
+            WideRowGbrLimitedProcessor {
                 _phantom: Default::default(),
                 handler: Some(yuv_to_rgba_row_limited::<DEST, PRECISION>),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
