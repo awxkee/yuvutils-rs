@@ -343,511 +343,15 @@ pub(crate) fn yuv_p16_to_image_ar30_impl<
     }
 }
 
-/// Convert YUV 420 planar format with 8+ bit pixel format to AR30 (RGBA2101010) format
-///
-/// This function takes YUV 420 planar data with 8+ bit precision.
-/// and converts it to AR30 image format
-///
-/// # Arguments
-///
-/// * `planar_image` - Source YUV planar image.
-/// * `ar30` - A mutable slice to store the converted AR30 data.
-/// * `ar30_stride` - The stride (components per row) for AR30 data.
-/// * `byte_order` - see [Rgb30ByteOrder] for more info
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-/// * `bit_depth` - Bit depth of source YUV planes
-///
-/// # Error
-///
-/// This function panics if the lengths of the planes or the input RGBX1010102 data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv420_p16_to_ar30(
-    planar_image: &YuvPlanarImage<u16>,
-    ar30: &mut [u8],
-    ar30_stride: u32,
-    byte_order: Rgb30ByteOrder,
-    bit_depth: usize,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(
-        planar_image,
-        ar30,
-        ar30_stride,
-        byte_order,
-        range,
-        matrix,
-        bit_depth,
-    )
-}
-
-/// Convert YUV 422 planar format with 8+ bit pixel format to AR30 (RGBA2101010) format
-///
-/// This function takes YUV 422 planar data with 8+ bit precision.
-/// and converts it to AR30 image format
-///
-/// # Arguments
-///
-/// * `planar_image` - Source YUV planar image.
-/// * `ar30` - A mutable slice to store the converted AR30 data.
-/// * `ar30_stride` - The stride (components per row) for AR30 data.
-/// * `byte_order` - see [Rgb30ByteOrder] for more info
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-/// * `bit_depth` - Bit depth of source YUV planes
-///
-/// # Error
-///
-/// This function panics if the lengths of the planes or the input RGBX1010102 data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv422_p16_to_ar30(
-    planar_image: &YuvPlanarImage<u16>,
-    ar30: &mut [u8],
-    ar30_stride: u32,
-    byte_order: Rgb30ByteOrder,
-    bit_depth: usize,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(
-        planar_image,
-        ar30,
-        ar30_stride,
-        byte_order,
-        range,
-        matrix,
-        bit_depth,
-    )
-}
-
-/// Convert YUV 444 planar format with 8+ bit pixel format to AR30 (RGBA2101010) format
-///
-/// This function takes YUV 444 planar data with 8+ bit precision.
-/// and converts it to AR30 image format
-///
-/// # Arguments
-///
-/// * `planar_image` - Source YUV 4:4:4 planar image.
-/// * `ar30` - A mutable slice to store the converted AR30 data.
-/// * `ar30_stride` - The stride (components per row) for AR30 data.
-/// * `byte_order` - see [Rgb30ByteOrder] for more info
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-/// * `bit_depth` - Bit depth of source YUV planes
-///
-/// # Error
-///
-/// This function panics if the lengths of the planes or the input RGBX1010102 data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv444_p16_to_ar30(
-    planar_image: &YuvPlanarImage<u16>,
-    ar30: &mut [u8],
-    ar30_stride: u32,
-    byte_order: Rgb30ByteOrder,
-    bit_depth: usize,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ar30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(
-        planar_image,
-        ar30,
-        ar30_stride,
-        byte_order,
-        range,
-        matrix,
-        bit_depth,
-    )
-}
-
-/// Convert YUV 420 planar format with 8+ bit pixel format to AR30 (RGBA1010102) format
-///
-/// This function takes YUV 420 planar data with 8+ bit precision.
-/// and converts it to RA30 image format
-///
-/// # Arguments
-///
-/// * `planar_image` - Source YUV planar image.
-/// * `ra30` - A mutable slice to store the converted RA30 data.
-/// * `ra30_stride` - The stride (components per row) for RA30 data.
-/// * `byte_order` - see [Rgb30ByteOrder] for more info
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-/// * `bit_depth` - Bit depth of source YUV planes
-///
-/// # Error
-///
-/// This function panics if the lengths of the planes or the input RGBA1010102 data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv420_p16_to_ra30(
-    planar_image: &YuvPlanarImage<u16>,
-    ra30: &mut [u8],
-    ra30_stride: u32,
-    byte_order: Rgb30ByteOrder,
-    bit_depth: usize,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv420 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(
-        planar_image,
-        ra30,
-        ra30_stride,
-        byte_order,
-        range,
-        matrix,
-        bit_depth,
-    )
-}
-
-/// Convert YUV 422 planar format with 8+ bit pixel format to AR30 (RGBA1010102) format
-///
-/// This function takes YUV 422 planar data with 8+ bit precision.
-/// and converts it to RA30 image format
-///
-/// # Arguments
-///
-/// * `planar_image` - Source YUV planar image.
-/// * `ra30` - A mutable slice to store the converted RA30 data.
-/// * `ra30_stride` - The stride (components per row) for RA30 data.
-/// * `byte_order` - see [Rgb30ByteOrder] for more info
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-/// * `bit_depth` - Bit depth of source YUV planes
-///
-/// # Error
-///
-/// This function panics if the lengths of the planes or the input RGBA1010102 data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv422_p16_to_ra30(
-    planar_image: &YuvPlanarImage<u16>,
-    ra30: &mut [u8],
-    ra30_stride: u32,
-    byte_order: Rgb30ByteOrder,
-    bit_depth: usize,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv422 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(
-        planar_image,
-        ra30,
-        ra30_stride,
-        byte_order,
-        range,
-        matrix,
-        bit_depth,
-    )
-}
-
-/// Convert YUV 444 planar format with 8+ bit pixel format to AR30 (RGBA1010102) format
-///
-/// This function takes YUV 444 planar data with 8+ bit precision.
-/// and converts it to RA30 image format
-///
-/// # Arguments
-///
-/// * `planar_image` - Source YUV planar image.
-/// * `ra30` - A mutable slice to store the converted RA30 data.
-/// * `ra30_stride` - The stride (components per row) for RA30 data.
-/// * `byte_order` - see [Rgb30ByteOrder] for more info
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-/// * `endianness` - The endianness of stored bytes
-/// * `bytes_packing` - position of significant bytes ( most significant or least significant ) if it in most significant it should be stated as per Apple *kCVPixelFormatType_422YpCbCr10BiPlanarFullRange/kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange*
-/// * `bit_depth` - Bit depth of source YUV planes
-///
-/// # Error
-///
-/// This function panics if the lengths of the planes or the input RGBA1010102 data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv444_p16_to_ra30(
-    planar_image: &YuvPlanarImage<u16>,
-    ra30: &mut [u8],
-    ra30_stride: u32,
-    byte_order: Rgb30ByteOrder,
-    bit_depth: usize,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let dispatcher = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv_p16_to_image_ar30_impl::<
-                    { Rgb30::Ra30 as usize },
-                    { YuvChromaSubsampling::Yuv444 as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-    };
-    dispatcher(
-        planar_image,
-        ra30,
-        ra30_stride,
-        byte_order,
-        range,
-        matrix,
-        bit_depth,
-    )
-}
-
 macro_rules! build_cnv {
-    ($method: ident, $worker: expr, $bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
+    ($method: ident, $ar_fmt: expr, $subsampling: expr,
+    $bit_depth: expr, $sampling_written: expr,
+    $px_written: expr, $px_written_small: expr) => {
         #[doc = concat!("
 Convert ",$sampling_written, " planar format with ", $bit_depth," bit pixel format to ", $px_written," format.
 
 This function takes ", $sampling_written, " planar data with ",$bit_depth," bit precision.
-and converts it to ", $px_written," format with 8+ bit-depth precision per channel
+and converts it to ", $px_written," format.
 
 # Arguments
 
@@ -862,29 +366,130 @@ and converts it to ", $px_written," format with 8+ bit-depth precision per chann
 This function panics if the lengths of the planes or the input ", $px_written," data are not valid based
 on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
         pub fn $method(
-           planar_image: &YuvPlanarImage<u16>,
-    dst: &mut [u8],
-    dst_stride: u32,
-    byte_order: Rgb30ByteOrder,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
+            planar_image: &YuvPlanarImage<u16>,
+            dst: &mut [u8],
+            dst_stride: u32,
+            byte_order: Rgb30ByteOrder,
+            range: YuvRange,
+            matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            $worker(planar_image, dst, dst_stride, byte_order, $bit_depth, range, matrix, YuvEndianness::LittleEndian, YuvBytesPacking::LeastSignificantBytes)
+            yuv_p16_to_image_ar30_impl::<
+                    { $ar_fmt as usize },
+                    { $subsampling as u8 },
+                    { YuvEndianness::LittleEndian as u8 },
+                    { YuvBytesPacking::LeastSignificantBytes as u8 },
+                >(planar_image, dst, dst_stride, byte_order, range, matrix, $bit_depth)
         }
     };
 }
 
-build_cnv!(i010_to_ar30, yuv420_p16_to_ar30, 10, "I010", "AR30", "ar30");
-build_cnv!(i012_to_ar30, yuv420_p16_to_ar30, 12, "I012", "AR30", "ar30");
-build_cnv!(i010_to_ra30, yuv420_p16_to_ra30, 10, "I010", "RA30", "ra30");
-build_cnv!(i012_to_ra30, yuv420_p16_to_ra30, 12, "I012", "RA30", "ra30");
+build_cnv!(
+    i010_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv420,
+    10,
+    "I010",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
+    i012_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv420,
+    12,
+    "I012",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
+    i010_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv420,
+    10,
+    "I010",
+    "RA30",
+    "ra30"
+);
+build_cnv!(
+    i012_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv420,
+    12,
+    "I012",
+    "RA30",
+    "ra30"
+);
 
-build_cnv!(i210_to_ar30, yuv422_p16_to_ar30, 10, "I210", "AR30", "ar30");
-build_cnv!(i212_to_ar30, yuv422_p16_to_ar30, 12, "I212", "AR30", "ar30");
-build_cnv!(i210_to_ra30, yuv422_p16_to_ra30, 10, "I210", "RA30", "ra30");
-build_cnv!(i212_to_ra30, yuv422_p16_to_ra30, 12, "I212", "RA30", "ra30");
+build_cnv!(
+    i210_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv422,
+    10,
+    "I210",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
+    i212_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv422,
+    12,
+    "I212",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
+    i210_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv422,
+    10,
+    "I210",
+    "RA30",
+    "ra30"
+);
+build_cnv!(
+    i212_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv422,
+    12,
+    "I212",
+    "RA30",
+    "ra30"
+);
 
-build_cnv!(i410_to_ar30, yuv444_p16_to_ar30, 10, "I410", "AR30", "ar30");
-build_cnv!(i412_to_ar30, yuv444_p16_to_ar30, 12, "I412", "AR30", "ar30");
-build_cnv!(i410_to_ra30, yuv444_p16_to_ra30, 10, "I410", "RA30", "ra30");
-build_cnv!(i412_to_ra30, yuv444_p16_to_ra30, 12, "I412", "RA30", "ra30");
+build_cnv!(
+    i410_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv444,
+    10,
+    "I410",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
+    i412_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv444,
+    12,
+    "I412",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
+    i410_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv444,
+    10,
+    "I410",
+    "RA30",
+    "ra30"
+);
+build_cnv!(
+    i412_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv444,
+    12,
+    "I412",
+    "RA30",
+    "ra30"
+);

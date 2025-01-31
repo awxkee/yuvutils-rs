@@ -101,12 +101,11 @@ mod ycgco_to_rgb_alpha;
 mod ycgcor_support;
 mod yuv_error;
 mod yuv_nv_p10_to_ar30;
-mod yuv_nv_p10_to_rgba;
+mod yuv_nv_p10_to_rgba16;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_p10_rgba;
 mod yuv_p16_ar30;
-mod yuv_p16_rgba;
 mod yuv_p16_rgba16_alpha;
 mod yuv_p16_rgba_alpha;
 #[cfg(feature = "nightly_f16")]
@@ -127,35 +126,15 @@ pub use yuv_support::{
     YuvRange, YuvStandardMatrix,
 };
 
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv12_p10_to_rgba;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv16_p10_to_rgba;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv21_p10_to_rgba;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_bgr;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_bgra;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgb;
-pub use yuv_nv_p10_to_rgba::yuv_nv61_p10_to_rgba;
+pub use yuv_nv_p10_to_rgba16::{
+    p010_to_bgr, p010_to_bgra, p010_to_rgb, p010_to_rgba, p210_to_bgr, p210_to_bgra, p210_to_rgb,
+    p210_to_rgba, p410_to_bgr, p410_to_bgra, p410_to_rgb, p410_to_rgba,
+};
 
-pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv12_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv16_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv16_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv21_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv21_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv24_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv24_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv42_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv42_to_rgba_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv61_to_rgb_p16;
-pub use yuv_nv_p16_to_rgb::yuv_nv61_to_rgba_p16;
+pub use yuv_nv_p16_to_rgb::{
+    p010_to_rgb10, p010_to_rgba10, p012_to_rgb12, p012_to_rgba12, p210_to_rgb10, p210_to_rgba10,
+    p212_to_rgb12, p212_to_rgba12, p410_to_rgb10, p410_to_rgba10, p412_to_rgb12, p412_to_rgba12,
+};
 
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgr;
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgra;
@@ -225,12 +204,16 @@ pub use rgba_to_yuv::rgba_to_yuv420;
 pub use rgba_to_yuv::rgba_to_yuv422;
 pub use rgba_to_yuv::rgba_to_yuv444;
 
-pub use rgb_to_yuv_p16::rgb_to_yuv420_p16;
-pub use rgb_to_yuv_p16::rgb_to_yuv422_p16;
-pub use rgb_to_yuv_p16::rgb_to_yuv444_p16;
-pub use rgb_to_yuv_p16::rgba_to_yuv420_p16;
-pub use rgb_to_yuv_p16::rgba_to_yuv422_p16;
-pub use rgb_to_yuv_p16::rgba_to_yuv444_p16;
+pub use rgb_to_yuv_p16::{
+    rgb10_to_i010, rgb10_to_i012, rgb10_to_i210, rgb10_to_i212, rgb10_to_i410, rgb10_to_i412,
+    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i012, rgba12_to_i212, rgba12_to_i412,
+};
+#[cfg(feature = "big_endian")]
+pub use rgb_to_yuv_p16::{
+    rgb10_to_i010_be, rgb10_to_i012_be, rgb10_to_i210_be, rgb10_to_i212_be, rgb10_to_i410_be,
+    rgb10_to_i412_be, rgba10_to_i010_be, rgba10_to_i210_be, rgba10_to_i410_be, rgba12_to_i012_be,
+    rgba12_to_i212_be, rgba12_to_i412_be,
+};
 
 pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_bgra;
 pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_rgba;
@@ -248,18 +231,18 @@ pub use y_to_rgb::yuv400_to_bgra;
 pub use y_to_rgb::yuv400_to_rgb;
 pub use y_to_rgb::yuv400_to_rgba;
 
-pub use yuv_p10_rgba::yuv420_p10_to_bgr;
-pub use yuv_p10_rgba::yuv420_p10_to_bgra;
-pub use yuv_p10_rgba::yuv420_p10_to_rgb;
-pub use yuv_p10_rgba::yuv420_p10_to_rgba;
-pub use yuv_p10_rgba::yuv422_p10_to_bgr;
-pub use yuv_p10_rgba::yuv422_p10_to_bgra;
-pub use yuv_p10_rgba::yuv422_p10_to_rgb;
-pub use yuv_p10_rgba::yuv422_p10_to_rgba;
-pub use yuv_p10_rgba::yuv444_p10_to_bgr;
-pub use yuv_p10_rgba::yuv444_p10_to_bgra;
-pub use yuv_p10_rgba::yuv444_p10_to_rgb;
-pub use yuv_p10_rgba::yuv444_p10_to_rgba;
+#[cfg(feature = "big_endian")]
+pub use yuv_p10_rgba::{
+    i010_be_to_bgr, i010_be_to_bgra, i010_be_to_rgb, i010_be_to_rgba, i012_be_to_bgr,
+    i012_be_to_bgra, i012_be_to_rgb, i012_be_to_rgba, i210_be_to_bgr, i210_be_to_bgra,
+    i210_be_to_rgb, i210_be_to_rgba, i212_be_to_bgr, i212_be_to_bgra, i212_be_to_rgb,
+    i212_be_to_rgba,
+};
+pub use yuv_p10_rgba::{
+    i010_to_bgr, i010_to_bgra, i010_to_rgb, i010_to_rgba, i012_to_bgr, i012_to_bgra, i012_to_rgb,
+    i012_to_rgba, i210_to_bgr, i210_to_bgra, i210_to_rgb, i210_to_rgba, i212_to_bgr, i212_to_bgra,
+    i212_to_rgb, i212_to_rgba,
+};
 
 pub use rgb_to_ycgco::bgr_to_ycgco420;
 pub use rgb_to_ycgco::bgr_to_ycgco422;
@@ -337,18 +320,10 @@ pub use to_identity::{
     bgr_to_gbr, bgra_to_gbr, rgb16_to_gbr16, rgb_to_gbr, rgba16_to_gbr16, rgba_to_gbr,
 };
 
-pub use rgb_to_nv_p16::rgb_to_yuv_nv12_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv16_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv21_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv24_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv42_p16;
-pub use rgb_to_nv_p16::rgb_to_yuv_nv61_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv12_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv16_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv21_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv24_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv42_p16;
-pub use rgb_to_nv_p16::rgba_to_yuv_nv61_p16;
+pub use rgb_to_nv_p16::{
+    rgb10_to_p010, rgb10_to_p210, rgb10_to_p410, rgb12_to_p012, rgb12_to_p212, rgb12_to_p412,
+    rgba10_to_p010, rgba10_to_p210, rgba10_to_p410, rgba12_to_p012, rgba12_to_p212, rgba12_to_p412,
+};
 
 pub use yuy2_to_rgb::uyvy422_to_bgr;
 pub use yuy2_to_rgb::uyvy422_to_bgra;
@@ -420,14 +395,40 @@ pub use images::{
     YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImage, YuvPlanarImageMut,
     YuvPlanarImageWithAlpha,
 };
-pub use y_p16_to_rgb16::*;
-pub use y_p16_with_alpha_to_rgb16::*;
+pub use y_p16_to_rgb16::{y010_to_rgb10, y010_to_rgba10, y012_to_rgb12, y012_to_rgba12};
+pub use y_p16_with_alpha_to_rgb16::{y010_alpha_to_rgba10, y012_alpha_to_rgba12};
 pub use y_with_alpha_to_rgb::*;
 pub use yuv_error::YuvError;
-pub use yuv_p16_rgba::*;
-pub use yuv_p16_rgba16_alpha::*;
-pub use yuv_p16_rgba_alpha::*;
-pub use yuv_p16_rgba_p16::*;
+
+pub use yuv_p16_rgba_alpha::{
+    i010_alpha_to_rgba, i012_alpha_to_rgba, i210_alpha_to_rgba, i212_alpha_to_rgba,
+    i410_alpha_to_rgba, i412_alpha_to_rgba,
+};
+#[cfg(feature = "big_endian")]
+pub use yuv_p16_rgba_alpha::{
+    i010_be_alpha_to_rgba, i012_be_alpha_to_rgba, i210_alpha_be_to_rgba, i212_be_alpha_to_rgba,
+    i410_be_alpha_to_rgba, i412_be_alpha_to_rgba,
+};
+
+pub use yuv_p16_rgba16_alpha::{
+    i010_alpha_to_rgba10, i012_alpha_to_rgba12, i210_alpha_to_rgba10, i212_alpha_to_rgba12,
+    i410_alpha_to_rgba10, i412_alpha_to_rgba12,
+};
+#[cfg(feature = "big_endian")]
+pub use yuv_p16_rgba16_alpha::{
+    i010_be_alpha_to_rgba10, i012_be_alpha_to_rgba12, i210_alpha_be_to_rgba10,
+    i212_be_alpha_to_rgba12, i410_be_alpha_to_rgba10, i412_be_alpha_to_rgba12,
+};
+#[cfg(feature = "big_endian")]
+pub use yuv_p16_rgba_p16::{
+    i010_be_to_rgb10, i010_be_to_rgba10, i012_be_to_rgb12, i012_be_to_rgba12, i210_be_to_rgb10,
+    i210_be_to_rgba10, i212_be_to_rgb12, i212_be_to_rgba12, i410_be_to_rgb10, i410_be_to_rgba10,
+    i412_be_to_rgb12, i412_be_to_rgba12,
+};
+pub use yuv_p16_rgba_p16::{
+    i010_to_rgb10, i010_to_rgba10, i012_to_rgb12, i012_to_rgba12, i210_to_rgb10, i210_to_rgba10,
+    i212_to_rgb12, i212_to_rgba12, i410_to_rgb10, i410_to_rgba10, i412_to_rgb12, i412_to_rgba12,
+};
 
 pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
@@ -452,22 +453,15 @@ pub use shuffle::{
     bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
     rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
 };
-pub use yuv_nv_p10_to_ar30::{
-    p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30, yuv_nv12_p10_to_ar30,
-    yuv_nv12_p10_to_ra30, yuv_nv16_p10_to_ar30, yuv_nv16_p10_to_ra30, yuv_nv21_p10_to_ar30,
-    yuv_nv21_p10_to_ra30, yuv_nv61_p10_to_ar30, yuv_nv61_p10_to_ra30,
-};
+pub use yuv_nv_p10_to_ar30::{p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30};
 pub use yuv_p16_ar30::{
     i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i210_to_ar30, i210_to_ra30,
     i212_to_ar30, i212_to_ra30, i410_to_ar30, i410_to_ra30, i412_to_ar30, i412_to_ra30,
-    yuv420_p16_to_ar30, yuv420_p16_to_ra30, yuv422_p16_to_ar30, yuv422_p16_to_ra30,
-    yuv444_p16_to_ar30, yuv444_p16_to_ra30,
 };
 
 #[cfg(feature = "nightly_f16")]
 pub use yuv_p16_rgba_f16::{
     i010_to_rgb_f16, i010_to_rgba_f16, i012_to_rgb_f16, i012_to_rgba_f16, i210_to_rgb_f16,
     i210_to_rgba_f16, i212_to_rgb_f16, i212_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16,
-    i412_to_rgb_f16, i412_to_rgba_f16, yuv420_p16_to_rgb_f16, yuv420_p16_to_rgba_f16,
-    yuv422_p16_to_rgb_f16, yuv422_p16_to_rgba_f16, yuv444_p16_to_rgb_f16, yuv444_p16_to_rgba_f16,
+    i412_to_rgb_f16, i412_to_rgba_f16,
 };

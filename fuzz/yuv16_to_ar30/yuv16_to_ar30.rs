@@ -31,8 +31,8 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    yuv420_p16_to_ar30, yuv422_p16_to_ar30, yuv444_p16_to_ar30, Rgb30ByteOrder, YuvBytesPacking,
-    YuvEndianness, YuvPlanarImage, YuvRange, YuvStandardMatrix,
+    i010_to_ar30, i210_to_ar30, i410_to_ar30, Rgb30ByteOrder, YuvPlanarImage, YuvRange,
+    YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
@@ -62,16 +62,13 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
-    yuv420_p16_to_ar30(
+    i010_to_ar30(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
         Rgb30ByteOrder::Host,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }
@@ -97,16 +94,13 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
-    yuv422_p16_to_ar30(
+    i210_to_ar30(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
         Rgb30ByteOrder::Host,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }
@@ -131,16 +125,13 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
     };
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
-    yuv444_p16_to_ar30(
+    i410_to_ar30(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
         Rgb30ByteOrder::Network,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }

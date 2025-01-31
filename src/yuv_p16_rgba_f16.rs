@@ -266,19 +266,22 @@ fn yuv_p16_to_image_p16_ant<
                 .zip(v_plane.iter())
                 .skip(cx / 2)
             {
-                let y_value0 =
-                    (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[0], msb_shift) as i32 - bias_y) * y_coef;
-                let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
-                let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
+                let y_value0 = (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[0], msb_shift) as i32
+                    - bias_y)
+                    * y_coef;
+                let cb_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
+                let cr_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
 
-                let r0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16 * default_scale;
-                let b0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16 * default_scale;
-                let g0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value)
-                        as f16
-                        * default_scale;
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16
+                    * default_scale;
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16
+                    * default_scale;
+                let g0 = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                ) as f16
+                    * default_scale;
 
                 let rgba0 = &mut rgba[0..channels];
 
@@ -289,17 +292,18 @@ fn yuv_p16_to_image_p16_ant<
                     rgba0[dst_chans.get_a_channel_offset()] = 1.;
                 }
 
-                let y_value1 =
-                    (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32 - bias_y) * y_coef;
+                let y_value1 = (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src[1], msb_shift) as i32
+                    - bias_y)
+                    * y_coef;
 
-                let r1 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value) as f16 * default_scale;
-                let b1 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value) as f16 * default_scale;
-                let g1 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value)
-                        as f16
-                        * default_scale;
+                let r1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value) as f16
+                    * default_scale;
+                let b1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value) as f16
+                    * default_scale;
+                let g1 = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                ) as f16
+                    * default_scale;
 
                 let rgba1 = &mut rgba[channels..channels * 2];
 
@@ -312,27 +316,28 @@ fn yuv_p16_to_image_p16_ant<
             }
 
             if image.width & 1 != 0 {
-                let y_value0 = (to_ne::<ENDIANNESS, BYTES_POSITION>(*y_plane.last().unwrap(), msb_shift)
-                    as i32
-                    - bias_y)
-                    * y_coef;
-                let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*u_plane.last().unwrap(), msb_shift)
-                    as i32
-                    - bias_uv;
-                let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*v_plane.last().unwrap(), msb_shift)
-                    as i32
-                    - bias_uv;
+                let y_value0 =
+                    (to_ne::<ENDIANNESS, BYTES_POSITION>(*y_plane.last().unwrap(), msb_shift)
+                        as i32
+                        - bias_y)
+                        * y_coef;
+                let cb_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(*u_plane.last().unwrap(), msb_shift) as i32
+                        - bias_uv;
+                let cr_value =
+                    to_ne::<ENDIANNESS, BYTES_POSITION>(*v_plane.last().unwrap(), msb_shift) as i32
+                        - bias_uv;
                 let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
                 let rgba0 = &mut rgba[0..channels];
 
-                let r0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16 * default_scale;
-                let b0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16 * default_scale;
-                let g0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value)
-                        as f16
-                        * default_scale;
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value) as f16
+                    * default_scale;
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value) as f16
+                    * default_scale;
+                let g0 = qrshr::<PRECISION, BIT_DEPTH>(
+                    y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                ) as f16
+                    * default_scale;
                 rgba0[dst_chans.get_r_channel_offset()] = r0;
                 rgba0[dst_chans.get_g_channel_offset()] = g0;
                 rgba0[dst_chans.get_b_channel_offset()] = b0;
@@ -500,177 +505,13 @@ fn yuv_p16_to_image_p16_ant<
     Ok(())
 }
 
-pub(crate) fn yuv_p16_to_image_p16_impl<
-    const DESTINATION_CHANNELS: u8,
-    const SAMPLING: u8,
-    const ENDIANNESS: u8,
-    const BYTES_POSITION: u8,
->(
-    planar_image: &YuvPlanarImage<u16>,
-    rgba16: &mut [f16],
-    rgba_stride: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    bit_depth: usize,
-) -> Result<(), YuvError> {
-    if bit_depth == 10 {
-        yuv_p16_to_image_p16_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 10>(
-            planar_image,
-            rgba16,
-            rgba_stride,
-            range,
-            matrix,
-        )
-    } else if bit_depth == 12 {
-        yuv_p16_to_image_p16_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 12>(
-            planar_image,
-            rgba16,
-            rgba_stride,
-            range,
-            matrix,
-        )
-    } else {
-        let px_format: YuvSourceChannels = DESTINATION_CHANNELS.into();
-        unimplemented!(
-            "Only 10 and 12 bit is implemented on YUV16 -> {}",
-            px_format
-        );
-    }
-}
-
-macro_rules! d_cnv {
-    ($method: ident, $px_fmt: expr, $sampling: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
-        #[doc = concat!("
-Convert ",$sampling_written, " planar format with 8+ bit pixel format to ", $px_written," float16 format.
-
-This function takes ", $sampling_written, " planar data with 8+ bit precision.
-and converts it to ", $px_written," format with 8+ bit-depth precision per channel
-
-# Arguments
-
-* `planar_image` - Source ",$sampling_written," planar image.
-* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," float16 format.
-* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," float16 format.
-* `range` - The YUV range (limited or full).
-* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-* `endianness` - The endianness of stored bytes
-* `bytes_packing` - see [YuvBytesPacking] for more info.
-* `bit_depth` - Bit depth of source YUV planes, only 10 and 12 is supported.
-
-# Panics
-
-This function panics if the lengths of the planes or the input ", $px_written," data are not valid based
-on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
-        pub fn $method(
-            planar_image: &YuvPlanarImage<u16>,
-            dst: &mut [f16],
-            dst_stride: u32,
-            bit_depth: usize,
-            range: YuvRange,
-            matrix: YuvStandardMatrix,
-            endianness: YuvEndianness,
-            bytes_packing: YuvBytesPacking,
-        ) -> Result<(), YuvError> {
-            let dispatcher = match endianness {
-                #[cfg(feature = "big_endian")]
-                YuvEndianness::BigEndian => match bytes_packing {
-                    YuvBytesPacking::MostSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
-                            { $sampling as u8 },
-                            { YuvEndianness::BigEndian as u8 },
-                            { YuvBytesPacking::MostSignificantBytes as u8 },
-                        >
-                    }
-                    YuvBytesPacking::LeastSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
-                            { $sampling as u8 },
-                            { YuvEndianness::BigEndian as u8 },
-                            { YuvBytesPacking::LeastSignificantBytes as u8 },
-                        >
-                    }
-                },
-                YuvEndianness::LittleEndian => match bytes_packing {
-                    YuvBytesPacking::MostSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
-                            { $sampling as u8 },
-                            { YuvEndianness::LittleEndian as u8 },
-                            { YuvBytesPacking::MostSignificantBytes as u8 },
-                        >
-                    }
-                    YuvBytesPacking::LeastSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
-                            { $sampling as u8 },
-                            { YuvEndianness::LittleEndian as u8 },
-                            { YuvBytesPacking::LeastSignificantBytes as u8 },
-                        >
-                    }
-                },
-            };
-            dispatcher(planar_image, dst, dst_stride, range, matrix, bit_depth)
-        }
-    };
-}
-
-d_cnv!(
-    yuv420_p16_to_rgba_f16,
-    YuvSourceChannels::Rgba,
-    YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "RGBA",
-    "rgba"
-);
-d_cnv!(
-    yuv420_p16_to_rgb_f16,
-    YuvSourceChannels::Rgb,
-    YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "RGB",
-    "rgb"
-);
-d_cnv!(
-    yuv422_p16_to_rgba_f16,
-    YuvSourceChannels::Rgba,
-    YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "RGBA",
-    "rgba"
-);
-d_cnv!(
-    yuv422_p16_to_rgb_f16,
-    YuvSourceChannels::Rgb,
-    YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "RGB",
-    "rgb"
-);
-d_cnv!(
-    yuv444_p16_to_rgba_f16,
-    YuvSourceChannels::Rgba,
-    YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "RGBA",
-    "rgba"
-);
-d_cnv!(
-    yuv444_p16_to_rgb_f16,
-    YuvSourceChannels::Rgb,
-    YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "RGB",
-    "rgb"
-);
-
 macro_rules! build_cnv {
-    ($method: ident, $worker: expr, $bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
+    ($method: ident, $px_fmt: expr, $sampling: expr, $bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
         #[doc = concat!("
 Convert ",$sampling_written, " planar format with ", $bit_depth," bit pixel format to ", $px_written," float16 format.
 
 This function takes ", $sampling_written, " planar data with ",$bit_depth," bit precision.
-and converts it to ", $px_written," format with 8+ bit-depth precision per channel
+and converts it to ", $px_written," format with float16 image.
 
 # Arguments
 
@@ -691,14 +532,20 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             range: YuvRange,
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            $worker(planar_image, dst, dst_stride, $bit_depth, range, matrix, YuvEndianness::LittleEndian, YuvBytesPacking::LeastSignificantBytes)
+            yuv_p16_to_image_p16_ant::<
+                            { $px_fmt as u8 },
+                            { $sampling as u8 },
+                            { YuvEndianness::LittleEndian as u8 },
+                            { YuvBytesPacking::LeastSignificantBytes as u8 },
+            $bit_depth>(planar_image, dst, dst_stride, range, matrix)
         }
     };
 }
 
 build_cnv!(
     i010_to_rgba_f16,
-    yuv420_p16_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
     10,
     "I010",
     "RGBA",
@@ -707,7 +554,8 @@ build_cnv!(
 
 build_cnv!(
     i010_to_rgb_f16,
-    yuv420_p16_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
     10,
     "YUV 420",
     "RGB",
@@ -716,7 +564,8 @@ build_cnv!(
 
 build_cnv!(
     i012_to_rgba_f16,
-    yuv420_p16_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
     12,
     "I010",
     "RGBA",
@@ -725,7 +574,8 @@ build_cnv!(
 
 build_cnv!(
     i012_to_rgb_f16,
-    yuv420_p16_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
     12,
     "YUV 420",
     "RGB",
@@ -734,7 +584,8 @@ build_cnv!(
 
 build_cnv!(
     i210_to_rgba_f16,
-    yuv422_p16_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
     10,
     "I210",
     "RGBA",
@@ -743,7 +594,8 @@ build_cnv!(
 
 build_cnv!(
     i210_to_rgb_f16,
-    yuv422_p16_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
     10,
     "I210",
     "RGB",
@@ -752,7 +604,8 @@ build_cnv!(
 
 build_cnv!(
     i212_to_rgba_f16,
-    yuv422_p16_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
     12,
     "I212",
     "RGBA",
@@ -761,7 +614,8 @@ build_cnv!(
 
 build_cnv!(
     i212_to_rgb_f16,
-    yuv422_p16_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
     12,
     "I210",
     "RGB",
@@ -770,7 +624,8 @@ build_cnv!(
 
 build_cnv!(
     i410_to_rgba_f16,
-    yuv444_p16_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
     10,
     "I410",
     "RGBA",
@@ -779,7 +634,8 @@ build_cnv!(
 
 build_cnv!(
     i410_to_rgb_f16,
-    yuv444_p16_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
     10,
     "I410",
     "RGB",
@@ -788,7 +644,8 @@ build_cnv!(
 
 build_cnv!(
     i412_to_rgba_f16,
-    yuv444_p16_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
     12,
     "I410",
     "RGBA",
@@ -797,7 +654,8 @@ build_cnv!(
 
 build_cnv!(
     i412_to_rgb_f16,
-    yuv444_p16_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
     12,
     "I410",
     "RGB",
