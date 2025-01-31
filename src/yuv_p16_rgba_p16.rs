@@ -642,7 +642,7 @@ d_cnv!(
     i210_be_to_rgba10,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
-    YuvEndianness::LittleEndian,
+    YuvEndianness::BigEndian,
     "YUV 422P10 BE",
     "RGBA",
     "rgba",
@@ -705,7 +705,7 @@ d_cnv!(
     i410_be_to_rgb10,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
-    YuvEndianness::LittleEndian,
+    YuvEndianness::BigEndian,
     "YUV 444P10 BE",
     "RGB",
     "rgb",
@@ -769,7 +769,7 @@ d_cnv!(
     i212_be_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
-    YuvEndianness::LittleEndian,
+    YuvEndianness::BigEndian,
     "YUV 422P12 BE",
     "RGBA",
     "rgba",
@@ -832,7 +832,7 @@ d_cnv!(
     i412_be_to_rgb12,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
-    YuvEndianness::LittleEndian,
+    YuvEndianness::BigEndian,
     "YUV 444P12 BE",
     "RGB",
     "rgb",
@@ -842,7 +842,7 @@ d_cnv!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{rgb_to_yuv420_p16, rgb_to_yuv422_p16, rgb_to_yuv444_p16, YuvPlanarImageMut};
+    use crate::{rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, YuvPlanarImageMut};
     use rand::Rng;
 
     #[test]
@@ -887,15 +887,12 @@ mod tests {
             YuvChromaSubsampling::Yuv444,
         );
 
-        rgb_to_yuv444_p16(
+        rgb10_to_i410(
             &mut planar_image,
             &image_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 
@@ -986,15 +983,12 @@ mod tests {
             YuvChromaSubsampling::Yuv444,
         );
 
-        rgb_to_yuv444_p16(
+        rgb10_to_i410(
             &mut planar_image,
             &image_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Limited,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 
@@ -1100,15 +1094,12 @@ mod tests {
             YuvChromaSubsampling::Yuv422,
         );
 
-        rgb_to_yuv422_p16(
+        rgb10_to_i210(
             &mut planar_image,
             &source_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Limited,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 
@@ -1247,15 +1238,12 @@ mod tests {
             YuvChromaSubsampling::Yuv420,
         );
 
-        rgb_to_yuv420_p16(
+        rgb10_to_i010(
             &mut planar_image,
             &source_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Limited,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 
