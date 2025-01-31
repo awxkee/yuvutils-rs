@@ -395,8 +395,8 @@ pub use images::{
     YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImage, YuvPlanarImageMut,
     YuvPlanarImageWithAlpha,
 };
-pub use y_p16_to_rgb16::*;
-pub use y_p16_with_alpha_to_rgb16::*;
+pub use y_p16_to_rgb16::{y010_to_rgb10, y010_to_rgba10, y012_to_rgb12, y012_to_rgba12};
+pub use y_p16_with_alpha_to_rgb16::{y010_alpha_to_rgba10, y012_alpha_to_rgba12};
 pub use y_with_alpha_to_rgb::*;
 pub use yuv_error::YuvError;
 

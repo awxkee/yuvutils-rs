@@ -58,7 +58,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
         channels,
     )?;
 
-    const PRECISION: i32 = 6;
+    const PRECISION: i32 = 13;
     let range = get_yuv_range(bit_depth, range);
     let max_colors = (1 << bit_depth) - 1;
     let kr_kb = matrix.get_kr_kb();
@@ -128,7 +128,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
             rgb[dst_chans.get_b_channel_offset()] = b0 as u16;
 
             if dst_chans.has_alpha() {
-                rgb[dst_chans.get_a_channel_offset()] = 255;
+                rgb[dst_chans.get_a_channel_offset()] = max_colors as u16;
             }
 
             let r1 = qrshr_n::<PRECISION>(s_y + cr_coef * cr, max_colors);
@@ -142,7 +142,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
             rgb[dst_chans.get_b_channel_offset()] = b1 as u16;
 
             if dst_chans.has_alpha() {
-                rgb[dst_chans.get_a_channel_offset()] = 255;
+                rgb[dst_chans.get_a_channel_offset()] = max_colors as u16;
             }
         }
 
@@ -167,7 +167,7 @@ fn yuy2_to_rgb_impl_p16<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize
             rgb[dst_chans.get_b_channel_offset()] = b0 as u16;
 
             if dst_chans.has_alpha() {
-                rgb[dst_chans.get_a_channel_offset()] = 255;
+                rgb[dst_chans.get_a_channel_offset()] = max_colors as u16;
             }
         }
     });

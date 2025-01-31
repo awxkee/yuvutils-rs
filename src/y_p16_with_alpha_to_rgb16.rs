@@ -132,75 +132,52 @@ fn yuv400_p16_with_alpha_to_rgbx<
     Ok(())
 }
 
-/// Convert YUV 400 planar format with alpha plane to RGBA 8+- bit format.
-///
-/// This function takes YUV 400 planar format data with 8+- bit precision,
-/// and converts it to RGBA format with 8+-bit per channel precision.
-///
-/// # Arguments
-///
-/// * `gray_alpha_image` - Source gray image with alpha.
-/// * `rgba` - A mutable slice to store the converted RGBA data.
-/// * `rgba_stride` - Elements per row.
-/// * `range` - The YUV range (limited or full).
-/// * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA16 data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn yuv400_p16_with_alpha_to_rgba16(
-    gray_alpha_image: &YuvGrayAlphaImage<u16>,
-    rgba: &mut [u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    endianness: YuvEndianness,
-    bytes_packing: YuvBytesPacking,
-) -> Result<(), YuvError> {
-    let callee = match endianness {
-        #[cfg(feature = "big_endian")]
-        YuvEndianness::BigEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv400_p16_with_alpha_to_rgbx::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv400_p16_with_alpha_to_rgbx::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvEndianness::BigEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
-        YuvEndianness::LittleEndian => match bytes_packing {
-            YuvBytesPacking::MostSignificantBytes => {
-                yuv400_p16_with_alpha_to_rgbx::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::MostSignificantBytes as u8 },
-                >
-            }
-            YuvBytesPacking::LeastSignificantBytes => {
-                yuv400_p16_with_alpha_to_rgbx::<
-                    { YuvSourceChannels::Rgba as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >
-            }
-        },
+macro_rules! d_cnv {
+    ($method: ident, $px_fmt: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr) => {
+        #[doc = concat!("Convert ", $yuv_name," format to ", $rgb_name, " ", stringify!($bit_depth),"-bit format.
+
+This function takes ", $yuv_name," format data with ", $rgb_name, " ", stringify!($bit_depth),"-bit precision,
+and converts it to ", $rgb_name, " ", stringify!($bit_depth),"-bit per channel precision.
+
+# Arguments
+
+* `gray_image` - Source ", $yuv_name, " gray image.
+* `rgb_data` - A mutable slice to store the converted ", $rgb_name, stringify!($bit_depth)," data.
+* `rgb_stride` - Elements per row.
+* `range` - The YUV range (limited or full).
+* `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
+
+# Panics
+
+This function panics if the lengths of the planes or the input RGB data are not valid based
+on the specified width, height, and strides, or if invalid YUV range or matrix is provided.")]
+        pub fn $method(
+            gray_image: &YuvGrayAlphaImage<u16>,
+            dst: &mut [u16],
+            dst_stride: u32,
+            range: YuvRange,
+            matrix: YuvStandardMatrix,
+        ) -> Result<(), YuvError> {
+            yuv400_p16_with_alpha_to_rgbx::<
+                { $px_fmt as u8 },
+                { YuvEndianness::LittleEndian as u8 },
+                { YuvBytesPacking::LeastSignificantBytes as u8 },
+            >(gray_image, dst, dst_stride, $bit_depth, range, matrix)
+        }
     };
-    callee(
-        gray_alpha_image,
-        rgba,
-        rgba_stride,
-        bit_depth,
-        range,
-        matrix,
-    )
 }
+
+d_cnv!(
+    y010_alpha_to_rgba10,
+    YuvSourceChannels::Rgba,
+    "Y010A",
+    "RGBA",
+    10
+);
+d_cnv!(
+    y012_alpha_to_rgba12,
+    YuvSourceChannels::Rgba,
+    "Y012A",
+    "RGBA",
+    12
+);
