@@ -313,11 +313,12 @@ pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
 pub use from_identity::{
-    gbr_to_bgr, gbr_to_bgra, gbr_to_rgb, gbr_to_rgb_p16, gbr_to_rgba, gbr_to_rgba_p16,
+    gb10_to_rgb10, gb12_to_rgb12, gb12_to_rgba12, gbr_to_bgr, gbr_to_bgra, gbr_to_rgb, gbr_to_rgba,
 };
 
 pub use to_identity::{
-    bgr_to_gbr, bgra_to_gbr, rgb16_to_gbr16, rgb_to_gbr, rgba16_to_gbr16, rgba_to_gbr,
+    bgr_to_gbr, bgra_to_gbr, rgb10_to_gb10, rgb12_to_gb12, rgb_to_gbr, rgba10_to_gb10,
+    rgba10_to_gb12, rgba_to_gbr,
 };
 
 pub use rgb_to_nv_p16::{
