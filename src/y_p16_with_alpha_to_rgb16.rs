@@ -132,9 +132,9 @@ fn yuv400_p16_with_alpha_to_rgbx<
     Ok(())
 }
 
-/// Convert YUV 400 planar format with alpha plane to RGBA 8+-bit format.
+/// Convert YUV 400 planar format with alpha plane to RGBA 8+- bit format.
 ///
-/// This function takes YUV 400 planar format data with 8+-bit precision,
+/// This function takes YUV 400 planar format data with 8+- bit precision,
 /// and converts it to RGBA format with 8+-bit per channel precision.
 ///
 /// # Arguments
@@ -147,7 +147,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
 ///
 /// # Panics
 ///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
+/// This function panics if the lengths of the planes or the input RGBA16 data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
 pub fn yuv400_p16_with_alpha_to_rgba16(

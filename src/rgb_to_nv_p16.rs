@@ -456,7 +456,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
 }
 
 d_cnv!(
-    rgba16_to_p010,
+    rgba10_to_p010,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     "P010",
@@ -464,7 +464,7 @@ d_cnv!(
     10
 );
 d_cnv!(
-    rgb16_to_p010,
+    rgb10_to_p010,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "P010",
@@ -472,7 +472,7 @@ d_cnv!(
     10
 );
 d_cnv!(
-    rgba16_to_p210,
+    rgba10_to_p210,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     "P210",
@@ -480,7 +480,7 @@ d_cnv!(
     10
 );
 d_cnv!(
-    rgb16_to_p210,
+    rgb10_to_p210,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "P210",
@@ -488,7 +488,7 @@ d_cnv!(
     10
 );
 d_cnv!(
-    rgba16_to_p410,
+    rgba10_to_p410,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     "P410",
@@ -496,7 +496,7 @@ d_cnv!(
     10
 );
 d_cnv!(
-    rgb16_to_p410,
+    rgb10_to_p410,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "P410",
@@ -505,7 +505,7 @@ d_cnv!(
 );
 
 d_cnv!(
-    rgba16_to_p012,
+    rgba12_to_p012,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     "P012",
@@ -513,7 +513,7 @@ d_cnv!(
     12
 );
 d_cnv!(
-    rgb16_to_p012,
+    rgb12_to_p012,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "P012",
@@ -521,7 +521,7 @@ d_cnv!(
     12
 );
 d_cnv!(
-    rgba16_to_p212,
+    rgba12_to_p212,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     "P212",
@@ -529,7 +529,7 @@ d_cnv!(
     12
 );
 d_cnv!(
-    rgb16_to_p212,
+    rgb12_to_p212,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "P212",
@@ -537,7 +537,7 @@ d_cnv!(
     12
 );
 d_cnv!(
-    rgba16_to_p412,
+    rgba12_to_p412,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     "P412",
@@ -545,7 +545,7 @@ d_cnv!(
     12
 );
 d_cnv!(
-    rgb16_to_p412,
+    rgb12_to_p412,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "P412",

@@ -31,8 +31,8 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    i010_alpha_to_rgba16, i010_to_rgb16, i010_to_rgba16, i210_alpha_to_rgba16, i210_to_rgb16,
-    i210_to_rgba16, i410_alpha_to_rgba16, i410_to_rgb16, i410_to_rgba16, YuvPlanarImage,
+    i010_alpha_to_rgba10, i010_to_rgb10, i010_to_rgba10, i210_alpha_to_rgba10, i210_to_rgb10,
+    i210_to_rgba10, i410_alpha_to_rgba10, i410_to_rgb10, i410_to_rgba10, YuvPlanarImage,
     YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
@@ -64,7 +64,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    i010_to_rgb16(
+    i010_to_rgb10(
         &planar_image,
         &mut target_rgb,
         i_width as u32 * 3,
@@ -75,7 +75,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    i010_to_rgba16(
+    i010_to_rgba10(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
@@ -97,7 +97,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
         height: i_height as u32,
     };
 
-    i010_alpha_to_rgba16(
+    i010_alpha_to_rgba10(
         &planar_image_alpha,
         &mut target_rgba,
         i_width as u32 * 4,
@@ -129,7 +129,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    i210_to_rgb16(
+    i210_to_rgb10(
         &planar_image,
         &mut target_rgb,
         i_width as u32 * 3,
@@ -140,7 +140,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    i210_to_rgba16(
+    i210_to_rgba10(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
@@ -162,7 +162,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
         height: i_height as u32,
     };
 
-    i210_alpha_to_rgba16(
+    i210_alpha_to_rgba10(
         &planar_image_alpha,
         &mut target_rgba,
         i_width as u32 * 4,
@@ -194,7 +194,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    i410_to_rgb16(
+    i410_to_rgb10(
         &planar_image,
         &mut target_rgb,
         i_width as u32 * 3,
@@ -205,7 +205,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
 
     let mut target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    i410_to_rgba16(
+    i410_to_rgba10(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
@@ -227,7 +227,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: 
         height: i_height as u32,
     };
 
-    i410_alpha_to_rgba16(
+    i410_alpha_to_rgba10(
         &planar_image_alpha,
         &mut target_rgba,
         i_width as u32 * 4,

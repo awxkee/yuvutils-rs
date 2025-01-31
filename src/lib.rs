@@ -132,8 +132,8 @@ pub use yuv_nv_p10_to_rgba16::{
 };
 
 pub use yuv_nv_p16_to_rgb::{
-    p010_to_rgb16, p010_to_rgba16, p012_to_rgb16, p012_to_rgba16, p210_to_rgb16, p210_to_rgba16,
-    p212_to_rgb16, p212_to_rgba16, p410_to_rgb16, p410_to_rgba16, p412_to_rgb16, p412_to_rgba16,
+    p010_to_rgb10, p010_to_rgba10, p012_to_rgb12, p012_to_rgba12, p210_to_rgb10, p210_to_rgba10,
+    p212_to_rgb12, p212_to_rgba12, p410_to_rgb10, p410_to_rgba10, p412_to_rgb12, p412_to_rgba12,
 };
 
 pub use yuv_nv_to_rgba::yuv_nv12_to_bgr;
@@ -204,12 +204,16 @@ pub use rgba_to_yuv::rgba_to_yuv420;
 pub use rgba_to_yuv::rgba_to_yuv422;
 pub use rgba_to_yuv::rgba_to_yuv444;
 
-pub use rgb_to_yuv_p16::rgb_to_yuv420_p16;
-pub use rgb_to_yuv_p16::rgb_to_yuv422_p16;
-pub use rgb_to_yuv_p16::rgb_to_yuv444_p16;
-pub use rgb_to_yuv_p16::rgba_to_yuv420_p16;
-pub use rgb_to_yuv_p16::rgba_to_yuv422_p16;
-pub use rgb_to_yuv_p16::rgba_to_yuv444_p16;
+pub use rgb_to_yuv_p16::{
+    rgb10_to_i010, rgb10_to_i012, rgb10_to_i210, rgb10_to_i212, rgb10_to_i410, rgb10_to_i412,
+    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i012, rgba12_to_i212, rgba12_to_i412,
+};
+#[cfg(feature = "big_endian")]
+pub use rgb_to_yuv_p16::{
+    rgb10_to_i010_be, rgb10_to_i012_be, rgb10_to_i210_be, rgb10_to_i212_be, rgb10_to_i410_be,
+    rgb10_to_i412_be, rgba10_to_i010_be, rgba10_to_i210_be, rgba10_to_i410_be, rgba12_to_i012_be,
+    rgba12_to_i212_be, rgba12_to_i412_be,
+};
 
 pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_bgra;
 pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_rgba;
@@ -317,8 +321,8 @@ pub use to_identity::{
 };
 
 pub use rgb_to_nv_p16::{
-    rgb16_to_p010, rgb16_to_p012, rgb16_to_p210, rgb16_to_p212, rgb16_to_p410, rgb16_to_p412,
-    rgba16_to_p010, rgba16_to_p012, rgba16_to_p210, rgba16_to_p212, rgba16_to_p410, rgba16_to_p412,
+    rgb10_to_p010, rgb10_to_p210, rgb10_to_p410, rgb12_to_p012, rgb12_to_p212, rgb12_to_p412,
+    rgba10_to_p010, rgba10_to_p210, rgba10_to_p410, rgba12_to_p012, rgba12_to_p212, rgba12_to_p412,
 };
 
 pub use yuy2_to_rgb::uyvy422_to_bgr;
@@ -407,23 +411,23 @@ pub use yuv_p16_rgba_alpha::{
 };
 
 pub use yuv_p16_rgba16_alpha::{
-    i010_alpha_to_rgba16, i012_alpha_to_rgba16, i210_alpha_to_rgba16, i212_alpha_to_rgba16,
-    i410_alpha_to_rgba16, i412_alpha_to_rgba16,
+    i010_alpha_to_rgba10, i012_alpha_to_rgba12, i210_alpha_to_rgba10, i212_alpha_to_rgba12,
+    i410_alpha_to_rgba10, i412_alpha_to_rgba12,
 };
 #[cfg(feature = "big_endian")]
 pub use yuv_p16_rgba16_alpha::{
-    i010_be_alpha_to_rgba16, i012_be_alpha_to_rgba16, i210_alpha_be_to_rgba16,
-    i212_be_alpha_to_rgba16, i410_be_alpha_to_rgba16, i412_be_alpha_to_rgba16,
+    i010_be_alpha_to_rgba10, i012_be_alpha_to_rgba12, i210_alpha_be_to_rgba10,
+    i212_be_alpha_to_rgba12, i410_be_alpha_to_rgba10, i412_be_alpha_to_rgba12,
 };
 #[cfg(feature = "big_endian")]
 pub use yuv_p16_rgba_p16::{
-    i010_be_to_rgb16, i010_be_to_rgba16, i012_be_to_rgb16, i012_be_to_rgba16, i210_be_to_rgb16,
-    i210_be_to_rgba16, i212_be_to_rgb16, i212_be_to_rgba16, i410_be_to_rgb16, i410_be_to_rgba16,
-    i412_be_to_rgb16, i412_be_to_rgba16,
+    i010_be_to_rgb10, i010_be_to_rgba10, i012_be_to_rgb12, i012_be_to_rgba12, i210_be_to_rgb10,
+    i210_be_to_rgba10, i212_be_to_rgb12, i212_be_to_rgba12, i410_be_to_rgb10, i410_be_to_rgba10,
+    i412_be_to_rgb12, i412_be_to_rgba12,
 };
 pub use yuv_p16_rgba_p16::{
-    i010_to_rgb16, i010_to_rgba16, i012_to_rgb16, i012_to_rgba16, i210_to_rgb16, i210_to_rgba16,
-    i212_to_rgb16, i212_to_rgba16, i410_to_rgb16, i410_to_rgba16, i412_to_rgb16, i412_to_rgba16,
+    i010_to_rgb10, i010_to_rgba10, i012_to_rgb12, i012_to_rgba12, i210_to_rgb10, i210_to_rgba10,
+    i212_to_rgb12, i212_to_rgba12, i410_to_rgb10, i410_to_rgba10, i412_to_rgb12, i412_to_rgba12,
 };
 
 pub use ar30_rgb::{
@@ -459,6 +463,5 @@ pub use yuv_p16_ar30::{
 pub use yuv_p16_rgba_f16::{
     i010_to_rgb_f16, i010_to_rgba_f16, i012_to_rgb_f16, i012_to_rgba_f16, i210_to_rgb_f16,
     i210_to_rgba_f16, i212_to_rgb_f16, i212_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16,
-    i412_to_rgb_f16, i412_to_rgba_f16, yuv420_p16_to_rgb_f16, yuv420_p16_to_rgba_f16,
-    yuv422_p16_to_rgb_f16, yuv422_p16_to_rgba_f16, yuv444_p16_to_rgb_f16, yuv444_p16_to_rgba_f16,
+    i412_to_rgb_f16, i412_to_rgba_f16,
 };

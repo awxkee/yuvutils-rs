@@ -31,7 +31,7 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    rgb16_to_p010, rgb16_to_p210, rgb16_to_p410, rgba16_to_p010, rgba16_to_p210, rgba16_to_p410,
+    rgb10_to_p010, rgb10_to_p210, rgb10_to_p410, rgba10_to_p010, rgba10_to_p210, rgba10_to_p410,
     BufferStoreMut, YuvBiPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
@@ -60,7 +60,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    rgb16_to_p010(
+    rgb10_to_p010(
         &mut bi_planar_image,
         &target_rgb,
         i_width as u32 * 3,
@@ -71,7 +71,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    rgba16_to_p010(
+    rgba10_to_p010(
         &mut bi_planar_image,
         &target_rgba,
         i_width as u32 * 4,
@@ -99,7 +99,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    rgb16_to_p210(
+    rgb10_to_p210(
         &mut planar_image,
         &target_rgb,
         i_width as u32 * 3,
@@ -110,7 +110,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    rgba16_to_p210(
+    rgba10_to_p210(
         &mut planar_image,
         &target_rgba,
         i_width as u32 * 4,
@@ -138,7 +138,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    rgb16_to_p410(
+    rgb10_to_p410(
         &mut planar_image,
         &target_rgb,
         i_width as u32 * 3,
@@ -149,7 +149,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8) {
 
     let target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    rgba16_to_p410(
+    rgba10_to_p410(
         &mut planar_image,
         &target_rgba,
         i_width as u32 * 4,

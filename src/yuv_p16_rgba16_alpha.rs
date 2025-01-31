@@ -485,7 +485,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
 }
 
 d_cnv!(
-    i010_alpha_to_rgba16,
+    i010_alpha_to_rgba10,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
@@ -496,7 +496,7 @@ d_cnv!(
 );
 #[cfg(feature = "big_endian")]
 d_cnv!(
-    i010_be_alpha_to_rgba16,
+    i010_be_alpha_to_rgba10,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
@@ -507,7 +507,7 @@ d_cnv!(
 );
 
 d_cnv!(
-    i210_alpha_to_rgba16,
+    i210_alpha_to_rgba10,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
@@ -518,7 +518,7 @@ d_cnv!(
 );
 #[cfg(feature = "big_endian")]
 d_cnv!(
-    i210_alpha_be_to_rgba16,
+    i210_alpha_be_to_rgba10,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
@@ -528,7 +528,7 @@ d_cnv!(
     10
 );
 d_cnv!(
-    i410_alpha_to_rgba16,
+    i410_alpha_to_rgba10,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
@@ -539,7 +539,7 @@ d_cnv!(
 );
 #[cfg(feature = "big_endian")]
 d_cnv!(
-    i410_be_alpha_to_rgba16,
+    i410_be_alpha_to_rgba10,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
@@ -550,7 +550,7 @@ d_cnv!(
 );
 
 d_cnv!(
-    i012_alpha_to_rgba16,
+    i012_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
@@ -561,7 +561,7 @@ d_cnv!(
 );
 #[cfg(feature = "big_endian")]
 d_cnv!(
-    i012_be_alpha_to_rgba16,
+    i012_be_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
@@ -571,7 +571,7 @@ d_cnv!(
     12
 );
 d_cnv!(
-    i212_alpha_to_rgba16,
+    i212_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
@@ -582,7 +582,7 @@ d_cnv!(
 );
 #[cfg(feature = "big_endian")]
 d_cnv!(
-    i212_be_alpha_to_rgba16,
+    i212_be_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
@@ -592,7 +592,7 @@ d_cnv!(
     12
 );
 d_cnv!(
-    i412_alpha_to_rgba16,
+    i412_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
@@ -603,7 +603,7 @@ d_cnv!(
 );
 #[cfg(feature = "big_endian")]
 d_cnv!(
-    i412_be_alpha_to_rgba16,
+    i412_be_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
