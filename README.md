@@ -99,7 +99,7 @@ The following planar formats are used for HDR content, with either **10-bit** or
 
 ### Bit Depth:
 
-- **10,12,16**: Indicates the **bits per channel**.
+- **10,12,14,16**: Indicates the **bits per channel**.
 
 ## Benchmarks
 

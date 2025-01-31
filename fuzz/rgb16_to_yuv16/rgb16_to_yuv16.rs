@@ -32,7 +32,8 @@
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
     rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgba10_to_i010, rgba10_to_i210, rgba10_to_i410,
-    BufferStoreMut, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    rgba12_to_i012, rgba12_to_i212, rgba12_to_i412, BufferStoreMut, YuvPlanarImageMut, YuvRange,
+    YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
@@ -83,6 +84,15 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+
+    rgba12_to_i012(
+        &mut planar_image,
+        &target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
 }
 
 fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
@@ -125,6 +135,15 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+
+    rgba12_to_i212(
+        &mut planar_image,
+        &target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
 }
 
 fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
@@ -160,6 +179,15 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     let target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
     rgba10_to_i410(
+        &mut planar_image,
+        &target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
+    rgba12_to_i412(
         &mut planar_image,
         &target_rgba,
         i_width as u32 * 4,

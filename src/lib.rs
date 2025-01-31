@@ -78,11 +78,11 @@ mod mirroring;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
 mod numerics;
+mod rgb16_to_yuv_p16;
 mod rgb_ar30;
 mod rgb_to_nv_p16;
 mod rgb_to_y;
 mod rgb_to_ycgco;
-mod rgb_to_yuv_p16;
 mod rgba_to_nv;
 mod rgba_to_yuv;
 mod sharpyuv;
@@ -206,12 +206,12 @@ pub use rgba_to_yuv::rgba_to_yuv420;
 pub use rgba_to_yuv::rgba_to_yuv422;
 pub use rgba_to_yuv::rgba_to_yuv444;
 
-pub use rgb_to_yuv_p16::{
+pub use rgb16_to_yuv_p16::{
     rgb10_to_i010, rgb10_to_i012, rgb10_to_i210, rgb10_to_i212, rgb10_to_i410, rgb10_to_i412,
     rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i012, rgba12_to_i212, rgba12_to_i412,
 };
 #[cfg(feature = "big_endian")]
-pub use rgb_to_yuv_p16::{
+pub use rgb16_to_yuv_p16::{
     rgb10_to_i010_be, rgb10_to_i012_be, rgb10_to_i210_be, rgb10_to_i212_be, rgb10_to_i410_be,
     rgb10_to_i412_be, rgba10_to_i010_be, rgba10_to_i210_be, rgba10_to_i410_be, rgba12_to_i012_be,
     rgba12_to_i212_be, rgba12_to_i412_be,
@@ -238,12 +238,12 @@ pub use yuv_p10_rgba::{
     i010_be_to_bgr, i010_be_to_bgra, i010_be_to_rgb, i010_be_to_rgba, i012_be_to_bgr,
     i012_be_to_bgra, i012_be_to_rgb, i012_be_to_rgba, i210_be_to_bgr, i210_be_to_bgra,
     i210_be_to_rgb, i210_be_to_rgba, i212_be_to_bgr, i212_be_to_bgra, i212_be_to_rgb,
-    i212_be_to_rgba,
+    i212_be_to_rgba, i410_be_to_rgba,
 };
 pub use yuv_p10_rgba::{
     i010_to_bgr, i010_to_bgra, i010_to_rgb, i010_to_rgba, i012_to_bgr, i012_to_bgra, i012_to_rgb,
     i012_to_rgba, i210_to_bgr, i210_to_bgra, i210_to_rgb, i210_to_rgba, i212_to_bgr, i212_to_bgra,
-    i212_to_rgb, i212_to_rgba,
+    i212_to_rgb, i212_to_rgba, i410_to_rgba,
 };
 
 pub use rgb_to_ycgco::bgr_to_ycgco420;

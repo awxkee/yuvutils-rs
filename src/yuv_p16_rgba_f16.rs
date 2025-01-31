@@ -747,19 +747,19 @@ mod tests {
             let diff_b = (b as i32 - ob as i32).abs();
 
             assert!(
-                diff_r <= 130,
+                diff_r <= 30,
                 "Original RGB {:?}, Round-tripped RGB {:?}",
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 130,
+                diff_g <= 30,
                 "Original RGB {:?}, Round-tripped RGB {:?}",
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 130,
+                diff_b <= 30,
                 "Original RGB {:?}, Round-tripped RGB {:?}",
                 [or, og, ob],
                 [r, g, b]
@@ -860,21 +860,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 130,
+                diff_r <= 30,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 130,
+                diff_g <= 30,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 130,
+                diff_b <= 30,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],

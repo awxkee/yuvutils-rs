@@ -30,9 +30,7 @@
 use std::arch::aarch64::*;
 
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{
-    neon_store_half_rgb8, neon_store_rgb16, vldq_s16_endian, vmullq_laneq_s16,
-};
+use crate::neon::utils::{neon_store_rgb16, vldq_s16_endian};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 
 pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
@@ -134,7 +132,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
 
         std::ptr::copy_nonoverlapping(
             dst_buffer.as_ptr(),
-            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            dst_ptr.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );
 

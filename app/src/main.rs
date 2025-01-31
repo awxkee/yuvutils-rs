@@ -33,10 +33,7 @@ use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageRea
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{
-    i010_to_rgb_f16, i010_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut,
-    YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{i010_to_rgb_f16, i010_to_rgba, i410_to_rgb_f16, i410_to_rgba, i412_to_rgb_f16, rgb10_to_i010, rgb10_to_i410, rgb10_to_i412, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -98,19 +95,19 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
     //
     let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
 
     let start_time = Instant::now();
-    // rgb10_to_i010(
-    //     &mut planar_image,
-    //     &bytes_16,
-    //     rgba_stride as u32,
-    //     YuvRange::Full,
-    //     YuvStandardMatrix::Bt2020,
-    // )
-    // .unwrap();
+    rgb10_to_i412(
+        &mut planar_image,
+        &bytes_16,
+        rgba_stride as u32,
+        YuvRange::Full,
+        YuvStandardMatrix::Bt2020,
+    )
+    .unwrap();
 
     // bytes_16.fill(0);
     //
@@ -201,7 +198,7 @@ fn main() {
 
     let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
 
-    i010_to_rgba(
+    i410_to_rgba(
         &fixed_planar,
         &mut j_rgba,
         dimensions.0 as u32 * 4,
@@ -230,7 +227,7 @@ fn main() {
 
     let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
 
-    i010_to_rgb_f16(
+    i412_to_rgb_f16(
         &fixed_planar,
         &mut rgba_f16,
         rgba_stride as u32,

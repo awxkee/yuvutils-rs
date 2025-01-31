@@ -857,3 +857,25 @@ build_cnv!(
     "bgr",
     YuvEndianness::BigEndian
 );
+
+build_cnv!(
+    i410_to_rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 444 10-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+build_cnv!(
+    i410_be_to_rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 444 10-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::BigEndian
+);

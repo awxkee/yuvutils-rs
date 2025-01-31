@@ -116,7 +116,7 @@ fn rgbx_to_yuv_ant<
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
+    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH == 10 {
         #[cfg(feature = "rdm")]
         {
             use crate::neon::neon_rgba_to_yuv_p16_rdm;
@@ -151,7 +151,7 @@ fn rgbx_to_yuv_ant<
         >
     };
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_double_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
+    let neon_double_row_handler = if is_rdm_available && BIT_DEPTH == 10 {
         #[cfg(feature = "rdm")]
         {
             use crate::neon::neon_rgba_to_yuv_p16_rdm_420;
@@ -931,7 +931,7 @@ d_cvn!(
 d_cvn!(
     rgba12_to_i412,
     YuvSourceChannels::Rgba,
-    YuvChromaSubsampling::Yuv422,
+    YuvChromaSubsampling::Yuv444,
     "I412",
     "RGBA12",
     "rgba12",
@@ -942,7 +942,7 @@ d_cvn!(
 d_cvn!(
     rgba12_to_i412_be,
     YuvSourceChannels::Rgba,
-    YuvChromaSubsampling::Yuv420,
+    YuvChromaSubsampling::Yuv444,
     "I412",
     "RGBA12",
     "rgba12",
@@ -953,7 +953,7 @@ d_cvn!(
 d_cvn!(
     rgb10_to_i412,
     YuvSourceChannels::Rgb,
-    YuvChromaSubsampling::Yuv422,
+    YuvChromaSubsampling::Yuv444,
     "I412",
     "RGB12",
     "rgb12",
@@ -964,7 +964,7 @@ d_cvn!(
 d_cvn!(
     rgb10_to_i412_be,
     YuvSourceChannels::Rgb,
-    YuvChromaSubsampling::Yuv422,
+    YuvChromaSubsampling::Yuv444,
     "I412",
     "RGB12",
     "rgb12",
