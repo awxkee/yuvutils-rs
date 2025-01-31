@@ -106,7 +106,6 @@ mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_p10_rgba;
 mod yuv_p16_ar30;
-mod yuv_p16_rgba;
 mod yuv_p16_rgba16_alpha;
 mod yuv_p16_rgba_alpha;
 #[cfg(feature = "nightly_f16")]
@@ -396,10 +395,26 @@ pub use y_p16_to_rgb16::*;
 pub use y_p16_with_alpha_to_rgb16::*;
 pub use y_with_alpha_to_rgb::*;
 pub use yuv_error::YuvError;
-pub use yuv_p16_rgba::*;
-pub use yuv_p16_rgba16_alpha::*;
+pub use yuv_p16_rgba16_alpha::{
+    i010_alpha_to_rgba16, i012_alpha_to_rgba16, i210_alpha_to_rgba16, i212_alpha_to_rgba16,
+    i212_be_alpha_to_rgba16, i410_alpha_to_rgba16,i412_alpha_to_rgba16
+};
+#[cfg(feature = "big_endian")]
+pub use yuv_p16_rgba16_alpha::{
+    i010_be_alpha_to_rgba16, i012_be_alpha_to_rgba16, i210_alpha_be_to_rgba16,
+    i410_be_alpha_to_rgba16,i412_be_alpha_to_rgba16
+};
 pub use yuv_p16_rgba_alpha::*;
-pub use yuv_p16_rgba_p16::*;
+#[cfg(feature = "big_endian")]
+pub use yuv_p16_rgba_p16::{
+    i010_be_to_rgb16, i010_be_to_rgba16, i012_be_to_rgb16, i012_be_to_rgba16, i210_be_to_rgb16,
+    i210_be_to_rgba16, i212_be_to_rgb16, i212_be_to_rgba16, i410_be_to_rgb16, i410_be_to_rgba16,
+    i412_be_to_rgb16, i412_be_to_rgba16,
+};
+pub use yuv_p16_rgba_p16::{
+    i010_to_rgb16, i010_to_rgba16, i012_to_rgb16, i012_to_rgba16, i210_to_rgb16, i210_to_rgba16,
+    i212_to_rgb16, i212_to_rgba16, i410_to_rgb16, i410_to_rgba16, i412_to_rgb16, i412_to_rgba16,
+};
 
 pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,

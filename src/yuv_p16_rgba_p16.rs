@@ -546,57 +546,19 @@ fn yuv_p16_to_image_p16_ant<
     Ok(())
 }
 
-pub(crate) fn yuv_p16_to_image_p16_impl<
-    const DESTINATION_CHANNELS: u8,
-    const SAMPLING: u8,
-    const ENDIANNESS: u8,
-    const BYTES_POSITION: u8,
->(
-    planar_image: &YuvPlanarImage<u16>,
-    rgba16: &mut [u16],
-    rgba_stride: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    bit_depth: usize,
-) -> Result<(), YuvError> {
-    if bit_depth == 10 {
-        yuv_p16_to_image_p16_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 10>(
-            planar_image,
-            rgba16,
-            rgba_stride,
-            range,
-            matrix,
-        )
-    } else if bit_depth == 12 {
-        yuv_p16_to_image_p16_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 12>(
-            planar_image,
-            rgba16,
-            rgba_stride,
-            range,
-            matrix,
-        )
-    } else {
-        let px_format: YuvSourceChannels = DESTINATION_CHANNELS.into();
-        unimplemented!(
-            "Only 10 and 12 bit is implemented on YUV16 -> {}",
-            px_format
-        );
-    }
-}
-
 macro_rules! d_cnv {
-    ($method: ident, $px_fmt: expr, $sampling: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr) => {
+    ($method: ident, $px_fmt: expr, $sampling: expr, $endian: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr, $bit_depth: expr) => {
         #[doc = concat!("
-Convert ",$sampling_written, " planar format with 8+ bit pixel format to ", $px_written," 8+ bit-depth format.
+Convert ",$sampling_written, " planar format with ", stringify!($bit_depth), " bit pixel format to ", $px_written," ", stringify!($bit_depth), " bit-depth format.
 
-This function takes ", $sampling_written, " planar data with 8+ bit precision.
-and converts it to ", $px_written," format with 8+ bit-depth precision per channel
+This function takes ", $sampling_written, " planar data with ", stringify!($bit_depth), " bit precision.
+and converts it to ", $px_written," format with ", stringify!($bit_depth), " bit-depth precision per channel
 
 # Arguments
 
 * `planar_image` - Source ",$sampling_written," planar image.
-* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," 8+ bit-depth data.
-* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," 8+ bit-depth data.
+* `", $px_written_small, "` - A mutable slice to store the converted ", $px_written," ", stringify!($bit_depth), " bit-depth data.
+* `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," ", stringify!($bit_depth), " bit-depth data.
 * `range` - The YUV range (limited or full).
 * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 * `endianness` - The endianness of stored bytes
@@ -611,152 +573,270 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             planar_image: &YuvPlanarImage<u16>,
             dst: &mut [u16],
             dst_stride: u32,
-            bit_depth: usize,
             range: YuvRange,
             matrix: YuvStandardMatrix,
-            endianness: YuvEndianness,
-            bytes_packing: YuvBytesPacking,
         ) -> Result<(), YuvError> {
-            let dispatcher = match endianness {
-                #[cfg(feature = "big_endian")]
-                YuvEndianness::BigEndian => match bytes_packing {
-                    YuvBytesPacking::MostSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
+            yuv_p16_to_image_p16_ant::<{ $px_fmt as u8 },
                             { $sampling as u8 },
-                            { YuvEndianness::BigEndian as u8 },
-                            { YuvBytesPacking::MostSignificantBytes as u8 },
-                        >
-                    }
-                    YuvBytesPacking::LeastSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
-                            { $sampling as u8 },
-                            { YuvEndianness::BigEndian as u8 },
-                            { YuvBytesPacking::LeastSignificantBytes as u8 },
-                        >
-                    }
-                },
-                YuvEndianness::LittleEndian => match bytes_packing {
-                    YuvBytesPacking::MostSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
-                            { $sampling as u8 },
-                            { YuvEndianness::LittleEndian as u8 },
-                            { YuvBytesPacking::MostSignificantBytes as u8 },
-                        >
-                    }
-                    YuvBytesPacking::LeastSignificantBytes => {
-                        yuv_p16_to_image_p16_impl::<
-                            { $px_fmt as u8 },
-                            { $sampling as u8 },
-                            { YuvEndianness::LittleEndian as u8 },
-                            { YuvBytesPacking::LeastSignificantBytes as u8 },
-                        >
-                    }
-                },
-            };
-            dispatcher(planar_image, dst, dst_stride, range, matrix, bit_depth)
+                            { $endian as u8 },
+                            { YuvBytesPacking::LeastSignificantBytes as u8 }, $bit_depth>(
+                planar_image, dst, dst_stride, range, matrix)
         }
     };
 }
 
 d_cnv!(
-    yuv420_p16_to_bgra16,
-    YuvSourceChannels::Bgra,
+    i010_to_rgba16,
+    YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "BGRA",
-    "bgra"
+    YuvEndianness::LittleEndian,
+    "YUV 420P10",
+    "RGBA",
+    "rgba",
+    10
 );
+#[cfg(feature = "big_endian")]
 d_cnv!(
-    yuv420_p16_to_bgr16,
-    YuvSourceChannels::Bgr,
+    i010_be_to_rgba16,
+    YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
-    "YUV 420",
-    "BGR",
-    "bgr"
+    YuvEndianness::BigEndian,
+    "YUV 420P10 BE",
+    "RGBA",
+    "rgba",
+    10
 );
 d_cnv!(
-    yuv422_p16_to_bgra16,
-    YuvSourceChannels::Bgra,
+    i010_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::LittleEndian,
+    "YUV 420P10",
+    "RGB",
+    "rgb",
+    10
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i010_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "YUV 420P10 BE",
+    "RGB",
+    "rgb",
+    10
+);
+d_cnv!(
+    i210_to_rgba16,
+    YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "BGRA",
-    "bgra"
+    YuvEndianness::LittleEndian,
+    "YUV 422P10",
+    "RGBA",
+    "rgba",
+    10
 );
+#[cfg(feature = "big_endian")]
 d_cnv!(
-    yuv422_p16_to_bgr16,
-    YuvSourceChannels::Bgr,
+    i210_be_to_rgba16,
+    YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
-    "YUV 422",
-    "BGR",
-    "bgr"
+    YuvEndianness::LittleEndian,
+    "YUV 422P10 BE",
+    "RGBA",
+    "rgba",
+    10
 );
 d_cnv!(
-    yuv444_p16_to_bgra16,
-    YuvSourceChannels::Bgra,
-    YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "BGRA",
-    "bgra"
+    i210_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "YUV 422P10",
+    "RGB",
+    "rgb",
+    10
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i210_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::BigEndian,
+    "YUV 422P10 BE",
+    "RGB",
+    "rgb",
+    10
 );
 d_cnv!(
-    yuv444_p16_to_bgr16,
-    YuvSourceChannels::Bgr,
+    i410_to_rgba16,
+    YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
-    "YUV 444",
-    "BGR",
-    "bgr"
+    YuvEndianness::LittleEndian,
+    "YUV 444P10",
+    "RGBA",
+    "rgba",
+    10
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i410_be_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::BigEndian,
+    "YUV 444P10 BE",
+    "RGBA",
+    "rgba",
+    10
+);
+d_cnv!(
+    i410_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "YUV 444P10",
+    "RGB",
+    "rgb",
+    10
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i410_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "YUV 444P10 BE",
+    "RGB",
+    "rgb",
+    10
 );
 
 d_cnv!(
-    yuv420_p16_to_rgba16,
+    i012_to_rgba16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
-    "YUV 420",
+    YuvEndianness::LittleEndian,
+    "YUV 420P12",
     "RGBA",
-    "rgba"
+    "rgba",
+    12
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i012_be_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "YUV 420P12 BE",
+    "RGBA",
+    "rgba",
+    12
 );
 d_cnv!(
-    yuv420_p16_to_rgb16,
+    i012_to_rgb16,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
-    "YUV 420",
+    YuvEndianness::LittleEndian,
+    "YUV 420P12",
     "RGB",
-    "rgb"
+    "rgb",
+    12
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i012_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "YUV 420P12 BE",
+    "RGB",
+    "rgb",
+    12
 );
 d_cnv!(
-    yuv422_p16_to_rgba16,
+    i212_to_rgba16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
-    "YUV 422",
+    YuvEndianness::LittleEndian,
+    "YUV 422P12",
     "RGBA",
-    "rgba"
+    "rgba",
+    12
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i212_be_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "YUV 422P12 BE",
+    "RGBA",
+    "rgba",
+    12
 );
 d_cnv!(
-    yuv422_p16_to_rgb16,
+    i212_to_rgb16,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
-    "YUV 422",
+    YuvEndianness::LittleEndian,
+    "YUV 422P12",
     "RGB",
-    "rgb"
+    "rgb",
+    12
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i212_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::BigEndian,
+    "YUV 422P12 BE",
+    "RGB",
+    "rgb",
+    12
 );
 d_cnv!(
-    yuv444_p16_to_rgba16,
+    i412_to_rgba16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
-    "YUV 444",
+    YuvEndianness::LittleEndian,
+    "YUV 444P12",
     "RGBA",
-    "rgba"
+    "rgba",
+    12
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i412_be_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::BigEndian,
+    "YUV 444P12 BE",
+    "RGBA",
+    "rgba",
+    12
 );
 d_cnv!(
-    yuv444_p16_to_rgb16,
+    i412_to_rgb16,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
-    "YUV 444",
+    YuvEndianness::LittleEndian,
+    "YUV 444P12",
     "RGB",
-    "rgb"
+    "rgb",
+    12
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i412_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "YUV 444P12 BE",
+    "RGB",
+    "rgb",
+    12
 );
 
 #[cfg(test)]
@@ -823,15 +903,12 @@ mod tests {
 
         let fixed_planar = planar_image.to_fixed();
 
-        yuv444_p16_to_rgb16(
+        i410_to_rgb16(
             &fixed_planar,
             &mut image_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 
@@ -925,15 +1002,12 @@ mod tests {
 
         let fixed_planar = planar_image.to_fixed();
 
-        yuv444_p16_to_rgb16(
+        i410_to_rgb16(
             &fixed_planar,
             &mut image_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Limited,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 
@@ -1042,15 +1116,12 @@ mod tests {
 
         let fixed_planar = planar_image.to_fixed();
 
-        yuv422_p16_to_rgb16(
+        i210_to_rgb16(
             &fixed_planar,
             &mut dest_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Limited,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 
@@ -1192,15 +1263,12 @@ mod tests {
 
         let fixed_planar = planar_image.to_fixed();
 
-        yuv420_p16_to_rgb16(
+        i010_to_rgb16(
             &fixed_planar,
             &mut dest_rgb,
             image_width as u32 * CHANNELS as u32,
-            10,
             YuvRange::Limited,
             YuvStandardMatrix::Bt709,
-            YuvEndianness::LittleEndian,
-            YuvBytesPacking::LeastSignificantBytes,
         )
         .unwrap();
 

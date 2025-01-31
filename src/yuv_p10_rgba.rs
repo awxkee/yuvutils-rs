@@ -468,40 +468,6 @@ fn yuv_p16_to_image_ant<
     Ok(())
 }
 
-pub(crate) fn yuv_p16_to_image_impl<
-    const DESTINATION_CHANNELS: u8,
-    const SAMPLING: u8,
-    const ENDIANNESS: u8,
-    const BYTES_POSITION: u8,
->(
-    planar_image: &YuvPlanarImage<u16>,
-    rgba: &mut [u8],
-    rgba_stride: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    bit_depth: usize,
-) -> Result<(), YuvError> {
-    if bit_depth == 10 {
-        yuv_p16_to_image_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 10>(
-            planar_image,
-            rgba,
-            rgba_stride,
-            range,
-            matrix,
-        )
-    } else if bit_depth == 12 {
-        yuv_p16_to_image_ant::<DESTINATION_CHANNELS, SAMPLING, ENDIANNESS, BYTES_POSITION, 12>(
-            planar_image,
-            rgba,
-            rgba_stride,
-            range,
-            matrix,
-        )
-    } else {
-        unimplemented!("YUV16 -> RGB implemented only for 10 and 12 bits")
-    }
-}
-
 macro_rules! build_cnv {
     ($method: ident, $px_fmt: expr, $sampling: expr,$bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr, $endian: expr) => {
         #[doc = concat!("
