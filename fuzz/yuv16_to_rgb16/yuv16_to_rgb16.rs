@@ -32,8 +32,8 @@
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
     i010_alpha_to_rgba16, i010_to_rgb16, i010_to_rgba16, i210_alpha_to_rgba16, i210_to_rgb16,
-    i210_to_rgba16, i410_alpha_to_rgba16, i410_to_rgb16, i410_to_rgba16, YuvBytesPacking,
-    YuvEndianness, YuvPlanarImage, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
+    i210_to_rgba16, i410_alpha_to_rgba16, i410_to_rgb16, i410_to_rgba16, YuvPlanarImage,
+    YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
