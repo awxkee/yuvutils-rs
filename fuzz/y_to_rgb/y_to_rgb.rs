@@ -30,8 +30,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    yuv400_to_rgb, yuv400_to_rgba, yuv400_alpha_to_rgba, YuvGrayAlphaImage, YuvGrayImage,
-    YuvRange, YuvStandardMatrix,
+    yuv400_alpha_to_rgba, yuv400_to_rgb, yuv400_to_rgba, YuvGrayAlphaImage, YuvGrayImage, YuvRange,
+    YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8)| {

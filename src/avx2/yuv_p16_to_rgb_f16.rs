@@ -28,8 +28,8 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _avx_from_msb_epi16, _mm256_expand_bp_by2, _mm256_from_msb_epi16,
-    _mm256_store_interleave_rgb16_for_yuv,
+    _avx_from_msb_epi16, _mm256_from_msb_epi16, _mm256_interleave_epi16, _mm256_mul_add_epi16,
+    _mm256_store_interleave_rgb16_for_yuv, shuffle,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -98,25 +98,24 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
-    let cr_coef = transform.cr_coef;
-    let cb_coef = transform.cb_coef;
-    let y_coef = transform.y_coef;
-    let g_coef_1 = transform.g_coeff_1;
-    let g_coef_2 = transform.g_coeff_2;
-
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
     let dst_ptr = bgra;
 
+    const D: bool = false;
+
     let v_max_colors = _mm256_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
-    let v_luma_coeff = _mm256_set1_epi16(y_coef as i16);
-    let v_cr_coeff = _mm256_set1_epi16(cr_coef as i16);
-    let v_cb_coeff = _mm256_set1_epi16(cb_coef as i16);
-    let zeros = _mm256_setzero_si256();
-    let v_g_coeff_1 = _mm256_set1_epi16(-(g_coef_1 as i16));
-    let v_g_coeff_2 = _mm256_set1_epi16(-(g_coef_2 as i16));
+    let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
+    let v_cr_coeff = _mm256_set1_epi32(((transform.cr_coef as u32) << 16) as i32);
+    let v_cb_part = transform.cb_coef as u32;
+    let v_cb_coeff = _mm256_set1_epi32(v_cb_part as i32);
+    let g_trn1 = -transform.g_coeff_1;
+    let g_trn2 = -transform.g_coeff_2;
+    let v_g_coeff_1 = _mm256_set1_epi32((((g_trn1 as u32) << 16) | (g_trn2 as u32)) as i32);
     let f_multiplier = _mm256_set1_ps(1. / (((1 << BIT_DEPTH) - 1) as f32));
+
+    let base_value = _mm256_set1_epi32((1 << (PRECISION - 1)) - 1);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
@@ -148,7 +147,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let y_corr = _mm256_set1_epi16(bias_y as i16);
         let uv_corr = _mm256_set1_epi16(bias_uv as i16);
 
-        let mut y_values = _mm256_subs_epu16(y_vl, y_corr);
+        let y_values = _mm256_subs_epu16(y_vl, y_corr);
 
         let mut u_values;
         let mut v_values;
@@ -202,23 +201,39 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             }
         }
 
-        u_values = _mm256_slli_epi16::<2>(u_values);
-        v_values = _mm256_slli_epi16::<2>(v_values);
-        y_values = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values);
+        const MASK: i32 = shuffle(3, 1, 2, 0);
+        u_values = _mm256_permute4x64_epi64::<MASK>(u_values);
+        v_values = _mm256_permute4x64_epi64::<MASK>(v_values);
 
-        let rl = _mm256_mulhrs_epi16(v_values, v_cr_coeff);
-        let b0 = _mm256_mulhrs_epi16(u_values, v_cb_coeff);
-        let y_vals = _mm256_mulhrs_epi16(y_values, v_luma_coeff);
-        let g0 = _mm256_mulhrs_epi16(v_values, v_g_coeff_1);
-        let g1 = _mm256_mulhrs_epi16(u_values, v_g_coeff_2);
+        let (uv_values0, uv_values1) = _mm256_interleave_epi16(u_values, v_values);
 
-        let r_vals = _mm256_add_epi16(y_vals, rl);
-        let b_vals = _mm256_add_epi16(y_vals, b0);
-        let g_vals = _mm256_add_epi16(_mm256_add_epi16(y_vals, g0), g1);
+        let mut y_0 = _mm256_unpacklo_epi16(y_values, _mm256_setzero_si256());
+        let mut y_1 = _mm256_unpackhi_epi16(y_values, _mm256_setzero_si256());
 
-        let rm = _mm256_max_epi16(r_vals, zeros);
-        let gm = _mm256_max_epi16(g_vals, zeros);
-        let bm = _mm256_max_epi16(b_vals, zeros);
+        y_0 = _mm256_mul_add_epi16::<D>(base_value, y_0, v_luma_coeff);
+        y_1 = _mm256_mul_add_epi16::<D>(base_value, y_1, v_luma_coeff);
+
+        let mut g_0 = _mm256_mul_add_epi16::<D>(y_0, uv_values0, v_g_coeff_1);
+        let mut g_1 = _mm256_mul_add_epi16::<D>(y_1, uv_values1, v_g_coeff_1);
+
+        let mut r_0 = _mm256_mul_add_epi16::<D>(y_0, uv_values0, v_cr_coeff);
+        let mut r_1 = _mm256_mul_add_epi16::<D>(y_1, uv_values1, v_cr_coeff);
+
+        let mut b_0 = _mm256_mul_add_epi16::<D>(y_0, uv_values0, v_cb_coeff);
+        let mut b_1 = _mm256_mul_add_epi16::<D>(y_1, uv_values1, v_cb_coeff);
+
+        g_0 = _mm256_srai_epi32::<PRECISION>(g_0);
+        g_1 = _mm256_srai_epi32::<PRECISION>(g_1);
+
+        r_0 = _mm256_srai_epi32::<PRECISION>(r_0);
+        r_1 = _mm256_srai_epi32::<PRECISION>(r_1);
+
+        b_0 = _mm256_srai_epi32::<PRECISION>(b_0);
+        b_1 = _mm256_srai_epi32::<PRECISION>(b_1);
+
+        let rm = _mm256_packus_epi32(r_0, r_1);
+        let gm = _mm256_packus_epi32(g_0, g_1);
+        let bm = _mm256_packus_epi32(b_0, b_1);
 
         let r_values = _mm256_min_epu16(rm, v_max_colors);
         let g_values = _mm256_min_epu16(gm, v_max_colors);
@@ -278,6 +293,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let mut y_buffer: [u16; 16] = [0; 16];
         let mut u_buffer: [u16; 16] = [0; 16];
         let mut v_buffer: [u16; 16] = [0; 16];
+        let mut buffer: [f16; 16 * 4] = [0.; 16 * 4];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
@@ -301,7 +317,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let y_corr = _mm256_set1_epi16(bias_y as i16);
         let uv_corr = _mm256_set1_epi16(bias_uv as i16);
 
-        let mut y_values = _mm256_subs_epu16(y_vl, y_corr);
+        let y_values = _mm256_subs_epu16(y_vl, y_corr);
 
         let mut u_values;
         let mut v_values;
@@ -372,25 +388,39 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             }
         }
 
-        let mut buffer: [f16; 16 * 4] = [0.; 16 * 4];
+        const MASK: i32 = shuffle(3, 1, 2, 0);
+        u_values = _mm256_permute4x64_epi64::<MASK>(u_values);
+        v_values = _mm256_permute4x64_epi64::<MASK>(v_values);
 
-        u_values = _mm256_expand_bp_by2::<BIT_DEPTH>(u_values);
-        v_values = _mm256_expand_bp_by2::<BIT_DEPTH>(v_values);
-        y_values = _mm256_expand_bp_by2::<BIT_DEPTH>(y_values);
+        let (uv_values0, uv_values1) = _mm256_interleave_epi16(u_values, v_values);
 
-        let rl = _mm256_mulhrs_epi16(v_values, v_cr_coeff);
-        let b0 = _mm256_mulhrs_epi16(u_values, v_cb_coeff);
-        let y_vals = _mm256_mulhrs_epi16(y_values, v_luma_coeff);
-        let g0 = _mm256_mulhrs_epi16(v_values, v_g_coeff_1);
-        let g1 = _mm256_mulhrs_epi16(u_values, v_g_coeff_2);
+        let mut y_0 = _mm256_unpacklo_epi16(y_values, _mm256_setzero_si256());
+        let mut y_1 = _mm256_unpackhi_epi16(y_values, _mm256_setzero_si256());
 
-        let r_vals = _mm256_add_epi16(y_vals, rl);
-        let b_vals = _mm256_add_epi16(y_vals, b0);
-        let g_vals = _mm256_add_epi16(_mm256_add_epi16(y_vals, g0), g1);
+        y_0 = _mm256_mul_add_epi16::<D>(base_value, y_0, v_luma_coeff);
+        y_1 = _mm256_mul_add_epi16::<D>(base_value, y_1, v_luma_coeff);
 
-        let rm = _mm256_max_epi16(r_vals, zeros);
-        let gm = _mm256_max_epi16(g_vals, zeros);
-        let bm = _mm256_max_epi16(b_vals, zeros);
+        let mut g_0 = _mm256_mul_add_epi16::<D>(y_0, uv_values0, v_g_coeff_1);
+        let mut g_1 = _mm256_mul_add_epi16::<D>(y_1, uv_values1, v_g_coeff_1);
+
+        let mut r_0 = _mm256_mul_add_epi16::<D>(y_0, uv_values0, v_cr_coeff);
+        let mut r_1 = _mm256_mul_add_epi16::<D>(y_1, uv_values1, v_cr_coeff);
+
+        let mut b_0 = _mm256_mul_add_epi16::<D>(y_0, uv_values0, v_cb_coeff);
+        let mut b_1 = _mm256_mul_add_epi16::<D>(y_1, uv_values1, v_cb_coeff);
+
+        g_0 = _mm256_srai_epi32::<PRECISION>(g_0);
+        g_1 = _mm256_srai_epi32::<PRECISION>(g_1);
+
+        r_0 = _mm256_srai_epi32::<PRECISION>(r_0);
+        r_1 = _mm256_srai_epi32::<PRECISION>(r_1);
+
+        b_0 = _mm256_srai_epi32::<PRECISION>(b_0);
+        b_1 = _mm256_srai_epi32::<PRECISION>(b_1);
+
+        let rm = _mm256_packus_epi32(r_0, r_1);
+        let gm = _mm256_packus_epi32(g_0, g_1);
+        let bm = _mm256_packus_epi32(b_0, b_1);
 
         let r_values = _mm256_min_epu16(rm, v_max_colors);
         let g_values = _mm256_min_epu16(gm, v_max_colors);
