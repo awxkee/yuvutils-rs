@@ -406,43 +406,6 @@ fn yuv_nv_p16_to_image_impl<
     Ok(())
 }
 
-fn yuv_nv_p16_to_image<
-    const DESTINATION_CHANNELS: u8,
-    const NV_ORDER: u8,
-    const SAMPLING: u8,
-    const ENDIANNESS: u8,
-    const BYTES_POSITION: u8,
->(
-    bi_planar_image: &YuvBiPlanarImage<u16>,
-    bgra: &mut [u16],
-    bgra_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-) -> Result<(), YuvError> {
-    if bit_depth == 10 {
-        yuv_nv_p16_to_image_impl::<
-            DESTINATION_CHANNELS,
-            NV_ORDER,
-            SAMPLING,
-            ENDIANNESS,
-            BYTES_POSITION,
-            10,
-        >(bi_planar_image, bgra, bgra_stride, range, matrix)
-    } else if bit_depth == 12 {
-        yuv_nv_p16_to_image_impl::<
-            DESTINATION_CHANNELS,
-            NV_ORDER,
-            SAMPLING,
-            ENDIANNESS,
-            BYTES_POSITION,
-            12,
-        >(bi_planar_image, bgra, bgra_stride, range, matrix)
-    } else {
-        unimplemented!("Bit depth {} is not implemented", bit_depth);
-    }
-}
-
 macro_rules! d_cnv {
     ($method: ident, $px_fmt: expr, $subsampling: expr, $yuv_name: expr, $px_name: expr, $bit_precision: expr) => {
         #[doc = concat!("Convert ", $yuv_name," format to ", $px_name," format.
@@ -457,7 +420,6 @@ and converts it to ", $px_name," format with ", $bit_precision," bit-depth preci
 * `dst_stride` - The stride (components per row) for the ", $px_name," image data.
 * `range` - range of YUV, see [YuvRange] for more info.
 * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-* `mode` - See [YuvConversionMode] for more info.
 
 # Panics
 
@@ -470,14 +432,15 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             range: YuvRange,
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            let dispatcher = yuv_nv_p16_to_image::<
+            let dispatcher = yuv_nv_p16_to_image_impl::<
                     { $px_fmt as u8 },
                     { YuvNVOrder::UV as u8 },
                     { $subsampling as u8 },
                     { YuvEndianness::LittleEndian as u8 },
                     { YuvBytesPacking::MostSignificantBytes as u8 },
+                    $bit_precision,
                 >;
-            dispatcher(bi_planar_image, rgba, rgba_stride, $bit_precision, range, matrix)
+            dispatcher(bi_planar_image, rgba, rgba_stride, range, matrix)
         }
     };
 }

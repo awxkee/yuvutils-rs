@@ -34,9 +34,8 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 use yuvutils_rs::{
-    i010_to_rgb_f16, i010_to_rgba,
-    YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    i010_to_rgb_f16, i010_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut,
+    YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {

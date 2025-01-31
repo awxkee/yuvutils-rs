@@ -101,8 +101,8 @@ mod ycgco_to_rgb_alpha;
 mod ycgcor_support;
 mod yuv_error;
 mod yuv_nv_p10_to_ar30;
-mod yuv_nv_p10_to_rgba16;
-mod yuv_nv_p16_to_rgb;
+mod yuv_nv_p10_to_rgb;
+mod yuv_nv_p16_to_rgb16;
 mod yuv_nv_to_rgba;
 mod yuv_p10_rgba;
 mod yuv_p16_ar30;
@@ -128,12 +128,12 @@ pub use yuv_support::{
     YuvRange, YuvStandardMatrix,
 };
 
-pub use yuv_nv_p10_to_rgba16::{
+pub use yuv_nv_p10_to_rgb::{
     p010_to_bgr, p010_to_bgra, p010_to_rgb, p010_to_rgba, p210_to_bgr, p210_to_bgra, p210_to_rgb,
     p210_to_rgba, p410_to_bgr, p410_to_bgra, p410_to_rgb, p410_to_rgba,
 };
 
-pub use yuv_nv_p16_to_rgb::{
+pub use yuv_nv_p16_to_rgb16::{
     p010_to_rgb10, p010_to_rgba10, p012_to_rgb12, p012_to_rgba12, p210_to_rgb10, p210_to_rgba10,
     p212_to_rgb12, p212_to_rgba12, p410_to_rgb10, p410_to_rgba10, p412_to_rgb12, p412_to_rgba12,
 };
@@ -326,7 +326,8 @@ pub use to_identity::{
 
 pub use rgb_to_nv_p16::{
     rgb10_to_p010, rgb10_to_p210, rgb10_to_p410, rgb12_to_p012, rgb12_to_p212, rgb12_to_p412,
-    rgba10_to_p010, rgba10_to_p210, rgba10_to_p410, rgba12_to_p012, rgba12_to_p212, rgba12_to_p412,
+    rgb16_to_p016, rgb16_to_p216, rgba10_to_p010, rgba10_to_p210, rgba10_to_p410, rgba12_to_p012,
+    rgba12_to_p212, rgba12_to_p412, rgba16_to_p016, rgba16_to_p216,
 };
 
 pub use yuy2_to_rgb::uyvy422_to_bgr;

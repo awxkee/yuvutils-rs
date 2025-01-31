@@ -30,6 +30,7 @@ use crate::neon::utils::{neon_store_rgb8, vmullnq_s16};
 use crate::yuv_support::YuvSourceChannels;
 use std::arch::aarch64::*;
 
+#[cfg(feature = "rdm")]
 pub(crate) fn yuv_to_rgba_row_limited_rdm<const DESTINATION_CHANNELS: u8>(
     g_plane: &[u8],
     b_plane: &[u8],
@@ -47,6 +48,7 @@ pub(crate) fn yuv_to_rgba_row_limited_rdm<const DESTINATION_CHANNELS: u8>(
     }
 }
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
     g_plane: &[u8],
