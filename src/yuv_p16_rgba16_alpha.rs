@@ -462,8 +462,6 @@ and converts it to ", $px_written," format with ", stringify!($bit_depth), " bit
 * `", $px_written_small, "_stride` - The stride (components per row) for ", $px_written," ", stringify!($bit_depth), " bit-depth data.
 * `range` - The YUV range (limited or full).
 * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
-* `endianness` - The endianness of stored bytes
-* `bytes_packing` - see [YuvBytesPacking] for more info.
 * `bit_depth` - Bit depth of source YUV planes, only 10 and 12 is supported.
 
 # Panics
