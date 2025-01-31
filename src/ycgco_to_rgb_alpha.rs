@@ -362,7 +362,7 @@ fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco420_with_alpha_to_rgba(
+pub fn ycgco420_alpha_to_rgba(
     planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
@@ -396,7 +396,7 @@ pub fn ycgco420_with_alpha_to_rgba(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco420_with_alpha_to_bgra(
+pub fn ycgco420_alpha_to_bgra(
     planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
@@ -430,7 +430,7 @@ pub fn ycgco420_with_alpha_to_bgra(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco422_with_alpha_to_rgba(
+pub fn ycgco422_alpha_to_rgba(
     planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
@@ -464,7 +464,7 @@ pub fn ycgco422_with_alpha_to_rgba(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco422_with_alpha_to_bgra(
+pub fn ycgco422_alpha_to_bgra(
     planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,
@@ -498,7 +498,7 @@ pub fn ycgco422_with_alpha_to_bgra(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco444_with_alpha_to_rgba(
+pub fn ycgco444_alpha_to_rgba(
     planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
@@ -532,7 +532,7 @@ pub fn ycgco444_with_alpha_to_rgba(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn ycgco444_with_alpha_to_bgra(
+pub fn ycgco444_alpha_to_bgra(
     planar_image_with_alpha: &YuvPlanarImageWithAlpha<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,

@@ -217,12 +217,12 @@ pub use rgb_to_yuv_p16::{
     rgba12_to_i212_be, rgba12_to_i412_be,
 };
 
-pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_bgra;
-pub use yuv_to_rgba_alpha::yuv420_with_alpha_to_rgba;
-pub use yuv_to_rgba_alpha::yuv422_with_alpha_to_bgra;
-pub use yuv_to_rgba_alpha::yuv422_with_alpha_to_rgba;
-pub use yuv_to_rgba_alpha::yuv444_with_alpha_to_bgra;
-pub use yuv_to_rgba_alpha::yuv444_with_alpha_to_rgba;
+pub use yuv_to_rgba_alpha::yuv420_alpha_to_bgra;
+pub use yuv_to_rgba_alpha::yuv420_alpha_to_rgba;
+pub use yuv_to_rgba_alpha::yuv422_alpha_to_bgra;
+pub use yuv_to_rgba_alpha::yuv422_alpha_to_rgba;
+pub use yuv_to_rgba_alpha::yuv444_alpha_to_bgra;
+pub use yuv_to_rgba_alpha::yuv444_alpha_to_rgba;
 
 pub use rgb_to_y::bgr_to_yuv400;
 pub use rgb_to_y::bgra_to_yuv400;
@@ -281,12 +281,12 @@ pub use yuv_nv_to_rgba::yuv_nv61_to_bgra;
 pub use yuv_nv_to_rgba::yuv_nv61_to_rgb;
 pub use yuv_nv_to_rgba::yuv_nv61_to_rgba;
 
-pub use ycgco_to_rgb_alpha::ycgco420_with_alpha_to_bgra;
-pub use ycgco_to_rgb_alpha::ycgco420_with_alpha_to_rgba;
-pub use ycgco_to_rgb_alpha::ycgco422_with_alpha_to_bgra;
-pub use ycgco_to_rgb_alpha::ycgco422_with_alpha_to_rgba;
-pub use ycgco_to_rgb_alpha::ycgco444_with_alpha_to_bgra;
-pub use ycgco_to_rgb_alpha::ycgco444_with_alpha_to_rgba;
+pub use ycgco_to_rgb_alpha::ycgco420_alpha_to_bgra;
+pub use ycgco_to_rgb_alpha::ycgco420_alpha_to_rgba;
+pub use ycgco_to_rgb_alpha::ycgco422_alpha_to_bgra;
+pub use ycgco_to_rgb_alpha::ycgco422_alpha_to_rgba;
+pub use ycgco_to_rgb_alpha::ycgco444_alpha_to_bgra;
+pub use ycgco_to_rgb_alpha::ycgco444_alpha_to_rgba;
 
 pub use yuv_to_yuy2::yuv420_to_uyvy422;
 pub use yuv_to_yuy2::yuv420_to_vyuy422;
@@ -402,7 +402,7 @@ pub use images::{
 };
 pub use y_p16_to_rgb16::{y010_to_rgb10, y010_to_rgba10, y012_to_rgb12, y012_to_rgba12};
 pub use y_p16_with_alpha_to_rgb16::{y010_alpha_to_rgba10, y012_alpha_to_rgba12};
-pub use y_with_alpha_to_rgb::*;
+pub use y_with_alpha_to_rgb::{yuv400_alpha_to_bgra, yuv400_alpha_to_rgba};
 pub use yuv_error::YuvError;
 
 pub use yuv_p16_rgba_alpha::{

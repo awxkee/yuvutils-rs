@@ -270,7 +270,7 @@ unsafe fn neon_yuva_p16_to_rgba_f16_impl<
                 xreinterpretq_u16_f16(r_values),
                 xreinterpretq_u16_f16(g_values),
                 xreinterpretq_u16_f16(b_values),
-                v_alpha,
+                xreinterpretq_u16_f16(a_values),
             );
         } else {
             let mut r_high = vshrq_n_s32::<PRECISION>(rh);
@@ -292,15 +292,18 @@ unsafe fn neon_yuva_p16_to_rgba_f16_impl<
             g_low = vmaxq_s32(g_low, zeros);
             b_low = vmaxq_s32(b_low, zeros);
 
+            let ah = vmovl_high_u16(a_values);
+            let al = vmovl_u16(vget_low_u16(a_values));
+
             let mut r_high = vcvtq_f32_s32(r_high);
             let mut g_high = vcvtq_f32_s32(g_high);
             let mut b_high = vcvtq_f32_s32(b_high);
-            let mut a_high = vcvtq_f32_u32(vmovl_high_u16(a_values));
+            let mut a_high = vcvtq_f32_u32(ah);
 
             let mut r_low = vcvtq_f32_s32(r_low);
             let mut g_low = vcvtq_f32_s32(g_low);
             let mut b_low = vcvtq_f32_s32(b_low);
-            let mut a_low = vcvtq_f32_u32(vmovl_u16(vget_low_u16(a_values)));
+            let mut a_low = vcvtq_f32_u32(al);
 
             r_high = vmulq_f32(r_high, a_multiplier);
             g_high = vmulq_f32(g_high, a_multiplier);
@@ -469,7 +472,7 @@ unsafe fn neon_yuva_p16_to_rgba_f16_impl<
                 xreinterpretq_u16_f16(r_values),
                 xreinterpretq_u16_f16(g_values),
                 xreinterpretq_u16_f16(b_values),
-                v_alpha,
+                xreinterpretq_u16_f16(a_values),
             );
         } else {
             let mut r_high = vshrq_n_s32::<PRECISION>(rh);
@@ -491,15 +494,18 @@ unsafe fn neon_yuva_p16_to_rgba_f16_impl<
             g_low = vmaxq_s32(g_low, zeros);
             b_low = vmaxq_s32(b_low, zeros);
 
+            let ah = vmovl_high_u16(a_values);
+            let al = vmovl_u16(vget_low_u16(a_values));
+
             let mut r_high = vcvtq_f32_s32(r_high);
             let mut g_high = vcvtq_f32_s32(g_high);
             let mut b_high = vcvtq_f32_s32(b_high);
-            let mut a_high = vcvtq_f32_u32(vmovl_high_u16(a_values));
+            let mut a_high = vcvtq_f32_u32(ah);
 
             let mut r_low = vcvtq_f32_s32(r_low);
             let mut g_low = vcvtq_f32_s32(g_low);
             let mut b_low = vcvtq_f32_s32(b_low);
-            let mut a_low = vcvtq_f32_u32(vmovl_u16(vget_low_u16(a_values)));
+            let mut a_low = vcvtq_f32_u32(al);
 
             r_high = vmulq_f32(r_high, a_multiplier);
             g_high = vmulq_f32(g_high, a_multiplier);

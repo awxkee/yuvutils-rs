@@ -97,24 +97,25 @@ impl<
         BIT_DEPTH,
     > {
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             #[cfg(feature = "rdm")]
-            if is_rdm_available && BIT_DEPTH == 10 {
-                use crate::neon::neon_yuv_p16_to_rgba16_row_rdm;
-                return WideRowAnyHandler {
-                    handler: Some(
-                        neon_yuv_p16_to_rgba16_row_rdm::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            PRECISION,
-                            BIT_DEPTH,
-                        >,
-                    ),
-                };
+            {
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available && BIT_DEPTH == 10 {
+                    use crate::neon::neon_yuv_p16_to_rgba16_row_rdm;
+                    return WideRowAnyHandler {
+                        handler: Some(
+                            neon_yuv_p16_to_rgba16_row_rdm::<
+                                DESTINATION_CHANNELS,
+                                SAMPLING,
+                                ENDIANNESS,
+                                BYTES_POSITION,
+                                PRECISION,
+                                BIT_DEPTH,
+                            >,
+                        ),
+                    };
+                }
             }
             if BIT_DEPTH <= 12 {
                 return WideRowAnyHandler {

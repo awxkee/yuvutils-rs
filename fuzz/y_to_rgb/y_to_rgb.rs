@@ -29,7 +29,10 @@
 
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{yuv400_to_rgb, yuv400_to_rgba, YuvGrayImage, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{
+    yuv400_to_rgb, yuv400_to_rgba, yuv400_alpha_to_rgba, YuvGrayAlphaImage, YuvGrayImage,
+    YuvRange, YuvStandardMatrix,
+};
 
 fuzz_target!(|data: (u8, u8, u8)| {
     fuzz_yuv(data.0, data.1, data.2);
@@ -64,6 +67,26 @@ fn fuzz_yuv(i_width: u8, i_height: u8, y_value: u8) {
 
     yuv400_to_rgba(
         &planar_image,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
+    let a_plane = vec![y_value; i_height as usize * i_width as usize];
+
+    let planar_image_with_alpha = YuvGrayAlphaImage {
+        y_plane: &y_plane,
+        y_stride: i_width as u32,
+        a_plane: &a_plane,
+        a_stride: i_width as u32,
+        width: i_width as u32,
+        height: i_height as u32,
+    };
+
+    yuv400_alpha_to_rgba(
+        &planar_image_with_alpha,
         &mut target_rgba,
         i_width as u32 * 4,
         YuvRange::Limited,

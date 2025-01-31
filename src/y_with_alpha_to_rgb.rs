@@ -277,7 +277,7 @@ where
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv400_with_alpha_to_rgba(
+pub fn yuv400_alpha_to_rgba(
     gray_alpha_image: &YuvGrayAlphaImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
@@ -311,7 +311,7 @@ pub fn yuv400_with_alpha_to_rgba(
 /// This function panics if the lengths of the planes or the input BGRA data are not valid based
 /// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
 ///
-pub fn yuv400_with_alpha_to_bgra(
+pub fn yuv400_alpha_to_bgra(
     gray_alpha_image: &YuvGrayAlphaImage<u8>,
     bgra: &mut [u8],
     bgra_stride: u32,

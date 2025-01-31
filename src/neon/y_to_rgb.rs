@@ -152,6 +152,49 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
         cx += 8;
     }
 
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let y_values = vqsub_u8(
+            vld1_u8(y_plane.get_unchecked(cx..).as_ptr()),
+            vget_low_u8(y_corr),
+        );
+
+        let y_high = vqrdmulhq_n_s16(
+            vreinterpretq_s16_u16(vexpand8_to_10(y_values)),
+            transform.y_coef as i16,
+        );
+
+        let r_vl = vqmovun_s16(y_high);
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_vl,
+            r_vl,
+            r_vl,
+            vget_low_u8(v_alpha),
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.add(dst_shift),
+            diff * channels,
+        );
+
+        cx += diff;
+    }
+
     cx
 }
 
@@ -293,6 +336,46 @@ pub(crate) unsafe fn neon_y_to_rgb_row<const PRECISION: i32, const DESTINATION_C
         );
 
         cx += 8;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr()), vget_low_u8(y_corr));
+
+        let y_low = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_u8(y_values)), v_luma_coeff);
+
+        let r_vl = vqmovun_s16(vcombine_s16(
+            vrshrn_n_s32::<PRECISION>(y_low.0),
+            vrshrn_n_s32::<PRECISION>(y_low.1),
+        ));
+
+        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_vl,
+            r_vl,
+            r_vl,
+            vget_low_u8(v_alpha),
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.add(dst_shift),
+            diff * channels,
+        );
+
+        cx += diff;
     }
 
     cx
