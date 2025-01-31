@@ -160,7 +160,7 @@ fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u8, uv_value: u8, mode: YuvC
         y_plane: &y_plane,
         y_stride: i_width as u32,
         uv_plane: &uv_plane,
-        uv_stride: i_width as u32,
+        uv_stride: i_width as u32 * 2,
         width: i_width as u32,
         height: i_height as u32,
     };
