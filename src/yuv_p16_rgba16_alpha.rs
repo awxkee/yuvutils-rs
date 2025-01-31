@@ -481,7 +481,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
                             { $sampling as u8 },
                             { $endian as u8 },
                             { YuvBytesPacking::LeastSignificantBytes as u8 }, $bit_depth>(
-                planar_image, dst, dst_stride, range, matrix)
+                planar_image_with_alpha, dst, dst_stride, range, matrix)
         }
     };
 }
