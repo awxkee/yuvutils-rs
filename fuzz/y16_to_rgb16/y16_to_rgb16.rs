@@ -29,10 +29,7 @@
 
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
-    yuv400_p16_to_rgb16, yuv400_p16_to_rgba16, YuvBytesPacking, YuvEndianness, YuvGrayImage,
-    YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{y010_to_rgb10, y010_to_rgba10, YuvGrayImage, YuvRange, YuvStandardMatrix};
 
 fuzz_target!(|data: (u8, u8, u8)| {
     fuzz_yuv(data.0, data.1, data.2);
@@ -54,29 +51,23 @@ fn fuzz_yuv(i_width: u8, i_height: u8, y_value: u8) {
 
     let mut target_rgb = vec![0u16; i_width as usize * i_height as usize * 3];
 
-    yuv400_p16_to_rgb16(
+    y010_to_rgb10(
         &planar_image,
         &mut target_rgb,
         i_width as u32 * 3,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
     let mut target_rgba = vec![0u16; i_width as usize * i_height as usize * 4];
 
-    yuv400_p16_to_rgba16(
+    y010_to_rgba10(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 }
