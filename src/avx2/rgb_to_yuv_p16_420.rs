@@ -162,9 +162,6 @@ unsafe fn avx_rgba_to_yuv_impl<
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
-
     let y_bias = _mm256_set1_epi32(bias_y);
     let uv_bias = _mm256_set1_epi32(bias_uv);
     let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
@@ -265,16 +262,157 @@ unsafe fn avx_rgba_to_yuv_impl<
         }
 
         _mm_storeu_si128(
-            u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+            u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
             _mm256_castsi256_si128(cb_s),
         );
         _mm_storeu_si128(
-            v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+            v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
             _mm256_castsi256_si128(cr_s),
         );
 
         ux += 8;
         cx += 16;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 16);
+        let mut src_buffer0: [u16; 16 * 4] = [0; 16 * 4];
+        let mut src_buffer1: [u16; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer0: [u16; 16] = [0; 16];
+        let mut y_buffer1: [u16; 16] = [0; 16];
+        let mut u_buffer: [u16; 16] = [0; 16];
+        let mut v_buffer: [u16; 16] = [0; 16];
+
+        // Replicate last item to one more position for subsampling
+        if diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items0 = rgba0.get_unchecked(lst..(lst + channels));
+            let last_items1 = rgba1.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
+            let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst0.iter_mut().zip(last_items0) {
+                *dst = *src;
+            }
+            for (dst, src) in dst1.iter_mut().zip(last_items1) {
+                *dst = *src;
+            }
+        }
+
+        std::ptr::copy_nonoverlapping(
+            rgba0.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer0.as_mut_ptr(),
+            diff * channels,
+        );
+        std::ptr::copy_nonoverlapping(
+            rgba1.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer1.as_mut_ptr(),
+            diff * channels,
+        );
+
+        let (r_values0, g_values0, b_values0) =
+            _mm256_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer0.as_ptr());
+        let (r_values1, g_values1, b_values1) =
+            _mm256_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer1.as_ptr());
+
+        let zeros = _mm256_setzero_si256();
+        let (r_g_lo0, r_g_hi0) = (
+            _mm256_unpacklo_epi16(r_values0, g_values0),
+            _mm256_unpackhi_epi16(r_values0, g_values0),
+        );
+        let b_hi0 = _mm256_unpackhi_epi16(b_values0, zeros);
+        let b_lo0 = _mm256_unpacklo_epi16(b_values0, zeros);
+
+        let (r_g_lo1, r_g_hi1) = (
+            _mm256_unpacklo_epi16(r_values1, g_values1),
+            _mm256_unpackhi_epi16(r_values1, g_values1),
+        );
+        let b_hi1 = _mm256_unpackhi_epi16(b_values1, zeros);
+        let b_lo1 = _mm256_unpacklo_epi16(b_values1, zeros);
+
+        let mut y0_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
+            y_bias, r_g_lo0, r_g_hi0, b_lo0, b_hi0, v_yr_yg, v_yb,
+        );
+
+        let mut y1_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
+            y_bias, r_g_lo1, r_g_hi1, b_lo1, b_hi1, v_yr_yg, v_yb,
+        );
+
+        if bytes_position == YuvBytesPacking::MostSignificantBytes {
+            y0_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y0_vl);
+            y1_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y1_vl);
+        }
+
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
+            y0_vl = _mm256_shuffle_epi8(y0_vl, big_endian_shuffle_flag);
+            y1_vl = _mm256_shuffle_epi8(y1_vl, big_endian_shuffle_flag);
+        }
+
+        _mm256_storeu_si256(y_buffer0.as_mut_ptr() as *mut __m256i, y0_vl);
+
+        _mm256_storeu_si256(y_buffer1.as_mut_ptr() as *mut __m256i, y1_vl);
+
+        let rhv = _mm256_avg_epu16(r_values0, r_values1);
+        let ghv = _mm256_avg_epu16(g_values0, g_values1);
+        let bhv = _mm256_avg_epu16(b_values0, b_values1);
+
+        let r_values = _mm256_havg_epi16_epi32(rhv);
+        let g_values = _mm256_havg_epi16_epi32(ghv);
+        let b_values = _mm256_havg_epi16_epi32(bhv);
+
+        let r_g_values = _mm256_or_si256(r_values, _mm256_slli_epi32::<16>(g_values));
+
+        let mut cb_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
+            uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b,
+        );
+
+        let mut cr_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
+            uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b,
+        );
+
+        if bytes_position == YuvBytesPacking::MostSignificantBytes {
+            cb_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_s);
+            cr_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_s);
+        }
+
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
+            cb_s = _mm256_shuffle_epi8(cb_s, big_endian_shuffle_flag);
+            cr_s = _mm256_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+        }
+
+        _mm_storeu_si128(
+            u_buffer.as_mut_ptr() as *mut __m128i,
+            _mm256_castsi256_si128(cb_s),
+        );
+        _mm_storeu_si128(
+            v_buffer.as_mut_ptr() as *mut __m128i,
+            _mm256_castsi256_si128(cr_s),
+        );
+
+        let y_dst_0 = y_plane0.get_unchecked_mut(cx..);
+        std::ptr::copy_nonoverlapping(y_buffer0.as_ptr(), y_dst_0.as_mut_ptr(), diff);
+        let y_dst_1 = y_plane1.get_unchecked_mut(cx..);
+        std::ptr::copy_nonoverlapping(y_buffer1.as_ptr(), y_dst_1.as_mut_ptr(), diff);
+
+        cx += diff;
+
+        let hv = diff.div_ceil(2);
+
+        std::ptr::copy_nonoverlapping(
+            u_buffer.as_ptr(),
+            u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            hv,
+        );
+        std::ptr::copy_nonoverlapping(
+            v_buffer.as_ptr(),
+            v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            hv,
+        );
+
+        ux += hv;
     }
 
     ProcessedOffset { ux, cx }

@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::internals::ProcessedOffset;
-use crate::neon::utils::{neon_vld_rgb16_for_yuv, vdotl_laneq_u16_x3, vtomsb_u16, vtomsbq_u16};
+use crate::neon::utils::*;
 use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
@@ -255,12 +255,6 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
 
     let bias_uv = range.bias_uv as i16;
 
-    let y_ptr = y_plane.as_mut_ptr();
-    let u_ptr = u_plane.as_mut_ptr();
-    let v_ptr = v_plane.as_mut_ptr();
-
-    let uv_bias = vdupq_n_s16(bias_uv);
-
     const SCALE: i32 = 2;
 
     let weights_arr: [i16; 8] = [
@@ -276,7 +270,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
     let v_weights = vld1q_s16(weights_arr.as_ptr());
     let v_cr_b = vdupq_n_s16(transform.cr_b as i16);
 
-    let i_bias_y = vdupq_n_s16(range.bias_y as i16);
+    let i_bias_y = vdupq_n_s16(range.bias_y as i16 * (1 << 2) + (1 << (SCALE - 1)) - 1);
+    let uv_bias = vdupq_n_s16(bias_uv * (1 << 2) + (1 << (SCALE - 1)) - 1);
     let i_cap_y = vdupq_n_s16(range.range_y as i16 + range.bias_y as i16);
     let i_cap_uv = vdupq_n_s16(range.bias_y as i16 + range.range_uv as i16);
 
@@ -288,16 +283,16 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
         let (mut r_values, mut g_values, mut b_values) =
             neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
-        r_values = vshlq_n_u16::<SCALE>(r_values);
-        g_values = vshlq_n_u16::<SCALE>(g_values);
-        b_values = vshlq_n_u16::<SCALE>(b_values);
+        r_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(r_values);
+        g_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(g_values);
+        b_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(b_values);
 
         let mut y_values =
             vqrdmlahq_laneq_s16::<0>(i_bias_y, vreinterpretq_s16_u16(r_values), v_weights);
         y_values = vqrdmlahq_laneq_s16::<1>(y_values, vreinterpretq_s16_u16(g_values), v_weights);
         y_values = vqrdmlahq_laneq_s16::<2>(y_values, vreinterpretq_s16_u16(b_values), v_weights);
 
-        let mut y_vl = vreinterpretq_u16_s16(vminq_s16(y_values, i_cap_y));
+        let mut y_vl = vreinterpretq_u16_s16(vminq_s16(vshrq_n_s16::<2>(y_values), i_cap_y));
 
         if bytes_position == YuvBytesPacking::MostSignificantBytes {
             y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
@@ -308,7 +303,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
 
-        vst1q_u16(y_ptr.add(cx), y_vl);
+        vst1q_u16(y_plane.get_unchecked_mut(cx..).as_mut_ptr(), y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_h =
@@ -320,8 +315,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             cb_h = vqrdmlahq_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
             cr_h = vqrdmlahq_laneq_s16::<0>(cr_h, vreinterpretq_s16_u16(b_values), v_cr_b);
 
-            let cb_max = vmaxq_s16(cb_h, i_bias_y);
-            let cr_max = vmaxq_s16(cr_h, i_bias_y);
+            let cb_max = vmaxq_s16(vshrq_n_s16::<2>(cb_h), i_bias_y);
+            let cr_max = vmaxq_s16(vshrq_n_s16::<2>(cr_h), i_bias_y);
 
             let mut cb_vl = vreinterpretq_u16_s16(vminq_s16(cb_max, i_cap_uv));
             let mut cr_vl = vreinterpretq_u16_s16(vminq_s16(cr_max, i_cap_uv));
@@ -337,8 +332,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
             }
 
-            vst1q_u16(u_ptr.add(ux), cb_vl);
-            vst1q_u16(v_ptr.add(ux), cr_vl);
+            vst1q_u16(u_plane.get_unchecked_mut(ux..).as_mut_ptr(), cb_vl);
+            vst1q_u16(v_plane.get_unchecked_mut(ux..).as_mut_ptr(), cr_vl);
 
             ux += 8;
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
@@ -355,8 +350,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             cbk = vqrdmlah_laneq_s16::<5>(cbk, b1, v_weights);
             crk = vqrdmlah_laneq_s16::<0>(crk, b1, v_cr_b);
 
-            let cb_max = vmax_s16(cbk, vget_low_s16(i_bias_y));
-            let cr_max = vmax_s16(crk, vget_low_s16(i_bias_y));
+            let cb_max = vmax_s16(vshr_n_s16::<2>(cbk), vget_low_s16(i_bias_y));
+            let cr_max = vmax_s16(vshr_n_s16::<2>(crk), vget_low_s16(i_bias_y));
 
             let mut cb = vreinterpret_u16_s16(vmin_s16(cb_max, vget_low_s16(i_cap_uv)));
             let mut cr = vreinterpret_u16_s16(vmin_s16(cr_max, vget_low_s16(i_cap_uv)));
@@ -372,13 +367,167 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr)));
             }
 
-            vst1_u16(u_ptr.add(ux), cb);
-            vst1_u16(v_ptr.add(ux), cr);
+            vst1_u16(u_plane.get_unchecked_mut(ux..).as_mut_ptr(), cb);
+            vst1_u16(v_plane.get_unchecked_mut(ux..).as_mut_ptr(), cr);
 
             ux += 4;
         }
 
         cx += 8;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+        let mut src_buffer: [u16; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u16; 8] = [0; 8];
+        let mut u_buffer: [u16; 8] = [0; 8];
+        let mut v_buffer: [u16; 8] = [0; 8];
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        let (mut r_values, mut g_values, mut b_values) =
+            neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+
+        r_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(r_values);
+        g_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(g_values);
+        b_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(b_values);
+
+        let mut y_values =
+            vqrdmlahq_laneq_s16::<0>(i_bias_y, vreinterpretq_s16_u16(r_values), v_weights);
+        y_values = vqrdmlahq_laneq_s16::<1>(y_values, vreinterpretq_s16_u16(g_values), v_weights);
+        y_values = vqrdmlahq_laneq_s16::<2>(y_values, vreinterpretq_s16_u16(b_values), v_weights);
+
+        let mut y_vl = vreinterpretq_u16_s16(vminq_s16(vshrq_n_s16::<2>(y_values), i_cap_y));
+
+        if bytes_position == YuvBytesPacking::MostSignificantBytes {
+            y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
+        }
+
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
+            y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
+        }
+
+        vst1q_u16(y_buffer.as_mut_ptr(), y_vl);
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let mut cb_h =
+                vqrdmlahq_laneq_s16::<3>(uv_bias, vreinterpretq_s16_u16(r_values), v_weights);
+            let mut cr_h =
+                vqrdmlahq_laneq_s16::<6>(uv_bias, vreinterpretq_s16_u16(r_values), v_weights);
+            cb_h = vqrdmlahq_laneq_s16::<4>(cb_h, vreinterpretq_s16_u16(g_values), v_weights);
+            cr_h = vqrdmlahq_laneq_s16::<7>(cr_h, vreinterpretq_s16_u16(g_values), v_weights);
+            cb_h = vqrdmlahq_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
+            cr_h = vqrdmlahq_laneq_s16::<0>(cr_h, vreinterpretq_s16_u16(b_values), v_cr_b);
+
+            let cb_max = vmaxq_s16(vshrq_n_s16::<2>(cb_h), i_bias_y);
+            let cr_max = vmaxq_s16(vshrq_n_s16::<2>(cr_h), i_bias_y);
+
+            let mut cb_vl = vreinterpretq_u16_s16(vminq_s16(cb_max, i_cap_uv));
+            let mut cr_vl = vreinterpretq_u16_s16(vminq_s16(cr_max, i_cap_uv));
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_vl = vtomsbq_u16::<BIT_DEPTH>(cb_vl);
+                cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
+            }
+
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cb_vl)));
+                cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
+            }
+
+            vst1q_u16(u_buffer.as_mut_ptr(), cb_vl);
+            vst1q_u16(v_buffer.as_mut_ptr(), cr_vl);
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let r1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(r_values)));
+            let g1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(g_values)));
+            let b1 = vreinterpret_s16_u16(vrshrn_n_u32::<1>(vpaddlq_u16(b_values)));
+
+            let mut cbk = vqrdmlah_laneq_s16::<3>(vget_low_s16(uv_bias), r1, v_weights);
+            let mut crk = vqrdmlah_laneq_s16::<6>(vget_low_s16(uv_bias), r1, v_weights);
+            cbk = vqrdmlah_laneq_s16::<4>(cbk, g1, v_weights);
+            crk = vqrdmlah_laneq_s16::<7>(crk, g1, v_weights);
+            cbk = vqrdmlah_laneq_s16::<5>(cbk, b1, v_weights);
+            crk = vqrdmlah_laneq_s16::<0>(crk, b1, v_cr_b);
+
+            let cb_max = vmax_s16(vshr_n_s16::<2>(cbk), vget_low_s16(i_bias_y));
+            let cr_max = vmax_s16(vshr_n_s16::<2>(crk), vget_low_s16(i_bias_y));
+
+            let mut cb = vreinterpret_u16_s16(vmin_s16(cb_max, vget_low_s16(i_cap_uv)));
+            let mut cr = vreinterpret_u16_s16(vmin_s16(cr_max, vget_low_s16(i_cap_uv)));
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb = vtomsb_u16::<BIT_DEPTH>(cb);
+                cr = vtomsb_u16::<BIT_DEPTH>(cr);
+            }
+
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cb)));
+                cr = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr)));
+            }
+
+            vst1_u16(u_buffer.as_mut_ptr(), cb);
+            vst1_u16(v_buffer.as_mut_ptr(), cr);
+        }
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+
+            ux += diff;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let hv = diff.div_ceil(2);
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+
+            ux += hv;
+        }
     }
 
     ProcessedOffset { ux, cx }

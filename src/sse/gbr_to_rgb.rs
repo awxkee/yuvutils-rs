@@ -82,6 +82,56 @@ unsafe fn sse_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
         cx += 16;
     }
 
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 16);
+
+        let mut g_buffer: [u8; 16] = [0; 16];
+        let mut b_buffer: [u8; 16] = [0; 16];
+        let mut r_buffer: [u8; 16] = [0; 16];
+        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+
+        std::ptr::copy_nonoverlapping(
+            g_plane.get_unchecked(cx..).as_ptr(),
+            g_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            b_plane.get_unchecked(cx..).as_ptr(),
+            b_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            r_plane.get_unchecked(cx..).as_ptr(),
+            r_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let g_values = _mm_loadu_si128(g_buffer.as_ptr() as *const _);
+        let b_values = _mm_loadu_si128(b_buffer.as_ptr() as *const _);
+        let r_values = _mm_loadu_si128(r_buffer.as_ptr() as *const _);
+
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * destination_channels.get_channels_count();
+        let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.as_mut_ptr(),
+            diff * destination_channels.get_channels_count(),
+        );
+
+        cx += diff;
+    }
+
     cx
 }
 
@@ -123,44 +173,29 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
     let vy_bias = _mm_set1_epi8(y_bias as i8);
 
     while cx + 16 < width {
-        let g_values0 = _mm_subs_epu8(
-            _mm_loadu_si128(g_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
-        let b_values0 = _mm_subs_epu8(
-            _mm_loadu_si128(b_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
-        let r_values0 = _mm_subs_epu8(
-            _mm_loadu_si128(r_plane.get_unchecked(cx..).as_ptr() as *const _),
-            vy_bias,
-        );
+        let g_vl0 = _mm_loadu_si128(g_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let b_vl0 = _mm_loadu_si128(b_plane.get_unchecked(cx..).as_ptr() as *const _);
+        let r_vl0 = _mm_loadu_si128(r_plane.get_unchecked(cx..).as_ptr() as *const _);
 
-        let rl_hi = _mm_mulhrs_epi16(
-            _mm_srli_epi16::<6>(_mm_unpackhi_epi8(r_values0, r_values0)),
-            vy_coeff,
-        );
-        let gl_hi = _mm_mulhrs_epi16(
-            _mm_srli_epi16::<6>(_mm_unpackhi_epi8(g_values0, g_values0)),
-            vy_coeff,
-        );
-        let bl_hi = _mm_mulhrs_epi16(
-            _mm_srli_epi16::<6>(_mm_unpackhi_epi8(b_values0, b_values0)),
-            vy_coeff,
-        );
+        let g_values0 = _mm_subs_epu8(g_vl0, vy_bias);
+        let b_values0 = _mm_subs_epu8(b_vl0, vy_bias);
+        let r_values0 = _mm_subs_epu8(r_vl0, vy_bias);
 
-        let rl_lo = _mm_mulhrs_epi16(
-            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(r_values0, r_values0)),
-            vy_coeff,
-        );
-        let gl_lo = _mm_mulhrs_epi16(
-            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(g_values0, g_values0)),
-            vy_coeff,
-        );
-        let bl_lo = _mm_mulhrs_epi16(
-            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(b_values0, b_values0)),
-            vy_coeff,
-        );
+        let rlhs = _mm_unpackhi_epi8(r_values0, r_values0);
+        let glhs = _mm_unpackhi_epi8(g_values0, g_values0);
+        let blhs = _mm_unpackhi_epi8(b_values0, b_values0);
+
+        let rlls = _mm_unpacklo_epi8(r_values0, r_values0);
+        let glls = _mm_unpacklo_epi8(g_values0, g_values0);
+        let blls = _mm_unpacklo_epi8(b_values0, b_values0);
+
+        let rl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlhs), vy_coeff);
+        let gl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glhs), vy_coeff);
+        let bl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blhs), vy_coeff);
+
+        let rl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlls), vy_coeff);
+        let gl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glls), vy_coeff);
+        let bl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blls), vy_coeff);
 
         let r_values = _mm_packus_epi16(rl_lo, rl_hi);
         let g_values = _mm_packus_epi16(gl_lo, gl_hi);
@@ -178,6 +213,80 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         );
 
         cx += 16;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 16);
+
+        let mut g_buffer: [u8; 16] = [0; 16];
+        let mut b_buffer: [u8; 16] = [0; 16];
+        let mut r_buffer: [u8; 16] = [0; 16];
+        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+
+        std::ptr::copy_nonoverlapping(
+            g_plane.get_unchecked(cx..).as_ptr(),
+            g_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            b_plane.get_unchecked(cx..).as_ptr(),
+            b_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            r_plane.get_unchecked(cx..).as_ptr(),
+            r_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let g_vl0 = _mm_loadu_si128(g_buffer.as_ptr() as *const _);
+        let b_vl0 = _mm_loadu_si128(b_buffer.as_ptr() as *const _);
+        let r_vl0 = _mm_loadu_si128(r_buffer.as_ptr() as *const _);
+
+        let g_values0 = _mm_subs_epu8(g_vl0, vy_bias);
+        let b_values0 = _mm_subs_epu8(b_vl0, vy_bias);
+        let r_values0 = _mm_subs_epu8(r_vl0, vy_bias);
+
+        let rlhs = _mm_unpackhi_epi8(r_values0, r_values0);
+        let glhs = _mm_unpackhi_epi8(g_values0, g_values0);
+        let blhs = _mm_unpackhi_epi8(b_values0, b_values0);
+
+        let rlls = _mm_unpacklo_epi8(r_values0, r_values0);
+        let glls = _mm_unpacklo_epi8(g_values0, g_values0);
+        let blls = _mm_unpacklo_epi8(b_values0, b_values0);
+
+        let rl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlhs), vy_coeff);
+        let gl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glhs), vy_coeff);
+        let bl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blhs), vy_coeff);
+
+        let rl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlls), vy_coeff);
+        let gl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glls), vy_coeff);
+        let bl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blls), vy_coeff);
+
+        let r_values = _mm_packus_epi16(rl_lo, rl_hi);
+        let g_values = _mm_packus_epi16(gl_lo, gl_hi);
+        let b_values = _mm_packus_epi16(bl_lo, bl_hi);
+
+        _mm_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * destination_channels.get_channels_count();
+        let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.as_mut_ptr(),
+            diff * destination_channels.get_channels_count(),
+        );
+
+        cx += diff;
     }
 
     cx

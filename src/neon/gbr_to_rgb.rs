@@ -30,6 +30,7 @@ use crate::neon::utils::{neon_store_rgb8, vmullnq_s16};
 use crate::yuv_support::YuvSourceChannels;
 use std::arch::aarch64::*;
 
+#[cfg(feature = "rdm")]
 pub(crate) fn yuv_to_rgba_row_limited_rdm<const DESTINATION_CHANNELS: u8>(
     g_plane: &[u8],
     b_plane: &[u8],
@@ -47,6 +48,7 @@ pub(crate) fn yuv_to_rgba_row_limited_rdm<const DESTINATION_CHANNELS: u8>(
     }
 }
 
+#[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
 unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
     g_plane: &[u8],
@@ -107,6 +109,79 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
         );
 
         cx += 16;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 16);
+
+        let mut g_buffer: [u8; 16] = [0; 16];
+        let mut b_buffer: [u8; 16] = [0; 16];
+        let mut r_buffer: [u8; 16] = [0; 16];
+        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+
+        std::ptr::copy_nonoverlapping(
+            g_plane.get_unchecked(cx..).as_ptr(),
+            g_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            b_plane.get_unchecked(cx..).as_ptr(),
+            b_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            r_plane.get_unchecked(cx..).as_ptr(),
+            r_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let g0 = vld1q_u8(g_buffer.as_ptr() as *const _);
+        let b0 = vld1q_u8(b_buffer.as_ptr() as *const _);
+        let r0 = vld1q_u8(r_buffer.as_ptr() as *const _);
+
+        let g_values0 = vqsubq_u8(g0, vy_bias);
+        let b_values0 = vqsubq_u8(b0, vy_bias);
+        let r_values0 = vqsubq_u8(r0, vy_bias);
+
+        let rllo0 = vshll_n_u8::<V_SCALE>(vget_low_u8(r_values0));
+        let gllo0 = vshll_n_u8::<V_SCALE>(vget_low_u8(g_values0));
+        let bllo0 = vshll_n_u8::<V_SCALE>(vget_low_u8(b_values0));
+        let rlhi0 = vshll_high_n_u8::<V_SCALE>(r_values0);
+        let glhi0 = vshll_high_n_u8::<V_SCALE>(g_values0);
+        let blhi0 = vshll_high_n_u8::<V_SCALE>(b_values0);
+
+        let rl_lo = vqrdmulhq_s16(vreinterpretq_s16_u16(rllo0), vy_coeff);
+        let gl_lo = vqrdmulhq_s16(vreinterpretq_s16_u16(gllo0), vy_coeff);
+        let bl_lo = vqrdmulhq_s16(vreinterpretq_s16_u16(bllo0), vy_coeff);
+
+        let rl_hi = vqrdmulhq_s16(vreinterpretq_s16_u16(rlhi0), vy_coeff);
+        let gl_hi = vqrdmulhq_s16(vreinterpretq_s16_u16(glhi0), vy_coeff);
+        let bl_hi = vqrdmulhq_s16(vreinterpretq_s16_u16(blhi0), vy_coeff);
+
+        let r_values = vcombine_u8(vqmovun_s16(rl_lo), vqmovun_s16(rl_hi));
+        let g_values = vcombine_u8(vqmovun_s16(gl_lo), vqmovun_s16(gl_hi));
+        let b_values = vcombine_u8(vqmovun_s16(bl_lo), vqmovun_s16(bl_hi));
+
+        neon_store_rgb8::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * destination_channels.get_channels_count();
+        let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.as_mut_ptr(),
+            diff * destination_channels.get_channels_count(),
+        );
+
+        cx += diff;
     }
 
     cx
@@ -173,6 +248,79 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
             cx += 16;
         }
 
+        if cx < width {
+            let diff = width - cx;
+            assert!(diff <= 16);
+
+            let mut g_buffer: [u8; 16] = [0; 16];
+            let mut b_buffer: [u8; 16] = [0; 16];
+            let mut r_buffer: [u8; 16] = [0; 16];
+            let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+
+            std::ptr::copy_nonoverlapping(
+                g_plane.get_unchecked(cx..).as_ptr(),
+                g_buffer.as_mut_ptr(),
+                diff,
+            );
+
+            std::ptr::copy_nonoverlapping(
+                b_plane.get_unchecked(cx..).as_ptr(),
+                b_buffer.as_mut_ptr(),
+                diff,
+            );
+
+            std::ptr::copy_nonoverlapping(
+                r_plane.get_unchecked(cx..).as_ptr(),
+                r_buffer.as_mut_ptr(),
+                diff,
+            );
+
+            let g0 = vld1q_u8(g_buffer.as_ptr() as *const _);
+            let b0 = vld1q_u8(b_buffer.as_ptr() as *const _);
+            let r0 = vld1q_u8(r_buffer.as_ptr() as *const _);
+
+            let g_values0 = vqsubq_u8(g0, vy_bias);
+            let b_values0 = vqsubq_u8(b0, vy_bias);
+            let r_values0 = vqsubq_u8(r0, vy_bias);
+
+            let rl0 = vmovl_u8(vget_low_u8(r_values0));
+            let gl0 = vmovl_u8(vget_low_u8(g_values0));
+            let bl0 = vmovl_u8(vget_low_u8(b_values0));
+            let rh0 = vmovl_high_u8(r_values0);
+            let gh0 = vmovl_high_u8(g_values0);
+            let bh0 = vmovl_high_u8(b_values0);
+
+            let rl_lo = vmullnq_s16::<PRECISION>(rl0, vy_coeff);
+            let gl_lo = vmullnq_s16::<PRECISION>(gl0, vy_coeff);
+            let bl_lo = vmullnq_s16::<PRECISION>(bl0, vy_coeff);
+
+            let rl_hi = vmullnq_s16::<PRECISION>(rh0, vy_coeff);
+            let gl_hi = vmullnq_s16::<PRECISION>(gh0, vy_coeff);
+            let bl_hi = vmullnq_s16::<PRECISION>(bh0, vy_coeff);
+
+            let r_values = vcombine_u8(vqmovn_u16(rl_lo), vqmovn_u16(rl_hi));
+            let g_values = vcombine_u8(vqmovn_u16(gl_lo), vqmovn_u16(gl_hi));
+            let b_values = vcombine_u8(vqmovn_u16(bl_lo), vqmovn_u16(bl_hi));
+
+            neon_store_rgb8::<DESTINATION_CHANNELS>(
+                dst_buffer.as_mut_ptr(),
+                r_values,
+                g_values,
+                b_values,
+                v_alpha,
+            );
+
+            let dst_shift = cx * destination_channels.get_channels_count();
+            let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
+            std::ptr::copy_nonoverlapping(
+                dst_buffer.as_ptr(),
+                rgba_ptr.as_mut_ptr(),
+                diff * destination_channels.get_channels_count(),
+            );
+
+            cx += diff;
+        }
+
         cx
     }
 }
@@ -208,6 +356,56 @@ pub(crate) fn yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
             );
 
             cx += 16;
+        }
+
+        if cx < width {
+            let diff = width - cx;
+            assert!(diff <= 16);
+
+            let mut g_buffer: [u8; 16] = [0; 16];
+            let mut b_buffer: [u8; 16] = [0; 16];
+            let mut r_buffer: [u8; 16] = [0; 16];
+            let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+
+            std::ptr::copy_nonoverlapping(
+                g_plane.get_unchecked(cx..).as_ptr(),
+                g_buffer.as_mut_ptr(),
+                diff,
+            );
+
+            std::ptr::copy_nonoverlapping(
+                b_plane.get_unchecked(cx..).as_ptr(),
+                b_buffer.as_mut_ptr(),
+                diff,
+            );
+
+            std::ptr::copy_nonoverlapping(
+                r_plane.get_unchecked(cx..).as_ptr(),
+                r_buffer.as_mut_ptr(),
+                diff,
+            );
+
+            let g_values = vld1q_u8(g_buffer.as_ptr() as *const _);
+            let b_values = vld1q_u8(b_buffer.as_ptr() as *const _);
+            let r_values = vld1q_u8(r_buffer.as_ptr() as *const _);
+
+            neon_store_rgb8::<DESTINATION_CHANNELS>(
+                dst_buffer.as_mut_ptr(),
+                r_values,
+                g_values,
+                b_values,
+                v_alpha,
+            );
+
+            let dst_shift = cx * destination_channels.get_channels_count();
+            let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
+            std::ptr::copy_nonoverlapping(
+                dst_buffer.as_ptr(),
+                rgba_ptr.as_mut_ptr(),
+                diff * destination_channels.get_channels_count(),
+            );
+
+            cx += diff;
         }
 
         cx

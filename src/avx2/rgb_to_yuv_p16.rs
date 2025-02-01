@@ -182,10 +182,6 @@ unsafe fn avx_rgba_to_yuv_impl<
 
     let src_ptr = rgba;
 
-    let y_ptr = y_plane;
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
-
     let y_bias = _mm256_set1_epi32(bias_y);
     let uv_bias = _mm256_set1_epi32(bias_uv);
     let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
@@ -230,7 +226,7 @@ unsafe fn avx_rgba_to_yuv_impl<
         }
 
         _mm256_storeu_si256(
-            y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
             y_vl,
         );
 
@@ -254,11 +250,11 @@ unsafe fn avx_rgba_to_yuv_impl<
             }
 
             _mm256_storeu_si256(
-                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
                 cb_vl,
             );
             _mm256_storeu_si256(
-                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
                 cr_vl,
             );
 
@@ -289,11 +285,11 @@ unsafe fn avx_rgba_to_yuv_impl<
             }
 
             _mm_storeu_si128(
-                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
                 _mm256_castsi256_si128(cb_s),
             );
             _mm_storeu_si128(
-                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
                 _mm256_castsi256_si128(cr_s),
             );
 
@@ -301,6 +297,153 @@ unsafe fn avx_rgba_to_yuv_impl<
         }
 
         cx += 16;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 16);
+        let mut src_buffer: [u16; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer: [u16; 16] = [0; 16];
+        let mut u_buffer: [u16; 16] = [0; 16];
+        let mut v_buffer: [u16; 16] = [0; 16];
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        let (r_values, g_values, b_values) =
+            _mm256_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+
+        let zeros = _mm256_setzero_si256();
+        let (r_g_lo, r_g_hi) = (
+            _mm256_unpacklo_epi16(r_values, g_values),
+            _mm256_unpackhi_epi16(r_values, g_values),
+        );
+        let b_hi = _mm256_unpackhi_epi16(b_values, zeros);
+        let b_lo = _mm256_unpacklo_epi16(b_values, zeros);
+
+        let mut y_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
+            y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb,
+        );
+
+        if bytes_position == YuvBytesPacking::MostSignificantBytes {
+            y_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(y_vl);
+        }
+
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
+            y_vl = _mm256_shuffle_epi8(y_vl, big_endian_shuffle_flag);
+        }
+
+        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut __m256i, y_vl);
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let mut cb_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
+            );
+
+            let mut cr_vl = _mm256_affine_uv_dot::<PRECISION, HAS_DOT>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
+            );
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_vl);
+                cr_vl = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_vl);
+            }
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb_vl = _mm256_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
+                cr_vl = _mm256_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
+            }
+
+            _mm256_storeu_si256(u_buffer.as_mut_ptr() as *mut __m256i, cb_vl);
+            _mm256_storeu_si256(v_buffer.as_mut_ptr() as *mut __m256i, cr_vl);
+        } else {
+            let r_values = _mm256_havg_epi16_epi32(r_values);
+            let g_values = _mm256_havg_epi16_epi32(g_values);
+            let b_values = _mm256_havg_epi16_epi32(b_values);
+
+            let r_g_values = _mm256_or_si256(r_values, _mm256_slli_epi32::<16>(g_values));
+
+            let mut cb_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
+                uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b,
+            );
+
+            let mut cr_s = _mm256_affine_transform::<PRECISION, HAS_DOT>(
+                uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b,
+            );
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cb_s);
+                cr_s = _mm256_to_msb_epi16::<BIT_DEPTH>(cr_s);
+            }
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb_s = _mm256_shuffle_epi8(cb_s, big_endian_shuffle_flag);
+                cr_s = _mm256_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+            }
+
+            _mm_storeu_si128(
+                u_buffer.as_mut_ptr() as *mut __m128i,
+                _mm256_castsi256_si128(cb_s),
+            );
+            _mm_storeu_si128(
+                v_buffer.as_mut_ptr() as *mut __m128i,
+                _mm256_castsi256_si128(cr_s),
+            );
+        }
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+
+            ux += diff;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let hv = diff.div_ceil(2);
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+
+            ux += hv;
+        }
     }
 
     ProcessedOffset { ux, cx }

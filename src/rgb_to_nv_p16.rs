@@ -83,7 +83,7 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     let kr_kb = matrix.get_kr_kb();
     let max_range = (1u32 << BIT_DEPTH as u32) - 1u32;
 
-    const PRECISION: i32 = 13;
+    const PRECISION: i32 = 14;
 
     let transform_precise =
         get_forward_transform(max_range, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
@@ -418,14 +418,14 @@ macro_rules! d_cnv {
     ($method:ident, $px_fmt: expr, $subsampling: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr) => {
         #[doc = concat!("Convert ",$rgb_name," image data to ", $yuv_name, " format.
 
-This function performs ",$rgb_name," to ",$yuv_name," conversion and stores the result in ", $yuv_name, " format,
+This function performs ",$rgb_name, stringify!($bit_depth)," to ",$yuv_name," conversion and stores the result in ", $yuv_name, " format,
 with separate planes for Y (luminance), UV (chrominance) components.
 
 # Arguments
 
 * `bi_planar_image` - Target Bi-Planar ", $yuv_name," image.
-* `dst` - The input ", $rgb_name," image data slice.
-* `dst_stride` - The stride (components per row) for the ", $rgb_name," image data.
+* `dst` - The input ", $rgb_name, stringify!($bit_depth)," image data slice.
+* `dst_stride` - The stride (components per row) for the ", $rgb_name, stringify!($bit_depth)," image data.
 * `range` - The YUV range (limited or full).
 * `matrix` - The YUV standard matrix (BT.601 or BT.709 or BT.2020 or other).
 
@@ -440,10 +440,6 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             range: YuvRange,
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            assert!(
-                $bit_depth == 10 || $bit_depth == 12,
-                "Only 10 and 12 bit depth is supported"
-            );
             rgbx_to_yuv_bi_planar_10::<
                 { $px_fmt as u8 },
                 { YuvNVOrder::UV as u8 },
@@ -551,4 +547,38 @@ d_cnv!(
     "P412",
     "RGB",
     12
+);
+
+d_cnv!(
+    rgba16_to_p016,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "P016",
+    "RGBA",
+    16
+);
+d_cnv!(
+    rgb16_to_p016,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "P016",
+    "RGB",
+    16
+);
+
+d_cnv!(
+    rgba16_to_p216,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "P216",
+    "RGBA",
+    16
+);
+d_cnv!(
+    rgb16_to_p216,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "P216",
+    "RGB",
+    16
 );

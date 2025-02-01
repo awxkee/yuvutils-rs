@@ -183,10 +183,6 @@ unsafe fn avx_rgba_to_yuv_impl<
 
     let src_ptr = rgba;
 
-    let y_ptr = y_plane;
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
-
     let y_bias = _mm512_set1_epi32(bias_y);
     let uv_bias = _mm512_set1_epi32(bias_uv);
     let v_yr_yg = _mm512_set1_epi32(transform._interleaved_yr_yg());
@@ -206,7 +202,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    const PREC: u32 = 13;
+    const PREC: u32 = 15;
 
     while cx + 32 < width {
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
@@ -234,7 +230,7 @@ unsafe fn avx_rgba_to_yuv_impl<
             y_vl = _mm512_shuffle_epi8(y_vl, big_endian_shuffle_flag);
         }
 
-        _mm512_storeu_si512(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
+        _mm512_storeu_si512(y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_vl = _mm512_affine_uv_dot::<PREC, HAS_DOT_PROD>(
@@ -256,8 +252,14 @@ unsafe fn avx_rgba_to_yuv_impl<
                 cr_vl = _mm512_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
             }
 
-            _mm512_storeu_si512(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cb_vl);
-            _mm512_storeu_si512(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, cr_vl);
+            _mm512_storeu_si512(
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+                cb_vl,
+            );
+            _mm512_storeu_si512(
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+                cr_vl,
+            );
 
             ux += 32;
         } else {
@@ -287,11 +289,11 @@ unsafe fn avx_rgba_to_yuv_impl<
             }
 
             _mm256_storeu_si256(
-                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
                 _mm512_castsi512_si256(cb_s),
             );
             _mm256_storeu_si256(
-                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
                 _mm512_castsi512_si256(cr_s),
             );
 
@@ -299,6 +301,127 @@ unsafe fn avx_rgba_to_yuv_impl<
         }
 
         cx += 32;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 32);
+        let mut src_buffer: [u16; 32 * 4] = [0; 32 * 4];
+        let mut u_buffer: [u16; 32] = [0; 32];
+        let mut v_buffer: [u16; 32] = [0; 32];
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        let (r_values, g_values, b_values) =
+            _mm512_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+
+        let zeros = _mm512_setzero_si512();
+        let (r_g_lo, r_g_hi) = (
+            _mm512_unpacklo_epi16(r_values, g_values),
+            _mm512_unpackhi_epi16(r_values, g_values),
+        );
+        let b_hi = _mm512_unpackhi_epi16(b_values, zeros);
+        let b_lo = _mm512_unpacklo_epi16(b_values, zeros);
+
+        let mut y_vl = _mm512_affine_uv_dot::<PREC, HAS_DOT_PROD>(
+            y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb,
+        );
+
+        if bytes_position == YuvBytesPacking::MostSignificantBytes {
+            y_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(y_vl);
+        }
+
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
+            y_vl = _mm512_shuffle_epi8(y_vl, big_endian_shuffle_flag);
+        }
+
+        let mask = 0xffff_ffffu32 >> (32 - diff as u32);
+        _mm512_mask_storeu_epi16(
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
+            mask,
+            y_vl,
+        );
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let mut cb_vl = _mm512_affine_uv_dot::<PREC, HAS_DOT_PROD>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
+            );
+
+            let mut cr_vl = _mm512_affine_uv_dot::<PREC, HAS_DOT_PROD>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
+            );
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(cb_vl);
+                cr_vl = _mm512_to_msb_epi16::<BIT_DEPTH>(cr_vl);
+            }
+
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb_vl = _mm512_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
+                cr_vl = _mm512_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
+            }
+
+            _mm512_mask_storeu_epi16(u_buffer.as_mut_ptr() as *mut _, mask, cb_vl);
+            _mm512_mask_storeu_epi16(v_buffer.as_mut_ptr() as *mut _, mask, cr_vl);
+        } else {
+            let r_values = _mm512_havg_epi16_epi32(r_values);
+            let g_values = _mm512_havg_epi16_epi32(g_values);
+            let b_values = _mm512_havg_epi16_epi32(b_values);
+
+            let r_g_values = _mm512_or_si512(r_values, _mm512_slli_epi32::<16>(g_values));
+
+            let mut cb_s = _mm512_affine_transform::<PREC, HAS_DOT_PROD>(
+                uv_bias, r_g_values, b_values, v_cbr_cbg, v_cb_b,
+            );
+
+            let mut cr_s = _mm512_affine_transform::<PREC, HAS_DOT_PROD>(
+                uv_bias, r_g_values, b_values, v_crr_vcrg, v_cr_b,
+            );
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_s = _mm512_to_msb_epi16::<BIT_DEPTH>(cb_s);
+                cr_s = _mm512_to_msb_epi16::<BIT_DEPTH>(cr_s);
+            }
+
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb_s = _mm512_shuffle_epi8(cb_s, big_endian_shuffle_flag);
+                cr_s = _mm512_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+            }
+
+            let halved_mask = 0xffff_ffffu32 >> (32 - diff.div_ceil(2) as u32);
+
+            _mm512_mask_storeu_epi16(u_buffer.as_mut_ptr() as *mut _, halved_mask, cb_s);
+            _mm512_mask_storeu_epi16(v_buffer.as_mut_ptr() as *mut _, halved_mask, cr_s);
+        }
+
+        cx += diff;
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            ux += diff;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let hv = diff.div_ceil(2);
+            ux += hv;
+        }
     }
 
     ProcessedOffset { ux, cx }

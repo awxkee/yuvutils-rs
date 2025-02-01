@@ -84,6 +84,56 @@ unsafe fn avx_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
         cx += 32;
     }
 
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 32);
+
+        let mut g_buffer: [u8; 32] = [0; 32];
+        let mut b_buffer: [u8; 32] = [0; 32];
+        let mut r_buffer: [u8; 32] = [0; 32];
+        let mut dst_buffer: [u8; 32 * 4] = [0; 32 * 4];
+
+        std::ptr::copy_nonoverlapping(
+            g_plane.get_unchecked(cx..).as_ptr(),
+            g_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            b_plane.get_unchecked(cx..).as_ptr(),
+            b_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            r_plane.get_unchecked(cx..).as_ptr(),
+            r_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let g_values = _mm256_loadu_si256(g_buffer.as_ptr() as *const _);
+        let b_values = _mm256_loadu_si256(b_buffer.as_ptr() as *const _);
+        let r_values = _mm256_loadu_si256(r_buffer.as_ptr() as *const _);
+
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * destination_channels.get_channels_count();
+        let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.as_mut_ptr(),
+            diff * destination_channels.get_channels_count(),
+        );
+
+        cx += diff;
+    }
+
     cx
 }
 
@@ -128,6 +178,7 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         let g0 = _mm256_loadu_si256(g_plane.get_unchecked(cx..).as_ptr() as *const _);
         let b0 = _mm256_loadu_si256(b_plane.get_unchecked(cx..).as_ptr() as *const _);
         let r0 = _mm256_loadu_si256(r_plane.get_unchecked(cx..).as_ptr() as *const _);
+
         let g_values0 = _mm256_subs_epu8(g0, vy_bias);
         let b_values0 = _mm256_subs_epu8(b0, vy_bias);
         let r_values0 = _mm256_subs_epu8(r0, vy_bias);
@@ -160,6 +211,76 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         );
 
         cx += 32;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 32);
+
+        let mut g_buffer: [u8; 32] = [0; 32];
+        let mut b_buffer: [u8; 32] = [0; 32];
+        let mut r_buffer: [u8; 32] = [0; 32];
+        let mut dst_buffer: [u8; 32 * 4] = [0; 32 * 4];
+
+        std::ptr::copy_nonoverlapping(
+            g_plane.get_unchecked(cx..).as_ptr(),
+            g_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            b_plane.get_unchecked(cx..).as_ptr(),
+            b_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            r_plane.get_unchecked(cx..).as_ptr(),
+            r_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let g0 = _mm256_loadu_si256(g_buffer.as_ptr() as *const _);
+        let b0 = _mm256_loadu_si256(b_buffer.as_ptr() as *const _);
+        let r0 = _mm256_loadu_si256(r_buffer.as_ptr() as *const _);
+
+        let g_values0 = _mm256_subs_epu8(g0, vy_bias);
+        let b_values0 = _mm256_subs_epu8(b0, vy_bias);
+        let r_values0 = _mm256_subs_epu8(r0, vy_bias);
+
+        let (r_y_lo, r_y_hi) = _mm256_expand8_unordered_to_10(r_values0);
+        let (g_y_lo, g_y_hi) = _mm256_expand8_unordered_to_10(g_values0);
+        let (b_y_lo, b_y_hi) = _mm256_expand8_unordered_to_10(b_values0);
+
+        let rl_hi = _mm256_mulhrs_epi16(r_y_hi, vy_coeff);
+        let gl_hi = _mm256_mulhrs_epi16(g_y_hi, vy_coeff);
+        let bl_hi = _mm256_mulhrs_epi16(b_y_hi, vy_coeff);
+
+        let rl_lo = _mm256_mulhrs_epi16(r_y_lo, vy_coeff);
+        let gl_lo = _mm256_mulhrs_epi16(g_y_lo, vy_coeff);
+        let bl_lo = _mm256_mulhrs_epi16(b_y_lo, vy_coeff);
+
+        let r_values = _mm256_packus_epi16(rl_lo, rl_hi);
+        let g_values = _mm256_packus_epi16(gl_lo, gl_hi);
+        let b_values = _mm256_packus_epi16(bl_lo, bl_hi);
+
+        _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            g_values,
+            b_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * destination_channels.get_channels_count();
+        let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.as_mut_ptr(),
+            diff * destination_channels.get_channels_count(),
+        );
+
+        cx += diff;
     }
 
     cx

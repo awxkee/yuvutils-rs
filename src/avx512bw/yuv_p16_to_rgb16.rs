@@ -195,14 +195,15 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
         v_values = _mm512_slli_epi16::<SCALE>(v_values);
         y_values = _mm512_expand_bp_by2::<BIT_DEPTH>(y_values);
 
+        let gl0 = _mm512_mulhrs_epi16(v_values, v_g_coeff_1);
+        let gl1 = _mm512_mulhrs_epi16(u_values, v_g_coeff_2);
         let y_vals = _mm512_mulhrs_epi16(y_values, v_luma_coeff);
+        let rl = _mm512_mulhrs_epi16(v_values, v_cr_coeff);
+        let bl = _mm512_mulhrs_epi16(u_values, v_cb_coeff);
 
-        let r_vals = _mm512_add_epi16(y_vals, _mm512_mulhrs_epi16(v_values, v_cr_coeff));
-        let b_vals = _mm512_add_epi16(y_vals, _mm512_mulhrs_epi16(u_values, v_cb_coeff));
-        let g_vals = _mm512_add_epi16(
-            _mm512_add_epi16(y_vals, _mm512_mulhrs_epi16(v_values, v_g_coeff_1)),
-            _mm512_mulhrs_epi16(u_values, v_g_coeff_2),
-        );
+        let r_vals = _mm512_add_epi16(y_vals, rl);
+        let b_vals = _mm512_add_epi16(y_vals, bl);
+        let g_vals = _mm512_add_epi16(_mm512_add_epi16(y_vals, gl0), gl1);
 
         let v_max_colors = _mm512_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
 
@@ -235,13 +236,9 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
     if cx < width as usize {
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
-        let mut diff = width as usize - cx;
+        let diff = width as usize - cx;
 
         assert!(diff <= 32);
-
-        if chroma_subsampling != YuvChromaSubsampling::Yuv444 {
-            diff = if diff % 2 == 0 { diff } else { (diff / 2) * 2 };
-        }
 
         let mask = 0xffff_ffffu32 >> (32 - diff as u32);
 
@@ -313,14 +310,15 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
         v_values = _mm512_slli_epi16::<SCALE>(v_values);
         y_values = _mm512_expand_bp_by2::<BIT_DEPTH>(y_values);
 
+        let gl0 = _mm512_mulhrs_epi16(v_values, v_g_coeff_1);
+        let gl1 = _mm512_mulhrs_epi16(u_values, v_g_coeff_2);
         let y_vals = _mm512_mulhrs_epi16(y_values, v_luma_coeff);
+        let rl = _mm512_mulhrs_epi16(v_values, v_cr_coeff);
+        let bl = _mm512_mulhrs_epi16(u_values, v_cb_coeff);
 
-        let r_vals = _mm512_add_epi16(y_vals, _mm512_mulhrs_epi16(v_values, v_cr_coeff));
-        let b_vals = _mm512_add_epi16(y_vals, _mm512_mulhrs_epi16(u_values, v_cb_coeff));
-        let g_vals = _mm512_add_epi16(
-            _mm512_add_epi16(y_vals, _mm512_mulhrs_epi16(v_values, v_g_coeff_1)),
-            _mm512_mulhrs_epi16(u_values, v_g_coeff_2),
-        );
+        let r_vals = _mm512_add_epi16(y_vals, rl);
+        let b_vals = _mm512_add_epi16(y_vals, bl);
+        let g_vals = _mm512_add_epi16(_mm512_add_epi16(y_vals, gl0), gl1);
 
         let v_max_colors = _mm512_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
 

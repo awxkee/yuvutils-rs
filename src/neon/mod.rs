@@ -98,6 +98,8 @@ mod yuv_to_rgba;
 mod yuv_to_rgba420;
 mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
+#[cfg(feature = "nightly_f16")]
+mod yuva_p16_to_rgba_f16;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
@@ -107,9 +109,9 @@ pub(crate) use f16_converter::{
     SurfaceF16ToUnsigned8NeonFallback, SurfaceU16ToFloat16Neon, SurfaceU16ToFloat16NeonFallback,
     SurfaceU8ToFloat16Neon, SurfaceU8ToFloat16NeonFallback,
 };
-pub(crate) use gbr_to_rgb::{
-    yuv_to_rgba_row_full, yuv_to_rgba_row_limited, yuv_to_rgba_row_limited_rdm,
-};
+#[cfg(feature = "rdm")]
+pub(crate) use gbr_to_rgb::yuv_to_rgba_row_limited_rdm;
+pub(crate) use gbr_to_rgb::{yuv_to_rgba_row_full, yuv_to_rgba_row_limited};
 #[cfg(feature = "professional_mode")]
 pub(crate) use rgb_to_nv420_prof::neon_rgba_to_nv_prof420;
 #[cfg(feature = "professional_mode")]
@@ -207,5 +209,7 @@ pub(crate) use yuv_to_rgba_alpha::neon_yuv_to_rgba_alpha;
 #[cfg(feature = "rdm")]
 pub(crate) use yuv_to_rgba_alpha::neon_yuv_to_rgba_alpha_rdm;
 pub(crate) use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
+#[cfg(feature = "nightly_f16")]
+pub(crate) use yuva_p16_to_rgba_f16::neon_yuva_p16_to_rgba_f16_row;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_neon;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_neon_impl;

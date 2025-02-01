@@ -31,12 +31,10 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use yuv_sys::{rs_I010ToABGR, rs_I210ToABGR};
 use yuvutils_rs::{
-    rgb_to_yuv420_p16, rgb_to_yuv422_p16, rgb_to_yuv444_p16, rgb_to_yuv_nv12_p16,
-    rgba_to_yuv420_p16, rgba_to_yuv422_p16, rgba_to_yuv444_p16, yuv420_p16_to_rgb,
-    yuv420_p16_to_rgb16, yuv420_p16_to_rgba16, yuv420_p16_to_rgba_f16, yuv422_p16_to_rgba,
-    yuv422_p16_to_rgba16, yuv444_p16_to_rgba16, yuv_nv12_to_rgba_p16, YuvBiPlanarImageMut,
-    YuvBytesPacking, YuvChromaSubsampling, YuvEndianness, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    i010_to_rgb10, i010_to_rgba, i010_to_rgba10, i010_to_rgba_f16, i210_to_rgba, i210_to_rgba10,
+    i410_to_rgba10, p010_to_rgba10, rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb10_to_p010,
+    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, YuvBiPlanarImageMut, YuvChromaSubsampling,
+    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -56,27 +54,21 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut bi_planar_image =
         YuvBiPlanarImageMut::<u16>::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv420);
 
-    rgb_to_yuv420_p16(
+    rgb10_to_i010(
         &mut planar_image,
         &src_bytes,
         stride as u32,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
-    rgb_to_yuv_nv12_p16(
+    rgb10_to_p010(
         &mut bi_planar_image,
         &src_bytes,
         stride as u32,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
@@ -93,15 +85,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             YuvChromaSubsampling::Yuv420,
         );
         b.iter(|| {
-            rgb_to_yuv420_p16(
+            rgb10_to_i010(
                 &mut test_planar,
                 &src_bytes,
                 stride as u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -114,15 +103,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             YuvChromaSubsampling::Yuv420,
         );
         b.iter(|| {
-            rgba_to_yuv420_p16(
+            rgba10_to_i010(
                 &mut test_planar,
                 &rgba_image,
                 dimensions.0 * 4,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -135,15 +121,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             YuvChromaSubsampling::Yuv422,
         );
         b.iter(|| {
-            rgba_to_yuv422_p16(
+            rgba10_to_i210(
                 &mut test_planar,
                 &rgba_image,
                 dimensions.0 * 4,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -156,15 +139,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             YuvChromaSubsampling::Yuv444,
         );
         b.iter(|| {
-            rgba_to_yuv444_p16(
+            rgba10_to_i410(
                 &mut test_planar,
                 &rgba_image,
                 dimensions.0 * 4,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -173,15 +153,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("yuvutils YUV10 NV12 -> RGB10", |b| {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
-            yuv_nv12_to_rgba_p16(
+            p010_to_rgba10(
                 &fixed_bi_planar,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -190,15 +167,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("yuvutils YUV10 4:2:0 -> RGB10", |b| {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 3 * dimensions.1 as usize];
         b.iter(|| {
-            yuv420_p16_to_rgb16(
+            i010_to_rgb10(
                 &fixed_planar,
                 &mut rgb_bytes,
                 dimensions.0 * 3u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -207,15 +181,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("yuvutils YUV10 4:2:0 -> RGBA10", |b| {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
-            yuv420_p16_to_rgba16(
+            i010_to_rgba10(
                 &fixed_planar,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -225,15 +196,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         use core::f16;
         let mut rgb_bytes: Vec<f16> = vec![0.; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
-            yuv420_p16_to_rgba_f16(
+            i010_to_rgba_f16(
                 &fixed_planar,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -242,15 +210,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("yuvutils YUV10 4:2:0 -> RGBA8", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
-            yuv420_p16_to_rgb(
+            i010_to_rgba(
                 &fixed_planar,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -277,15 +242,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut planar_image422 =
         YuvPlanarImageMut::<u16>::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv422);
 
-    rgb_to_yuv422_p16(
+    rgb10_to_i210(
         &mut planar_image422,
         &src_bytes,
         stride as u32,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
@@ -294,15 +256,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("yuvutils YUV10 4:2:2 -> RGBA10", |b| {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
-            yuv422_p16_to_rgba16(
+            i210_to_rgba10(
                 &fixed_planar422,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -311,15 +270,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("yuvutils YUV10 4:2:2 -> RGBA8", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
-            yuv422_p16_to_rgba(
+            i210_to_rgba(
                 &fixed_planar422,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })
@@ -346,15 +302,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut planar_image444 =
         YuvPlanarImageMut::<u16>::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv444);
 
-    rgb_to_yuv444_p16(
+    rgb10_to_i410(
         &mut planar_image444,
         &src_bytes,
         stride as u32,
-        10,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
-        YuvEndianness::LittleEndian,
-        YuvBytesPacking::LeastSignificantBytes,
     )
     .unwrap();
 
@@ -363,15 +316,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("yuvutils YUV10 4:4:4 -> RGBA10", |b| {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
-            yuv444_p16_to_rgba16(
+            i410_to_rgba10(
                 &fixed_planar444,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
-                10,
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
-                YuvEndianness::LittleEndian,
-                YuvBytesPacking::LeastSignificantBytes,
             )
             .unwrap();
         })

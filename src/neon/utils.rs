@@ -703,12 +703,27 @@ pub(crate) unsafe fn vexpand_high_8_to_10(a: uint8x16_t) -> uint16x8_t {
 #[cfg(feature = "rdm")]
 #[inline(always)]
 pub(crate) unsafe fn vexpand_high_bp_by_2<const BIT_DEPTH: usize>(v: int16x8_t) -> int16x8_t {
-    let v = vreinterpretq_u16_s16(v);
+    vreinterpretq_s16_u16(vexpandu_high_bp_by_2::<BIT_DEPTH>(vreinterpretq_u16_s16(v)))
+}
+
+#[cfg(feature = "rdm")]
+#[inline(always)]
+pub(crate) unsafe fn vexpandu_high_bp_by_2<const BIT_DEPTH: usize>(v: uint16x8_t) -> uint16x8_t {
     if BIT_DEPTH == 10 {
-        vreinterpretq_s16_u16(vorrq_u16(vshlq_n_u16::<2>(v), vshrq_n_u16::<8>(v)))
+        vorrq_u16(vshlq_n_u16::<2>(v), vshrq_n_u16::<8>(v))
     } else if BIT_DEPTH == 12 {
-        vreinterpretq_s16_u16(vorrq_u16(vshlq_n_u16::<2>(v), vshrq_n_u16::<10>(v)))
+        vorrq_u16(vshlq_n_u16::<2>(v), vshrq_n_u16::<10>(v))
     } else {
-        vreinterpretq_s16_u16(v)
+        v
+    }
+}
+
+#[cfg(feature = "rdm")]
+#[inline(always)]
+pub(crate) unsafe fn vexpandu_high_bp_by_4<const BIT_DEPTH: usize>(v: uint16x8_t) -> uint16x8_t {
+    if BIT_DEPTH == 10 {
+        vorrq_u16(vshlq_n_u16::<4>(v), vshrq_n_u16::<6>(v))
+    } else {
+        v
     }
 }

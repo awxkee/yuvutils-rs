@@ -71,6 +71,36 @@ yuv420_to_rgb(
 .unwrap();
 ```
 
+## HDR Formats
+
+The following planar formats are used for HDR content, with either **10-bit** or **12-bit** color depth:
+
+### Supported:
+
+- **I010, I012, P010, P012, P016**  
+  *Half width, half height*
+- **I210, I212, P210, P212, P216**  
+  *Half width, full height*
+- **I410, I412, P410, P412**  
+  *Full width, full height*
+
+### Format Breakdown:
+
+- **I**: Represents the color space (as defined above), and these formats use **3 planes**: Y (luminance), U (chrominance), and V (chrominance).
+- **P**: A **biplanar format** (similar to **NV12**), but with **16-bit precision**, where the valid bits are stored in the high bits. This format has:
+    - A **Y plane**
+    - A **UV plane** (with U and V interleaved)
+
+### Subsampling:
+
+- **0**: Represents **4:2:0** chroma subsampling.
+- **2**: Represents **4:2:2** chroma subsampling.
+- **4**: Represents **4:4:4** chroma subsampling.
+
+### Bit Depth:
+
+- **10,12,14,16**: Indicates the **bits per channel**.
+
 ## Benchmarks
 
 Tests performed on the image 1997x1331

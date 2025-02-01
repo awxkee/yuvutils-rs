@@ -42,7 +42,7 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(crate) unsafe fn avx_yuv_p16_to_rgba_f16_row<
+pub(crate) unsafe fn avx_yuva_p16_to_rgba_f16_row<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -53,15 +53,14 @@ pub(crate) unsafe fn avx_yuv_p16_to_rgba_f16_row<
     y_plane: &[u16],
     u_plane: &[u16],
     v_plane: &[u16],
+    a_plane: &[u16],
     bgra: &mut [f16],
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
-    start_cx: usize,
-    start_ux: usize,
 ) -> ProcessedOffset {
     unsafe {
-        avx_yuv_p16_to_rgba_row_impl::<
+        avx_yuva_p16_to_rgba_row_impl::<
             DESTINATION_CHANNELS,
             SAMPLING,
             ENDIANNESS,
@@ -69,13 +68,13 @@ pub(crate) unsafe fn avx_yuv_p16_to_rgba_f16_row<
             BIT_DEPTH,
             PRECISION,
         >(
-            y_plane, u_plane, v_plane, bgra, width, range, transform, start_cx, start_ux,
+            y_plane, u_plane, v_plane, a_plane, bgra, width, range, transform,
         )
     }
 }
 
 #[target_feature(enable = "avx2", enable = "f16c")]
-unsafe fn avx_yuv_p16_to_rgba_row_impl<
+unsafe fn avx_yuva_p16_to_rgba_row_impl<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const ENDIANNESS: u8,
@@ -86,24 +85,22 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
     y_plane: &[u16],
     u_plane: &[u16],
     v_plane: &[u16],
+    a_plane: &[u16],
     bgra: &mut [f16],
     width: u32,
     range: &YuvChromaRange,
     transform: &CbCrInverseTransform<i32>,
-    start_cx: usize,
-    start_ux: usize,
 ) -> ProcessedOffset {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
+
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
     let dst_ptr = bgra;
-
-    const D: bool = false;
 
     let v_max_colors = _mm256_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
     let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
@@ -117,8 +114,10 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
 
     let base_value = _mm256_set1_epi32((1 << (PRECISION - 1)) - 1);
 
-    let mut cx = start_cx;
-    let mut ux = start_ux;
+    const D: bool = false;
+
+    let mut cx = 0;
+    let mut ux = 0;
 
     #[cfg(feature = "big_endian")]
     let big_endian_shuffle_flag = _mm256_setr_epi8(
@@ -201,6 +200,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             }
         }
 
+        let a_values = _mm256_loadu_si256(a_plane.get_unchecked(cx..).as_ptr() as *const __m256i);
+
         const MASK: i32 = shuffle(3, 1, 2, 0);
         u_values = _mm256_permute4x64_epi64::<MASK>(u_values);
         v_values = _mm256_permute4x64_epi64::<MASK>(v_values);
@@ -245,6 +246,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let g_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(g_values));
         let b_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(b_values));
         let b_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(b_values));
+        let a_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(a_values));
+        let a_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(a_values));
 
         let mut r_lo = _mm256_cvtepi32_ps(r_lo);
         let mut r_hi = _mm256_cvtepi32_ps(r_hi);
@@ -252,6 +255,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let mut g_hi = _mm256_cvtepi32_ps(g_hi);
         let mut b_lo = _mm256_cvtepi32_ps(b_lo);
         let mut b_hi = _mm256_cvtepi32_ps(b_hi);
+        let mut a_lo = _mm256_cvtepi32_ps(a_lo);
+        let mut a_hi = _mm256_cvtepi32_ps(a_hi);
 
         r_lo = _mm256_mul_ps(r_lo, f_multiplier);
         r_hi = _mm256_mul_ps(r_hi, f_multiplier);
@@ -259,6 +264,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         g_hi = _mm256_mul_ps(g_hi, f_multiplier);
         b_lo = _mm256_mul_ps(b_lo, f_multiplier);
         b_hi = _mm256_mul_ps(b_hi, f_multiplier);
+        a_lo = _mm256_mul_ps(a_lo, f_multiplier);
+        a_hi = _mm256_mul_ps(a_hi, f_multiplier);
 
         let r_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_lo);
         let r_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_hi);
@@ -266,13 +273,15 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let g_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(g_hi);
         let b_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_lo);
         let b_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_hi);
+        let a_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(a_lo);
+        let a_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(a_hi);
 
         _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
             dst_ptr.as_mut_ptr() as *mut _,
             _mm256_setr_m128i(r_lo, r_hi),
             _mm256_setr_m128i(g_lo, g_hi),
             _mm256_setr_m128i(b_lo, b_hi),
-            v_max_colors,
+            _mm256_setr_m128i(a_lo, a_hi),
         );
 
         cx += 16;
@@ -292,12 +301,18 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
 
         let mut y_buffer: [u16; 16] = [0; 16];
         let mut u_buffer: [u16; 16] = [0; 16];
+        let mut a_buffer: [u16; 16] = [0; 16];
         let mut v_buffer: [u16; 16] = [0; 16];
-        let mut buffer: [f16; 16 * 4] = [0.; 16 * 4];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
             y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            a_plane.get_unchecked(cx..).as_ptr(),
+            a_buffer.as_mut_ptr(),
             diff,
         );
 
@@ -388,6 +403,10 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             }
         }
 
+        let mut buffer: [f16; 16 * 4] = [0.; 16 * 4];
+
+        let a_values = _mm256_loadu_si256(a_buffer.as_ptr() as *const __m256i);
+
         const MASK: i32 = shuffle(3, 1, 2, 0);
         u_values = _mm256_permute4x64_epi64::<MASK>(u_values);
         v_values = _mm256_permute4x64_epi64::<MASK>(v_values);
@@ -432,6 +451,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let g_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(g_values));
         let b_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(b_values));
         let b_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(b_values));
+        let a_lo = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(a_values));
+        let a_hi = _mm256_cvtepu16_epi32(_mm256_extracti128_si256::<1>(a_values));
 
         let mut r_lo = _mm256_cvtepi32_ps(r_lo);
         let mut r_hi = _mm256_cvtepi32_ps(r_hi);
@@ -439,6 +460,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let mut g_hi = _mm256_cvtepi32_ps(g_hi);
         let mut b_lo = _mm256_cvtepi32_ps(b_lo);
         let mut b_hi = _mm256_cvtepi32_ps(b_hi);
+        let mut a_lo = _mm256_cvtepi32_ps(a_lo);
+        let mut a_hi = _mm256_cvtepi32_ps(a_hi);
 
         r_lo = _mm256_mul_ps(r_lo, f_multiplier);
         r_hi = _mm256_mul_ps(r_hi, f_multiplier);
@@ -446,6 +469,8 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         g_hi = _mm256_mul_ps(g_hi, f_multiplier);
         b_lo = _mm256_mul_ps(b_lo, f_multiplier);
         b_hi = _mm256_mul_ps(b_hi, f_multiplier);
+        a_lo = _mm256_mul_ps(a_lo, f_multiplier);
+        a_hi = _mm256_mul_ps(a_hi, f_multiplier);
 
         let r_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_lo);
         let r_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(r_hi);
@@ -453,13 +478,15 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let g_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(g_hi);
         let b_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_lo);
         let b_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(b_hi);
+        let a_lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(a_lo);
+        let a_hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(a_hi);
 
         _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
             buffer.as_mut_ptr() as *mut _,
             _mm256_setr_m128i(r_lo, r_hi),
             _mm256_setr_m128i(g_lo, g_hi),
             _mm256_setr_m128i(b_lo, b_hi),
-            v_max_colors,
+            _mm256_setr_m128i(a_lo, a_hi),
         );
 
         std::ptr::copy_nonoverlapping(buffer.as_ptr(), dst_ptr.as_mut_ptr(), diff * channels);

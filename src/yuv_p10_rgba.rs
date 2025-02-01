@@ -469,7 +469,7 @@ fn yuv_p16_to_image_ant<
 }
 
 macro_rules! build_cnv {
-    ($method: ident, $px_fmt: expr, $sampling: expr,$bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr, $endian: expr) => {
+    ($method: ident, $sampling: expr, $px_fmt: expr, $bit_depth: expr, $sampling_written: expr, $px_written: expr, $px_written_small: expr, $endian: expr) => {
         #[doc = concat!("
 Convert ",$sampling_written, " planar format with ", $bit_depth," bit pixel format to ", $px_written," 8-bit format.
 
@@ -855,5 +855,27 @@ build_cnv!(
     "YUV 420 12-bit",
     "BGR",
     "bgr",
+    YuvEndianness::BigEndian
+);
+
+build_cnv!(
+    i410_to_rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 444 10-bit",
+    "RGBA",
+    "rgba",
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+build_cnv!(
+    i410_be_to_rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvSourceChannels::Rgba,
+    10,
+    "YUV 444 10-bit",
+    "RGBA",
+    "rgba",
     YuvEndianness::BigEndian
 );

@@ -62,6 +62,21 @@ pub(crate) trait WideDRowInversionHandler<V, T, K> {
     ) -> ProcessedOffset;
 }
 
+#[cfg(feature = "nightly_f16")]
+pub(crate) trait WideDAlphaRowInversionHandler<V, T, K> {
+    fn handle_row(
+        &self,
+        y_plane: &[V],
+        u_plane: &[V],
+        v_plane: &[V],
+        a_plane: &[V],
+        rgba: &mut [T],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrInverseTransform<K>,
+    ) -> ProcessedOffset;
+}
+
 pub(crate) trait WideRow420InversionHandler<V, K> {
     fn handle_row(
         &self,
