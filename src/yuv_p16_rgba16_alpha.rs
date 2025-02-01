@@ -571,6 +571,28 @@ d_cnv!(
     12
 );
 d_cnv!(
+    i014_alpha_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::LittleEndian,
+    "AYUV 420P14",
+    "RGBA",
+    "rgba",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i014_be_alpha_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "AYUV 420P14 BE",
+    "RGBA",
+    "rgba",
+    14
+);
+
+d_cnv!(
     i212_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
@@ -592,6 +614,28 @@ d_cnv!(
     12
 );
 d_cnv!(
+    i214_alpha_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "AYUV 422P14",
+    "RGBA",
+    "rgba",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i214_be_alpha_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "AYUV 422P14 BE",
+    "RGBA",
+    "rgba",
+    14
+);
+
+d_cnv!(
     i412_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
@@ -611,4 +655,25 @@ d_cnv!(
     "RGBA",
     "rgba",
     12
+);
+d_cnv!(
+    i414_alpha_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "AYUV 444P14",
+    "RGBA",
+    "rgba",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i414_be_alpha_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::BigEndian,
+    "AYUV 444P14 BE",
+    "RGBA",
+    "rgba",
+    14
 );

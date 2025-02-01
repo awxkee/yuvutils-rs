@@ -62,7 +62,7 @@ fn yuv_p16_to_image_ar30<
 
     let kr_kb = matrix.get_kr_kb();
     const AR30_DEPTH: usize = 10;
-    const PRECISION: i32 = 13;
+    const PRECISION: i32 = 14;
     let i_transform = search_inverse_transform(
         PRECISION,
         BIT_DEPTH as u32,
@@ -286,63 +286,6 @@ fn yuv_p16_to_image_ar30<
     Ok(())
 }
 
-pub(crate) fn yuv_p16_to_image_ar30_impl<
-    const AR30_LAYOUT: usize,
-    const SAMPLING: u8,
-    const ENDIANNESS: u8,
-    const BYTES_POSITION: u8,
->(
-    planar_image: &YuvPlanarImage<u16>,
-    rgba: &mut [u8],
-    rgba_stride: u32,
-    store_type: Rgb30ByteOrder,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-    bit_depth: usize,
-) -> Result<(), YuvError> {
-    if bit_depth == 10 {
-        match store_type {
-            Rgb30ByteOrder::Host => yuv_p16_to_image_ar30::<
-                AR30_LAYOUT,
-                { Rgb30ByteOrder::Host as usize },
-                SAMPLING,
-                ENDIANNESS,
-                BYTES_POSITION,
-                10,
-            >(planar_image, rgba, rgba_stride, range, matrix),
-            Rgb30ByteOrder::Network => yuv_p16_to_image_ar30::<
-                AR30_LAYOUT,
-                { Rgb30ByteOrder::Network as usize },
-                SAMPLING,
-                ENDIANNESS,
-                BYTES_POSITION,
-                10,
-            >(planar_image, rgba, rgba_stride, range, matrix),
-        }
-    } else if bit_depth == 12 {
-        match store_type {
-            Rgb30ByteOrder::Host => yuv_p16_to_image_ar30::<
-                AR30_LAYOUT,
-                { Rgb30ByteOrder::Host as usize },
-                SAMPLING,
-                ENDIANNESS,
-                BYTES_POSITION,
-                12,
-            >(planar_image, rgba, rgba_stride, range, matrix),
-            Rgb30ByteOrder::Network => yuv_p16_to_image_ar30::<
-                AR30_LAYOUT,
-                { Rgb30ByteOrder::Network as usize },
-                SAMPLING,
-                ENDIANNESS,
-                BYTES_POSITION,
-                12,
-            >(planar_image, rgba, rgba_stride, range, matrix),
-        }
-    } else {
-        unimplemented!("Only 10 and 12 bit is implemented on YUV16 -> AR30")
-    }
-}
-
 macro_rules! build_cnv {
     ($method: ident, $ar_fmt: expr, $subsampling: expr,
     $bit_depth: expr, $sampling_written: expr,
@@ -373,12 +316,24 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             range: YuvRange,
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            yuv_p16_to_image_ar30_impl::<
-                    { $ar_fmt as usize },
-                    { $subsampling as u8 },
-                    { YuvEndianness::LittleEndian as u8 },
-                    { YuvBytesPacking::LeastSignificantBytes as u8 },
-                >(planar_image, dst, dst_stride, byte_order, range, matrix, $bit_depth)
+               match byte_order {
+                    Rgb30ByteOrder::Host => yuv_p16_to_image_ar30::<
+                        { $ar_fmt as usize },
+                        { Rgb30ByteOrder::Host as usize },
+                        { $subsampling as u8 },
+                        { YuvEndianness::LittleEndian as u8 },
+                        { YuvBytesPacking::LeastSignificantBytes as u8 },
+                        $bit_depth,
+                    >(planar_image, dst, dst_stride, range, matrix),
+                    Rgb30ByteOrder::Network => yuv_p16_to_image_ar30::<
+                        { $ar_fmt as usize },
+                        { Rgb30ByteOrder::Network as usize },
+                        { $subsampling as u8 },
+                        { YuvEndianness::LittleEndian as u8 },
+                        { YuvBytesPacking::LeastSignificantBytes as u8 },
+                        $bit_depth,
+                    >(planar_image, dst, dst_stride, range, matrix),
+            }
         }
     };
 }
@@ -402,6 +357,15 @@ build_cnv!(
     "ar30"
 );
 build_cnv!(
+    i014_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv420,
+    14,
+    "I014",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
     i010_to_ra30,
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv420,
@@ -416,6 +380,15 @@ build_cnv!(
     YuvChromaSubsampling::Yuv420,
     12,
     "I012",
+    "RA30",
+    "ra30"
+);
+build_cnv!(
+    i014_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv420,
+    14,
+    "I014",
     "RA30",
     "ra30"
 );
@@ -439,6 +412,15 @@ build_cnv!(
     "ar30"
 );
 build_cnv!(
+    i214_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv422,
+    14,
+    "I214",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
     i210_to_ra30,
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv422,
@@ -453,6 +435,15 @@ build_cnv!(
     YuvChromaSubsampling::Yuv422,
     12,
     "I212",
+    "RA30",
+    "ra30"
+);
+build_cnv!(
+    i214_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv422,
+    14,
+    "I214",
     "RA30",
     "ra30"
 );
@@ -476,6 +467,15 @@ build_cnv!(
     "ar30"
 );
 build_cnv!(
+    i414_to_ar30,
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv444,
+    14,
+    "I414",
+    "AR30",
+    "ar30"
+);
+build_cnv!(
     i410_to_ra30,
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv444,
@@ -490,6 +490,15 @@ build_cnv!(
     YuvChromaSubsampling::Yuv444,
     12,
     "I412",
+    "RA30",
+    "ra30"
+);
+build_cnv!(
+    i414_to_ra30,
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv444,
+    14,
+    "I414",
     "RA30",
     "ra30"
 );

@@ -33,7 +33,7 @@ use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageRea
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{i010_to_rgb_f16, i010_to_rgba, i410_to_rgb_f16, i410_to_rgba, i410_to_rgba10, i412_to_rgb_f16, rgb10_to_i010, rgb10_to_i410, rgb10_to_i412, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuvutils_rs::{i214_to_rgb14, i214_to_rgb_f16, i214_to_rgba14, i410_to_rgb_f16, i410_to_rgba10, rgb10_to_i410, rgb14_to_i214, rgba14_to_i214, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -58,7 +58,6 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
-    img = img.resize(1, 32, FilterType::CatmullRom);
     let img = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let dimensions = img.dimensions();
@@ -97,12 +96,12 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
     //
-    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| (x as u16) << 2).collect();
+    let mut bytes_16: Vec<u16> = src_bytes.iter().map(|&x| ((x as u16) << 6) | ((x as u16) >> 2)).collect();
 
     let start_time = Instant::now();
-    rgb10_to_i410(
+    rgb14_to_i214(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
@@ -200,10 +199,10 @@ fn main() {
 
     let mut j_rgba = vec![0u16; dimensions.0 as usize * dimensions.1 as usize * 4];
 
-    i410_to_rgba10(
+    i214_to_rgb14(
         &fixed_planar,
-        &mut j_rgba,
-        dimensions.0 as u32 * 4,
+        &mut bytes_16,
+        dimensions.0 as u32 * 3,
         YuvRange::Full,
         YuvStandardMatrix::Bt2020,
     )
@@ -229,7 +228,7 @@ fn main() {
 
     let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
 
-    i410_to_rgb_f16(
+    i214_to_rgb_f16(
         &fixed_planar,
         &mut rgba_f16,
         rgba_stride as u32,
@@ -244,7 +243,7 @@ fn main() {
 
     // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
 
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) axs u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 6) as u8).collect();
 
     rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 
