@@ -26,11 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    feature = "nightly_avx512"
-))]
-use crate::avx512bw::avx512_rgba_to_yuv_p16_420;
 use crate::internals::{ProcessedOffset, WideRowForward420Handler, WideRowForwardHandler};
 
 use crate::yuv_error::check_rgba_destination;
