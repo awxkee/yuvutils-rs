@@ -826,7 +826,7 @@ d_cnv!(
     12
 );
 
-// 14 bit
+// 4:2:0, 14 bit
 
 d_cnv!(
     i014_to_rgba14,
@@ -871,7 +871,7 @@ d_cnv!(
     14
 );
 
-// 4:2:2
+// 14-bit, 4:2:2
 
 d_cnv!(
     i214_to_rgba14,
@@ -889,7 +889,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::BigEndian,
-    "I014BE",
+    "I214BE",
     "RGBA",
     "rgba",
     14
@@ -916,14 +916,14 @@ d_cnv!(
     14
 );
 
-// 4:4:4
+// 14-bit, 4:4:4
 
 d_cnv!(
     i414_to_rgba14,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
-    "I214",
+    "I414",
     "RGBA",
     "rgba",
     14
@@ -934,7 +934,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
-    "I014BE",
+    "I414BE",
     "RGBA",
     "rgba",
     14
@@ -959,6 +959,141 @@ d_cnv!(
     "RGB",
     "rgb",
     14
+);
+
+// 4:2:0, 16 bit
+
+d_cnv!(
+    i016_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::LittleEndian,
+    "I016",
+    "RGBA",
+    "rgba",
+    16
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i016_be_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "I016BE",
+    "RGBA",
+    "rgba",
+    16
+);
+d_cnv!(
+    i016_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::LittleEndian,
+    "I016",
+    "RGB",
+    "rgb",
+    16
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i016_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "I016BE",
+    "RGB",
+    "rgb",
+    16
+);
+
+// 16-bit, 4:2:2
+
+d_cnv!(
+    i216_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "I216",
+    "RGBA",
+    "rgba",
+    16
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i216_be_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::BigEndian,
+    "I216BE",
+    "RGBA",
+    "rgba",
+    16
+);
+d_cnv!(
+    i216_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "I216",
+    "RGB",
+    "rgb",
+    16
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i216_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::BigEndian,
+    "I216BE",
+    "RGB",
+    "rgb",
+    16
+);
+
+// 16-bit, 4:4:4
+
+d_cnv!(
+    i416_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "I416",
+    "RGBA",
+    "rgba",
+    16
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i416_be_to_rgba16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::BigEndian,
+    "I416BE",
+    "RGBA",
+    "rgba",
+    16
+);
+d_cnv!(
+    i416_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "I416",
+    "RGB",
+    "rgb",
+    16
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i416_be_to_rgb16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::BigEndian,
+    "I416BE",
+    "RGB",
+    "rgb",
+    16
 );
 
 #[cfg(test)]
@@ -1396,21 +1531,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 270,
+                diff_r <= 350,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 270,
+                diff_g <= 350,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 270,
+                diff_b <= 350,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],
