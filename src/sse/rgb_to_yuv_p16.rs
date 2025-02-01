@@ -103,10 +103,6 @@ unsafe fn sse_rgba_to_yuv_impl<
 
     let src_ptr = rgba;
 
-    let y_ptr = y_plane;
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
-
     let y_bias = _mm_set1_epi32(bias_y);
     let uv_bias = _mm_set1_epi32(bias_uv);
     let v_yr_yg = _mm_set1_epi32(transform._interleaved_yr_yg());
@@ -147,7 +143,7 @@ unsafe fn sse_rgba_to_yuv_impl<
         }
 
         _mm_storeu_si128(
-            y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m128i,
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m128i,
             y_vl,
         );
 
@@ -172,11 +168,11 @@ unsafe fn sse_rgba_to_yuv_impl<
             }
 
             _mm_storeu_si128(
-                u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
                 cb_vl,
             );
             _mm_storeu_si128(
-                v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m128i,
                 cr_vl,
             );
 
@@ -205,13 +201,155 @@ unsafe fn sse_rgba_to_yuv_impl<
                 cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
             }
 
-            _mm_storeu_si64(u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8, cb_s);
-            _mm_storeu_si64(v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8, cr_s);
+            _mm_storeu_si64(
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
+                cb_s,
+            );
+            _mm_storeu_si64(
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut u8,
+                cr_s,
+            );
 
             ux += 4;
         }
 
         cx += 8;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+        let mut src_buffer: [u16; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u16; 8] = [0; 8];
+        let mut u_buffer: [u16; 8] = [0; 8];
+        let mut v_buffer: [u16; 8] = [0; 8];
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        let (r_values, g_values, b_values) =
+            _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+
+        let (r_g_lo, r_g_hi) = _mm_interleave_epi16(r_values, g_values);
+        let b_hi = _mm_unpackhi_epi16(b_values, zeros);
+        let b_lo = _mm_unpacklo_epi16(b_values, zeros);
+
+        let mut y_vl =
+            _mm_affine_v_dot::<PRECISION>(y_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_yr_yg, v_yb);
+
+        if bytes_position == YuvBytesPacking::MostSignificantBytes {
+            y_vl = _mm_to_msb_epi16::<BIT_DEPTH>(y_vl);
+        }
+
+        #[cfg(feature = "big_endian")]
+        if _endianness == YuvEndianness::BigEndian {
+            y_vl = _mm_shuffle_epi8(y_vl, big_endian_shuffle_flag);
+        }
+
+        _mm_storeu_si128(y_buffer.as_mut_ptr() as *mut __m128i, y_vl);
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let mut cb_vl = _mm_affine_v_dot::<PRECISION>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_cbr_cbg, v_cb_b,
+            );
+
+            let mut cr_vl = _mm_affine_v_dot::<PRECISION>(
+                uv_bias, r_g_lo, r_g_hi, b_lo, b_hi, v_crr_vcrg, v_cr_b,
+            );
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_vl = _mm_to_msb_epi16::<BIT_DEPTH>(cb_vl);
+                cr_vl = _mm_to_msb_epi16::<BIT_DEPTH>(cr_vl);
+            }
+
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb_vl = _mm_shuffle_epi8(cb_vl, big_endian_shuffle_flag);
+                cr_vl = _mm_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
+            }
+
+            _mm_storeu_si128(u_buffer.as_mut_ptr() as *mut __m128i, cb_vl);
+            _mm_storeu_si128(v_buffer.as_mut_ptr() as *mut __m128i, cr_vl);
+        } else {
+            let r_values = _mm_havg_epi16_epi32(r_values);
+            let g_values = _mm_havg_epi16_epi32(g_values);
+            let b_hadd = _mm_havg_epi16_epi32(b_values);
+
+            let r_g_values = _mm_or_si128(r_values, _mm_slli_epi32::<16>(g_values));
+
+            let mut cb_s =
+                _mm_affine_transform::<PRECISION>(uv_bias, r_g_values, b_hadd, v_cbr_cbg, v_cb_b);
+
+            let mut cr_s =
+                _mm_affine_transform::<PRECISION>(uv_bias, r_g_values, b_hadd, v_crr_vcrg, v_cr_b);
+
+            if bytes_position == YuvBytesPacking::MostSignificantBytes {
+                cb_s = _mm_to_msb_epi16::<BIT_DEPTH>(cb_s);
+                cr_s = _mm_to_msb_epi16::<BIT_DEPTH>(cr_s);
+            }
+
+            #[cfg(feature = "big_endian")]
+            if _endianness == YuvEndianness::BigEndian {
+                cb_s = _mm_shuffle_epi8(cb_s, big_endian_shuffle_flag);
+                cr_s = _mm_shuffle_epi8(cr_s, big_endian_shuffle_flag);
+            }
+
+            _mm_storeu_si64(u_buffer.as_mut_ptr() as *mut u8, cb_s);
+            _mm_storeu_si64(v_buffer.as_mut_ptr() as *mut u8, cr_s);
+        }
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                diff,
+            );
+
+            ux += diff;
+        } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
+        {
+            let hv = diff.div_ceil(2);
+            std::ptr::copy_nonoverlapping(
+                u_buffer.as_ptr(),
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buffer.as_ptr(),
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+                hv,
+            );
+
+            ux += hv;
+        }
     }
 
     ProcessedOffset { ux, cx }

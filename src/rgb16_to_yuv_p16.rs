@@ -157,7 +157,7 @@ impl<
             }
 
             use crate::neon::neon_rgba_to_yuv_p16;
-            return RgbEncoder {
+            RgbEncoder {
                 handler: Some(
                     neon_rgba_to_yuv_p16::<
                         ORIGIN_CHANNELS,
@@ -168,7 +168,7 @@ impl<
                         BIT_DEPTH,
                     >,
                 ),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -332,7 +332,7 @@ impl<
                 }
             }
             use crate::neon::neon_rgba_to_yuv_p16_420;
-            return RgbEncoder420 {
+            RgbEncoder420 {
                 handler: Some(
                     neon_rgba_to_yuv_p16_420::<
                         ORIGIN_CHANNELS,
@@ -342,7 +342,7 @@ impl<
                         BIT_DEPTH,
                     >,
                 ),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -475,8 +475,8 @@ fn rgbx_to_yuv_ant<
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-    handler: impl WideRowForwardHandler<u16, i32>,
-    handler420: impl WideRowForward420Handler<u16, i32>,
+    handler: impl WideRowForwardHandler<u16, i32> + Send + Sync,
+    handler420: impl WideRowForward420Handler<u16, i32> + Send + Sync,
 ) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
