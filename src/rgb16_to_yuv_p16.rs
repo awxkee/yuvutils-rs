@@ -1003,7 +1003,7 @@ d_cvn!(
 );
 
 d_cvn!(
-    rgb10_to_i012,
+    rgb12_to_i012,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "I012",
@@ -1014,7 +1014,7 @@ d_cvn!(
 );
 #[cfg(feature = "big_endian")]
 d_cvn!(
-    rgb10_to_i012_be,
+    rgb12_to_i012_be,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "I012",
@@ -1047,7 +1047,7 @@ d_cvn!(
 );
 
 d_cvn!(
-    rgb10_to_i212,
+    rgb12_to_i212,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "I212",
@@ -1058,7 +1058,7 @@ d_cvn!(
 );
 #[cfg(feature = "big_endian")]
 d_cvn!(
-    rgb10_to_i212_be,
+    rgb12_to_i212_be,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "I212",
@@ -1091,7 +1091,7 @@ d_cvn!(
 );
 
 d_cvn!(
-    rgb10_to_i412,
+    rgb12_to_i412,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "I412",
@@ -1102,7 +1102,7 @@ d_cvn!(
 );
 #[cfg(feature = "big_endian")]
 d_cvn!(
-    rgb10_to_i412_be,
+    rgb12_to_i412_be,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "I412",

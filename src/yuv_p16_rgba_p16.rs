@@ -156,20 +156,39 @@ impl<
                 };
             }
             #[cfg(feature = "avx")]
-            if use_avx && BIT_DEPTH <= 12 {
-                use crate::avx2::avx_yuv_p16_to_rgba_row;
-                return WideRowAnyHandler {
-                    handler: Some(
-                        avx_yuv_p16_to_rgba_row::<
-                            DESTINATION_CHANNELS,
-                            SAMPLING,
-                            ENDIANNESS,
-                            BYTES_POSITION,
-                            BIT_DEPTH,
-                            PRECISION,
-                        >,
-                    ),
-                };
+            {
+                if use_avx {
+                    if BIT_DEPTH == 10 {
+                        assert_eq!(BIT_DEPTH, 10);
+                        use crate::avx2::avx_yuv_p16_to_rgba_row;
+                        return WideRowAnyHandler {
+                            handler: Some(
+                                avx_yuv_p16_to_rgba_row::<
+                                    DESTINATION_CHANNELS,
+                                    SAMPLING,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    BIT_DEPTH,
+                                    PRECISION,
+                                >,
+                            ),
+                        };
+                    } else {
+                        use crate::avx2::avx_yuv_p16_to_rgba_d16_row;
+                        return WideRowAnyHandler {
+                            handler: Some(
+                                avx_yuv_p16_to_rgba_d16_row::<
+                                    DESTINATION_CHANNELS,
+                                    SAMPLING,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    BIT_DEPTH,
+                                    PRECISION,
+                                >,
+                            ),
+                        };
+                    }
+                }
             }
             #[cfg(feature = "sse")]
             if use_sse && BIT_DEPTH <= 12 {

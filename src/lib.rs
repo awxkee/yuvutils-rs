@@ -207,15 +207,15 @@ pub use rgba_to_yuv::rgba_to_yuv422;
 pub use rgba_to_yuv::rgba_to_yuv444;
 
 pub use rgb16_to_yuv_p16::{
-    rgb10_to_i010, rgb10_to_i012, rgb10_to_i210, rgb10_to_i212, rgb10_to_i410, rgb10_to_i412,
+    rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb12_to_i012, rgb12_to_i212, rgb12_to_i412,
     rgb14_to_i014, rgb14_to_i214, rgb14_to_i414, rgb16_to_i016, rgb16_to_i216, rgb16_to_i416,
     rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i012, rgba12_to_i212, rgba12_to_i412,
     rgba14_to_i014, rgba14_to_i214, rgba14_to_i414, rgba16_to_i016, rgba16_to_i216, rgba16_to_i416,
 };
 #[cfg(feature = "big_endian")]
 pub use rgb16_to_yuv_p16::{
-    rgb10_to_i010_be, rgb10_to_i012_be, rgb10_to_i210_be, rgb10_to_i212_be, rgb10_to_i410_be,
-    rgb10_to_i412_be, rgb14_to_i014_be, rgb14_to_i214_be, rgb14_to_i414_be, rgb16_to_i016_be,
+    rgb10_to_i010_be, rgb10_to_i210_be, rgb10_to_i410_be, rgb12_to_i012_be, rgb12_to_i212_be,
+    rgb12_to_i412_be, rgb14_to_i014_be, rgb14_to_i214_be, rgb14_to_i414_be, rgb16_to_i016_be,
     rgb16_to_i216_be, rgb16_to_i416_be, rgba10_to_i010_be, rgba10_to_i210_be, rgba10_to_i410_be,
     rgba12_to_i012_be, rgba12_to_i212_be, rgba12_to_i412_be, rgba14_to_i014_be, rgba14_to_i214_be,
     rgba14_to_i414_be, rgba16_to_i016_be, rgba16_to_i216_be, rgba16_to_i416_be,

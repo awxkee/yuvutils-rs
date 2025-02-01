@@ -102,14 +102,21 @@ unsafe fn avx_yuva_p16_to_rgba_row_impl<
 
     let dst_ptr = bgra;
 
-    let v_max_colors = _mm256_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
-    let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
-    let v_cr_coeff = _mm256_set1_epi32(((transform.cr_coef as u32) << 16) as i32);
-    let v_cb_part = transform.cb_coef as u32;
-    let v_cb_coeff = _mm256_set1_epi32(v_cb_part as i32);
-    let g_trn1 = -transform.g_coeff_1;
-    let g_trn2 = -transform.g_coeff_2;
-    let v_g_coeff_1 = _mm256_set1_epi32((((g_trn1 as u32) << 16) | (g_trn2 as u32)) as i32);
+    let v_max_colors = _mm256_set1_epi16(((1i32 << BIT_DEPTH as i32) - 1i32) as i16);
+    let v_luma_coeff = if BIT_DEPTH == 16 {
+        _mm256_set1_epi32(transform.y_coef)
+    } else {
+        _mm256_set1_epi16(transform.y_coef as i16)
+    };
+    let cr_c = transform.cr_coef.to_ne_bytes();
+    let v_cr_coeff = _mm256_set1_epi32(i32::from_ne_bytes([0, 0, cr_c[0], cr_c[1]]));
+    let v_cb_part = (transform.cb_coef as u32).to_ne_bytes();
+    let v_cb_coeff = _mm256_set1_epi32(i32::from_ne_bytes([v_cb_part[0], v_cb_part[1], 0, 0]));
+    let g_trn1 = (-transform.g_coeff_1).to_ne_bytes();
+    let g_trn2 = (-transform.g_coeff_2).to_ne_bytes();
+    let v_g_coeff_1 = _mm256_set1_epi32(i32::from_ne_bytes([
+        g_trn2[0], g_trn2[1], g_trn1[0], g_trn1[1],
+    ]));
     let f_multiplier = _mm256_set1_ps(1. / (((1 << BIT_DEPTH) - 1) as f32));
 
     let base_value = _mm256_set1_epi32((1 << (PRECISION - 1)) - 1);
