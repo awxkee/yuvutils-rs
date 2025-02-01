@@ -175,9 +175,6 @@ unsafe fn avx512_rgba_to_yuv_impl<
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
 
-    let u_ptr = u_plane;
-    let v_ptr = v_plane;
-
     let y_bias = _mm512_set1_epi32(bias_y);
     let uv_bias = _mm512_set1_epi32(bias_uv);
     let v_yr_yg = _mm512_set1_epi32(transform._interleaved_yr_yg());
@@ -281,11 +278,11 @@ unsafe fn avx512_rgba_to_yuv_impl<
         }
 
         _mm256_storeu_si256(
-            u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
+            u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
             _mm512_castsi512_si256(cb_s),
         );
         _mm256_storeu_si256(
-            v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
+            v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut __m256i,
             _mm512_castsi512_si256(cr_s),
         );
 
@@ -298,10 +295,6 @@ unsafe fn avx512_rgba_to_yuv_impl<
         assert!(diff <= 32);
         let mut src_buffer0: [u16; 32 * 4] = [0; 32 * 4];
         let mut src_buffer1: [u16; 32 * 4] = [0; 32 * 4];
-        let mut y_buffer0: [u16; 32] = [0; 32];
-        let mut y_buffer1: [u16; 32] = [0; 32];
-        let mut u_buffer: [u16; 32] = [0; 32];
-        let mut v_buffer: [u16; 32] = [0; 32];
 
         // Replicate last item to one more position for subsampling
         if diff % 2 != 0 {
@@ -369,8 +362,18 @@ unsafe fn avx512_rgba_to_yuv_impl<
             y1_vl = _mm512_shuffle_epi8(y1_vl, big_endian_shuffle_flag);
         }
 
-        _mm512_storeu_si512(y_buffer0.as_mut_ptr() as *mut _, y0_vl);
-        _mm512_storeu_si512(y_buffer1.as_mut_ptr() as *mut _, y1_vl);
+        let mask = 0xffff_ffffu32 >> (32 - diff as u32);
+
+        _mm512_mask_storeu_epi16(
+            y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
+            mask,
+            y0_vl,
+        );
+        _mm512_mask_storeu_epi16(
+            y_plane1.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
+            mask,
+            y1_vl,
+        );
 
         let rvl = _mm512_avg_epu16(r_values0, r_values1);
         let gvl = _mm512_avg_epu16(g_values0, g_values1);
@@ -401,34 +404,22 @@ unsafe fn avx512_rgba_to_yuv_impl<
             cr_s = _mm512_shuffle_epi8(cr_s, big_endian_shuffle_flag);
         }
 
-        _mm256_storeu_si256(
-            u_buffer.as_mut_ptr() as *mut __m256i,
-            _mm512_castsi512_si256(cb_s),
-        );
-        _mm256_storeu_si256(
-            v_buffer.as_mut_ptr() as *mut __m256i,
-            _mm512_castsi512_si256(cr_s),
-        );
+        let halved_mask = 0xffff_ffffu32 >> (32 - diff.div_ceil(2) as u32);
 
-        let y_dst_0 = y_plane0.get_unchecked_mut(cx..);
-        std::ptr::copy_nonoverlapping(y_buffer0.as_ptr(), y_dst_0.as_mut_ptr(), diff);
-        let y_dst_1 = y_plane1.get_unchecked_mut(cx..);
-        std::ptr::copy_nonoverlapping(y_buffer1.as_ptr(), y_dst_1.as_mut_ptr(), diff);
+        _mm512_mask_storeu_epi16(
+            u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+            halved_mask,
+            cb_s,
+        );
+        _mm512_mask_storeu_epi16(
+            v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+            halved_mask,
+            cr_s,
+        );
 
         cx += diff;
 
         let hv = diff.div_ceil(2);
-
-        std::ptr::copy_nonoverlapping(
-            u_buffer.as_ptr(),
-            u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
-            hv,
-        );
-        std::ptr::copy_nonoverlapping(
-            v_buffer.as_ptr(),
-            v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
-            hv,
-        );
 
         ux += hv;
     }

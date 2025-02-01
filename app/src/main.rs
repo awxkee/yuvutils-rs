@@ -33,11 +33,7 @@ use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageRea
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{
-    i010_to_rgb_f16, i010_to_rgba, i410_to_rgb_f16, i410_to_rgba, i412_to_rgb_f16, rgb10_to_i010,
-    rgb10_to_i410, rgb10_to_i412, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut,
-    YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{i010_to_rgb_f16, i010_to_rgba, i410_to_rgb_f16, i410_to_rgba, i410_to_rgba10, i412_to_rgb_f16, rgb10_to_i010, rgb10_to_i410, rgb10_to_i412, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -53,6 +49,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     Ok(buffer)
 }
 use core::f16;
+use image::imageops::FilterType;
 
 fn main() {
     let j = (1. / u16::MAX as f32) as f16;
@@ -61,6 +58,7 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
+    img = img.resize(1, 32, FilterType::CatmullRom);
     let img = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let dimensions = img.dimensions();
@@ -200,9 +198,9 @@ fn main() {
     let fixed_planar = planar_image.to_fixed();
     // bytes_16.fill(0);
 
-    let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
+    let mut j_rgba = vec![0u16; dimensions.0 as usize * dimensions.1 as usize * 4];
 
-    i410_to_rgba(
+    i410_to_rgba10(
         &fixed_planar,
         &mut j_rgba,
         dimensions.0 as u32 * 4,
