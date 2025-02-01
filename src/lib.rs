@@ -208,13 +208,15 @@ pub use rgba_to_yuv::rgba_to_yuv444;
 
 pub use rgb16_to_yuv_p16::{
     rgb10_to_i010, rgb10_to_i012, rgb10_to_i210, rgb10_to_i212, rgb10_to_i410, rgb10_to_i412,
-    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i012, rgba12_to_i212, rgba12_to_i412,
+    rgb14_to_i014, rgb14_to_i214, rgb14_to_i414, rgba10_to_i010, rgba10_to_i210, rgba10_to_i410,
+    rgba12_to_i012, rgba12_to_i212, rgba12_to_i412, rgba14_to_i014, rgba14_to_i214, rgba14_to_i414,
 };
 #[cfg(feature = "big_endian")]
 pub use rgb16_to_yuv_p16::{
     rgb10_to_i010_be, rgb10_to_i012_be, rgb10_to_i210_be, rgb10_to_i212_be, rgb10_to_i410_be,
-    rgb10_to_i412_be, rgba10_to_i010_be, rgba10_to_i210_be, rgba10_to_i410_be, rgba12_to_i012_be,
-    rgba12_to_i212_be, rgba12_to_i412_be,
+    rgb10_to_i412_be, rgb14_to_i014_be, rgb14_to_i214_be, rgb14_to_i414_be, rgba10_to_i010_be,
+    rgba10_to_i210_be, rgba10_to_i410_be, rgba12_to_i012_be, rgba12_to_i212_be, rgba12_to_i412_be,
+    rgba14_to_i014_be, rgba14_to_i214_be, rgba14_to_i414_be,
 };
 
 pub use yuv_to_rgba_alpha::yuv420_alpha_to_bgra;
@@ -416,23 +418,27 @@ pub use yuv_p16_rgba_alpha::{
 };
 
 pub use yuv_p16_rgba16_alpha::{
-    i010_alpha_to_rgba10, i012_alpha_to_rgba12, i210_alpha_to_rgba10, i212_alpha_to_rgba12,
-    i410_alpha_to_rgba10, i412_alpha_to_rgba12,
+    i010_alpha_to_rgba10, i012_alpha_to_rgba12, i014_alpha_to_rgba14, i210_alpha_to_rgba10,
+    i212_alpha_to_rgba12, i214_alpha_to_rgba14, i410_alpha_to_rgba10, i412_alpha_to_rgba12,
+    i414_alpha_to_rgba14,
 };
 #[cfg(feature = "big_endian")]
 pub use yuv_p16_rgba16_alpha::{
-    i010_be_alpha_to_rgba10, i012_be_alpha_to_rgba12, i210_alpha_be_to_rgba10,
-    i212_be_alpha_to_rgba12, i410_be_alpha_to_rgba10, i412_be_alpha_to_rgba12,
+    i010_be_alpha_to_rgba10, i012_be_alpha_to_rgba12, i014_be_alpha_to_rgba14,
+    i210_alpha_be_to_rgba10, i212_be_alpha_to_rgba12, i214_be_alpha_to_rgba14,
+    i410_be_alpha_to_rgba10, i412_be_alpha_to_rgba12, i414_be_alpha_to_rgba14,
 };
 #[cfg(feature = "big_endian")]
 pub use yuv_p16_rgba_p16::{
-    i010_be_to_rgb10, i010_be_to_rgba10, i012_be_to_rgb12, i012_be_to_rgba12, i210_be_to_rgb10,
-    i210_be_to_rgba10, i212_be_to_rgb12, i212_be_to_rgba12, i410_be_to_rgb10, i410_be_to_rgba10,
-    i412_be_to_rgb12, i412_be_to_rgba12,
+    i010_be_to_rgb10, i010_be_to_rgba10, i012_be_to_rgb12, i012_be_to_rgba12, i014_be_to_rgb14,
+    i014_be_to_rgba14, i210_be_to_rgb10, i210_be_to_rgba10, i212_be_to_rgb12, i212_be_to_rgba12,
+    i214_be_to_rgb14, i214_be_to_rgba14, i410_be_to_rgb10, i410_be_to_rgba10, i412_be_to_rgb12,
+    i412_be_to_rgba12, i414_be_to_rgb14, i414_be_to_rgba14,
 };
 pub use yuv_p16_rgba_p16::{
-    i010_to_rgb10, i010_to_rgba10, i012_to_rgb12, i012_to_rgba12, i210_to_rgb10, i210_to_rgba10,
-    i212_to_rgb12, i212_to_rgba12, i410_to_rgb10, i410_to_rgba10, i412_to_rgb12, i412_to_rgba12,
+    i010_to_rgb10, i010_to_rgba10, i012_to_rgb12, i012_to_rgba12, i014_to_rgb14, i014_to_rgba14,
+    i210_to_rgb10, i210_to_rgba10, i212_to_rgb12, i212_to_rgba12, i214_to_rgb14, i214_to_rgba14,
+    i410_to_rgb10, i410_to_rgba10, i412_to_rgb12, i412_to_rgba12, i414_to_rgb14, i414_to_rgba14,
 };
 
 #[cfg(feature = "nightly_f16")]
@@ -466,13 +472,15 @@ pub use shuffle::{
 };
 pub use yuv_nv_p10_to_ar30::{p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30};
 pub use yuv_p16_ar30::{
-    i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i210_to_ar30, i210_to_ra30,
-    i212_to_ar30, i212_to_ra30, i410_to_ar30, i410_to_ra30, i412_to_ar30, i412_to_ra30,
+    i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i014_to_ar30, i014_to_ra30,
+    i210_to_ar30, i210_to_ra30, i212_to_ar30, i212_to_ra30, i214_to_ar30, i214_to_ra30,
+    i410_to_ar30, i410_to_ra30, i412_to_ar30, i412_to_ra30, i414_to_ar30, i414_to_ra30,
 };
 
 #[cfg(feature = "nightly_f16")]
 pub use yuv_p16_rgba_f16::{
-    i010_to_rgb_f16, i010_to_rgba_f16, i012_to_rgb_f16, i012_to_rgba_f16, i210_to_rgb_f16,
-    i210_to_rgba_f16, i212_to_rgb_f16, i212_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16,
-    i412_to_rgb_f16, i412_to_rgba_f16,
+    i010_to_rgb_f16, i010_to_rgba_f16, i012_to_rgb_f16, i012_to_rgba_f16, i014_to_rgb_f16,
+    i014_to_rgba_f16, i210_to_rgb_f16, i210_to_rgba_f16, i212_to_rgb_f16, i212_to_rgba_f16,
+    i214_to_rgb_f16, i214_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16, i412_to_rgb_f16,
+    i412_to_rgba_f16, i414_to_rgb_f16, i414_to_rgba_f16,
 };

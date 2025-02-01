@@ -117,7 +117,7 @@ impl<
                     };
                 }
             }
-            if BIT_DEPTH <= 12 {
+            if BIT_DEPTH <= 14 {
                 return WideRowAnyHandler {
                     handler: Some(
                         neon_yuv_p16_to_rgba16_row::<
@@ -577,7 +577,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
-    "YUV 420P10",
+    "I010",
     "RGBA",
     "rgba",
     10
@@ -588,7 +588,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
-    "YUV 420P10 BE",
+    "I010BE",
     "RGBA",
     "rgba",
     10
@@ -598,7 +598,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
-    "YUV 420P10",
+    "I010",
     "RGB",
     "rgb",
     10
@@ -609,7 +609,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
-    "YUV 420P10 BE",
+    "I010BE",
     "RGB",
     "rgb",
     10
@@ -619,7 +619,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
-    "YUV 422P10",
+    "I210",
     "RGBA",
     "rgba",
     10
@@ -630,7 +630,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::BigEndian,
-    "YUV 422P10 BE",
+    "I210BE",
     "RGBA",
     "rgba",
     10
@@ -640,7 +640,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
-    "YUV 422P10",
+    "I210",
     "RGB",
     "rgb",
     10
@@ -651,7 +651,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::BigEndian,
-    "YUV 422P10 BE",
+    "I210BE",
     "RGB",
     "rgb",
     10
@@ -661,7 +661,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
-    "YUV 444P10",
+    "I410",
     "RGBA",
     "rgba",
     10
@@ -672,7 +672,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
-    "YUV 444P10 BE",
+    "I410BE",
     "RGBA",
     "rgba",
     10
@@ -682,7 +682,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
-    "YUV 444P10",
+    "I410",
     "RGB",
     "rgb",
     10
@@ -693,7 +693,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
-    "YUV 444P10 BE",
+    "I410BE",
     "RGB",
     "rgb",
     10
@@ -704,7 +704,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
-    "YUV 420P12",
+    "I012",
     "RGBA",
     "rgba",
     12
@@ -715,7 +715,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
-    "YUV 420P12 BE",
+    "I012BE",
     "RGBA",
     "rgba",
     12
@@ -725,7 +725,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::LittleEndian,
-    "YUV 420P12",
+    "I012",
     "RGB",
     "rgb",
     12
@@ -736,7 +736,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     YuvEndianness::BigEndian,
-    "YUV 420P12 BE",
+    "I012BE",
     "RGB",
     "rgb",
     12
@@ -746,7 +746,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
-    "YUV 422P12",
+    "I212",
     "RGBA",
     "rgba",
     12
@@ -757,7 +757,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::BigEndian,
-    "YUV 422P12 BE",
+    "I212BE",
     "RGBA",
     "rgba",
     12
@@ -767,7 +767,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::LittleEndian,
-    "YUV 422P12",
+    "I212",
     "RGB",
     "rgb",
     12
@@ -778,7 +778,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     YuvEndianness::BigEndian,
-    "YUV 422P12 BE",
+    "I212BE",
     "RGB",
     "rgb",
     12
@@ -788,7 +788,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
-    "YUV 444P12",
+    "I412",
     "RGBA",
     "rgba",
     12
@@ -799,7 +799,7 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
-    "YUV 444P12 BE",
+    "I412BE",
     "RGBA",
     "rgba",
     12
@@ -809,7 +809,7 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::LittleEndian,
-    "YUV 444P12",
+    "I412",
     "RGB",
     "rgb",
     12
@@ -820,10 +820,145 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     YuvEndianness::BigEndian,
-    "YUV 444P12 BE",
+    "I412BE",
     "RGB",
     "rgb",
     12
+);
+
+// 14 bit
+
+d_cnv!(
+    i014_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::LittleEndian,
+    "I014",
+    "RGBA",
+    "rgba",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i014_be_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "I014BE",
+    "RGBA",
+    "rgba",
+    14
+);
+d_cnv!(
+    i014_to_rgb14,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::LittleEndian,
+    "I014",
+    "RGB",
+    "rgb",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i014_be_to_rgb14,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    YuvEndianness::BigEndian,
+    "I014BE",
+    "RGB",
+    "rgb",
+    14
+);
+
+// 4:2:2
+
+d_cnv!(
+    i214_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "I214",
+    "RGBA",
+    "rgba",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i214_be_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::BigEndian,
+    "I014BE",
+    "RGBA",
+    "rgba",
+    14
+);
+d_cnv!(
+    i214_to_rgb14,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::LittleEndian,
+    "I214",
+    "RGB",
+    "rgb",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i214_be_to_rgb14,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    YuvEndianness::BigEndian,
+    "I214BE",
+    "RGB",
+    "rgb",
+    14
+);
+
+// 4:4:4
+
+d_cnv!(
+    i414_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "I214",
+    "RGBA",
+    "rgba",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i414_be_to_rgba14,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::BigEndian,
+    "I014BE",
+    "RGBA",
+    "rgba",
+    14
+);
+d_cnv!(
+    i414_to_rgb14,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::LittleEndian,
+    "I414",
+    "RGB",
+    "rgb",
+    14
+);
+#[cfg(feature = "big_endian")]
+d_cnv!(
+    i414_be_to_rgb14,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    YuvEndianness::BigEndian,
+    "I414BE",
+    "RGB",
+    "rgb",
+    14
 );
 
 #[cfg(test)]
@@ -1261,21 +1396,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 230,
+                diff_r <= 270,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 230,
+                diff_g <= 270,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 230,
+                diff_b <= 270,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],

@@ -577,7 +577,27 @@ build_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     12,
-    "YUV 420",
+    "I012",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
+    i014_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    14,
+    "I014",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i014_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    14,
+    "I014",
     "RGB",
     "rgb"
 );
@@ -617,10 +637,31 @@ build_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     12,
-    "I210",
+    "I212",
     "RGB",
     "rgb"
 );
+
+build_cnv!(
+    i214_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    14,
+    "I214",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i214_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    14,
+    "I214",
+    "RGB",
+    "rgb"
+);
+
 
 build_cnv!(
     i410_to_rgba_f16,
@@ -647,7 +688,7 @@ build_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     12,
-    "I410",
+    "I412",
     "RGBA",
     "rgba"
 );
@@ -657,7 +698,27 @@ build_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     12,
-    "I410",
+    "I412",
+    "RGB",
+    "rgb"
+);
+
+build_cnv!(
+    i414_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    14,
+    "I414",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i414_to_rgb_f16,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    14,
+    "I414",
     "RGB",
     "rgb"
 );

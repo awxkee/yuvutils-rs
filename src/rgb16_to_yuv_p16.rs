@@ -1119,3 +1119,134 @@ d_cvn!(
     12,
     YuvEndianness::BigEndian
 );
+
+d_cvn!(
+    rgba14_to_i014,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "I014",
+    "RGBA14",
+    "rgba14",
+    14,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgba14_to_i014_be,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "I014",
+    "RGBA14",
+    "rgba14",
+    14,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgb14_to_i014,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "I014",
+    "RGB14",
+    "rgb14",
+    14,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgb14_to_i014_be,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "I014",
+    "RGB14",
+    "rgb14",
+    14,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgba14_to_i214,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "I214",
+    "RGBA14",
+    "rgba14",
+    14,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgba14_to_i214_be,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "I214",
+    "RGBA14",
+    "rgba14",
+    14,
+    YuvEndianness::BigEndian
+);
+d_cvn!(
+    rgb14_to_i214,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "I214",
+    "RGB14",
+    "rgb14",
+    14,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgb14_to_i214_be,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "I214",
+    "RGB14",
+    "rgb14",
+    14,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgba14_to_i414,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "I414",
+    "RGBA14",
+    "rgba14",
+    14,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgba14_to_i414_be,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "I414",
+    "RGBA14",
+    "rgba14",
+    14,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgb14_to_i414,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "I414",
+    "RGB14",
+    "rgb14",
+    14,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgb14_to_i414_be,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "I414",
+    "RGB14",
+    "rgb14",
+    14,
+    YuvEndianness::BigEndian
+);
