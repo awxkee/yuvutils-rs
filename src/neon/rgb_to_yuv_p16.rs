@@ -283,9 +283,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
         let (mut r_values, mut g_values, mut b_values) =
             neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
-        r_values = vexpandu_high_bp_by_4::<BIT_DEPTH>(r_values);
-        g_values = vexpandu_high_bp_by_4::<BIT_DEPTH>(g_values);
-        b_values = vexpandu_high_bp_by_4::<BIT_DEPTH>(b_values);
+        r_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(r_values);
+        g_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(g_values);
+        b_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(b_values);
 
         let mut y_values =
             vqrdmlahq_laneq_s16::<0>(i_bias_y, vreinterpretq_s16_u16(r_values), v_weights);
@@ -404,9 +404,9 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
         let (mut r_values, mut g_values, mut b_values) =
             neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
 
-        r_values = vexpandu_high_bp_by_4::<BIT_DEPTH>(r_values);
-        g_values = vexpandu_high_bp_by_4::<BIT_DEPTH>(g_values);
-        b_values = vexpandu_high_bp_by_4::<BIT_DEPTH>(b_values);
+        r_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(r_values);
+        g_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(g_values);
+        b_values = vexpandu_high_bp_by_2::<BIT_DEPTH>(b_values);
 
         let mut y_values =
             vqrdmlahq_laneq_s16::<0>(i_bias_y, vreinterpretq_s16_u16(r_values), v_weights);
