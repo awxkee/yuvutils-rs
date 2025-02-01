@@ -662,7 +662,6 @@ build_cnv!(
     "rgb"
 );
 
-
 build_cnv!(
     i410_to_rgba_f16,
     YuvSourceChannels::Rgba,
