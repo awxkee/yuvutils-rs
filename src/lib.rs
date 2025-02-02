@@ -318,11 +318,6 @@ pub use yuy2_to_yuv::yvyu422_to_yuv420;
 pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
-pub use from_identity::{
-    gb10_to_rgb10, gb10_to_rgba10, gb12_to_rgb12, gb12_to_rgba12, gbr_to_bgr, gbr_to_bgra,
-    gbr_to_rgb, gbr_to_rgba,
-};
-
 pub use to_identity::{
     bgr_to_gbr, bgra_to_gbr, rgb10_to_gb10, rgb12_to_gb12, rgb_to_gbr, rgba10_to_gb10,
     rgba10_to_gb12, rgba_to_gbr,
@@ -396,9 +391,16 @@ pub use sharpyuv::rgba_to_sharp_yuv420;
 pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
-pub use from_identity_alpha::{
-    gb10_alpha_to_rgba10, gb12_alpha_to_rgba12, gbr_with_alpha_to_bgra, gbr_with_alpha_to_rgba,
+pub use from_identity::{
+    gb10_to_rgb10, gb10_to_rgba10, gb12_to_rgb12, gb12_to_rgba12, gb14_to_rgb14, gb14_to_rgba14,
+    gb16_to_rgb16, gb16_to_rgba16, gbr_to_bgr, gbr_to_bgra, gbr_to_rgb, gbr_to_rgba,
 };
+
+pub use from_identity_alpha::{
+    gb10_alpha_to_rgba10, gb12_alpha_to_rgba12, gb14_alpha_to_rgba14, gb16_alpha_to_rgba16,
+    gbr_with_alpha_to_bgra, gbr_with_alpha_to_rgba,
+};
+
 pub use images::{
     BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayAlphaImage, YuvGrayImage,
     YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImage, YuvPlanarImageMut,
@@ -460,6 +462,7 @@ pub use yuva_p16_rgba_f16::{
 pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
 };
+
 #[cfg(feature = "nightly_f16")]
 pub use f16_converter::{
     convert_plane16_to_f16, convert_plane_f16_to_planar, convert_plane_f16_to_planar16,
@@ -467,20 +470,26 @@ pub use f16_converter::{
     convert_rgb_to_f16, convert_rgba16_to_f16, convert_rgba_f16_to_rgba,
     convert_rgba_f16_to_rgba16, convert_rgba_to_f16,
 };
+
 pub use geometry::{
     rotate_cbcr, rotate_cbcr16, rotate_plane, rotate_plane16, rotate_rgb, rotate_rgb16,
     rotate_rgba, rotate_rgba16, RotationMode,
 };
+
 pub use mirroring::{
     mirror_cbcr, mirror_cbcr16, mirror_plane, mirror_plane16, mirror_rgb, mirror_rgb16,
     mirror_rgba, mirror_rgba16, MirrorMode,
 };
+
 pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
+
 pub use shuffle::{
     bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
     rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
 };
+
 pub use yuv_nv_p10_to_ar30::{p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30};
+
 pub use yuv_p16_ar30::{
     i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i014_to_ar30, i014_to_ra30,
     i210_to_ar30, i210_to_ra30, i212_to_ar30, i212_to_ra30, i214_to_ar30, i214_to_ra30,
