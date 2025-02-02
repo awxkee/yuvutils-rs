@@ -162,7 +162,7 @@ where
     Ok(())
 }
 
-/// Convert YUV Identity Matrix ( aka 'GBR ) with alpha channel to RGBA
+/// Convert GBR8A with alpha channel to RGBA
 ///
 /// This function takes GBR interleaved format data with 8-bit precision,
 /// and converts it to RGBA format with 8-bit per channel precision.
@@ -190,7 +190,7 @@ pub fn gbr_with_alpha_to_rgba(
     )
 }
 
-/// Convert YUV Identity Matrix ( aka 'GBR ) with alpha channel to BGRA
+/// Convert GBR8A with alpha channel to BGRA
 ///
 /// This function takes GBR interleaved format data with 8-bit precision,
 /// and converts it to BGRA format with 8-bit per channel precision.
@@ -218,7 +218,7 @@ pub fn gbr_with_alpha_to_bgra(
     )
 }
 
-/// Convert GBR12 with alpha channel to RGBA12
+/// Convert GBRA12 with alpha channel to RGBA12
 ///
 /// This function takes GBR interleaved format data with 12 bit precision,
 /// and converts it to RGBA format with 12 bit per channel precision.
@@ -250,7 +250,7 @@ pub fn gb12_alpha_to_rgba12(
     )
 }
 
-/// Convert GBR10 with alpha channel to RGBA10
+/// Convert GBRA10 with alpha channel to RGBA10
 ///
 /// This function takes GBR interleaved format data with 10 bit precision,
 /// and converts it to RGBA format with 10 bit per channel precision.
@@ -282,7 +282,7 @@ pub fn gb10_alpha_to_rgba10(
     )
 }
 
-/// Convert GBR14 with alpha channel to RGBA14
+/// Convert GBRA14 with alpha channel to RGBA14
 ///
 /// This function takes GBR interleaved format data with 14 bit precision,
 /// and converts it to RGBA format with 14 bit per channel precision.
@@ -314,7 +314,7 @@ pub fn gb14_alpha_to_rgba14(
     )
 }
 
-/// Convert GBR16 with alpha channel to RGBA16
+/// Convert GBRA16 with alpha channel to RGBA16
 ///
 /// This function takes GBR interleaved format data with 16 bit precision,
 /// and converts it to RGBA format with 16 bit per channel precision.
