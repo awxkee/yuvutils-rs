@@ -67,7 +67,10 @@ pub(crate) unsafe fn _mm256_rphadd_epi32_epi16(a: __m256i) -> __m256i {
     let shuffled = _mm256_shuffle_epi8(a, sh1);
     let a0 = _mm256_unpacklo_epi16(shuffled, _mm256_setzero_si256());
     let a1 = _mm256_unpackhi_epi16(shuffled, _mm256_setzero_si256());
-    _mm256_srli_epi32::<1>(_mm256_add_epi32(_mm256_add_epi32(a0, a1), _mm256_set1_epi32(1)))
+    _mm256_srli_epi32::<1>(_mm256_add_epi32(
+        _mm256_add_epi32(a0, a1),
+        _mm256_set1_epi32(1),
+    ))
 }
 
 #[inline(always)]
