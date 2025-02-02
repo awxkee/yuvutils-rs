@@ -48,7 +48,7 @@ pub(crate) trait WideRowInversionHandler<V, K> {
     ) -> ProcessedOffset;
 }
 
-pub(crate) trait WideRowAlphaInversionHandler<V,T, K> {
+pub(crate) trait WideRowAlphaInversionHandler<V, T, K> {
     fn handle_row(
         &self,
         y_plane: &[V],
