@@ -26,22 +26,139 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    feature = "nightly_avx512"
-))]
-use crate::avx512bw::avx512_yuv_to_rgba_alpha;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_to_rgba_alpha;
+use crate::internals::{ProcessedOffset, WideRowAlphaInversionHandler};
 use crate::numerics::{div_by_255, qrshr};
 use crate::yuv_error::check_rgba_destination;
-#[allow(unused_imports)]
 use crate::yuv_support::*;
 use crate::{YuvError, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix};
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+
+type RgbHandler = unsafe fn(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    u_plane: &[u8],
+    v_plane: &[u8],
+    a_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    start_ux: usize,
+    width: usize,
+    use_premultiply: bool,
+) -> ProcessedOffset;
+
+struct RgbDecoder<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> {
+    handler: Option<RgbHandler>,
+}
+
+impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Default
+    for RgbDecoder<DESTINATION_CHANNELS, SAMPLING, PRECISION>
+{
+    fn default() -> Self {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            #[cfg(feature = "rdm")]
+            {
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available && PRECISION == 13 {
+                    assert_eq!(PRECISION, 13);
+                    use crate::neon::neon_yuv_to_rgba_alpha_rdm;
+                    return Self {
+                        handler: Some(neon_yuv_to_rgba_alpha_rdm::<DESTINATION_CHANNELS, SAMPLING>),
+                    };
+                }
+            }
+            use crate::neon::neon_yuv_to_rgba_alpha;
+            return Self {
+                handler: Some(neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>),
+            };
+        }
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if PRECISION != 13 {
+                return Self { handler: None };
+            }
+            assert_eq!(PRECISION, 13);
+            #[cfg(feature = "nightly_avx512")]
+            {
+                let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
+                let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                if use_avx512 {
+                    use crate::avx512bw::avx512_yuv_to_rgba_alpha;
+                    return Self {
+                        handler: Some(if use_vbmi {
+                            avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, true>
+                        } else {
+                            avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, false>
+                        }),
+                    };
+                }
+            }
+            #[cfg(feature = "avx")]
+            {
+                let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx2 {
+                    use crate::avx2::avx2_yuv_to_rgba_alpha;
+                    return Self {
+                        handler: Some(avx2_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>),
+                    };
+                }
+            }
+            #[cfg(feature = "sse")]
+            {
+                let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
+                if use_sse {
+                    use crate::sse::sse_yuv_to_rgba_alpha_row;
+                    return Self {
+                        handler: Some(sse_yuv_to_rgba_alpha_row::<DESTINATION_CHANNELS, SAMPLING>),
+                    };
+                }
+            }
+        }
+        #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+        RgbDecoder { handler: None }
+    }
+}
+
+impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>
+    WideRowAlphaInversionHandler<u8, u8, i32>
+    for RgbDecoder<DESTINATION_CHANNELS, SAMPLING, PRECISION>
+{
+    fn handle_row(
+        &self,
+        y_plane: &[u8],
+        u_plane: &[u8],
+        v_plane: &[u8],
+        a_plane: &[u8],
+        rgba: &mut [u8],
+        width: u32,
+        chroma: YuvChromaRange,
+        transform: &CbCrInverseTransform<i32>,
+        use_premultiplied_alpha: bool,
+    ) -> ProcessedOffset {
+        if let Some(handler) = self.handler {
+            unsafe {
+                return handler(
+                    &chroma,
+                    transform,
+                    y_plane,
+                    u_plane,
+                    v_plane,
+                    a_plane,
+                    rgba,
+                    0,
+                    0,
+                    width as usize,
+                    use_premultiplied_alpha,
+                );
+            }
+        }
+        ProcessedOffset { cx: 0, ux: 0 }
+    }
+}
 
 fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     image: &YuvPlanarImageWithAlpha<u8>,
@@ -77,138 +194,25 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     let bias_y = chroma_range.bias_y as i32;
     let bias_uv = chroma_range.bias_uv as i32;
 
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
-    let use_avx2 = std::arch::is_x86_feature_detected!("avx2");
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
-    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_row_handler = if is_rdm_available {
-        #[cfg(feature = "rdm")]
-        {
-            use crate::neon::neon_yuv_to_rgba_alpha_rdm;
-            neon_yuv_to_rgba_alpha_rdm::<DESTINATION_CHANNELS, SAMPLING>
-        }
-        #[cfg(not(feature = "rdm"))]
-        {
-            neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
-        }
-    } else {
-        neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>
-    };
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let avx512_dispatch = if use_vbmi {
-        avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, true>
-    } else {
-        avx512_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING, false>
-    };
-
-    let process_wide_row =
-        |_y_plane: &[u8], _u_plane: &[u8], _v_plane: &[u8], _a_plane: &[u8], _rgba: &mut [u8]| {
-            let mut _cx = 0usize;
-            let mut _uv_x = 0usize;
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                #[cfg(feature = "nightly_avx512")]
-                {
-                    if use_avx512 {
-                        let processed = avx512_dispatch(
-                            &chroma_range,
-                            &inverse_transform,
-                            _y_plane,
-                            _u_plane,
-                            _v_plane,
-                            _a_plane,
-                            _rgba,
-                            _cx,
-                            _uv_x,
-                            image.width as usize,
-                            premultiply_alpha,
-                        );
-                        _cx = processed.cx;
-                        _uv_x = processed.ux;
-                    }
-                }
-                #[cfg(feature = "avx")]
-                if use_avx2 {
-                    use crate::avx2::avx2_yuv_to_rgba_alpha;
-                    let processed = avx2_yuv_to_rgba_alpha::<DESTINATION_CHANNELS, SAMPLING>(
-                        &chroma_range,
-                        &inverse_transform,
-                        _y_plane,
-                        _u_plane,
-                        _v_plane,
-                        _a_plane,
-                        _rgba,
-                        _cx,
-                        _uv_x,
-                        image.width as usize,
-                        premultiply_alpha,
-                    );
-                    _cx = processed.cx;
-                    _uv_x = processed.ux;
-                }
-                #[cfg(feature = "sse")]
-                if use_sse {
-                    use crate::sse::sse_yuv_to_rgba_alpha_row;
-                    let processed = sse_yuv_to_rgba_alpha_row::<DESTINATION_CHANNELS, SAMPLING>(
-                        &chroma_range,
-                        &inverse_transform,
-                        _y_plane,
-                        _u_plane,
-                        _v_plane,
-                        _a_plane,
-                        _rgba,
-                        _cx,
-                        _uv_x,
-                        image.width as usize,
-                        premultiply_alpha,
-                    );
-                    _cx = processed.cx;
-                    _uv_x = processed.ux;
-                }
-            }
-
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            unsafe {
-                let processed = neon_wide_row_handler(
-                    &chroma_range,
-                    &inverse_transform,
-                    _y_plane,
-                    _u_plane,
-                    _v_plane,
-                    _a_plane,
-                    _rgba,
-                    _cx,
-                    _uv_x,
-                    image.width as usize,
-                    premultiply_alpha,
-                );
-                _cx = processed.cx;
-                _uv_x = processed.ux;
-            }
-            _cx
-        };
-
     const BIT_DEPTH: usize = 8;
+
+    let handler = RgbDecoder::<DESTINATION_CHANNELS, SAMPLING, PRECISION>::default();
 
     let process_halved_chroma_row =
         |y_plane: &[u8], u_plane: &[u8], v_plane: &[u8], a_plane: &[u8], rgba: &mut [u8]| {
-            let cx = process_wide_row(y_plane, u_plane, v_plane, a_plane, rgba);
+            let cx = handler
+                .handle_row(
+                    y_plane,
+                    u_plane,
+                    v_plane,
+                    a_plane,
+                    rgba,
+                    image.width,
+                    chroma_range,
+                    &inverse_transform,
+                    premultiply_alpha,
+                )
+                .cx;
             if cx != image.width as usize {
                 for ((((rgba, y_src), &u_src), &v_src), a_src) in rgba
                     .chunks_exact_mut(channels * 2)
@@ -316,7 +320,19 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         }
         iter.for_each(|((((rgba, y_plane), a_plane), u_plane), v_plane)| {
             let y_plane = &y_plane[0..image.width as usize];
-            let cx = process_wide_row(y_plane, u_plane, v_plane, a_plane, rgba);
+            let cx = handler
+                .handle_row(
+                    y_plane,
+                    u_plane,
+                    v_plane,
+                    a_plane,
+                    rgba,
+                    image.width,
+                    chroma_range,
+                    &inverse_transform,
+                    premultiply_alpha,
+                )
+                .cx;
             if cx != image.width as usize {
                 for ((((rgba, &y_src), &u_src), &v_src), &a_src) in rgba
                     .chunks_exact_mut(channels)
