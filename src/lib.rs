@@ -452,8 +452,9 @@ pub use yuv_p16_rgba_p16::{
 
 #[cfg(feature = "nightly_f16")]
 pub use yuva_p16_rgba_f16::{
-    i010_alpha_to_rgba_f16, i012_alpha_to_rgba_f16, i210_alpha_to_rgba_f16, i212_alpha_to_rgba_f16,
-    i410_alpha_to_rgba_f16, i412_alpha_to_rgba_f16,
+    i010_alpha_to_rgba_f16, i012_alpha_to_rgba_f16, i014_alpha_to_rgba_f16, i210_alpha_to_rgba_f16,
+    i212_alpha_to_rgba_f16, i214_alpha_to_rgba_f16, i410_alpha_to_rgba_f16, i412_alpha_to_rgba_f16,
+    i414_alpha_to_rgba_f16,
 };
 
 pub use ar30_rgb::{
