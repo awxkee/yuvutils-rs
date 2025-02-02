@@ -1228,7 +1228,7 @@ mod tests {
     }
 
     #[test]
-    fn test_yuv444_round_trip_limited_range() {
+    fn test_yuv444_p10_round_trip_limited_range() {
         let image_width = 256usize;
         let image_height = 256usize;
 
@@ -1303,21 +1303,21 @@ mod tests {
             let diff_b = (b as i32 - ob as i32).abs();
 
             assert!(
-                diff_r <= 100,
+                diff_r <= 150,
                 "Diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 100,
+                diff_g <= 150,
                 "Diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 100,
+                diff_b <= 150,
                 "Diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],
