@@ -59,6 +59,18 @@ pub(crate) unsafe fn _mm256_havg_epi16_epi32(a: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_rphadd_epi32_epi16(a: __m256i) -> __m256i {
+    let sh1 = _mm256_setr_epi8(
+        0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7, 10, 11, 14, 15, 0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7,
+        10, 11, 14, 15,
+    );
+    let shuffled = _mm256_shuffle_epi8(a, sh1);
+    let a0 = _mm256_unpacklo_epi16(shuffled, _mm256_setzero_si256());
+    let a1 = _mm256_unpackhi_epi16(shuffled, _mm256_setzero_si256());
+    _mm256_srli_epi32::<1>(_mm256_add_epi32(_mm256_add_epi32(a0, a1), _mm256_set1_epi32(1)))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_interleave_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let xy_l = _mm256_unpacklo_epi8(a, b);
     let xy_h = _mm256_unpackhi_epi8(a, b);

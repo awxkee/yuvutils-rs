@@ -58,8 +58,6 @@ use core::f16;
 use image::imageops::FilterType;
 
 fn main() {
-    let j8 = -30228;
-    println!("{}", j8 as u16);
     let mut img = ImageReader::open("./assets/bench.jpg")
         .unwrap()
         .decode()
@@ -106,11 +104,11 @@ fn main() {
     //
     let mut bytes_16: Vec<u16> = src_bytes
         .iter()
-        .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
+        .map(|&x| ((x as u16) << 8) | ((x as u16) >> 0))
         .collect();
 
     let start_time = Instant::now();
-    rgb10_to_i010(
+    rgb16_to_i016(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
@@ -208,7 +206,7 @@ fn main() {
 
     let mut j_rgba = vec![0u16; dimensions.0 as usize * dimensions.1 as usize * 4];
 
-    i010_to_rgb10(
+    i016_to_rgb16(
         &fixed_planar,
         &mut bytes_16,
         dimensions.0 as u32 * 3,
@@ -235,16 +233,16 @@ fn main() {
     // bytes_16.resize(width as usize * height as usize * 4, 0u16);
     // rgba.resize(width as usize * height as usize * 4, 0u8);
 
-    let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
-
-    i010_to_rgb_f16(
-        &fixed_planar,
-        &mut rgba_f16,
-        rgba_stride as u32,
-        YuvRange::Full,
-        YuvStandardMatrix::Bt2020,
-    )
-    .unwrap();
+    // let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
+    //
+    // i010_to_rgb_f16(
+    //     &fixed_planar,
+    //     &mut rgba_f16,
+    //     rgba_stride as u32,
+    //     YuvRange::Full,
+    //     YuvStandardMatrix::Bt2020,
+    // )
+    // .unwrap();
     //
     // println!("Backward time: {:?}", start_time.elapsed());
     //
@@ -252,9 +250,9 @@ fn main() {
     //
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
-    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    rgba = bytes_16.iter().map(|&x| (x >> 8) as u8).collect();
     //
-    rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
+    // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 
     image::save_buffer(
         "converted_sharp151.png",
