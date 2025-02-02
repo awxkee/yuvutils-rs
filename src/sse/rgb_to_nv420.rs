@@ -172,21 +172,21 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let v_cr_g = _mm_set1_epi16(transform.cr_g as i16);
     let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
-    let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-        uv_bias,
-        _mm_add_epi16(
-            _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
-            _mm_mulhrs_epi16(b1, v_cb_b),
-        ),
-    ));
+    let cbrc = _mm_mulhrs_epi16(r1, v_cb_r);
+    let crrc = _mm_mulhrs_epi16(r1, v_cr_r);
+    let cbgc = _mm_mulhrs_epi16(g1, v_cb_g);
+    let crgc = _mm_mulhrs_epi16(g1, v_cr_g);
+    let cbbc = _mm_mulhrs_epi16(b1, v_cb_b);
+    let crbc = _mm_mulhrs_epi16(b1, v_cr_b);
 
-    let crk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-        uv_bias,
-        _mm_add_epi16(
-            _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
-            _mm_mulhrs_epi16(b1, v_cr_b),
-        ),
-    ));
+    let cbo = _mm_add_epi16(cbrc, cbgc);
+    let cro = _mm_add_epi16(crrc, crgc);
+
+    let cbl = _mm_add_epi16(cbo, cbbc);
+    let crl = _mm_add_epi16(cro, crbc);
+
+    let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(uv_bias, cbl));
+    let crk = _mm_srli_epi16::<A_E>(_mm_add_epi16(uv_bias, crl));
 
     let cb = _mm_packus_epi16(cbk, cbk);
     let cr = _mm_packus_epi16(crk, crk);
