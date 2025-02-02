@@ -94,19 +94,19 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
     let mut bytes_16: Vec<u16> = src_bytes
         .iter()
-        .map(|&x| ((x as u16) << 8) | ((x as u16) >> 0))
+        .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
         .collect();
 
     let start_time = Instant::now();
-    rgb16_to_i416(
+    rgb10_to_i010(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
-        YuvRange::Full,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt2020,
     )
     .unwrap();
@@ -200,11 +200,11 @@ fn main() {
 
     let mut j_rgba = vec![0u16; dimensions.0 as usize * dimensions.1 as usize * 4];
 
-    i416_to_rgb16(
+    i010_to_rgb10(
         &fixed_planar,
         &mut bytes_16,
         dimensions.0 as u32 * 3,
-        YuvRange::Full,
+        YuvRange::Limited,
         YuvStandardMatrix::Bt2020,
     )
     .unwrap();
@@ -244,7 +244,7 @@ fn main() {
     //
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
-    rgba = bytes_16.iter().map(|&x| (x >> 8) as u8).collect();
+    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
     //
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 

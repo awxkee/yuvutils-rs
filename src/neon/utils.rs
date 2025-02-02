@@ -717,13 +717,3 @@ pub(crate) unsafe fn vexpandu_high_bp_by_2<const BIT_DEPTH: usize>(v: uint16x8_t
         v
     }
 }
-
-#[cfg(feature = "rdm")]
-#[inline(always)]
-pub(crate) unsafe fn vexpandu_high_bp_by_4<const BIT_DEPTH: usize>(v: uint16x8_t) -> uint16x8_t {
-    if BIT_DEPTH == 10 {
-        vorrq_u16(vshlq_n_u16::<4>(v), vshrq_n_u16::<6>(v))
-    } else {
-        v
-    }
-}
