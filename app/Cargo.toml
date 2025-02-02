@@ -30,3 +30,7 @@ harness = false
 [[bench]]
 name = "geometry"
 harness = false
+
+[[bench]]
+name = "rdp"
+harness = false

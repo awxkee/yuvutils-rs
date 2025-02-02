@@ -90,6 +90,7 @@ mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 mod rgb_to_yuv_p16_420_d16;
 mod rgb_to_yuv_p16_d16;
+mod rdp_to_yuv;
 
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{SurfaceU16ToFloat16Avx2, SurfaceU8ToFloat16Avx2};
@@ -152,3 +153,4 @@ pub(crate) use yuy2_to_rgb::yuy2_to_rgb_avx;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_avx;
 pub(crate) use rgb_to_yuv_p16_420_d16::avx_rgba_to_yuv_p16_420_d16;
 pub(crate) use rgb_to_yuv_p16_d16::avx_rgba_to_yuv_p16_d16;
+pub(crate) use rdp_to_yuv::rdp_avx2_rgba_to_yuv;

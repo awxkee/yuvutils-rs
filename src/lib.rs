@@ -122,6 +122,7 @@ mod yuy2_to_rgb;
 mod yuy2_to_rgb_p16;
 mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
+mod rdp;
 
 pub use yuv_support::{
     Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness,
@@ -488,3 +489,4 @@ pub use yuv_p16_rgba_f16::{
     i214_to_rgb_f16, i214_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16, i412_to_rgb_f16,
     i412_to_rgba_f16, i414_to_rgb_f16, i414_to_rgba_f16,
 };
+pub use rdp::{rdp_rgb_to_yuv444, rdp_yuv444_to_rgb, rdp_yuv444_to_rgba, rdp_rgba_to_yuv444};

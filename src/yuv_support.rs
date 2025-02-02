@@ -111,16 +111,16 @@ pub struct CbCrForwardTransform<T> {
 impl CbCrForwardTransform<i32> {
     #[inline]
     pub(crate) const fn _interleaved_yr_yg(&self) -> i32 {
-        let w0_as_u16 = self.yg as u16;
-        let w1_as_u16 = self.yr as u16;
-        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+        let w0_as_u16 = self.yg.to_ne_bytes();
+        let w1_as_u16 = self.yr.to_ne_bytes();
+        i32::from_ne_bytes([w1_as_u16[0], w1_as_u16[1], w0_as_u16[0], w0_as_u16[1]])
     }
 
     #[inline]
     pub(crate) const fn _interleaved_cbr_cbg(&self) -> i32 {
-        let w0_as_u16 = self.cb_g as u16;
-        let w1_as_u16 = self.cb_r as u16;
-        (((w0_as_u16 as u32) << 16) | (w1_as_u16 as u32)) as i32
+        let w0_as_u16 = self.cb_g.to_ne_bytes();
+        let w1_as_u16 = self.cb_r.to_ne_bytes();
+        i32::from_ne_bytes([w1_as_u16[0], w1_as_u16[1], w0_as_u16[0], w0_as_u16[1]])
     }
 
     #[inline]
