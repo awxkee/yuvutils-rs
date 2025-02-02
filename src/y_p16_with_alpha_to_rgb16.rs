@@ -181,3 +181,17 @@ d_cnv!(
     "RGBA",
     12
 );
+d_cnv!(
+    y014_alpha_to_rgba14,
+    YuvSourceChannels::Rgba,
+    "Y014A",
+    "RGBA",
+    14
+);
+d_cnv!(
+    y016_alpha_to_rgba16,
+    YuvSourceChannels::Rgba,
+    "Y016A",
+    "RGBA",
+    16
+);

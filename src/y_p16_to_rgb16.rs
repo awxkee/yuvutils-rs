@@ -185,3 +185,7 @@ d_cnv!(y010_to_rgba10, YuvSourceChannels::Rgba, "Y010", "RGBA", 10);
 d_cnv!(y010_to_rgb10, YuvSourceChannels::Rgb, "Y010", "RGB", 10);
 d_cnv!(y012_to_rgb12, YuvSourceChannels::Rgb, "Y012", "RGBA", 12);
 d_cnv!(y012_to_rgba12, YuvSourceChannels::Rgba, "Y012", "RGBA", 12);
+d_cnv!(y014_to_rgb14, YuvSourceChannels::Rgb, "Y014", "RGBA", 14);
+d_cnv!(y014_to_rgba14, YuvSourceChannels::Rgba, "Y014", "RGBA", 14);
+d_cnv!(y016_to_rgb16, YuvSourceChannels::Rgb, "Y016", "RGBA", 16);
+d_cnv!(y016_to_rgba16, YuvSourceChannels::Rgba, "Y016", "RGBA", 16);

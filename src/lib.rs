@@ -404,8 +404,13 @@ pub use images::{
     YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImage, YuvPlanarImageMut,
     YuvPlanarImageWithAlpha,
 };
-pub use y_p16_to_rgb16::{y010_to_rgb10, y010_to_rgba10, y012_to_rgb12, y012_to_rgba12};
-pub use y_p16_with_alpha_to_rgb16::{y010_alpha_to_rgba10, y012_alpha_to_rgba12};
+pub use y_p16_to_rgb16::{
+    y010_to_rgb10, y010_to_rgba10, y012_to_rgb12, y012_to_rgba12, y014_to_rgb14, y014_to_rgba14,
+    y016_to_rgb16, y016_to_rgba16,
+};
+pub use y_p16_with_alpha_to_rgb16::{
+    y010_alpha_to_rgba10, y012_alpha_to_rgba12, y014_alpha_to_rgba14, y016_alpha_to_rgba16,
+};
 pub use y_with_alpha_to_rgb::{yuv400_alpha_to_bgra, yuv400_alpha_to_rgba};
 pub use yuv_error::YuvError;
 
