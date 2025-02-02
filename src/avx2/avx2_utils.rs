@@ -987,14 +987,16 @@ pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32, const HAS_DOT: b
     }
     #[cfg(not(feature = "nightly_avx512"))]
     {
-        let y_l_l = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
-        );
-        let y_l_h = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
-        );
+        let v0w0 = _mm256_madd_epi16(v0, w0);
+        let v1w0 = _mm256_madd_epi16(v1, w0);
+        let b0w1 = _mm256_madd_epi16(b0, w1);
+        let b1w1 = _mm256_madd_epi16(b1, w1);
+
+        let j0 = _mm256_add_epi32(v0w0, b0w1);
+        let j1 = _mm256_add_epi32(v1w0, b1w1);
+
+        let y_l_l = _mm256_add_epi32(accumulator, j0);
+        let y_l_h = _mm256_add_epi32(accumulator, j1);
         _mm256_packus_epi32(
             _mm256_srli_epi32::<PRECISION>(y_l_l),
             _mm256_srli_epi32::<PRECISION>(y_l_h),
@@ -1067,14 +1069,16 @@ pub(crate) unsafe fn _mm256_affine_dot<const PRECISION: i32, const HAS_DOT: bool
     }
     #[cfg(not(feature = "nightly_avx512"))]
     {
-        let y_l_l = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
-        );
-        let y_l_h = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
-        );
+        let v0w0 = _mm256_madd_epi16(v0, w0);
+        let v1w0 = _mm256_madd_epi16(v1, w0);
+        let b0w1 = _mm256_madd_epi16(b0, w1);
+        let b1w1 = _mm256_madd_epi16(b1, w1);
+
+        let j0 = _mm256_add_epi32(v0w0, b0w1);
+        let j1 = _mm256_add_epi32(v1w0, b1w1);
+
+        let y_l_l = _mm256_add_epi32(accumulator, j0);
+        let y_l_h = _mm256_add_epi32(accumulator, j1);
         avx2_pack_u32(
             _mm256_srli_epi32::<PRECISION>(y_l_l),
             _mm256_srli_epi32::<PRECISION>(y_l_h),

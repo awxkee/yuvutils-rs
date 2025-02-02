@@ -796,8 +796,11 @@ pub(crate) unsafe fn _mm_affine_uv_dot<const PRECISION: i32>(
     let r1w0 = _mm_madd_epi16(r1, w0);
     let b1w1 = _mm_madd_epi16(b1, w1);
 
-    let y_l_l = _mm_add_epi32(acc, _mm_add_epi32(r0w0, b0w1));
-    let y_l_h = _mm_add_epi32(acc, _mm_add_epi32(r1w0, b1w1));
+    let c0 = _mm_add_epi32(r0w0, b0w1);
+    let c1 = _mm_add_epi32(r1w0, b1w1);
+
+    let y_l_l = _mm_add_epi32(acc, c0);
+    let y_l_h = _mm_add_epi32(acc, c1);
 
     _mm_packus_epi32(
         _mm_srli_epi32::<PRECISION>(y_l_l),
