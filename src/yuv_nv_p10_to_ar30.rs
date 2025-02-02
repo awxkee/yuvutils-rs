@@ -501,15 +501,15 @@ fn yuv_nv_p10_to_image_impl<
 }
 
 macro_rules! define_cnv {
-    ($method: ident, $cvt: ident, $name: expr, $ar_name:expr, $px_fmt: expr, $chroma_subsampling: expr, $bit_depth: expr) => {
+    ($method: ident, $name: expr, $ar_name:expr, $px_fmt: expr, $chroma_subsampling: expr, $bit_depth: expr) => {
         #[doc = concat!("
 Converts ", $name, " to ", $ar_name," format.
-This function takes ", $name, " data with 10-bit precision
+This function takes ", $name, " data with ", stringify!($bit_depth),"-bit precision
 and converts it to ", $name," format.
 
 # Arguments
 
-* `bi_planar_image` - Source Bi-Planar 10-bit image.
+* `bi_planar_image` - Source Bi-Planar ", $bit_depth,"-bit image.
 * `dst` - A mutable slice to store the converted ", $ar_name, " data.
 * `dst_stride` - The stride for the ", $ar_name, " image data.
 * `byte_order` - see [Rgb30ByteOrder] for more info.
@@ -546,7 +546,6 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
 
 define_cnv!(
     p010_to_ar30,
-    yuv_nv12_p10_to_ar30,
     "P010",
     "AR30",
     Rgb30::Ar30,
@@ -555,7 +554,6 @@ define_cnv!(
 );
 define_cnv!(
     p010_to_ra30,
-    yuv_nv12_p10_to_ra30,
     "P010",
     "RA30",
     Rgb30::Ra30,
@@ -564,7 +562,6 @@ define_cnv!(
 );
 define_cnv!(
     p210_to_ar30,
-    yuv_nv12_p10_to_ar30,
     "P210",
     "AR30",
     Rgb30::Ar30,
@@ -573,10 +570,42 @@ define_cnv!(
 );
 define_cnv!(
     p210_to_ra30,
-    yuv_nv12_p10_to_ra30,
     "P210",
     "RA30",
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv422,
     10
+);
+
+define_cnv!(
+    p012_to_ar30,
+    "P012",
+    "AR30",
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv420,
+    12
+);
+define_cnv!(
+    p012_to_ra30,
+    "P012",
+    "RA30",
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv420,
+    12
+);
+define_cnv!(
+    p212_to_ar30,
+    "P212",
+    "AR30",
+    Rgb30::Ar30,
+    YuvChromaSubsampling::Yuv422,
+    12
+);
+define_cnv!(
+    p212_to_ra30,
+    "P212",
+    "RA30",
+    Rgb30::Ra30,
+    YuvChromaSubsampling::Yuv422,
+    12
 );

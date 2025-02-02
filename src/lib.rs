@@ -488,7 +488,10 @@ pub use shuffle::{
     rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
 };
 
-pub use yuv_nv_p10_to_ar30::{p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30};
+pub use yuv_nv_p10_to_ar30::{
+    p010_to_ar30, p010_to_ra30, p012_to_ar30, p012_to_ra30, p210_to_ar30, p210_to_ra30,
+    p212_to_ar30, p212_to_ra30,
+};
 
 pub use yuv_p16_ar30::{
     i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i014_to_ar30, i014_to_ra30,
