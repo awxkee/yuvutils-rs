@@ -31,16 +31,24 @@ default = ["avx", "sse", "rdm"]
 # do not support it or already shadowed by another feature.
 #
 # It is safe to enable any features because all features availability will be checked at runtime.
+#
+# Enables AVX2 support
 avx = []
+# Enables SSE4.1 support
 sse = []
 # RDM corresponds FEAT_RDM on ARM
 rdm = []
+# Turning on `f16` support, nightly compiler is required
 nightly_f16 = []
+# Enables AVX-512, support, nightly compiler is required
 nightly_avx512 = ["fast_transpose/nightly_avx512"]
-# nightly_i8mm corresponds FEAT_I8MM on ARM
+# Enables FEAT_I8MM on ARM
 nightly_i8mm = []
+# Enables `fast_mode` support on available paths
 fast_mode = []
+# Enables `professional_mode` support on available paths
 professional_mode = []
+# Enables `rayon` support, use with care, in common, YUV encoding/decoding is more usually used in single thread mode
 rayon = ["dep:rayon"]
 # Support for Big-Endian YUV
 big_endian = []
