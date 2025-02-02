@@ -31,7 +31,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use image::{EncodableLayout, GenericImageView, ImageReader};
 use std::cmp::min;
 use std::io::{self, Write};
-use yuvutils_rs::{rdp_rgb_to_yuv444, YuvChromaSubsampling, YuvPlanarImageMut};
+use yuvutils_rs::{rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, YuvChromaSubsampling, YuvPlanarImageMut};
 
 const ALPHA: u8 = 255;
 
@@ -305,7 +305,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         YuvPlanarImageMut::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv444);
     c.bench_function("Rdp", |b| {
         b.iter(|| {
-            rdp_rgb_to_yuv444(&mut plane, src_bytes, dimensions.0 * 4).unwrap();
+            rdp_rgba_to_yuv444(&mut plane, src_bytes, dimensions.0 * 4).unwrap();
         })
     });
 

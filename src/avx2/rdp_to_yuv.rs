@@ -167,7 +167,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         );
 
         let (r_values, g_values, b_values) =
-            _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
+            _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
 
         let r_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
         let g_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
@@ -225,6 +225,18 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
             v_buffer.get_unchecked_mut(16..).as_mut_ptr() as *mut __m256i,
             cr_vl.1,
         );
+
+        std::ptr::copy_nonoverlapping(
+            u_buffer.as_ptr(),
+            u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            diff,
+        );
+        std::ptr::copy_nonoverlapping(
+            v_buffer.as_ptr(),
+            v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            diff,
+        );
+
         std::ptr::copy_nonoverlapping(
             y_buffer.as_ptr(),
             y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
