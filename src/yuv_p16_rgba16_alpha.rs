@@ -94,7 +94,7 @@ fn yuv_p16_to_image_alpha_ant<
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH <= 12 {
+    let neon_wide_row_handler = if is_rdm_available && BIT_DEPTH == 10 {
         #[cfg(feature = "rdm")]
         {
             use crate::neon::neon_yuv_p16_to_rgba16_alpha_row_rdm;

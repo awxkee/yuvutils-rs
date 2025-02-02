@@ -96,6 +96,7 @@ impl<
                             BYTES_POSITION,
                             AR30_LAYOUT,
                             AR30_STORE,
+                            BIT_DEPTH,
                         >,
                     ),
                 };
@@ -158,6 +159,7 @@ fn yuv_nv_p10_to_image_impl_d<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const PRECISION: i32,
+    const BACK_SHIFT: i32,
     const BIT_DEPTH: usize,
 >(
     image: &YuvBiPlanarImage<u16>,
@@ -222,10 +224,11 @@ fn yuv_nv_p10_to_image_impl_d<
                 cb_value -= bias_uv;
                 cr_value -= bias_uv;
 
-                let r_p0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
-                let b_p0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
-                let g_p0 =
-                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+                let r_p0 = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
+                let b_p0 = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+                let g_p0 = qrshr::<BACK_SHIFT, BIT_DEPTH>(
+                    y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
+                );
 
                 let pixel0 = ar30_layout
                     .pack::<AR30_STORE>(r_p0, g_p0, b_p0)
@@ -239,9 +242,9 @@ fn yuv_nv_p10_to_image_impl_d<
 
                 let y_value1: i32 = (y_vl1 - bias_y) * y_coef;
 
-                let r_p1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cr_coef * cr_value);
-                let b_p1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_coef * cb_value);
-                let g_p1 = qrshr::<PRECISION, BIT_DEPTH>(
+                let r_p1 = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value1 + cr_coef * cr_value);
+                let b_p1 = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value1 + cb_coef * cb_value);
+                let g_p1 = qrshr::<BACK_SHIFT, BIT_DEPTH>(
                     y_value1 - g_coef_1 * cr_value - g_coef_2 * cb_value,
                 );
 
@@ -274,9 +277,9 @@ fn yuv_nv_p10_to_image_impl_d<
                 cb_value -= bias_uv;
                 cr_value -= bias_uv;
 
-                let r_p0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
-                let b_p0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
-                let g_p0 = qrshr::<PRECISION, BIT_DEPTH>(
+                let r_p0 = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
+                let b_p0 = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
+                let g_p0 = qrshr::<BACK_SHIFT, BIT_DEPTH>(
                     y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
                 );
 
@@ -344,9 +347,9 @@ fn yuv_nv_p10_to_image_impl_d<
                     cb_value -= bias_uv;
                     cr_value -= bias_uv;
 
-                    let r_p = qrshr::<PRECISION, BIT_DEPTH>(y_value + cr_coef * cr_value);
-                    let b_p = qrshr::<PRECISION, BIT_DEPTH>(y_value + cb_coef * cb_value);
-                    let g_p = qrshr::<PRECISION, BIT_DEPTH>(
+                    let r_p = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value + cr_coef * cr_value);
+                    let b_p = qrshr::<BACK_SHIFT, BIT_DEPTH>(y_value + cb_coef * cb_value);
+                    let g_p = qrshr::<BACK_SHIFT, BIT_DEPTH>(
                         y_value - g_coef_1 * cr_value - g_coef_2 * cb_value,
                     );
 
@@ -436,6 +439,7 @@ fn yuv_nv_p10_to_image_impl<
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
     const BIT_DEPTH: usize,
+    const BACK_SHIFT: i32,
 >(
     image: &YuvBiPlanarImage<u16>,
     bgra: &mut [u8],
@@ -453,6 +457,7 @@ fn yuv_nv_p10_to_image_impl<
             ENDIANNESS,
             BYTES_POSITION,
             14,
+            BACK_SHIFT,
             BIT_DEPTH,
         >(
             image,
@@ -479,6 +484,7 @@ fn yuv_nv_p10_to_image_impl<
             ENDIANNESS,
             BYTES_POSITION,
             14,
+            BACK_SHIFT,
             BIT_DEPTH,
         >(
             image,
@@ -501,7 +507,7 @@ fn yuv_nv_p10_to_image_impl<
 }
 
 macro_rules! define_cnv {
-    ($method: ident, $name: expr, $ar_name:expr, $px_fmt: expr, $chroma_subsampling: expr, $bit_depth: expr) => {
+    ($method: ident, $name: expr, $ar_name:expr, $px_fmt: expr, $chroma_subsampling: expr, $bit_depth: expr, $back_shift: expr) => {
         #[doc = concat!("
 Converts ", $name, " to ", $ar_name," format.
 This function takes ", $name, " data with ", stringify!($bit_depth),"-bit precision
@@ -528,18 +534,19 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             range: YuvRange,
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            yuv_nv_p10_to_image_impl::<{ $px_fmt as usize },
-                { YuvNVOrder::UV as u8 },
-                { $chroma_subsampling as u8 },
-                { YuvEndianness::LittleEndian as u8 },
-                { YuvBytesPacking::MostSignificantBytes as u8 }, $bit_depth>(
-                bi_planar_image,
-                dst,
-                dst_stride,
-                byte_order,
-                range,
-                matrix,
-            )
+               yuv_nv_p10_to_image_impl::<{ $px_fmt as usize },
+                            { YuvNVOrder::UV as u8 },
+                            { $chroma_subsampling as u8 },
+                            { YuvEndianness::LittleEndian as u8 },
+                            { YuvBytesPacking::MostSignificantBytes as u8 },
+                        $bit_depth, $back_shift>(
+                            bi_planar_image,
+                            dst,
+                            dst_stride,
+                            byte_order,
+                            range,
+                            matrix,
+                    )
         }
     };
 }
@@ -550,7 +557,8 @@ define_cnv!(
     "AR30",
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv420,
-    10
+    10,
+    14
 );
 define_cnv!(
     p010_to_ra30,
@@ -558,7 +566,8 @@ define_cnv!(
     "RA30",
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv420,
-    10
+    10,
+    14
 );
 define_cnv!(
     p210_to_ar30,
@@ -566,7 +575,8 @@ define_cnv!(
     "AR30",
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv422,
-    10
+    10,
+    14
 );
 define_cnv!(
     p210_to_ra30,
@@ -574,7 +584,8 @@ define_cnv!(
     "RA30",
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv422,
-    10
+    10,
+    14
 );
 
 define_cnv!(
@@ -583,7 +594,8 @@ define_cnv!(
     "AR30",
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv420,
-    12
+    12,
+    16
 );
 define_cnv!(
     p012_to_ra30,
@@ -591,7 +603,8 @@ define_cnv!(
     "RA30",
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv420,
-    12
+    12,
+    16
 );
 define_cnv!(
     p212_to_ar30,
@@ -599,7 +612,8 @@ define_cnv!(
     "AR30",
     Rgb30::Ar30,
     YuvChromaSubsampling::Yuv422,
-    12
+    12,
+    16
 );
 define_cnv!(
     p212_to_ra30,
@@ -607,5 +621,6 @@ define_cnv!(
     "RA30",
     Rgb30::Ra30,
     YuvChromaSubsampling::Yuv422,
-    12
+    12,
+    16
 );
