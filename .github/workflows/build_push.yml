@@ -107,6 +107,15 @@ jobs:
       - run: cargo fuzz run rgb_to_yuv --no-default-features --features nightly_i8mm -- -max_total_time=6
       - run: cargo fuzz run rgb_to_nv --no-default-features --features nightly_i8mm -- -max_total_time=6
 
+  fuzz_arm_i8mm:
+    name: Fuzzing ARM I8MM
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo install cargo-fuzz
+      - run: cargo fuzz run rgb_to_yuv --no-default-features --features nightly_i8mm -- -max_total_time=6
+      - run: cargo fuzz run rgb_to_nv --no-default-features --features nightly_i8mm -- -max_total_time=6
+
   fuzz_arm_rdm:
     name: Fuzzing ARM RDM
     runs-on: macos-latest
