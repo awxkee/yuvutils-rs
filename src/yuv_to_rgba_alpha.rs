@@ -72,9 +72,9 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
                 }
             }
             use crate::neon::neon_yuv_to_rgba_alpha;
-            return Self {
+            Self {
                 handler: Some(neon_yuv_to_rgba_alpha::<PRECISION, DESTINATION_CHANNELS, SAMPLING>),
-            };
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
