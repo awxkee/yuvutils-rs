@@ -242,15 +242,15 @@ unsafe fn avx_rgba_to_yuv_impl_d16<
         let y1_vl0_2 = _mm256_mullo_epi32(b_lo1, v_yb);
         let y1_vl1_2 = _mm256_mullo_epi32(b_hi1, v_yb);
 
-        y0_vl0 = _mm256_add_epi32(y0_vl0, y0_vl0_2);
-        y0_vl1 = _mm256_add_epi32(y0_vl1, y0_vl1_2);
-        y1_vl0 = _mm256_add_epi32(y1_vl0, y1_vl0_2);
-        y1_vl1 = _mm256_add_epi32(y1_vl1, y1_vl1_2);
-
         y0_vl0 = _mm256_add_epi32(y0_vl0, y_bias);
         y0_vl1 = _mm256_add_epi32(y0_vl1, y_bias);
         y1_vl0 = _mm256_add_epi32(y1_vl0, y_bias);
         y1_vl1 = _mm256_add_epi32(y1_vl1, y_bias);
+
+        y0_vl0 = _mm256_add_epi32(y0_vl0, y0_vl0_2);
+        y0_vl1 = _mm256_add_epi32(y0_vl1, y0_vl1_2);
+        y1_vl0 = _mm256_add_epi32(y1_vl0, y1_vl0_2);
+        y1_vl1 = _mm256_add_epi32(y1_vl1, y1_vl1_2);
 
         y0_vl0 = _mm256_srai_epi32::<PRECISION>(y0_vl0);
         y0_vl1 = _mm256_srai_epi32::<PRECISION>(y0_vl1);
@@ -307,14 +307,14 @@ unsafe fn avx_rgba_to_yuv_impl_d16<
         let cb_2 = _mm256_mullo_epi32(b_values, v_cb_b);
         let cr_2 = _mm256_mullo_epi32(b_values, v_cr_b);
 
+        cb_0 = _mm256_add_epi32(cb_0, uv_bias);
+        cr_0 = _mm256_add_epi32(cr_0, uv_bias);
+
         cb_0 = _mm256_add_epi32(cb_0, cb_1);
         cr_0 = _mm256_add_epi32(cr_0, cr_1);
 
         cb_0 = _mm256_add_epi32(cb_0, cb_2);
         cr_0 = _mm256_add_epi32(cr_0, cr_2);
-
-        cb_0 = _mm256_add_epi32(cb_0, uv_bias);
-        cr_0 = _mm256_add_epi32(cr_0, uv_bias);
 
         cb_0 = _mm256_srai_epi32::<PRECISION>(cb_0);
         cr_0 = _mm256_srai_epi32::<PRECISION>(cr_0);

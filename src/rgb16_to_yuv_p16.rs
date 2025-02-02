@@ -185,20 +185,36 @@ impl<
             #[cfg(feature = "avx")]
             {
                 let use_avx = std::arch::is_x86_feature_detected!("avx2");
-                if use_avx && BIT_DEPTH <= 15 {
-                    use crate::avx2::avx_rgba_to_yuv_p16;
-                    return RgbEncoder {
-                        handler: Some(
-                            avx_rgba_to_yuv_p16::<
-                                ORIGIN_CHANNELS,
-                                SAMPLING,
-                                ENDIANNESS,
-                                BYTES_POSITION,
-                                PRECISION,
-                                BIT_DEPTH,
-                            >,
-                        ),
-                    };
+                if use_avx {
+                    if BIT_DEPTH <= 15 {
+                        use crate::avx2::avx_rgba_to_yuv_p16;
+                        return RgbEncoder {
+                            handler: Some(
+                                avx_rgba_to_yuv_p16::<
+                                    ORIGIN_CHANNELS,
+                                    SAMPLING,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    PRECISION,
+                                    BIT_DEPTH,
+                                >,
+                            ),
+                        };
+                    } else {
+                        use crate::avx2::avx_rgba_to_yuv_p16_d16;
+                        return RgbEncoder {
+                            handler: Some(
+                                avx_rgba_to_yuv_p16_d16::<
+                                    ORIGIN_CHANNELS,
+                                    SAMPLING,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    PRECISION,
+                                    BIT_DEPTH,
+                                >,
+                            ),
+                        };
+                    }
                 }
             }
             #[cfg(feature = "sse")]

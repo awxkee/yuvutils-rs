@@ -33,13 +33,7 @@ use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageRea
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{
-    i010_to_rgb10, i010_to_rgb_f16, i012_to_rgb12, i014_to_rgb14, i016_to_rgb16, i214_to_rgb14,
-    i214_to_rgb_f16, i214_to_rgba14, i410_to_rgb_f16, i410_to_rgba10, i414_to_rgb14,
-    i414_to_rgb_f16, rgb10_to_i010, rgb10_to_i410, rgb12_to_i012, rgb14_to_i014, rgb14_to_i214,
-    rgb14_to_i414, rgb16_to_i016, rgba14_to_i214, YuvBiPlanarImageMut, YuvChromaSubsampling,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{i010_to_rgb10, i010_to_rgb_f16, i012_to_rgb12, i014_to_rgb14, i016_to_rgb16, i214_to_rgb14, i214_to_rgb_f16, i214_to_rgba14, i216_to_rgb16, i410_to_rgb_f16, i410_to_rgba10, i414_to_rgb14, i414_to_rgb_f16, i416_to_rgb16, rgb10_to_i010, rgb10_to_i410, rgb12_to_i012, rgb14_to_i014, rgb14_to_i214, rgb14_to_i414, rgb16_to_i016, rgb16_to_i216, rgb16_to_i416, rgba14_to_i214, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -100,7 +94,7 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
     //
     let mut bytes_16: Vec<u16> = src_bytes
         .iter()
@@ -108,7 +102,7 @@ fn main() {
         .collect();
 
     let start_time = Instant::now();
-    rgb16_to_i016(
+    rgb16_to_i416(
         &mut planar_image,
         &bytes_16,
         rgba_stride as u32,
@@ -206,7 +200,7 @@ fn main() {
 
     let mut j_rgba = vec![0u16; dimensions.0 as usize * dimensions.1 as usize * 4];
 
-    i016_to_rgb16(
+    i416_to_rgb16(
         &fixed_planar,
         &mut bytes_16,
         dimensions.0 as u32 * 3,
