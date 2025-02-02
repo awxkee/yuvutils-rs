@@ -222,10 +222,10 @@ fn yuv_nv_p10_to_image_impl_d<
                 cb_value -= bias_uv;
                 cr_value -= bias_uv;
 
-                let r_p0 = qrshr::<PRECISION, 10>(y_value0 + cr_coef * cr_value);
-                let b_p0 = qrshr::<PRECISION, 10>(y_value0 + cb_coef * cb_value);
+                let r_p0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
+                let b_p0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
                 let g_p0 =
-                    qrshr::<PRECISION, 10>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
+                    qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
 
                 let pixel0 = ar30_layout
                     .pack::<AR30_STORE>(r_p0, g_p0, b_p0)
