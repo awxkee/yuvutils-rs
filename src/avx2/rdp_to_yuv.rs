@@ -100,6 +100,14 @@ unsafe fn _mm256_load_rdp_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
             g_values = g;
             b_values = b;
         }
+        RdpChannels::Argb => {
+            let row_4 = _mm256_loadu_si256(ptr.add(96) as *const __m256i);
+
+            let (_, r, g, b) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
+            r_values = r;
+            g_values = g;
+            b_values = b;
+        }
     }
 
     (r_values, g_values, b_values)
