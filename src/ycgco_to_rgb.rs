@@ -516,8 +516,6 @@ pub fn ycgco420_to_bgra(
 /// # Arguments
 ///
 /// * `planar_image` - Source planar image.
-/// * `width` - The width of the YUV image.
-/// * `height` - The height of the YUV image.
 /// * `rgb` - A mutable slice to store the converted RGB data.
 /// * `rgb_stride` - Elements per row.
 /// * `range` - The YUV range (limited or full).
