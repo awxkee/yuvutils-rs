@@ -38,7 +38,7 @@ use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
 
 fn ycgco_ro_rgbx_alpha<
-    V: AsPrimitive<i32> + 'static + Default + Debug,
+    V: AsPrimitive<i32> + 'static + Default + Debug + Send + Sync,
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const BIT_DEPTH: usize,
