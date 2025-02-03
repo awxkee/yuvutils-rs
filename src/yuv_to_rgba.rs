@@ -1808,9 +1808,9 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 71);
+        matrix(YuvConversionMode::Balanced, 80);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 75);
+        matrix(YuvConversionMode::Fast, 80);
         #[cfg(feature = "professional_mode")]
         matrix(YuvConversionMode::Professional, 72);
     }

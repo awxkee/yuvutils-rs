@@ -124,18 +124,20 @@ impl SurfaceU8ToFloat16Avx2 {
             let lo_items = _mm_unpacklo_epi8(items, _mm_setzero_si128());
             let hi_items = _mm_unpackhi_epi8(items, _mm_setzero_si128());
 
-            let lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(_mm256_round_ps::<0x0>(
-                _mm256_mul_ps(
-                    _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(lo_items)),
-                    v_scale_h,
-                ),
-            ));
-            let hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(_mm256_round_ps::<0x0>(
-                _mm256_mul_ps(
-                    _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(hi_items)),
-                    v_scale_h,
-                ),
-            ));
+            let l_e32 = _mm256_cvtepi16_epi32(lo_items);
+            let h_e32 = _mm256_cvtepi16_epi32(hi_items);
+
+            let lc_ps = _mm256_cvtepi32_ps(l_e32);
+            let hc_ps = _mm256_cvtepi32_ps(h_e32);
+
+            let mut ls_ps = _mm256_mul_ps(lc_ps, v_scale_h);
+            let mut hs_ps = _mm256_mul_ps(hc_ps, v_scale_h);
+
+            ls_ps = _mm256_round_ps::<0x0>(ls_ps);
+            hs_ps = _mm256_round_ps::<0x0>(hs_ps);
+
+            let lo = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(ls_ps);
+            let hi = _mm256_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(hs_ps);
 
             let vals = _mm256_set_m128i(hi, lo);
 

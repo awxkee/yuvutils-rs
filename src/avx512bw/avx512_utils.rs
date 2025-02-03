@@ -432,15 +432,6 @@ pub(crate) unsafe fn avx512_deinterleave_rgba<const HAS_VBMI: bool>(
     }
 }
 
-#[inline(always)]
-pub(crate) unsafe fn avx512_pairwise_widen_avg(v: __m512i) -> __m512i {
-    let sums = _mm512_maddubs_epi16(v, _mm512_set1_epi8(1));
-    let shifted = _mm512_srli_epi16::<1>(_mm512_add_epi16(sums, _mm512_set1_epi16(1)));
-    let packed_lo = _mm512_packus_epi16(shifted, shifted);
-    let mask = _mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7);
-    _mm512_permutexvar_epi64(mask, packed_lo)
-}
-
 pub(crate) const fn shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
     // Checked: we want to reinterpret the bits
     ((z << 6) | (y << 4) | (x << 2) | w) as i32

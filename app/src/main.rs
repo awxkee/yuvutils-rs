@@ -39,7 +39,7 @@ use yuvutils_rs::{
     i414_to_rgb_f16, i416_to_rgb16, rdp_rgb_to_yuv444, rdp_yuv444_to_rgb, rdp_yuv444_to_rgba,
     rgb10_to_i010, rgb10_to_i410, rgb12_to_i012, rgb14_to_i014, rgb14_to_i214, rgb14_to_i414,
     rgb16_to_i016, rgb16_to_i216, rgb16_to_i416, rgba14_to_i214, YuvBiPlanarImageMut,
-    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -59,7 +59,7 @@ use core::f16;
 use image::imageops::FilterType;
 
 fn main() {
-    let mut img = ImageReader::open("./assets/bench.jpg")
+    let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
         .unwrap();
@@ -105,7 +105,7 @@ fn main() {
     //
     let mut bytes_16: Vec<u16> = src_bytes
         .iter()
-        .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
+        .map(|&x| ((x as u16) << 4) | ((x as u16) >> 4))
         .collect();
 
     let start_time = Instant::now();
@@ -208,7 +208,7 @@ fn main() {
     let fixed_planar = planar_image.to_fixed();
     // bytes_16.fill(0);
 
-    let mut j_rgba = vec![0u16; dimensions.0 as usize * dimensions.1 as usize * 4];
+    let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
 
     // i010_to_rgb10(
     //     &fixed_planar,
@@ -238,8 +238,8 @@ fn main() {
     // rgba.resize(width as usize * height as usize * 4, 0u8);
 
     // let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
-    //
-    // i010_to_rgb_f16(
+    // //
+    // i210_to_rgb_f16(
     //     &fixed_planar,
     //     &mut rgba_f16,
     //     rgba_stride as u32,

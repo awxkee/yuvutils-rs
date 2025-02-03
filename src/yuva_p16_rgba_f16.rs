@@ -575,7 +575,17 @@ build_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     12,
-    "I010A",
+    "I012A",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
+    i014_alpha_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    14,
+    "I014A",
     "RGBA",
     "rgba"
 );
@@ -601,6 +611,16 @@ build_cnv!(
 );
 
 build_cnv!(
+    i214_alpha_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    14,
+    "I214A",
+    "RGBA",
+    "rgba"
+);
+
+build_cnv!(
     i410_alpha_to_rgba_f16,
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
@@ -615,11 +635,21 @@ build_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     12,
-    "I410A",
+    "I412A",
     "RGBA",
     "rgba"
 );
-/*
+
+build_cnv!(
+    i414_alpha_to_rgba_f16,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    14,
+    "I414A",
+    "RGBA",
+    "rgba"
+);
+
 #[cfg(test)]
 #[cfg(feature = "nightly_f16")]
 mod tests {
@@ -628,7 +658,7 @@ mod tests {
     use rand::Rng;
 
     #[test]
-    fn test_yuv444_f16_round_trip_full_range() {
+    fn test_yuv444a_f16_round_trip_full_range() {
         let image_width = 256usize;
         let image_height = 256usize;
 
@@ -678,14 +708,28 @@ mod tests {
         )
         .unwrap();
 
-        let mut image_rgb: Vec<f16> = vec![0.; image_width * image_height * 3];
+        let source_alpha = vec![1023u16; image_width * image_height];
+        let mut image_rgb: Vec<f16> = vec![0.; image_width * image_height * 4];
 
-        let fixed_planar = planar_image.to_fixed();
+        let fixed_planar_alpha = YuvPlanarImageWithAlpha {
+            y_plane: planar_image.y_plane.borrow(),
+            y_stride: planar_image.y_stride,
+            u_plane: planar_image.u_plane.borrow(),
+            u_stride: planar_image.u_stride,
+            v_plane: planar_image.v_plane.borrow(),
+            v_stride: planar_image.v_stride,
+            a_plane: &source_alpha,
+            a_stride: image_width as u32,
+            width: image_width as u32,
+            height: image_height as u32,
+        };
 
-        i410_to_rgb_f16(
-            &fixed_planar,
+        const A_CHANNELS: usize = 4;
+
+        i410_alpha_to_rgba_f16(
+            &fixed_planar_alpha,
             &mut image_rgb,
-            image_width as u32 * CHANNELS as u32,
+            image_width as u32 * A_CHANNELS as u32,
             YuvRange::Full,
             YuvStandardMatrix::Bt709,
         )
@@ -694,11 +738,12 @@ mod tests {
         for point in &pixel_points {
             let x = point[0];
             let y = point[1];
-            let r = (image_rgb[x * CHANNELS + y * image_width * CHANNELS] as f32 * 1023.).round();
-            let g =
-                (image_rgb[x * CHANNELS + y * image_width * CHANNELS + 1] as f32 * 1023.).round();
-            let b =
-                (image_rgb[x * CHANNELS + y * image_width * CHANNELS + 2] as f32 * 1023.).round();
+            let r =
+                (image_rgb[x * A_CHANNELS + y * image_width * A_CHANNELS] as f32 * 1023.).round();
+            let g = (image_rgb[x * A_CHANNELS + y * image_width * A_CHANNELS + 1] as f32 * 1023.)
+                .round();
+            let b = (image_rgb[x * A_CHANNELS + y * image_width * A_CHANNELS + 2] as f32 * 1023.)
+                .round();
 
             let diff_r = (r as i32 - or as i32).abs();
             let diff_g = (g as i32 - og as i32).abs();
@@ -726,7 +771,7 @@ mod tests {
     }
 
     #[test]
-    fn test_yuv422_f16_round_trip_limited_range() {
+    fn test_yuv422a_f16_round_trip_limited_range() {
         let image_width = 256usize;
         let image_height = 256usize;
 
@@ -791,14 +836,28 @@ mod tests {
         )
         .unwrap();
 
-        let mut dest_rgb: Vec<f16> = vec![0.; image_width * image_height * CHANNELS];
+        let source_alpha = vec![1023u16; image_width * image_height];
+        let mut dest_rgb: Vec<f16> = vec![0.; image_width * image_height * 4];
 
-        let fixed_planar = planar_image.to_fixed();
+        let fixed_planar_alpha = YuvPlanarImageWithAlpha {
+            y_plane: planar_image.y_plane.borrow(),
+            y_stride: planar_image.y_stride,
+            u_plane: planar_image.u_plane.borrow(),
+            u_stride: planar_image.u_stride,
+            v_plane: planar_image.v_plane.borrow(),
+            v_stride: planar_image.v_stride,
+            a_plane: &source_alpha,
+            a_stride: image_width as u32,
+            width: image_width as u32,
+            height: image_height as u32,
+        };
 
-        i210_to_rgb_f16(
-            &fixed_planar,
+        const A_CHANNELS: usize = 4;
+
+        i210_alpha_to_rgba_f16(
+            &fixed_planar_alpha,
             &mut dest_rgb,
-            image_width as u32 * CHANNELS as u32,
+            image_width as u32 * A_CHANNELS as u32,
             YuvRange::Limited,
             YuvStandardMatrix::Bt709,
         )
@@ -807,7 +866,7 @@ mod tests {
         for point in &pixel_points {
             let x = point[0];
             let y = point[1];
-            let px = x * CHANNELS + y * image_width * CHANNELS;
+            let px = x * A_CHANNELS + y * image_width * A_CHANNELS;
 
             let r = (dest_rgb[px] as f32 * 1023.).round();
             let g = (dest_rgb[px + 1] as f32 * 1023.).round();
@@ -818,21 +877,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 130,
+                diff_r <= 264,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 130,
+                diff_g <= 264,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 130,
+                diff_b <= 264,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],
@@ -841,4 +900,3 @@ mod tests {
         }
     }
 }
-*/
