@@ -152,9 +152,13 @@ unsafe fn sse_rgba_to_yuv_impl<
             y1_vl,
         );
 
-        let r_values = _mm_havg_epi16_epi32(_mm_avg_epu16(r_values0, r_values1));
-        let g_values = _mm_havg_epi16_epi32(_mm_avg_epu16(g_values0, g_values1));
-        let b_values = _mm_havg_epi16_epi32(_mm_avg_epu16(b_values0, b_values1));
+        let rhv = _mm_avg_epu16(r_values0, r_values1);
+        let ghv = _mm_avg_epu16(g_values0, g_values1);
+        let bhv = _mm_avg_epu16(b_values0, b_values1);
+
+        let r_values = _mm_havg_epi16_epi32(rhv);
+        let g_values = _mm_havg_epi16_epi32(ghv);
+        let b_values = _mm_havg_epi16_epi32(bhv);
 
         let r_g_values = _mm_or_si128(r_values, _mm_slli_epi32::<16>(g_values));
 

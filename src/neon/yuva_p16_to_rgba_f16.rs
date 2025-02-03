@@ -255,9 +255,13 @@ unsafe fn neon_yuva_p16_to_rgba_f16_impl<
             let b_low = vqshrun_n_s32::<PRECISION>(bl);
             let g_low = vqshrun_n_s32::<PRECISION>(vqdmlal_laneq_s16::<4>(gl, u_low, v_weights));
 
-            let mut r_values = xvcvtq_f16_u16(vminq_u16(vcombine_u16(r_low, r_high), v_alpha));
-            let mut g_values = xvcvtq_f16_u16(vminq_u16(vcombine_u16(g_low, g_high), v_alpha));
-            let mut b_values = xvcvtq_f16_u16(vminq_u16(vcombine_u16(b_low, b_high), v_alpha));
+            let rvu = vminq_u16(vcombine_u16(r_low, r_high), v_alpha);
+            let gvu = vminq_u16(vcombine_u16(g_low, g_high), v_alpha);
+            let bvu = vminq_u16(vcombine_u16(b_low, b_high), v_alpha);
+
+            let mut r_values = xvcvtq_f16_u16(rvu);
+            let mut g_values = xvcvtq_f16_u16(gvu);
+            let mut b_values = xvcvtq_f16_u16(bvu);
             let mut a_values = xvcvtq_f16_u16(a_values);
 
             r_values = xvmulq_f16(r_values, v_multiplier);
@@ -457,9 +461,13 @@ unsafe fn neon_yuva_p16_to_rgba_f16_impl<
             let b_low = vqshrun_n_s32::<PRECISION>(bl);
             let g_low = vqshrun_n_s32::<PRECISION>(vqdmlal_laneq_s16::<4>(gl, u_low, v_weights));
 
-            let mut r_values = xvcvtq_f16_u16(vminq_u16(vcombine_u16(r_low, r_high), v_alpha));
-            let mut g_values = xvcvtq_f16_u16(vminq_u16(vcombine_u16(g_low, g_high), v_alpha));
-            let mut b_values = xvcvtq_f16_u16(vminq_u16(vcombine_u16(b_low, b_high), v_alpha));
+            let rvu = vminq_u16(vcombine_u16(r_low, r_high), v_alpha);
+            let gvu = vminq_u16(vcombine_u16(g_low, g_high), v_alpha);
+            let bvu = vminq_u16(vcombine_u16(b_low, b_high), v_alpha);
+
+            let mut r_values = xvcvtq_f16_u16(rvu);
+            let mut g_values = xvcvtq_f16_u16(gvu);
+            let mut b_values = xvcvtq_f16_u16(bvu);
             let mut a_values = xvcvtq_f16_u16(a_values);
 
             r_values = xvmulq_f16(r_values, v_multiplier);

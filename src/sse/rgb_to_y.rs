@@ -89,24 +89,19 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         let b_low = _mm_srli_epi16::<V_S>(bl);
         let b_high = _mm_srli_epi16::<V_S>(bh);
 
-        let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-            y_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
-                _mm_mulhrs_epi16(b_low, v_yb),
-            ),
-        ));
+        let rlc = _mm_mulhrs_epi16(r_low, v_yr);
+        let glc = _mm_mulhrs_epi16(g_low, v_yg);
+        let blc = _mm_mulhrs_epi16(b_low, v_yb);
+        let rhc = _mm_mulhrs_epi16(r_high, v_yr);
+        let ghc = _mm_mulhrs_epi16(g_high, v_yg);
+        let bhc = _mm_mulhrs_epi16(b_high, v_yb);
 
-        let y_h = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-            y_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(
-                    _mm_mulhrs_epi16(r_high, v_yr),
-                    _mm_mulhrs_epi16(g_high, v_yg),
-                ),
-                _mm_mulhrs_epi16(b_high, v_yb),
-            ),
-        ));
+        let ylc = _mm_add_epi16(rlc, glc);
+        let yhc = _mm_add_epi16(rhc, ghc);
+
+        let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(y_bias, _mm_add_epi16(ylc, blc)));
+
+        let y_h = _mm_srli_epi16::<A_E>(_mm_add_epi16(y_bias, _mm_add_epi16(yhc, bhc)));
 
         let y_yuv = _mm_packus_epi16(y_l, y_h);
 
@@ -125,16 +120,21 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
             ORIGIN_CHANNELS,
         >(rgba.get_unchecked(px..).as_ptr());
 
-        let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
-        let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
-        let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
+        let rw = _mm_unpacklo_epi8(r_values, r_values);
+        let gw = _mm_unpacklo_epi8(g_values, g_values);
+        let bw = _mm_unpacklo_epi8(b_values, b_values);
+
+        let r_low = _mm_srli_epi16::<V_S>(rw);
+        let g_low = _mm_srli_epi16::<V_S>(gw);
+        let b_low = _mm_srli_epi16::<V_S>(bw);
+
+        let rlc = _mm_mulhrs_epi16(r_low, v_yr);
+        let glc = _mm_mulhrs_epi16(g_low, v_yg);
+        let blc = _mm_mulhrs_epi16(b_low, v_yb);
 
         let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
             y_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
-                _mm_mulhrs_epi16(b_low, v_yb),
-            ),
+            _mm_add_epi16(_mm_add_epi16(rlc, glc), blc),
         ));
 
         let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());
@@ -158,16 +158,21 @@ unsafe fn sse_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
         let (r_values, g_values, b_values) =
             _mm_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
 
-        let r_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(r_values, r_values));
-        let g_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(g_values, g_values));
-        let b_low = _mm_srli_epi16::<V_S>(_mm_unpacklo_epi8(b_values, b_values));
+        let rw = _mm_unpacklo_epi8(r_values, r_values);
+        let gw = _mm_unpacklo_epi8(g_values, g_values);
+        let bw = _mm_unpacklo_epi8(b_values, b_values);
+
+        let r_low = _mm_srli_epi16::<V_S>(rw);
+        let g_low = _mm_srli_epi16::<V_S>(gw);
+        let b_low = _mm_srli_epi16::<V_S>(bw);
+
+        let rlc = _mm_mulhrs_epi16(r_low, v_yr);
+        let glc = _mm_mulhrs_epi16(g_low, v_yg);
+        let blc = _mm_mulhrs_epi16(b_low, v_yb);
 
         let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
             y_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
-                _mm_mulhrs_epi16(b_low, v_yb),
-            ),
+            _mm_add_epi16(_mm_add_epi16(rlc, glc), blc),
         ));
 
         let y_yuv = _mm_packus_epi16(y_l, _mm_setzero_si128());

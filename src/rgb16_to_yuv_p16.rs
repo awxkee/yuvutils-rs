@@ -125,10 +125,6 @@ impl<
         if PRECISION != 15 {
             return RgbEncoder { handler: None };
         }
-        if BIT_DEPTH > 15 {
-            return RgbEncoder { handler: None };
-        }
-        assert!(BIT_DEPTH <= 15);
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
             #[cfg(feature = "rdm")]
@@ -170,7 +166,7 @@ impl<
             #[cfg(feature = "nightly_avx512")]
             {
                 let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
-                if use_avx512 {
+                if use_avx512 && BIT_DEPTH <= 15 {
                     use crate::avx512bw::avx512_rgba_to_yuv_p16;
                     return RgbEncoder {
                         handler: Some(
@@ -190,25 +186,41 @@ impl<
             {
                 let use_avx = std::arch::is_x86_feature_detected!("avx2");
                 if use_avx {
-                    use crate::avx2::avx_rgba_to_yuv_p16;
-                    return RgbEncoder {
-                        handler: Some(
-                            avx_rgba_to_yuv_p16::<
-                                ORIGIN_CHANNELS,
-                                SAMPLING,
-                                ENDIANNESS,
-                                BYTES_POSITION,
-                                PRECISION,
-                                BIT_DEPTH,
-                            >,
-                        ),
-                    };
+                    if BIT_DEPTH <= 15 {
+                        use crate::avx2::avx_rgba_to_yuv_p16;
+                        return RgbEncoder {
+                            handler: Some(
+                                avx_rgba_to_yuv_p16::<
+                                    ORIGIN_CHANNELS,
+                                    SAMPLING,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    PRECISION,
+                                    BIT_DEPTH,
+                                >,
+                            ),
+                        };
+                    } else {
+                        use crate::avx2::avx_rgba_to_yuv_p16_d16;
+                        return RgbEncoder {
+                            handler: Some(
+                                avx_rgba_to_yuv_p16_d16::<
+                                    ORIGIN_CHANNELS,
+                                    SAMPLING,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    PRECISION,
+                                    BIT_DEPTH,
+                                >,
+                            ),
+                        };
+                    }
                 }
             }
             #[cfg(feature = "sse")]
             {
                 let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-                if use_sse {
+                if use_sse && BIT_DEPTH <= 15 {
                     use crate::sse::sse_rgba_to_yuv_p16;
                     return RgbEncoder {
                         handler: Some(
@@ -297,10 +309,6 @@ impl<
             return RgbEncoder420 { handler: None };
         }
         assert_eq!(PRECISION, 15);
-        if BIT_DEPTH > 15 {
-            return RgbEncoder420 { handler: None };
-        }
-        assert!(BIT_DEPTH <= 15);
         let sampling: YuvChromaSubsampling = SAMPLING.into();
         if sampling != YuvChromaSubsampling::Yuv420 {
             return RgbEncoder420 { handler: None };
@@ -344,7 +352,7 @@ impl<
             #[cfg(feature = "nightly_avx512")]
             {
                 let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
-                if use_avx512 {
+                if use_avx512 && BIT_DEPTH <= 15 {
                     use crate::avx512bw::avx512_rgba_to_yuv_p16_420;
                     return RgbEncoder420 {
                         handler: Some(
@@ -363,24 +371,39 @@ impl<
             {
                 let use_avx = std::arch::is_x86_feature_detected!("avx2");
                 if use_avx {
-                    use crate::avx2::avx_rgba_to_yuv_p16_420;
-                    return RgbEncoder420 {
-                        handler: Some(
-                            avx_rgba_to_yuv_p16_420::<
-                                ORIGIN_CHANNELS,
-                                ENDIANNESS,
-                                BYTES_POSITION,
-                                PRECISION,
-                                BIT_DEPTH,
-                            >,
-                        ),
-                    };
+                    if BIT_DEPTH <= 15 {
+                        use crate::avx2::avx_rgba_to_yuv_p16_420;
+                        return RgbEncoder420 {
+                            handler: Some(
+                                avx_rgba_to_yuv_p16_420::<
+                                    ORIGIN_CHANNELS,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    PRECISION,
+                                    BIT_DEPTH,
+                                >,
+                            ),
+                        };
+                    } else if BIT_DEPTH <= 16 {
+                        use crate::avx2::avx_rgba_to_yuv_p16_420_d16;
+                        return RgbEncoder420 {
+                            handler: Some(
+                                avx_rgba_to_yuv_p16_420_d16::<
+                                    ORIGIN_CHANNELS,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    PRECISION,
+                                    BIT_DEPTH,
+                                >,
+                            ),
+                        };
+                    }
                 }
             }
             #[cfg(feature = "sse")]
             {
                 let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-                if use_sse {
+                if use_sse && BIT_DEPTH <= 15 {
                     use crate::sse::sse_rgba_to_yuv_p16_420;
                     return RgbEncoder420 {
                         handler: Some(
@@ -1011,7 +1034,7 @@ d_cvn!(
 );
 
 d_cvn!(
-    rgb10_to_i012,
+    rgb12_to_i012,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "I012",
@@ -1022,7 +1045,7 @@ d_cvn!(
 );
 #[cfg(feature = "big_endian")]
 d_cvn!(
-    rgb10_to_i012_be,
+    rgb12_to_i012_be,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "I012",
@@ -1055,7 +1078,7 @@ d_cvn!(
 );
 
 d_cvn!(
-    rgb10_to_i212,
+    rgb12_to_i212,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "I212",
@@ -1066,7 +1089,7 @@ d_cvn!(
 );
 #[cfg(feature = "big_endian")]
 d_cvn!(
-    rgb10_to_i212_be,
+    rgb12_to_i212_be,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "I212",
@@ -1099,7 +1122,7 @@ d_cvn!(
 );
 
 d_cvn!(
-    rgb10_to_i412,
+    rgb12_to_i412,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "I412",
@@ -1110,7 +1133,7 @@ d_cvn!(
 );
 #[cfg(feature = "big_endian")]
 d_cvn!(
-    rgb10_to_i412_be,
+    rgb12_to_i412_be,
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "I412",
@@ -1119,7 +1142,7 @@ d_cvn!(
     12,
     YuvEndianness::BigEndian
 );
-
+// 14-bit
 d_cvn!(
     rgba14_to_i014,
     YuvSourceChannels::Rgba,
@@ -1248,5 +1271,136 @@ d_cvn!(
     "RGB14",
     "rgb14",
     14,
+    YuvEndianness::BigEndian
+);
+//16-bit
+d_cvn!(
+    rgba16_to_i016,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "I016",
+    "RGBA16",
+    "rgba16",
+    16,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgba16_to_i016_be,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "I016",
+    "RGBA16",
+    "rgba16",
+    16,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgb16_to_i016,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "I016",
+    "RGB16",
+    "rgb16",
+    16,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgb16_to_i016_be,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "I016",
+    "RGB16",
+    "rgb16",
+    16,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgba16_to_i216,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "I216",
+    "RGBA16",
+    "rgba16",
+    16,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgba16_to_i216_be,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "I216",
+    "RGBA16",
+    "rgba16",
+    16,
+    YuvEndianness::BigEndian
+);
+d_cvn!(
+    rgb16_to_i216,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "I216",
+    "RGB16",
+    "rgb16",
+    16,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgb16_to_i216_be,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "I216",
+    "RGB16",
+    "rgb16",
+    16,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgba16_to_i416,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "I416",
+    "RGBA16",
+    "rgba16",
+    16,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgba16_to_i416_be,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "I416",
+    "RGBA16",
+    "rgba16",
+    16,
+    YuvEndianness::BigEndian
+);
+
+d_cvn!(
+    rgb16_to_i416,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "I416",
+    "RGB16",
+    "rgb16",
+    16,
+    YuvEndianness::LittleEndian
+);
+#[cfg(feature = "big_endian")]
+d_cvn!(
+    rgb16_to_i416_be,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "I416",
+    "RGB16",
+    "rgb16",
+    16,
     YuvEndianness::BigEndian
 );

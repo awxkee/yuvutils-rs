@@ -41,6 +41,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
     const BYTES_POSITION: u8,
     const AR30_LAYOUT: usize,
     const AR30_STORE: usize,
+    const BIT_DEPTH: usize,
 >(
     y_plane: &[u16],
     uv_plane: &[u16],
@@ -60,7 +61,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
     let y_corr = vdupq_n_u16(bias_y as u16);
     let uv_corr_q = vdupq_n_s16(bias_uv as i16);
 
-    const PRECISION: i32 = 15;
+    const PRECISION: i32 = 14;
 
     // CbCoeff is almost always overflowing using 14 bits of precision, so we dividing it into 2 parts
     // to avoid overflow
@@ -77,8 +78,6 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
         0,
         0,
     ];
-
-    const BIT_DEPTH: usize = 10;
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
@@ -100,30 +99,54 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
                 uv_corr_q,
             );
 
-        let y_high = vqdmlal_high_laneq_s16::<0>(base_val, y_values, v_weights);
-        let y_low = vqdmlal_laneq_s16::<0>(base_val, vget_low_s16(y_values), v_weights);
+        let y_high = vmlal_high_laneq_s16::<0>(base_val, y_values, v_weights);
+        let y_low = vmlal_laneq_s16::<0>(base_val, vget_low_s16(y_values), v_weights);
 
-        let mut bh = vqdmlal_laneq_s16::<2>(y_high, u_high, v_weights);
-        let rh = vqdmlal_laneq_s16::<1>(y_high, v_high, v_weights);
-        let gh = vqdmlal_laneq_s16::<4>(y_high, v_high, v_weights);
-        bh = vqdmlal_laneq_s16::<3>(bh, u_high, v_weights);
-        let mut bl = vqdmlal_laneq_s16::<2>(y_low, u_low, v_weights);
-        let rl = vqdmlal_laneq_s16::<1>(y_low, v_low, v_weights);
-        let gl = vqdmlal_laneq_s16::<4>(y_low, v_low, v_weights);
-        bl = vqdmlal_laneq_s16::<3>(bl, u_low, v_weights);
-        let ghi = vqdmlal_laneq_s16::<5>(gh, u_high, v_weights);
+        let mut bh = vmlal_laneq_s16::<2>(y_high, u_high, v_weights);
+        let rh = vmlal_laneq_s16::<1>(y_high, v_high, v_weights);
+        let gh = vmlal_laneq_s16::<4>(y_high, v_high, v_weights);
+        bh = vmlal_laneq_s16::<3>(bh, u_high, v_weights);
+        let mut bl = vmlal_laneq_s16::<2>(y_low, u_low, v_weights);
+        let rl = vmlal_laneq_s16::<1>(y_low, v_low, v_weights);
+        let gl = vmlal_laneq_s16::<4>(y_low, v_low, v_weights);
+        bl = vmlal_laneq_s16::<3>(bl, u_low, v_weights);
+        let ghi = vmlal_laneq_s16::<5>(gh, u_high, v_weights);
 
-        let r_high = vqshrun_n_s32::<PRECISION>(rh);
-        let b_high = vqshrun_n_s32::<PRECISION>(bh);
-        let g_high = vqshrun_n_s32::<PRECISION>(ghi);
+        let r_high = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(rh)
+        } else {
+            vqshrun_n_s32::<16>(rh)
+        };
+        let b_high = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(bh)
+        } else {
+            vqshrun_n_s32::<16>(bh)
+        };
+        let g_high = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(ghi)
+        } else {
+            vqshrun_n_s32::<16>(ghi)
+        };
 
-        let glv = vqdmlal_laneq_s16::<5>(gl, u_low, v_weights);
+        let glv = vmlal_laneq_s16::<5>(gl, u_low, v_weights);
 
-        let r_low = vqshrun_n_s32::<PRECISION>(rl);
-        let b_low = vqshrun_n_s32::<PRECISION>(bl);
-        let g_low = vqshrun_n_s32::<PRECISION>(glv);
+        let r_low = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(rl)
+        } else {
+            vqshrun_n_s32::<16>(rl)
+        };
+        let b_low = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(bl)
+        } else {
+            vqshrun_n_s32::<16>(bl)
+        };
+        let g_low = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(glv)
+        } else {
+            vqshrun_n_s32::<16>(glv)
+        };
 
-        let v_max = vdupq_n_u16((1 << 10) - 1);
+        let v_max = vdupq_n_u16((1 << BIT_DEPTH) - 1);
 
         let rw = vminq_u16(vcombine_u16(r_low, r_high), v_max);
         let gw = vminq_u16(vcombine_u16(g_low, g_high), v_max);
@@ -190,30 +213,54 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
 
         let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(y_vl, y_corr));
 
-        let y_high = vqdmlal_high_laneq_s16::<0>(base_val, y_values, v_weights);
-        let y_low = vqdmlal_laneq_s16::<0>(base_val, vget_low_s16(y_values), v_weights);
+        let y_high = vmlal_high_laneq_s16::<0>(base_val, y_values, v_weights);
+        let y_low = vmlal_laneq_s16::<0>(base_val, vget_low_s16(y_values), v_weights);
 
-        let mut bh = vqdmlal_laneq_s16::<2>(y_high, u_high, v_weights);
-        let rh = vqdmlal_laneq_s16::<1>(y_high, v_high, v_weights);
-        let gh = vqdmlal_laneq_s16::<4>(y_high, v_high, v_weights);
-        bh = vqdmlal_laneq_s16::<3>(bh, u_high, v_weights);
-        let mut bl = vqdmlal_laneq_s16::<2>(y_low, u_low, v_weights);
-        let rl = vqdmlal_laneq_s16::<1>(y_low, v_low, v_weights);
-        let gl = vqdmlal_laneq_s16::<4>(y_low, v_low, v_weights);
-        bl = vqdmlal_laneq_s16::<3>(bl, u_low, v_weights);
-        let ghi = vqdmlal_laneq_s16::<5>(gh, u_high, v_weights);
+        let mut bh = vmlal_laneq_s16::<2>(y_high, u_high, v_weights);
+        let rh = vmlal_laneq_s16::<1>(y_high, v_high, v_weights);
+        let gh = vmlal_laneq_s16::<4>(y_high, v_high, v_weights);
+        bh = vmlal_laneq_s16::<3>(bh, u_high, v_weights);
+        let mut bl = vmlal_laneq_s16::<2>(y_low, u_low, v_weights);
+        let rl = vmlal_laneq_s16::<1>(y_low, v_low, v_weights);
+        let gl = vmlal_laneq_s16::<4>(y_low, v_low, v_weights);
+        bl = vmlal_laneq_s16::<3>(bl, u_low, v_weights);
+        let ghi = vmlal_laneq_s16::<5>(gh, u_high, v_weights);
 
-        let r_high = vqshrun_n_s32::<PRECISION>(rh);
-        let b_high = vqshrun_n_s32::<PRECISION>(bh);
-        let g_high = vqshrun_n_s32::<PRECISION>(ghi);
+        let r_high = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(rh)
+        } else {
+            vqshrun_n_s32::<16>(rh)
+        };
+        let b_high = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(bh)
+        } else {
+            vqshrun_n_s32::<16>(bh)
+        };
+        let g_high = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(ghi)
+        } else {
+            vqshrun_n_s32::<16>(ghi)
+        };
 
-        let glv = vqdmlal_laneq_s16::<5>(gl, u_low, v_weights);
+        let glv = vmlal_laneq_s16::<5>(gl, u_low, v_weights);
 
-        let r_low = vqshrun_n_s32::<PRECISION>(rl);
-        let b_low = vqshrun_n_s32::<PRECISION>(bl);
-        let g_low = vqshrun_n_s32::<PRECISION>(glv);
+        let r_low = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(rl)
+        } else {
+            vqshrun_n_s32::<16>(rl)
+        };
+        let b_low = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(bl)
+        } else {
+            vqshrun_n_s32::<16>(bl)
+        };
+        let g_low = if BIT_DEPTH == 10 {
+            vqshrun_n_s32::<PRECISION>(glv)
+        } else {
+            vqshrun_n_s32::<16>(glv)
+        };
 
-        let v_max = vdupq_n_u16((1 << 10) - 1);
+        let v_max = vdupq_n_u16((1 << BIT_DEPTH) - 1);
 
         let rw = vminq_u16(vcombine_u16(r_low, r_high), v_max);
         let gw = vminq_u16(vcombine_u16(g_low, g_high), v_max);

@@ -207,16 +207,18 @@ pub use rgba_to_yuv::rgba_to_yuv422;
 pub use rgba_to_yuv::rgba_to_yuv444;
 
 pub use rgb16_to_yuv_p16::{
-    rgb10_to_i010, rgb10_to_i012, rgb10_to_i210, rgb10_to_i212, rgb10_to_i410, rgb10_to_i412,
-    rgb14_to_i014, rgb14_to_i214, rgb14_to_i414, rgba10_to_i010, rgba10_to_i210, rgba10_to_i410,
-    rgba12_to_i012, rgba12_to_i212, rgba12_to_i412, rgba14_to_i014, rgba14_to_i214, rgba14_to_i414,
+    rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb12_to_i012, rgb12_to_i212, rgb12_to_i412,
+    rgb14_to_i014, rgb14_to_i214, rgb14_to_i414, rgb16_to_i016, rgb16_to_i216, rgb16_to_i416,
+    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i012, rgba12_to_i212, rgba12_to_i412,
+    rgba14_to_i014, rgba14_to_i214, rgba14_to_i414, rgba16_to_i016, rgba16_to_i216, rgba16_to_i416,
 };
 #[cfg(feature = "big_endian")]
 pub use rgb16_to_yuv_p16::{
-    rgb10_to_i010_be, rgb10_to_i012_be, rgb10_to_i210_be, rgb10_to_i212_be, rgb10_to_i410_be,
-    rgb10_to_i412_be, rgb14_to_i014_be, rgb14_to_i214_be, rgb14_to_i414_be, rgba10_to_i010_be,
-    rgba10_to_i210_be, rgba10_to_i410_be, rgba12_to_i012_be, rgba12_to_i212_be, rgba12_to_i412_be,
-    rgba14_to_i014_be, rgba14_to_i214_be, rgba14_to_i414_be,
+    rgb10_to_i010_be, rgb10_to_i210_be, rgb10_to_i410_be, rgb12_to_i012_be, rgb12_to_i212_be,
+    rgb12_to_i412_be, rgb14_to_i014_be, rgb14_to_i214_be, rgb14_to_i414_be, rgb16_to_i016_be,
+    rgb16_to_i216_be, rgb16_to_i416_be, rgba10_to_i010_be, rgba10_to_i210_be, rgba10_to_i410_be,
+    rgba12_to_i012_be, rgba12_to_i212_be, rgba12_to_i412_be, rgba14_to_i014_be, rgba14_to_i214_be,
+    rgba14_to_i414_be, rgba16_to_i016_be, rgba16_to_i216_be, rgba16_to_i416_be,
 };
 
 pub use yuv_to_rgba_alpha::yuv420_alpha_to_bgra;
@@ -316,11 +318,6 @@ pub use yuy2_to_yuv::yvyu422_to_yuv420;
 pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
-pub use from_identity::{
-    gb10_to_rgb10, gb10_to_rgba10, gb12_to_rgb12, gb12_to_rgba12, gbr_to_bgr, gbr_to_bgra,
-    gbr_to_rgb, gbr_to_rgba,
-};
-
 pub use to_identity::{
     bgr_to_gbr, bgra_to_gbr, rgb10_to_gb10, rgb12_to_gb12, rgb_to_gbr, rgba10_to_gb10,
     rgba10_to_gb12, rgba_to_gbr,
@@ -394,16 +391,28 @@ pub use sharpyuv::rgba_to_sharp_yuv420;
 pub use sharpyuv::rgba_to_sharp_yuv422;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
-pub use from_identity_alpha::{
-    gb10_alpha_to_rgba10, gb12_alpha_to_rgba12, gbr_with_alpha_to_bgra, gbr_with_alpha_to_rgba,
+pub use from_identity::{
+    gb10_to_rgb10, gb10_to_rgba10, gb12_to_rgb12, gb12_to_rgba12, gb14_to_rgb14, gb14_to_rgba14,
+    gb16_to_rgb16, gb16_to_rgba16, gbr_to_bgr, gbr_to_bgra, gbr_to_rgb, gbr_to_rgba,
 };
+
+pub use from_identity_alpha::{
+    gb10_alpha_to_rgba10, gb12_alpha_to_rgba12, gb14_alpha_to_rgba14, gb16_alpha_to_rgba16,
+    gbr_with_alpha_to_bgra, gbr_with_alpha_to_rgba,
+};
+
 pub use images::{
     BufferStoreMut, YuvBiPlanarImage, YuvBiPlanarImageMut, YuvGrayAlphaImage, YuvGrayImage,
     YuvGrayImageMut, YuvPackedImage, YuvPackedImageMut, YuvPlanarImage, YuvPlanarImageMut,
     YuvPlanarImageWithAlpha,
 };
-pub use y_p16_to_rgb16::{y010_to_rgb10, y010_to_rgba10, y012_to_rgb12, y012_to_rgba12};
-pub use y_p16_with_alpha_to_rgb16::{y010_alpha_to_rgba10, y012_alpha_to_rgba12};
+pub use y_p16_to_rgb16::{
+    y010_to_rgb10, y010_to_rgba10, y012_to_rgb12, y012_to_rgba12, y014_to_rgb14, y014_to_rgba14,
+    y016_to_rgb16, y016_to_rgba16,
+};
+pub use y_p16_with_alpha_to_rgb16::{
+    y010_alpha_to_rgba10, y012_alpha_to_rgba12, y014_alpha_to_rgba14, y016_alpha_to_rgba16,
+};
 pub use y_with_alpha_to_rgb::{yuv400_alpha_to_bgra, yuv400_alpha_to_rgba};
 pub use yuv_error::YuvError;
 
@@ -431,25 +440,29 @@ pub use yuv_p16_rgba16_alpha::{
 #[cfg(feature = "big_endian")]
 pub use yuv_p16_rgba_p16::{
     i010_be_to_rgb10, i010_be_to_rgba10, i012_be_to_rgb12, i012_be_to_rgba12, i014_be_to_rgb14,
-    i014_be_to_rgba14, i210_be_to_rgb10, i210_be_to_rgba10, i212_be_to_rgb12, i212_be_to_rgba12,
-    i214_be_to_rgb14, i214_be_to_rgba14, i410_be_to_rgb10, i410_be_to_rgba10, i412_be_to_rgb12,
-    i412_be_to_rgba12, i414_be_to_rgb14, i414_be_to_rgba14,
+    i014_be_to_rgba14, i016_be_to_rgb16, i016_be_to_rgba16, i210_be_to_rgb10, i210_be_to_rgba10,
+    i212_be_to_rgb12, i212_be_to_rgba12, i214_be_to_rgb14, i214_be_to_rgba14, i216_be_to_rgb16,
+    i216_be_to_rgba16, i410_be_to_rgb10, i410_be_to_rgba10, i412_be_to_rgb12, i412_be_to_rgba12,
+    i414_be_to_rgb14, i414_be_to_rgba14, i416_be_to_rgb16, i416_be_to_rgba16,
 };
 pub use yuv_p16_rgba_p16::{
     i010_to_rgb10, i010_to_rgba10, i012_to_rgb12, i012_to_rgba12, i014_to_rgb14, i014_to_rgba14,
-    i210_to_rgb10, i210_to_rgba10, i212_to_rgb12, i212_to_rgba12, i214_to_rgb14, i214_to_rgba14,
-    i410_to_rgb10, i410_to_rgba10, i412_to_rgb12, i412_to_rgba12, i414_to_rgb14, i414_to_rgba14,
+    i016_to_rgb16, i016_to_rgba16, i210_to_rgb10, i210_to_rgba10, i212_to_rgb12, i212_to_rgba12,
+    i214_to_rgb14, i214_to_rgba14, i216_to_rgb16, i216_to_rgba16, i410_to_rgb10, i410_to_rgba10,
+    i412_to_rgb12, i412_to_rgba12, i414_to_rgb14, i414_to_rgba14, i416_to_rgb16, i416_to_rgba16,
 };
 
 #[cfg(feature = "nightly_f16")]
 pub use yuva_p16_rgba_f16::{
-    i010_alpha_to_rgba_f16, i012_alpha_to_rgba_f16, i210_alpha_to_rgba_f16, i212_alpha_to_rgba_f16,
-    i410_alpha_to_rgba_f16, i412_alpha_to_rgba_f16,
+    i010_alpha_to_rgba_f16, i012_alpha_to_rgba_f16, i014_alpha_to_rgba_f16, i210_alpha_to_rgba_f16,
+    i212_alpha_to_rgba_f16, i214_alpha_to_rgba_f16, i410_alpha_to_rgba_f16, i412_alpha_to_rgba_f16,
+    i414_alpha_to_rgba_f16,
 };
 
 pub use ar30_rgb::{
     ab30_to_rgb8, ar30_to_rgb8, ar30_to_rgba8, ba30_to_rgb8, ra30_to_rgb8, ra30_to_rgba8,
 };
+
 #[cfg(feature = "nightly_f16")]
 pub use f16_converter::{
     convert_plane16_to_f16, convert_plane_f16_to_planar, convert_plane_f16_to_planar16,
@@ -457,20 +470,29 @@ pub use f16_converter::{
     convert_rgb_to_f16, convert_rgba16_to_f16, convert_rgba_f16_to_rgba,
     convert_rgba_f16_to_rgba16, convert_rgba_to_f16,
 };
+
 pub use geometry::{
     rotate_cbcr, rotate_cbcr16, rotate_plane, rotate_plane16, rotate_rgb, rotate_rgb16,
     rotate_rgba, rotate_rgba16, RotationMode,
 };
+
 pub use mirroring::{
     mirror_cbcr, mirror_cbcr16, mirror_plane, mirror_plane16, mirror_rgb, mirror_rgb16,
     mirror_rgba, mirror_rgba16, MirrorMode,
 };
+
 pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
+
 pub use shuffle::{
     bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
     rgb_to_bgra, rgb_to_rgba, rgba_to_bgr, rgba_to_bgra, rgba_to_rgb,
 };
-pub use yuv_nv_p10_to_ar30::{p010_to_ar30, p010_to_ra30, p210_to_ar30, p210_to_ra30};
+
+pub use yuv_nv_p10_to_ar30::{
+    p010_to_ar30, p010_to_ra30, p012_to_ar30, p012_to_ra30, p210_to_ar30, p210_to_ra30,
+    p212_to_ar30, p212_to_ra30,
+};
+
 pub use yuv_p16_ar30::{
     i010_to_ar30, i010_to_ra30, i012_to_ar30, i012_to_ra30, i014_to_ar30, i014_to_ra30,
     i210_to_ar30, i210_to_ra30, i212_to_ar30, i212_to_ra30, i214_to_ar30, i214_to_ra30,

@@ -99,24 +99,23 @@ unsafe fn encode_16_part<
     let b_low = _mm_srli_epi16::<V_S>(bl);
     let b_high = _mm_srli_epi16::<V_S>(bh);
 
-    let y_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-        y_bias,
-        _mm_add_epi16(
-            _mm_add_epi16(_mm_mulhrs_epi16(r_low, v_yr), _mm_mulhrs_epi16(g_low, v_yg)),
-            _mm_mulhrs_epi16(b_low, v_yb),
-        ),
-    ));
+    let rlc = _mm_mulhrs_epi16(r_low, v_yr);
+    let glc = _mm_mulhrs_epi16(g_low, v_yg);
+    let blc = _mm_mulhrs_epi16(b_low, v_yb);
+    let rhc = _mm_mulhrs_epi16(r_high, v_yr);
+    let ghc = _mm_mulhrs_epi16(g_high, v_yg);
+    let bhc = _mm_mulhrs_epi16(b_high, v_yb);
 
-    let y_h = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-        y_bias,
-        _mm_add_epi16(
-            _mm_add_epi16(
-                _mm_mulhrs_epi16(r_high, v_yr),
-                _mm_mulhrs_epi16(g_high, v_yg),
-            ),
-            _mm_mulhrs_epi16(b_high, v_yb),
-        ),
-    ));
+    let ylc = _mm_add_epi16(rlc, glc);
+    let yhc = _mm_add_epi16(rhc, ghc);
+    let ylw = _mm_add_epi16(ylc, blc);
+    let yhw = _mm_add_epi16(yhc, bhc);
+
+    let ylw0 = _mm_add_epi16(y_bias, ylw);
+    let yhw0 = _mm_add_epi16(y_bias, yhw);
+
+    let y_l = _mm_srli_epi16::<A_E>(ylw0);
+    let y_h = _mm_srli_epi16::<A_E>(yhw0);
 
     let y_yuv = _mm_packus_epi16(y_l, y_h);
     _mm_storeu_si128(y_dst.as_mut_ptr() as *mut __m128i, y_yuv);
@@ -130,26 +129,21 @@ unsafe fn encode_16_part<
     let v_cr_b = _mm_set1_epi16(transform.cr_b as i16);
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
-        let cb_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-            uv_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(
-                    _mm_mulhrs_epi16(r_low, v_cb_r),
-                    _mm_mulhrs_epi16(g_low, v_cb_g),
-                ),
-                _mm_mulhrs_epi16(b_low, v_cb_b),
-            ),
-        ));
-        let cr_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-            uv_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(
-                    _mm_mulhrs_epi16(r_low, v_cr_r),
-                    _mm_mulhrs_epi16(g_low, v_cr_g),
-                ),
-                _mm_mulhrs_epi16(b_low, v_cr_b),
-            ),
-        ));
+        let cblc = _mm_mulhrs_epi16(r_low, v_cb_r);
+        let cbgc = _mm_mulhrs_epi16(g_low, v_cb_g);
+        let crlc = _mm_mulhrs_epi16(r_low, v_cr_r);
+        let crgc = _mm_mulhrs_epi16(g_low, v_cr_g);
+        let cbbc = _mm_mulhrs_epi16(b_low, v_cb_b);
+        let crbc = _mm_mulhrs_epi16(b_low, v_cr_b);
+
+        let cbbl = _mm_add_epi16(cblc, cbgc);
+        let crrl = _mm_add_epi16(crlc, crgc);
+
+        let cbbw = _mm_add_epi16(cbbl, cbbc);
+        let crrw = _mm_add_epi16(crrl, crbc);
+
+        let cb_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(uv_bias, cbbw));
+        let cr_l = _mm_srli_epi16::<A_E>(_mm_add_epi16(uv_bias, crrw));
         let cb_h = _mm_srli_epi16::<A_E>(_mm_add_epi16(
             uv_bias,
             _mm_add_epi16(
@@ -192,21 +186,21 @@ unsafe fn encode_16_part<
         let g1 = sse_pairwise_avg_epi8_j(g_values, 1 << (16 - V_S - 8 - 1));
         let b1 = sse_pairwise_avg_epi8_j(b_values, 1 << (16 - V_S - 8 - 1));
 
-        let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-            uv_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cb_r), _mm_mulhrs_epi16(g1, v_cb_g)),
-                _mm_mulhrs_epi16(b1, v_cb_b),
-            ),
-        ));
+        let cbrc = _mm_mulhrs_epi16(r1, v_cb_r);
+        let crrc = _mm_mulhrs_epi16(r1, v_cr_r);
+        let cbgc = _mm_mulhrs_epi16(g1, v_cb_g);
+        let crgc = _mm_mulhrs_epi16(g1, v_cr_g);
+        let cbbc = _mm_mulhrs_epi16(b1, v_cb_b);
+        let crbc = _mm_mulhrs_epi16(b1, v_cr_b);
 
-        let crk = _mm_srli_epi16::<A_E>(_mm_add_epi16(
-            uv_bias,
-            _mm_add_epi16(
-                _mm_add_epi16(_mm_mulhrs_epi16(r1, v_cr_r), _mm_mulhrs_epi16(g1, v_cr_g)),
-                _mm_mulhrs_epi16(b1, v_cr_b),
-            ),
-        ));
+        let cbo = _mm_add_epi16(cbrc, cbgc);
+        let cro = _mm_add_epi16(crrc, crgc);
+
+        let cbl = _mm_add_epi16(cbo, cbbc);
+        let crl = _mm_add_epi16(cro, crbc);
+
+        let cbk = _mm_srli_epi16::<A_E>(_mm_add_epi16(uv_bias, cbl));
+        let crk = _mm_srli_epi16::<A_E>(_mm_add_epi16(uv_bias, crl));
 
         let cb = _mm_packus_epi16(cbk, cbk);
         let cr = _mm_packus_epi16(crk, crk);

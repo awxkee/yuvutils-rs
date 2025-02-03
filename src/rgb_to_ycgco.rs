@@ -27,15 +27,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    feature = "nightly_avx512"
-))]
-use crate::avx512bw::avx512_rgb_to_ycgco_row;
-#[allow(unused_imports)]
-use crate::internals::ProcessedOffset;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_rgb_to_ycgco_row;
 use crate::yuv_error::check_rgba_destination;
 #[allow(unused_imports)]
 use crate::yuv_support::*;
@@ -75,16 +66,6 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     let mut co_offset = 0usize;
     let mut rgba_offset = 0usize;
 
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
-    let mut _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
-    let mut _use_avx = std::arch::is_x86_feature_detected!("avx2");
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let mut _use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
-
     let y_plane = image.y_plane.borrow_mut();
     let cg_plane = image.u_plane.borrow_mut();
     let co_plane = image.v_plane.borrow_mut();
@@ -103,99 +84,6 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         let compute_uv_row = chroma_subsampling == YuvChromaSubsampling::Yuv444
             || chroma_subsampling == YuvChromaSubsampling::Yuv422
             || y & 1 == 0;
-
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        {
-            #[cfg(feature = "nightly_avx512")]
-            if _use_avx512 {
-                unsafe {
-                    let processed_offset = avx512_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
-                        &range,
-                        y_plane.as_mut_ptr(),
-                        cg_plane.as_mut_ptr(),
-                        co_plane.as_mut_ptr(),
-                        rgba,
-                        y_offset,
-                        cg_offset,
-                        co_offset,
-                        rgba_offset,
-                        cx,
-                        ux,
-                        image.width as usize,
-                        compute_uv_row,
-                    );
-                    cx = processed_offset.cx;
-                    ux = processed_offset.ux;
-                }
-            }
-            #[cfg(feature = "avx")]
-            if _use_avx {
-                unsafe {
-                    use crate::avx2::avx2_rgb_to_ycgco_row;
-                    let processed_offset = avx2_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
-                        &range,
-                        y_plane.as_mut_ptr(),
-                        cg_plane.as_mut_ptr(),
-                        co_plane.as_mut_ptr(),
-                        rgba,
-                        y_offset,
-                        cg_offset,
-                        co_offset,
-                        rgba_offset,
-                        cx,
-                        ux,
-                        image.width as usize,
-                        compute_uv_row,
-                    );
-                    cx = processed_offset.cx;
-                    ux = processed_offset.ux;
-                }
-            }
-            #[cfg(feature = "sse")]
-            if _use_sse {
-                unsafe {
-                    use crate::sse::sse_rgb_to_ycgco_row;
-                    let processed_offset = sse_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
-                        &range,
-                        y_plane.as_mut_ptr(),
-                        cg_plane.as_mut_ptr(),
-                        co_plane.as_mut_ptr(),
-                        rgba,
-                        y_offset,
-                        cg_offset,
-                        co_offset,
-                        rgba_offset,
-                        cx,
-                        ux,
-                        image.width as usize,
-                        compute_uv_row,
-                    );
-                    cx = processed_offset.cx;
-                    ux = processed_offset.ux;
-                }
-            }
-        }
-
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe {
-            let processed_offset = neon_rgb_to_ycgco_row::<ORIGIN_CHANNELS, SAMPLING>(
-                &range,
-                y_plane.as_mut_ptr(),
-                cg_plane.as_mut_ptr(),
-                co_plane.as_mut_ptr(),
-                rgba,
-                y_offset,
-                cg_offset,
-                co_offset,
-                rgba_offset,
-                cx,
-                ux,
-                image.width as usize,
-                compute_uv_row,
-            );
-            cx = processed_offset.cx;
-            ux = processed_offset.ux;
-        }
 
         #[allow(clippy::explicit_counter_loop)]
         for x in (cx..image.width as usize).step_by(iterator_step) {
@@ -295,7 +183,6 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
 ///
 /// This function performs RGB to YCgCo conversion and stores the result in YUV422 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -323,7 +210,6 @@ pub fn rgb_to_ycgco422(
 ///
 /// This function performs BGR to YCgCo conversion and stores the result in YUV422 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -351,7 +237,6 @@ pub fn bgr_to_ycgco422(
 ///
 /// This function performs RGBA to YCgCo conversion and stores the result in YUV422 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -383,7 +268,6 @@ pub fn rgba_to_ycgco422(
 ///
 /// This function performs BGRA to YCgCo conversion and stores the result in YUV422 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -415,7 +299,6 @@ pub fn bgra_to_ycgco422(
 ///
 /// This function performs RGB to YCgCo conversion and stores the result in YUV420 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -444,7 +327,6 @@ pub fn rgb_to_ycgco420(
 ///
 /// This function performs BGR to YCgCo conversion and stores the result in YUV420 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -473,7 +355,6 @@ pub fn bgr_to_ycgco420(
 ///
 /// This function performs RGBA to YCgCo conversion and stores the result in YUV420 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -505,7 +386,6 @@ pub fn rgba_to_ycgco420(
 ///
 /// This function performs BGRA to YCgCo conversion and stores the result in YUV420 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -537,7 +417,6 @@ pub fn bgra_to_ycgco420(
 ///
 /// This function performs RGB to YCgCo conversion and stores the result in YUV444 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -566,7 +445,6 @@ pub fn rgb_to_ycgco444(
 ///
 /// This function performs BGR to YCgCo conversion and stores the result in YUV444 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -595,7 +473,6 @@ pub fn bgr_to_ycgco444(
 ///
 /// This function performs RGBA to YCgCo conversion and stores the result in YUV444 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///
@@ -627,7 +504,6 @@ pub fn rgba_to_ycgco444(
 ///
 /// This function performs BGRA to YCgCo conversion and stores the result in YUV444 planar format,
 /// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-/// YCgCo is very fast transformation by its nature. If you just work if intensity (Y channel) and do not require YCbCr prefer this one over YCbCr
 ///
 /// # Arguments
 ///

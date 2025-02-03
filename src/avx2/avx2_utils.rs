@@ -59,6 +59,21 @@ pub(crate) unsafe fn _mm256_havg_epi16_epi32(a: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_rphadd_epi32_epi16(a: __m256i) -> __m256i {
+    let sh1 = _mm256_setr_epi8(
+        0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7, 10, 11, 14, 15, 0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7,
+        10, 11, 14, 15,
+    );
+    let shuffled = _mm256_shuffle_epi8(a, sh1);
+    let a0 = _mm256_unpacklo_epi16(shuffled, _mm256_setzero_si256());
+    let a1 = _mm256_unpackhi_epi16(shuffled, _mm256_setzero_si256());
+    _mm256_srli_epi32::<1>(_mm256_add_epi32(
+        _mm256_add_epi32(a0, a1),
+        _mm256_set1_epi32(1),
+    ))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_interleave_epi8(a: __m256i, b: __m256i) -> (__m256i, __m256i) {
     let xy_l = _mm256_unpacklo_epi8(a, b);
     let xy_h = _mm256_unpackhi_epi8(a, b);
@@ -320,15 +335,6 @@ pub(crate) unsafe fn avx2_deinterleave_rgb(
 //     const MASK: i32 = shuffle(3, 1, 2, 0);
 //     _mm256_permute4x64_epi64::<MASK>(v)
 // }
-
-#[inline(always)]
-pub(crate) unsafe fn avx2_pairwise_widen_avg(v: __m256i) -> __m256i {
-    let sums = _mm256_maddubs_epi16(v, _mm256_set1_epi8(1));
-    let shifted = _mm256_srli_epi16::<1>(_mm256_add_epi16(sums, _mm256_set1_epi16(1)));
-    let packed_lo = _mm256_packus_epi16(shifted, shifted);
-    const MASK: i32 = shuffle(3, 1, 2, 0);
-    _mm256_permute4x64_epi64::<MASK>(packed_lo)
-}
 
 #[inline(always)]
 pub(crate) unsafe fn avx_pairwise_avg_epi16(a: __m256i, b: __m256i) -> __m256i {
@@ -972,14 +978,16 @@ pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32, const HAS_DOT: b
     }
     #[cfg(not(feature = "nightly_avx512"))]
     {
-        let y_l_l = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
-        );
-        let y_l_h = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
-        );
+        let v0w0 = _mm256_madd_epi16(v0, w0);
+        let v1w0 = _mm256_madd_epi16(v1, w0);
+        let b0w1 = _mm256_madd_epi16(b0, w1);
+        let b1w1 = _mm256_madd_epi16(b1, w1);
+
+        let j0 = _mm256_add_epi32(v0w0, b0w1);
+        let j1 = _mm256_add_epi32(v1w0, b1w1);
+
+        let y_l_l = _mm256_add_epi32(accumulator, j0);
+        let y_l_h = _mm256_add_epi32(accumulator, j1);
         _mm256_packus_epi32(
             _mm256_srli_epi32::<PRECISION>(y_l_l),
             _mm256_srli_epi32::<PRECISION>(y_l_h),
@@ -1052,14 +1060,16 @@ pub(crate) unsafe fn _mm256_affine_dot<const PRECISION: i32, const HAS_DOT: bool
     }
     #[cfg(not(feature = "nightly_avx512"))]
     {
-        let y_l_l = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v0, w0), _mm256_madd_epi16(b0, w1)),
-        );
-        let y_l_h = _mm256_add_epi32(
-            accumulator,
-            _mm256_add_epi32(_mm256_madd_epi16(v1, w0), _mm256_madd_epi16(b1, w1)),
-        );
+        let v0w0 = _mm256_madd_epi16(v0, w0);
+        let v1w0 = _mm256_madd_epi16(v1, w0);
+        let b0w1 = _mm256_madd_epi16(b0, w1);
+        let b1w1 = _mm256_madd_epi16(b1, w1);
+
+        let j0 = _mm256_add_epi32(v0w0, b0w1);
+        let j1 = _mm256_add_epi32(v1w0, b1w1);
+
+        let y_l_l = _mm256_add_epi32(accumulator, j0);
+        let y_l_h = _mm256_add_epi32(accumulator, j1);
         avx2_pack_u32(
             _mm256_srli_epi32::<PRECISION>(y_l_l),
             _mm256_srli_epi32::<PRECISION>(y_l_h),

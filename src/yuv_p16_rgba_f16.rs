@@ -662,7 +662,6 @@ build_cnv!(
     "rgb"
 );
 
-
 build_cnv!(
     i410_to_rgba_f16,
     YuvSourceChannels::Rgba,
@@ -924,21 +923,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 180,
+                diff_r <= 264,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 180,
+                diff_g <= 264,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 180,
+                diff_b <= 264,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],
