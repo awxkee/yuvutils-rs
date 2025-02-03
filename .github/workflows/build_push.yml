@@ -161,3 +161,4 @@ jobs:
       - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run shuffle --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run rgb_to_f16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
+      - run: cargo fuzz run rdp --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6

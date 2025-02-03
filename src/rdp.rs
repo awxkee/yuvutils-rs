@@ -31,14 +31,111 @@
 use crate::internals::ProcessedOffset;
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
-use crate::yuv_support::{
-    CbCrForwardTransform, CbCrInverseTransform, YuvChromaRange, YuvSourceChannels,
-};
+use crate::yuv_support::{CbCrForwardTransform, CbCrInverseTransform, YuvChromaRange};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImage, YuvPlanarImageMut, YuvRange};
-#[cfg(feature = "rayon")]
-use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-#[cfg(feature = "rayon")]
-use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use std::fmt::{Display, Formatter};
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum RdpChannels {
+    Rgb = 0,
+    Rgba = 1,
+    Bgra = 2,
+    Bgr = 3,
+    Abgr = 4,
+    Argb = 5,
+}
+
+impl Display for RdpChannels {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RdpChannels::Rgb => f.write_str("RdpChannels::Rgb"),
+            RdpChannels::Rgba => f.write_str("RdpChannels::Rgba"),
+            RdpChannels::Bgra => f.write_str("RdpChannels::Bgra"),
+            RdpChannels::Bgr => f.write_str("RdpChannels::Bgr"),
+            RdpChannels::Abgr => f.write_str("RdpChannels::Abgr"),
+            RdpChannels::Argb => f.write_str("RdpChannels::Argb"),
+        }
+    }
+}
+
+impl From<u8> for RdpChannels {
+    #[inline(always)]
+    fn from(value: u8) -> Self {
+        match value {
+            0 => RdpChannels::Rgb,
+            1 => RdpChannels::Rgba,
+            2 => RdpChannels::Bgra,
+            3 => RdpChannels::Bgr,
+            4 => RdpChannels::Abgr,
+            5 => RdpChannels::Argb,
+            _ => {
+                unimplemented!("Unknown value")
+            }
+        }
+    }
+}
+
+impl RdpChannels {
+    #[inline(always)]
+    pub const fn get_channels_count(&self) -> usize {
+        match self {
+            RdpChannels::Rgb | RdpChannels::Bgr => 3,
+            RdpChannels::Rgba | RdpChannels::Bgra | RdpChannels::Abgr | RdpChannels::Argb => 4,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn has_alpha(&self) -> bool {
+        match self {
+            RdpChannels::Rgb | RdpChannels::Bgr => false,
+            RdpChannels::Rgba | RdpChannels::Bgra | RdpChannels::Abgr | RdpChannels::Argb => true,
+        }
+    }
+}
+
+impl RdpChannels {
+    #[inline(always)]
+    pub const fn get_r_channel_offset(&self) -> usize {
+        match self {
+            RdpChannels::Rgb => 0,
+            RdpChannels::Rgba => 0,
+            RdpChannels::Bgra => 2,
+            RdpChannels::Bgr => 2,
+            RdpChannels::Abgr => 3,
+            RdpChannels::Argb => 1,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn get_g_channel_offset(&self) -> usize {
+        match self {
+            RdpChannels::Rgb | RdpChannels::Bgr => 1,
+            RdpChannels::Rgba | RdpChannels::Bgra => 1,
+            RdpChannels::Abgr | RdpChannels::Argb => 2,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn get_b_channel_offset(&self) -> usize {
+        match self {
+            RdpChannels::Rgb => 2,
+            RdpChannels::Rgba => 2,
+            RdpChannels::Bgra => 0,
+            RdpChannels::Bgr => 0,
+            RdpChannels::Abgr => 1,
+            RdpChannels::Argb => 3,
+        }
+    }
+    #[inline(always)]
+    pub const fn get_a_channel_offset(&self) -> usize {
+        match self {
+            RdpChannels::Rgb | RdpChannels::Bgr => 0,
+            RdpChannels::Rgba | RdpChannels::Bgra => 3,
+            RdpChannels::Abgr | RdpChannels::Argb => 0,
+        }
+    }
+}
 
 type RgbEncoderHandler = Option<
     unsafe fn(
@@ -59,12 +156,15 @@ impl<const ORIGIN_CHANNELS: u8, const Q: i32> Default for RgbEncoder<ORIGIN_CHAN
     fn default() -> Self {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            let use_avx = std::arch::is_x86_feature_detected!("avx2");
-            if use_avx {
-                use crate::avx2::rdp_avx2_rgba_to_yuv;
-                return RgbEncoder {
-                    handler: Some(rdp_avx2_rgba_to_yuv::<ORIGIN_CHANNELS, Q>),
-                };
+            #[cfg(feature = "avx")]
+            {
+                let use_avx = std::arch::is_x86_feature_detected!("avx2");
+                if use_avx {
+                    use crate::avx2::rdp_avx2_rgba_to_yuv;
+                    return RgbEncoder {
+                        handler: Some(rdp_avx2_rgba_to_yuv::<ORIGIN_CHANNELS, Q>),
+                    };
+                }
             }
         }
         RgbEncoder { handler: None }
@@ -111,7 +211,7 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
     rgba: &[u8],
     rgba_stride: u32,
 ) -> Result<(), YuvError> {
-    let ch: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let ch: RdpChannels = ORIGIN_CHANNELS.into();
     let channels = ch.get_channels_count();
     planar_image.check_constraints(YuvChromaSubsampling::Yuv444)?;
     check_rgba_destination(
@@ -180,6 +280,7 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
             .zip(u_dst.iter_mut())
             .zip(v_dst.iter_mut())
             .zip(rgba.chunks_exact(channels))
+            .take(planar_image.width as usize)
             .skip(offset.cx)
         {
             let r = rgba[ch.get_r_channel_offset()] as i32;
@@ -203,36 +304,31 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
     Ok(())
 }
 
-pub fn rdp_rgb_to_yuv444(
-    planar_image: &mut YuvPlanarImageMut<i16>,
-    rgba: &[u8],
-    rgba_stride: u32,
-) -> Result<(), YuvError> {
-    to_rdp_yuv::<{ YuvSourceChannels::Rgb as u8 }>(planar_image, rgba, rgba_stride)
+macro_rules! d_forward {
+    ($method: ident, $cn: expr, $name: ident, $stride_name: ident) => {
+        pub fn $method(
+            planar_image: &mut YuvPlanarImageMut<i16>,
+            $name: &[u8],
+            $stride_name: u32,
+        ) -> Result<(), YuvError> {
+            to_rdp_yuv::<{ $cn as u8 }>(planar_image, $name, $stride_name)
+        }
+    };
 }
 
-pub fn rdp_rgba_to_yuv444(
-    planar_image: &mut YuvPlanarImageMut<i16>,
-    rgba: &[u8],
-    rgba_stride: u32,
-) -> Result<(), YuvError> {
-    to_rdp_yuv::<{ YuvSourceChannels::Rgba as u8 }>(planar_image, rgba, rgba_stride)
-}
-
-pub fn rdp_bgra_to_yuv444(
-    planar_image: &mut YuvPlanarImageMut<i16>,
-    bgra: &[u8],
-    bgra_stride: u32,
-) -> Result<(), YuvError> {
-    to_rdp_yuv::<{ YuvSourceChannels::Bgra as u8 }>(planar_image, bgra, bgra_stride)
-}
+d_forward!(rdp_rgb_to_yuv444, RdpChannels::Rgb, rgb, rgb_stride);
+d_forward!(rdp_rgba_to_yuv444, RdpChannels::Rgba, rgba, rgba_stride);
+d_forward!(rdp_bgra_to_yuv444, RdpChannels::Bgra, bgra, bgra_stride);
+d_forward!(rdp_abgr_to_yuv444, RdpChannels::Abgr, abgr, abgr_stride);
+d_forward!(rdp_bgr_to_yuv444, RdpChannels::Bgr, bgr, bgr_stride);
+d_forward!(rdp_argb_to_yuv444, RdpChannels::Argb, argb, argb_stride);
 
 fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
     planar_image: &YuvPlanarImage<i16>,
     rgba: &mut [u8],
     rgba_stride: u32,
 ) -> Result<(), YuvError> {
-    let ch: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let ch: RdpChannels = ORIGIN_CHANNELS.into();
     let channels = ch.get_channels_count();
     planar_image.check_constraints(YuvChromaSubsampling::Yuv444)?;
     check_rgba_destination(
@@ -280,11 +376,10 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
             .zip(u_dst.iter())
             .zip(v_dst.iter())
             .zip(rgba.chunks_exact_mut(channels))
+            .take(planar_image.width as usize)
             .skip(_cx)
         {
             let y = y_0;
-            let u = u;
-            let v = v;
             let yy = ((y + 4096) as i32) * Y_SCALE;
             let r = qrshr::<21, 8>(yy + b_transform.cr_coef * v as i32);
             let g = qrshr::<21, 8>(
@@ -303,18 +398,21 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
     Ok(())
 }
 
-pub fn rdp_yuv444_to_rgb(
-    planar_image: &YuvPlanarImage<i16>,
-    rgba: &mut [u8],
-    rgba_stride: u32,
-) -> Result<(), YuvError> {
-    rdp_yuv_to_rgb::<{ YuvSourceChannels::Rgb as u8 }>(planar_image, rgba, rgba_stride)
+macro_rules! d_backward {
+    ($method: ident, $cn: expr, $name: ident, $stride_name: ident) => {
+        pub fn $method(
+            planar_image: &YuvPlanarImage<i16>,
+            $name: &mut [u8],
+            $stride_name: u32,
+        ) -> Result<(), YuvError> {
+            rdp_yuv_to_rgb::<{ $cn as u8 }>(planar_image, $name, $stride_name)
+        }
+    };
 }
 
-pub fn rdp_yuv444_to_rgba(
-    planar_image: &YuvPlanarImage<i16>,
-    rgba: &mut [u8],
-    rgba_stride: u32,
-) -> Result<(), YuvError> {
-    rdp_yuv_to_rgb::<{ YuvSourceChannels::Rgba as u8 }>(planar_image, rgba, rgba_stride)
-}
+d_backward!(rdp_yuv444_to_rgb, RdpChannels::Rgb, rgb, rgb_stride);
+d_backward!(rdp_yuv444_to_rgba, RdpChannels::Rgba, rgba, rgba_stride);
+d_backward!(rdp_yuv444_to_bgra, RdpChannels::Bgra, bgra, bgra_stride);
+d_backward!(rdp_yuv444_to_abgr, RdpChannels::Abgr, abgr, abgr_stride);
+d_backward!(rdp_yuv444_to_bgr, RdpChannels::Bgr, bgr, bgr_stride);
+d_backward!(rdp_yuv444_to_argb, RdpChannels::Argb, argb, argb_stride);

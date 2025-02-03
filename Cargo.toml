@@ -44,6 +44,7 @@ professional_mode = []
 rayon = ["dep:rayon"]
 # Support for Big-Endian YUV
 big_endian = []
+rdp = []
 
 [profile.dev.package]
 miniz_oxide.opt-level = 3

@@ -27,9 +27,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{_mm256_double_affine_uv_dot, _mm256_load_deinterleave_rgb_for_yuv};
+use crate::avx2::avx2_utils::{
+    _mm256_deinterleave_rgba_epi8, _mm256_double_affine_uv_dot, avx2_deinterleave_rgb,
+};
 use crate::internals::ProcessedOffset;
-use crate::yuv_support::{CbCrForwardTransform, YuvSourceChannels};
+use crate::rdp::RdpChannels;
+use crate::yuv_support::CbCrForwardTransform;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -50,6 +53,58 @@ pub(crate) fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const Q: i32>(
     }
 }
 
+#[inline(always)]
+unsafe fn _mm256_load_rdp_deinterleave_rgb_for_yuv<const ORIGINS: u8>(
+    ptr: *const u8,
+) -> (__m256i, __m256i, __m256i) {
+    let source_channels: RdpChannels = ORIGINS.into();
+
+    let (r_values, g_values, b_values);
+
+    let row_1 = _mm256_loadu_si256(ptr as *const __m256i);
+    let row_2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+    let row_3 = _mm256_loadu_si256(ptr.add(64) as *const __m256i);
+
+    match source_channels {
+        RdpChannels::Rgb | RdpChannels::Bgr => {
+            let (it1, it2, it3) = avx2_deinterleave_rgb(row_1, row_2, row_3);
+            if source_channels == RdpChannels::Rgb {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+        RdpChannels::Rgba | RdpChannels::Bgra => {
+            let row_4 = _mm256_loadu_si256(ptr.add(96) as *const __m256i);
+
+            let (it1, it2, it3, _) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
+            if source_channels == RdpChannels::Rgba {
+                r_values = it1;
+                g_values = it2;
+                b_values = it3;
+            } else {
+                r_values = it3;
+                g_values = it2;
+                b_values = it1;
+            }
+        }
+        RdpChannels::Abgr => {
+            let row_4 = _mm256_loadu_si256(ptr.add(96) as *const __m256i);
+
+            let (_, b, g, r) = _mm256_deinterleave_rgba_epi8(row_1, row_2, row_3, row_4);
+            r_values = r;
+            g_values = g;
+            b_values = b;
+        }
+    }
+
+    (r_values, g_values, b_values)
+}
+
 #[target_feature(enable = "avx2")]
 unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     transform: &CbCrForwardTransform<i32>,
@@ -59,7 +114,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     rgba: &[u8],
     width: usize,
 ) -> ProcessedOffset {
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let source_channels: RdpChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
     let rounding_const_bias: i32 = (1 << (Q - 1)) - 1;
@@ -80,7 +135,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
 
         let (r_values, g_values, b_values) =
-            _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
+            _mm256_load_rdp_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_ptr.as_ptr());
 
         let r_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
         let g_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
@@ -167,7 +222,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         );
 
         let (r_values, g_values, b_values) =
-            _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+            _mm256_load_rdp_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
 
         let r_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
         let g_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
