@@ -263,18 +263,17 @@ pub use rgb_to_ycgco::rgba_to_ycgco420;
 pub use rgb_to_ycgco::rgba_to_ycgco422;
 pub use rgb_to_ycgco::rgba_to_ycgco444;
 
-pub use ycgco_to_rgb::ycgco420_to_bgr;
-pub use ycgco_to_rgb::ycgco420_to_bgra;
-pub use ycgco_to_rgb::ycgco420_to_rgb;
-pub use ycgco_to_rgb::ycgco420_to_rgba;
-pub use ycgco_to_rgb::ycgco422_to_bgr;
-pub use ycgco_to_rgb::ycgco422_to_bgra;
-pub use ycgco_to_rgb::ycgco422_to_rgb;
-pub use ycgco_to_rgb::ycgco422_to_rgba;
-pub use ycgco_to_rgb::ycgco444_to_bgr;
-pub use ycgco_to_rgb::ycgco444_to_bgra;
-pub use ycgco_to_rgb::ycgco444_to_rgb;
-pub use ycgco_to_rgb::ycgco444_to_rgba;
+pub use ycgco_to_rgb::{
+    ycgco420_to_bgr, ycgco420_to_bgra, ycgco420_to_rgb, ycgco420_to_rgba, ycgco422_to_bgr,
+    ycgco422_to_bgra, ycgco422_to_rgb, ycgco422_to_rgba, ycgco444_to_bgr, ycgco444_to_bgra,
+    ycgco444_to_rgb, ycgco444_to_rgba,
+};
+
+pub use ycgco_to_rgb::{
+    icgc010_to_rgb, icgc010_to_rgba, icgc012_to_rgb, icgc012_to_rgba, icgc210_to_rgb,
+    icgc210_to_rgba, icgc212_to_rgb, icgc212_to_rgba, icgc410_to_rgb, icgc410_to_rgba,
+    icgc412_to_rgb, icgc412_to_rgba,
+};
 
 pub use yuv_nv_to_rgba::yuv_nv16_to_bgr;
 pub use yuv_nv_to_rgba::yuv_nv16_to_bgra;
@@ -285,12 +284,15 @@ pub use yuv_nv_to_rgba::yuv_nv61_to_bgra;
 pub use yuv_nv_to_rgba::yuv_nv61_to_rgb;
 pub use yuv_nv_to_rgba::yuv_nv61_to_rgba;
 
-pub use ycgco_to_rgb_alpha::ycgco420_alpha_to_bgra;
-pub use ycgco_to_rgb_alpha::ycgco420_alpha_to_rgba;
-pub use ycgco_to_rgb_alpha::ycgco422_alpha_to_bgra;
-pub use ycgco_to_rgb_alpha::ycgco422_alpha_to_rgba;
-pub use ycgco_to_rgb_alpha::ycgco444_alpha_to_bgra;
-pub use ycgco_to_rgb_alpha::ycgco444_alpha_to_rgba;
+pub use ycgco_to_rgb_alpha::{
+    ycgco420_alpha_to_bgra, ycgco420_alpha_to_rgba, ycgco422_alpha_to_bgra, ycgco422_alpha_to_rgba,
+    ycgco444_alpha_to_bgra, ycgco444_alpha_to_rgba,
+};
+
+pub use ycgco_to_rgb_alpha::{
+    icgc010_alpha_to_rgba, icgc012_alpha_to_rgba, icgc210_alpha_to_rgba, icgc212_alpha_to_rgba,
+    icgc410_alpha_to_rgba, icgc412_alpha_to_rgba,
+};
 
 pub use yuv_to_yuy2::yuv420_to_uyvy422;
 pub use yuv_to_yuy2::yuv420_to_vyuy422;
