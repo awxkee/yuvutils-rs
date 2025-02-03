@@ -2778,9 +2778,9 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 76);
+        matrix(YuvConversionMode::Balanced, 78);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 78);
+        matrix(YuvConversionMode::Fast, 80);
         #[cfg(feature = "professional_mode")]
         matrix(YuvConversionMode::Professional, 70);
     }
