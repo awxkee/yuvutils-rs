@@ -33,7 +33,6 @@ mod f16_converter;
 #[cfg(feature = "nightly_f16")]
 mod f16_utils;
 mod gbr_to_rgb;
-mod neon_ycgco;
 #[cfg(feature = "professional_mode")]
 mod rgb_to_nv420_prof;
 #[cfg(feature = "professional_mode")]

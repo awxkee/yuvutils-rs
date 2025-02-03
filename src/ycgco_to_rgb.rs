@@ -31,6 +31,10 @@ use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvPlanarImage};
+#[cfg(feature = "rayon")]
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+#[cfg(feature = "rayon")]
+use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
 fn ycgco_ro_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
     image: &YuvPlanarImage<u8>,
