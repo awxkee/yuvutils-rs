@@ -119,16 +119,13 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         let g_low = _mm256_srli_epi16::<V_S>(gl);
         let b_low = _mm256_srli_epi16::<V_S>(bl);
 
-        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-            y_bias,
-            _mm256_add_epi16(
-                _mm256_add_epi16(
-                    _mm256_mulhrs_epi16(r_low, v_yr),
-                    _mm256_mulhrs_epi16(g_low, v_yg),
-                ),
-                _mm256_mulhrs_epi16(b_low, v_yb),
-            ),
-        ));
+        let rly = _mm256_mulhrs_epi16(r_low, v_yr);
+        let gly = _mm256_mulhrs_epi16(g_low, v_yg);
+        let bhy = _mm256_mulhrs_epi16(b_low, v_yb);
+
+        let yrgc = _mm256_add_epi16(rly, gly);
+
+        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(y_bias, _mm256_add_epi16(yrgc, bhy)));
 
         let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
         _mm_storeu_si128(
@@ -162,16 +159,13 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         let g_low = _mm256_srli_epi16::<V_S>(gl);
         let b_low = _mm256_srli_epi16::<V_S>(bl);
 
-        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(
-            y_bias,
-            _mm256_add_epi16(
-                _mm256_add_epi16(
-                    _mm256_mulhrs_epi16(r_low, v_yr),
-                    _mm256_mulhrs_epi16(g_low, v_yg),
-                ),
-                _mm256_mulhrs_epi16(b_low, v_yb),
-            ),
-        ));
+        let rly = _mm256_mulhrs_epi16(r_low, v_yr);
+        let gly = _mm256_mulhrs_epi16(g_low, v_yg);
+        let bhy = _mm256_mulhrs_epi16(b_low, v_yb);
+
+        let yrgc = _mm256_add_epi16(rly, gly);
+
+        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(y_bias, _mm256_add_epi16(yrgc, bhy)));
 
         let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
         _mm_storeu_si128(

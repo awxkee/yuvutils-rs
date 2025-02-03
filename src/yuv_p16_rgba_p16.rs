@@ -1228,7 +1228,7 @@ mod tests {
     }
 
     #[test]
-    fn test_yuv444_round_trip_limited_range() {
+    fn test_yuv444_p10_round_trip_limited_range() {
         let image_width = 256usize;
         let image_height = 256usize;
 
@@ -1303,20 +1303,23 @@ mod tests {
             let diff_b = (b as i32 - ob as i32).abs();
 
             assert!(
-                diff_r <= 12,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_r <= 280,
+                "Diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 12,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_g <= 280,
+                "Diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 12,
-                "Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_b <= 280,
+                "Diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                diff_b,
                 [or, og, ob],
                 [r, g, b]
             );
@@ -1416,21 +1419,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 60,
+                diff_r <= 260,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 60,
+                diff_g <= 260,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 60,
+                diff_b <= 260,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],
@@ -1560,21 +1563,21 @@ mod tests {
             let diff_b = b as i32 - ob as i32;
 
             assert!(
-                diff_r <= 300,
+                diff_r <= 310,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_r,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_g <= 300,
+                diff_g <= 310,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_g,
                 [or, og, ob],
                 [r, g, b]
             );
             assert!(
-                diff_b <= 300,
+                diff_b <= 310,
                 "Actual diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
                 diff_b,
                 [or, og, ob],

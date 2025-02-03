@@ -35,7 +35,6 @@ mod rgb_to_nv420_prof;
 #[cfg(feature = "professional_mode")]
 mod rgb_to_nv_prof;
 mod rgb_to_y;
-mod rgb_to_ycgco;
 #[cfg(feature = "professional_mode")]
 mod rgb_to_yuv420_prof;
 mod rgb_to_yuv_p16;
@@ -53,12 +52,9 @@ mod rgba_to_yuv_fast;
 #[cfg(feature = "fast_mode")]
 mod rgba_to_yuv_fast420;
 mod shuffle;
-mod sse_ycbcr;
 pub(crate) mod utils;
 mod y_to_rgba;
 mod y_to_rgba_alpha;
-mod ycgco_to_rgb;
-mod ycgco_to_rgb_alpha;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
@@ -91,7 +87,6 @@ pub(crate) use rgb_to_nv420_prof::sse_rgba_to_nv420_prof;
 #[cfg(feature = "professional_mode")]
 pub(crate) use rgb_to_nv_prof::sse_rgba_to_nv_prof;
 pub(crate) use rgb_to_y::sse_rgb_to_y;
-pub(crate) use rgb_to_ycgco::sse_rgb_to_ycgco_row;
 #[cfg(feature = "professional_mode")]
 pub(crate) use rgb_to_yuv420_prof::sse_rgba_to_yuv420_prof;
 pub(crate) use rgb_to_yuv_p16::sse_rgba_to_yuv_p16;
@@ -112,8 +107,6 @@ pub(crate) use shuffle::{ShuffleConverterSse, ShuffleQTableConverterSse};
 pub(crate) use utils::*;
 pub(crate) use y_to_rgba::sse_y_to_rgba_row;
 pub(crate) use y_to_rgba_alpha::sse_y_to_rgba_alpha_row;
-pub(crate) use ycgco_to_rgb::sse_ycgco_to_rgb_row;
-pub(crate) use ycgco_to_rgb_alpha::sse_ycgco_to_rgb_alpha_row;
 pub(crate) use yuv_nv_p16_to_rgb::sse_yuv_nv_p16_to_rgba_row;
 pub(crate) use yuv_nv_to_rgba::sse_yuv_nv_to_rgba;
 pub(crate) use yuv_nv_to_rgba420::sse_yuv_nv_to_rgba420;

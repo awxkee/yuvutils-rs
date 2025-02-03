@@ -77,11 +77,16 @@ unsafe fn sse_y_to_rgba_alpha_row_impl<const DESTINATION_CHANNELS: u8>(
     let zeros = _mm_setzero_si128();
 
     while cx + 16 < width {
-        let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
+        let y_vl = _mm_loadu_si128(y_ptr.add(cx) as *const __m128i);
         let a_values = _mm_loadu_si128(a_plane.get_unchecked(cx..).as_ptr() as *const __m128i);
 
-        let v_high = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values), v_luma_coeff);
-        let v_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
+        let y_values = _mm_subs_epu8(y_vl, y_corr);
+
+        let vhl = _mm_expand8_hi_to_10(y_values);
+        let vll = _mm_expand8_lo_to_10(y_values);
+
+        let v_high = _mm_mulhrs_epi16(vhl, v_luma_coeff);
+        let v_low = _mm_mulhrs_epi16(vll, v_luma_coeff);
 
         let v_values = _mm_packus_epi16(v_low, v_high);
 

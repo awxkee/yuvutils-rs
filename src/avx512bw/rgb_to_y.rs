@@ -110,34 +110,35 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bo
         let (r_values, g_values, b_values) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(rgba.get_unchecked(px..).as_ptr());
 
-        let r_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values, r_values));
-        let r_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values, r_values));
-        let g_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(g_values, g_values));
-        let g_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(g_values, g_values));
-        let b_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(b_values, b_values));
-        let b_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(b_values, b_values));
+        let rlw = _mm512_unpacklo_epi8(r_values, r_values);
+        let rhw = _mm512_unpackhi_epi8(r_values, r_values);
+        let glw = _mm512_unpacklo_epi8(g_values, g_values);
+        let ghw = _mm512_unpackhi_epi8(g_values, g_values);
+        let blw = _mm512_unpacklo_epi8(b_values, b_values);
+        let bhw = _mm512_unpackhi_epi8(b_values, b_values);
 
-        let y_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
-            y_bias,
-            _mm512_add_epi16(
-                _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r_low, v_yr),
-                    _mm512_mulhrs_epi16(g_low, v_yg),
-                ),
-                _mm512_mulhrs_epi16(b_low, v_yb),
-            ),
-        ));
+        let r_low = _mm512_srli_epi16::<V_S>(rlw);
+        let r_high = _mm512_srli_epi16::<V_S>(rhw);
+        let g_low = _mm512_srli_epi16::<V_S>(glw);
+        let g_high = _mm512_srli_epi16::<V_S>(ghw);
+        let b_low = _mm512_srli_epi16::<V_S>(blw);
+        let b_high = _mm512_srli_epi16::<V_S>(bhw);
 
-        let y_h = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
-            y_bias,
-            _mm512_add_epi16(
-                _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r_high, v_yr),
-                    _mm512_mulhrs_epi16(g_high, v_yg),
-                ),
-                _mm512_mulhrs_epi16(b_high, v_yb),
-            ),
-        ));
+        let rly = _mm512_mulhrs_epi16(r_low, v_yr);
+        let gly = _mm512_mulhrs_epi16(g_low, v_yg);
+        let bly = _mm512_mulhrs_epi16(b_low, v_yb);
+        let rhy = _mm512_mulhrs_epi16(r_high, v_yr);
+        let ghy = _mm512_mulhrs_epi16(g_high, v_yg);
+        let bhy = _mm512_mulhrs_epi16(b_high, v_yb);
+
+        let ylc = _mm512_add_epi16(rly, gly);
+        let yhc = _mm512_add_epi16(rhy, ghy);
+
+        let ylw = _mm512_add_epi16(ylc, bly);
+        let yhw = _mm512_add_epi16(yhc, bhy);
+
+        let y_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(y_bias, ylw));
+        let y_h = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(y_bias, yhw));
 
         let y_yuv = _mm512_packus_epi16(y_l, y_h);
 
@@ -164,34 +165,35 @@ unsafe fn avx512_row_rgb_to_y_impl<const ORIGIN_CHANNELS: u8, const HAS_VBMI: bo
         let (r_values, g_values, b_values) =
             avx512_load_rgb_u8::<ORIGIN_CHANNELS, HAS_VBMI>(src_buffer.as_ptr());
 
-        let r_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(r_values, r_values));
-        let r_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(r_values, r_values));
-        let g_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(g_values, g_values));
-        let g_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(g_values, g_values));
-        let b_low = _mm512_srli_epi16::<V_S>(_mm512_unpacklo_epi8(b_values, b_values));
-        let b_high = _mm512_srli_epi16::<V_S>(_mm512_unpackhi_epi8(b_values, b_values));
+        let rlw = _mm512_unpacklo_epi8(r_values, r_values);
+        let rhw = _mm512_unpackhi_epi8(r_values, r_values);
+        let glw = _mm512_unpacklo_epi8(g_values, g_values);
+        let ghw = _mm512_unpackhi_epi8(g_values, g_values);
+        let blw = _mm512_unpacklo_epi8(b_values, b_values);
+        let bhw = _mm512_unpackhi_epi8(b_values, b_values);
 
-        let y_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
-            y_bias,
-            _mm512_add_epi16(
-                _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r_low, v_yr),
-                    _mm512_mulhrs_epi16(g_low, v_yg),
-                ),
-                _mm512_mulhrs_epi16(b_low, v_yb),
-            ),
-        ));
+        let r_low = _mm512_srli_epi16::<V_S>(rlw);
+        let r_high = _mm512_srli_epi16::<V_S>(rhw);
+        let g_low = _mm512_srli_epi16::<V_S>(glw);
+        let g_high = _mm512_srli_epi16::<V_S>(ghw);
+        let b_low = _mm512_srli_epi16::<V_S>(blw);
+        let b_high = _mm512_srli_epi16::<V_S>(bhw);
 
-        let y_h = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(
-            y_bias,
-            _mm512_add_epi16(
-                _mm512_add_epi16(
-                    _mm512_mulhrs_epi16(r_high, v_yr),
-                    _mm512_mulhrs_epi16(g_high, v_yg),
-                ),
-                _mm512_mulhrs_epi16(b_high, v_yb),
-            ),
-        ));
+        let rly = _mm512_mulhrs_epi16(r_low, v_yr);
+        let gly = _mm512_mulhrs_epi16(g_low, v_yg);
+        let bly = _mm512_mulhrs_epi16(b_low, v_yb);
+        let rhy = _mm512_mulhrs_epi16(r_high, v_yr);
+        let ghy = _mm512_mulhrs_epi16(g_high, v_yg);
+        let bhy = _mm512_mulhrs_epi16(b_high, v_yb);
+
+        let ylc = _mm512_add_epi16(rly, gly);
+        let yhc = _mm512_add_epi16(rhy, ghy);
+
+        let ylw = _mm512_add_epi16(ylc, bly);
+        let yhw = _mm512_add_epi16(yhc, bhy);
+
+        let y_l = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(y_bias, ylw));
+        let y_h = _mm512_srli_epi16::<A_E>(_mm512_add_epi16(y_bias, yhw));
 
         let y_yuv = _mm512_packus_epi16(y_l, y_h);
 
