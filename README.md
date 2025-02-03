@@ -87,6 +87,7 @@ The following planar formats are used for HDR content, with either **10-bit** or
 ### Format Breakdown:
 
 - **I**: Represents the color space (as defined above), and these formats use **3 planes**: Y (luminance), U (chrominance), and V (chrominance).
+- **ICgC**: Represents the color space (as defined above), and these formats use **3 planes**: Y (luminance), Cg (chrominance), and Co (chrominance).
 - **P**: A **biplanar format** (similar to **NV12**), but with **16-bit precision**, where the valid bits are stored in the high bits. This format has:
     - A **Y plane**
     - A **UV plane** (with U and V interleaved)

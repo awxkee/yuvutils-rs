@@ -59,7 +59,6 @@ mod rgba_to_yuv_fast420;
 mod shuffle;
 mod y_to_rgba;
 mod y_to_rgba_alpha;
-mod ycgco_to_rgba_alpha;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
 #[cfg(feature = "professional_mode")]
@@ -119,7 +118,6 @@ pub(crate) use rgba_to_yuv_fast420::avx2_rgba_to_yuv_dot_rgba420;
 pub(crate) use shuffle::{ShuffleConverterAvx2, ShuffleQTableConverterAvx2};
 pub(crate) use y_to_rgba::avx2_y_to_rgba_row;
 pub(crate) use y_to_rgba_alpha::avx2_y_to_rgba_alpha_row;
-pub(crate) use ycgco_to_rgba_alpha::avx2_ycgco_to_rgba_alpha;
 pub(crate) use yuv_nv_to_rgba::avx2_yuv_nv_to_rgba_row;
 pub(crate) use yuv_nv_to_rgba420::avx2_yuv_nv_to_rgba_row420;
 #[cfg(feature = "professional_mode")]
