@@ -67,16 +67,10 @@ where
     let max_colors = (1 << BIT_DEPTH) - 1i32;
     let precision_scale = (1 << PRECISION) as f32;
 
-    let range_reduction_y = if range.range == YuvRange::Full {
-        1
-    } else {
-        (max_colors as f32 / range.range_y as f32 * precision_scale).round() as i32
-    };
-    let range_reduction_uv = if range.range == YuvRange::Full {
-        1
-    } else {
-        (max_colors as f32 / range.range_uv as f32 * precision_scale).round() as i32
-    };
+    let range_reduction_y =
+        (max_colors as f32 / range.range_y as f32 * precision_scale).round() as i32;
+    let range_reduction_uv =
+        (max_colors as f32 / range.range_uv as f32 * precision_scale).round() as i32;
 
     let process_halved_chroma_row =
         |y_plane: &[V], u_plane: &[V], v_plane: &[V], rgba: &mut [V]| {
