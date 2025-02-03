@@ -204,13 +204,6 @@ pub(crate) unsafe fn sse_store_rgb_u8(ptr: *mut u8, r: __m128i, g: __m128i, b: _
 }
 
 #[inline(always)]
-pub(crate) unsafe fn sse_pairwise_widen_avg(v: __m128i) -> __m128i {
-    let sums = _mm_maddubs_epi16(v, _mm_set1_epi8(1));
-    let shifted = _mm_srli_epi16::<1>(_mm_add_epi16(sums, _mm_set1_epi16(1)));
-    _mm_packus_epi16(shifted, shifted)
-}
-
-#[inline(always)]
 pub(crate) unsafe fn _mm_havg_epu8(a: __m128i, b: __m128i) -> __m128i {
     let ones = _mm_set1_epi8(1);
     let ones_16 = _mm_set1_epi16(1);

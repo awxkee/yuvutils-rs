@@ -28,7 +28,6 @@
  */
 #![deny(unreachable_code, unreachable_pub)]
 mod avx2_utils;
-mod avx2_ycgco;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
 mod gbr_to_rgb;
@@ -39,7 +38,6 @@ mod rgb_to_nv420_prof;
 #[cfg(feature = "professional_mode")]
 mod rgb_to_nv_prof;
 mod rgb_to_y;
-mod rgb_to_ycgco;
 #[cfg(feature = "professional_mode")]
 mod rgb_to_yuv420_prof;
 mod rgb_to_yuv_p16;
@@ -61,7 +59,6 @@ mod rgba_to_yuv_fast420;
 mod shuffle;
 mod y_to_rgba;
 mod y_to_rgba_alpha;
-mod ycgco_to_rgb;
 mod ycgco_to_rgba_alpha;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
@@ -101,7 +98,6 @@ pub(crate) use rgb_to_nv420_prof::avx2_rgba_to_nv420_prof;
 #[cfg(feature = "professional_mode")]
 pub(crate) use rgb_to_nv_prof::avx2_rgba_to_nv_prof;
 pub(crate) use rgb_to_y::avx2_rgb_to_y_row;
-pub(crate) use rgb_to_ycgco::avx2_rgb_to_ycgco_row;
 #[cfg(feature = "professional_mode")]
 pub(crate) use rgb_to_yuv420_prof::avx2_rgba_to_yuv420_prof;
 pub(crate) use rgb_to_yuv_p16::avx_rgba_to_yuv_p16;
@@ -123,7 +119,6 @@ pub(crate) use rgba_to_yuv_fast420::avx2_rgba_to_yuv_dot_rgba420;
 pub(crate) use shuffle::{ShuffleConverterAvx2, ShuffleQTableConverterAvx2};
 pub(crate) use y_to_rgba::avx2_y_to_rgba_row;
 pub(crate) use y_to_rgba_alpha::avx2_y_to_rgba_alpha_row;
-pub(crate) use ycgco_to_rgb::avx2_ycgco_to_rgb_row;
 pub(crate) use ycgco_to_rgba_alpha::avx2_ycgco_to_rgba_alpha;
 pub(crate) use yuv_nv_to_rgba::avx2_yuv_nv_to_rgba_row;
 pub(crate) use yuv_nv_to_rgba420::avx2_yuv_nv_to_rgba_row420;
