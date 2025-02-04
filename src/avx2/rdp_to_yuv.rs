@@ -170,7 +170,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
         let (y_vl0, y_vl1) = _mm256_double_affine_uv_dot::<Q>(
-            y_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_hi1, b_lo1, v_yr_yg, v_yb,
+            y_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_yr_yg, v_yb,
         );
 
         _mm256_storeu_si256(
@@ -183,7 +183,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         );
 
         let cb_vl = _mm256_double_affine_uv_dot::<Q>(
-            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_hi1, b_lo1, v_cbr_cbg,
+            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_cbr_cbg,
             v_cb_b,
         );
 
@@ -197,7 +197,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         );
 
         let cr_vl = _mm256_double_affine_uv_dot::<Q>(
-            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_hi1, b_lo1, v_crr_vcrg,
+            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_crr_vcrg,
             v_cr_b,
         );
 
@@ -257,7 +257,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
         let (y_vl0, y_vl1) = _mm256_double_affine_uv_dot::<Q>(
-            y_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_hi1, b_lo1, v_yr_yg, v_yb,
+            y_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_yr_yg, v_yb,
         );
 
         _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut __m256i, y_vl0);
@@ -267,7 +267,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         );
 
         let cb_vl = _mm256_double_affine_uv_dot::<Q>(
-            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_hi1, b_lo1, v_cbr_cbg,
+            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_cbr_cbg,
             v_cb_b,
         );
 
@@ -278,7 +278,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         );
 
         let cr_vl = _mm256_double_affine_uv_dot::<Q>(
-            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_hi1, b_lo1, v_crr_vcrg,
+            uv_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_crr_vcrg,
             v_cr_b,
         );
 
