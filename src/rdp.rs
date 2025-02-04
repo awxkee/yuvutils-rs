@@ -416,3 +416,41 @@ d_backward!(rdp_yuv444_to_bgra, RdpChannels::Bgra, bgra, bgra_stride);
 d_backward!(rdp_yuv444_to_abgr, RdpChannels::Abgr, abgr, abgr_stride);
 d_backward!(rdp_yuv444_to_bgr, RdpChannels::Bgr, bgr, bgr_stride);
 d_backward!(rdp_yuv444_to_argb, RdpChannels::Argb, argb, argb_stride);
+
+#[cfg(test)]
+mod tests {
+    use crate::BufferStoreMut;
+    use super::*;
+    #[test]
+    fn rgba_to_64x64_yuv() {
+        const WIDTH: usize = 64;
+        const HEIGHT: usize = 64;
+        let mut y = [0i16; WIDTH * HEIGHT];
+        let mut cb = [0i16; WIDTH * HEIGHT];
+        let mut cr = [0i16; WIDTH * HEIGHT];
+        let y_plane = BufferStoreMut::Borrowed(&mut y);
+        let u_plane = BufferStoreMut::Borrowed(&mut cb);
+        let v_plane = BufferStoreMut::Borrowed(&mut cr);
+        let mut plane = YuvPlanarImageMut {
+            y_plane,
+            y_stride: 64,
+            u_plane,
+            u_stride: 64,
+            v_plane,
+            v_stride: 64,
+            width: 10,
+            height: 20,
+        };
+        let stride = 30 * 4;
+        let input = vec![
+            0;
+            (stride * (plane.height - 1) + plane.width * 4)
+                .try_into()
+                .unwrap()
+        ];
+        rdp_rgba_to_yuv444(&mut plane, &input, stride).unwrap();
+        rdp_bgra_to_yuv444(&mut plane, &input, stride).unwrap();
+        rdp_abgr_to_yuv444(&mut plane, &input, stride).unwrap();
+        rdp_argb_to_yuv444(&mut plane, &input, stride).unwrap();
+    }
+}

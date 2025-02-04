@@ -128,7 +128,7 @@ pub(crate) fn check_rgba_destination<V>(
         return Err(YuvError::ZeroBaseSize);
     }
     check_overflow_v3(width as usize, height as usize, channels)?;
-    if arr.len() < rgba_stride as usize * height as usize {
+    if arr.len() < rgba_stride as usize * (height as usize - 1) + width as usize * channels {
         return Err(YuvError::DestinationSizeMismatch(MismatchedSize {
             expected: rgba_stride as usize * height as usize,
             received: arr.len(),
