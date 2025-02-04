@@ -39,7 +39,7 @@ use yuvutils_rs::{
     i414_to_rgb_f16, i416_to_rgb16, rdp_rgb_to_yuv444, rdp_yuv444_to_rgb, rdp_yuv444_to_rgba,
     rgb10_to_i010, rgb10_to_i410, rgb12_to_i012, rgb14_to_i014, rgb14_to_i214, rgb14_to_i414,
     rgb16_to_i016, rgb16_to_i216, rgb16_to_i416, rgba14_to_i214, YuvBiPlanarImageMut,
-    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix
+    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {

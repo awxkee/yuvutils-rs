@@ -419,8 +419,8 @@ d_backward!(rdp_yuv444_to_argb, RdpChannels::Argb, argb, argb_stride);
 
 #[cfg(test)]
 mod tests {
-    use crate::BufferStoreMut;
     use super::*;
+    use crate::BufferStoreMut;
     #[test]
     fn rgba_to_64x64_yuv() {
         const WIDTH: usize = 64;

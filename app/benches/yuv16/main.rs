@@ -33,11 +33,10 @@ use yuv_sys::{rs_I010ToABGR, rs_I210ToABGR};
 use yuvutils_rs::{
     i010_to_rgb10, i010_to_rgba, i010_to_rgba10, i010_to_rgba_f16, i210_to_rgba, i210_to_rgba10,
     i410_to_rgba10, p010_to_rgba10, rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb10_to_p010,
-    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba16_to_i016, YuvBiPlanarImageMut,
-    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
-    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i212, rgba12_to_i412, rgba16_to_i016,
-    rgba16_to_i216, rgba16_to_i416, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut,
-    YuvRange, YuvStandardMatrix,
+    rgba10_to_i010, rgba10_to_i010, rgba10_to_i210, rgba10_to_i210, rgba10_to_i410, rgba10_to_i410,
+    rgba12_to_i212, rgba12_to_i412, rgba16_to_i016, rgba16_to_i016, rgba16_to_i216, rgba16_to_i416,
+    YuvBiPlanarImageMut, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvChromaSubsampling,
+    YuvPlanarImageMut, YuvPlanarImageMut, YuvRange, YuvRange, YuvStandardMatrix, YuvStandardMatrix,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
