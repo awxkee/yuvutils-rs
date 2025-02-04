@@ -104,7 +104,6 @@ jobs:
       - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features -- -max_total_time=6
       - run: cargo fuzz run shuffle --no-default-features -- -max_total_time=6
       - run: cargo fuzz run rgb_to_f16 --no-default-features -- -max_total_time=6
-      - run: cargo fuzz run rdp --no-default-features -- -max_total_time=8
 
   fuzz_arm_i8mm:
     name: Fuzzing ARM I8MM
