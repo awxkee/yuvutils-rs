@@ -51,7 +51,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 use core::f16;
 
 fn main() {
-    let mut img = ImageReader::open("./assets/rdp_test.png")
+    let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
         .unwrap();
@@ -105,6 +105,7 @@ fn main() {
 
     println!("Forward time: {:?}", start_time.elapsed());
     let fixed = planar_image.to_fixed();
+    rgba.fill(0);
     rdp_yuv444_to_rgba(&fixed, &mut rgba, rgba_stride as u32).unwrap();
 
     let fixed_biplanar = bi_planar_image.to_fixed();

@@ -29,7 +29,6 @@
 #![allow(clippy::excessive_precision)]
 
 use crate::internals::ProcessedOffset;
-use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{CbCrForwardTransform, CbCrInverseTransform, YuvChromaRange};
 use crate::{YuvChromaSubsampling, YuvError, YuvPlanarImage, YuvPlanarImageMut, YuvRange};
@@ -321,6 +320,12 @@ d_forward!(rdp_abgr_to_yuv444, RdpChannels::Abgr, abgr, abgr_stride);
 d_forward!(rdp_bgr_to_yuv444, RdpChannels::Bgr, bgr, bgr_stride);
 d_forward!(rdp_argb_to_yuv444, RdpChannels::Argb, argb, argb_stride);
 
+#[inline(always)]
+fn qrshr_n<const PRECISION: i32, const BIT_DEPTH: usize>(val: i32) -> i32 {
+    let max_value: i32 = (1 << BIT_DEPTH) - 1;
+    ((val) >> PRECISION).min(max_value).max(0)
+}
+
 fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
     planar_image: &YuvPlanarImage<i16>,
     rgba: &mut [u8],
@@ -379,11 +384,11 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
         {
             let y = y_0;
             let yy = ((y + 4096) as i32) * Y_SCALE;
-            let r = qrshr::<21, 8>(yy + b_transform.cr_coef * v as i32);
-            let g = qrshr::<21, 8>(
+            let r = qrshr_n::<21, 8>(yy + b_transform.cr_coef * v as i32);
+            let g = qrshr_n::<21, 8>(
                 yy - b_transform.g_coeff_2 * v as i32 - b_transform.g_coeff_1 * u as i32,
             );
-            let b = qrshr::<21, 8>(yy + b_transform.cb_coef * u as i32);
+            let b = qrshr_n::<21, 8>(yy + b_transform.cb_coef * u as i32);
 
             rgba[ch.get_r_channel_offset()] = r as u8;
             rgba[ch.get_g_channel_offset()] = g as u8;
