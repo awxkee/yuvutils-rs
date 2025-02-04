@@ -267,7 +267,7 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
             planar_image.width,
             YuvChromaRange {
                 bias_y: 4096,
-                bias_uv: 4096,
+                bias_uv: 0,
                 range: YuvRange::Full,
                 range_uv: 0,
                 range_y: 0,
@@ -286,14 +286,12 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
             let r = rgba[ch.get_r_channel_offset()] as i32;
             let g = rgba[ch.get_g_channel_offset()] as i32;
             let b = rgba[ch.get_b_channel_offset()] as i32;
-            const Q: i32 = 10;
-            const RND: i32 = (1 << (Q - 1)) - 1;
-            const Y_RND: i32 = 4096 * (1 << Q);
 
-            let y0 =
-                (r * b_transform.yr + g * b_transform.yg + b * b_transform.yb - Y_RND + RND) >> Q;
-            let u = (r * b_transform.cb_r + g * b_transform.cb_g + b * b_transform.cb_b + RND) >> Q;
-            let v = (r * b_transform.cr_r + g * b_transform.cr_g + b * b_transform.cr_b + RND) >> Q;
+            const Q: i32 = 10;
+
+            let y0 = ((r * b_transform.yr + g * b_transform.yg + b * b_transform.yb) >> Q) - 4096;
+            let u = (r * b_transform.cb_r + g * b_transform.cb_g + b * b_transform.cb_b) >> Q;
+            let v = (r * b_transform.cr_r + g * b_transform.cr_g + b * b_transform.cr_b) >> Q;
 
             *y_dst = y0 as i16;
             *u_dst = u as i16;

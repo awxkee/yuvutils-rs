@@ -28,7 +28,8 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_deinterleave_rgba_epi8, _mm256_double_affine_uv_dot, avx2_deinterleave_rgb,
+    _mm256_deinterleave_rgba_epi8, _mm256_double_affine_uv_dot, _mm256_double_affine_uv_s_dot,
+    avx2_deinterleave_rgb,
 };
 use crate::internals::ProcessedOffset;
 use crate::rdp::RdpChannels;
@@ -125,16 +126,13 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     let source_channels: RdpChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
 
-    let rounding_const_bias: i32 = (1 << (Q - 1)) - 1;
-
     let src_ptr = rgba;
-    let y_rnd: i32 = 4096 * (1 << Q);
-    let y_bias = _mm256_set1_epi32(-y_rnd + rounding_const_bias);
-    let uv_bias = _mm256_set1_epi32(rounding_const_bias);
+    let uv_bias = _mm256_setzero_si256();
     let v_cbr_cbg = _mm256_set1_epi32(transform._interleaved_cbr_cbg());
     let v_cb_b = _mm256_set1_epi16(transform.cb_b as i16);
     let v_crr_vcrg = _mm256_set1_epi32(transform._interleaved_crr_crg());
     let v_cr_b = _mm256_set1_epi16(transform.cr_b as i16);
+    let j_y_bias = _mm256_set1_epi16(4096);
 
     let mut cx = 0;
     let mut ux = 0;
@@ -169,9 +167,12 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
         let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
-        let (y_vl0, y_vl1) = _mm256_double_affine_uv_dot::<Q>(
-            y_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_yr_yg, v_yb,
+        let (mut y_vl0, mut y_vl1) = _mm256_double_affine_uv_s_dot::<Q>(
+            r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_yr_yg, v_yb,
         );
+
+        y_vl0 = _mm256_sub_epi16(y_vl0, j_y_bias);
+        y_vl1 = _mm256_sub_epi16(y_vl1, j_y_bias);
 
         _mm256_storeu_si256(
             y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m256i,
@@ -256,9 +257,12 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
         let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
-        let (y_vl0, y_vl1) = _mm256_double_affine_uv_dot::<Q>(
-            y_bias, r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_yr_yg, v_yb,
+        let (mut y_vl0, mut y_vl1) = _mm256_double_affine_uv_s_dot::<Q>(
+            r_g_lo0, r_g_hi0, r_g_lo1, r_g_hi1, b_lo0, b_hi0, b_lo1, b_hi1, v_yr_yg, v_yb,
         );
+
+        y_vl0 = _mm256_sub_epi16(y_vl0, j_y_bias);
+        y_vl1 = _mm256_sub_epi16(y_vl1, j_y_bias);
 
         _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut __m256i, y_vl0);
         _mm256_storeu_si256(
