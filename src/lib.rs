@@ -270,9 +270,9 @@ pub use ycgco_to_rgb::{
 };
 
 pub use ycgco_to_rgb::{
-    icgc010_to_rgb, icgc010_to_rgba, icgc012_to_rgb, icgc012_to_rgba, icgc210_to_rgb,
-    icgc210_to_rgba, icgc212_to_rgb, icgc212_to_rgba, icgc410_to_rgb, icgc410_to_rgba,
-    icgc412_to_rgb, icgc412_to_rgba,
+    icgc010_to_rgb10, icgc010_to_rgba10, icgc012_to_rgb12, icgc012_to_rgba12, icgc210_to_rgb10,
+    icgc210_to_rgba10, icgc212_to_rgb12, icgc212_to_rgba12, icgc410_to_rgb10, icgc410_to_rgba10,
+    icgc412_to_rgb12, icgc412_to_rgba12,
 };
 
 pub use yuv_nv_to_rgba::yuv_nv16_to_bgr;
@@ -290,8 +290,8 @@ pub use ycgco_to_rgb_alpha::{
 };
 
 pub use ycgco_to_rgb_alpha::{
-    icgc010_alpha_to_rgba, icgc012_alpha_to_rgba, icgc210_alpha_to_rgba, icgc212_alpha_to_rgba,
-    icgc410_alpha_to_rgba, icgc412_alpha_to_rgba,
+    icgc010_alpha_to_rgba10, icgc012_alpha_to_rgba12, icgc210_alpha_to_rgba10,
+    icgc212_alpha_to_rgba12, icgc410_alpha_to_rgba10, icgc412_alpha_to_rgba12,
 };
 
 pub use yuv_to_yuy2::yuv420_to_uyvy422;
