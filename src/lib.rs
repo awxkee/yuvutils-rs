@@ -71,9 +71,11 @@ mod built_coefficients;
 mod f16_converter;
 mod from_identity;
 mod from_identity_alpha;
+#[cfg(feature = "geometry")]
 mod geometry;
 mod images;
 mod internals;
+#[cfg(feature = "geometry")]
 mod mirroring;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
@@ -473,11 +475,12 @@ pub use f16_converter::{
     convert_rgba_f16_to_rgba16, convert_rgba_to_f16,
 };
 
+#[cfg(feature = "geometry")]
 pub use geometry::{
     rotate_cbcr, rotate_cbcr16, rotate_plane, rotate_plane16, rotate_rgb, rotate_rgb16,
     rotate_rgba, rotate_rgba16, RotationMode,
 };
-
+#[cfg(feature = "geometry")]
 pub use mirroring::{
     mirror_cbcr, mirror_cbcr16, mirror_plane, mirror_plane16, mirror_rgb, mirror_rgb16,
     mirror_rgba, mirror_rgba16, MirrorMode,
