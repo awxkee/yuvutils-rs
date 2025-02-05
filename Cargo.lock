@@ -1013,7 +1013,7 @@ dependencies = [
 
 [[package]]
 name = "yuvutils-rs"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "fast_transpose",
  "num-traits",
