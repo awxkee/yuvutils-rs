@@ -39,7 +39,7 @@ pub struct MismatchedSize {
 #[derive(Debug)]
 pub enum YuvError {
     DestinationSizeMismatch(MismatchedSize),
-    MinimumDestinationSizeMismatch(MismatchedSize),
+    MinimumStrideSizeMismatch(MismatchedSize),
     PointerOverflow,
     ZeroBaseSize,
     LumaPlaneSizeMismatch(MismatchedSize),
@@ -84,8 +84,8 @@ impl Display for YuvError {
                 "Destination size mismatch: expected={}, received={}",
                 size.expected, size.received
             )),
-            YuvError::MinimumDestinationSizeMismatch(size) => f.write_fmt(format_args!(
-                "Destination must have size at least {} but it is {}",
+            YuvError::MinimumStrideSizeMismatch(size) => f.write_fmt(format_args!(
+                "Minimum stride must have size at least {} but it is {}",
                 size.expected, size.received
             )),
         }
@@ -135,9 +135,9 @@ pub(crate) fn check_rgba_destination<V>(
         }));
     }
     if (rgba_stride as usize) < (width as usize * channels) {
-        return Err(YuvError::MinimumDestinationSizeMismatch(MismatchedSize {
-            expected: width as usize * height as usize * channels,
-            received: rgba_stride as usize * height as usize,
+        return Err(YuvError::MinimumStrideSizeMismatch(MismatchedSize {
+            expected: width as usize * channels,
+            received: rgba_stride as usize,
         }));
     }
     Ok(())

@@ -496,7 +496,7 @@ d_cnv!(
 );
 
 d_cnv!(
-    icgc010_alpha_to_rgba,
+    icgc010_alpha_to_rgba10,
     u16,
     10,
     YuvSourceChannels::Rgba,
@@ -505,7 +505,7 @@ d_cnv!(
     "YCgCo 4:2:0 10-bit"
 );
 d_cnv!(
-    icgc210_alpha_to_rgba,
+    icgc210_alpha_to_rgba10,
     u16,
     10,
     YuvSourceChannels::Rgba,
@@ -514,7 +514,7 @@ d_cnv!(
     "YCgCo 4:2:2 10-bit"
 );
 d_cnv!(
-    icgc410_alpha_to_rgba,
+    icgc410_alpha_to_rgba10,
     u16,
     10,
     YuvSourceChannels::Rgba,
@@ -525,7 +525,7 @@ d_cnv!(
 
 // 12-bit
 d_cnv!(
-    icgc012_alpha_to_rgba,
+    icgc012_alpha_to_rgba12,
     u16,
     12,
     YuvSourceChannels::Rgba,
@@ -534,7 +534,7 @@ d_cnv!(
     "YCgCo 4:2:0 12-bit"
 );
 d_cnv!(
-    icgc212_alpha_to_rgba,
+    icgc212_alpha_to_rgba12,
     u16,
     12,
     YuvSourceChannels::Rgba,
@@ -543,7 +543,7 @@ d_cnv!(
     "YCgCo 4:2:2 12-bit"
 );
 d_cnv!(
-    icgc412_alpha_to_rgba,
+    icgc412_alpha_to_rgba12,
     u16,
     12,
     YuvSourceChannels::Rgba,

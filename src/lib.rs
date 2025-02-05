@@ -71,9 +71,11 @@ mod built_coefficients;
 mod f16_converter;
 mod from_identity;
 mod from_identity_alpha;
+#[cfg(feature = "geometry")]
 mod geometry;
 mod images;
 mod internals;
+#[cfg(feature = "geometry")]
 mod mirroring;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
@@ -272,9 +274,9 @@ pub use ycgco_to_rgb::{
 };
 
 pub use ycgco_to_rgb::{
-    icgc010_to_rgb, icgc010_to_rgba, icgc012_to_rgb, icgc012_to_rgba, icgc210_to_rgb,
-    icgc210_to_rgba, icgc212_to_rgb, icgc212_to_rgba, icgc410_to_rgb, icgc410_to_rgba,
-    icgc412_to_rgb, icgc412_to_rgba,
+    icgc010_to_rgb10, icgc010_to_rgba10, icgc012_to_rgb12, icgc012_to_rgba12, icgc210_to_rgb10,
+    icgc210_to_rgba10, icgc212_to_rgb12, icgc212_to_rgba12, icgc410_to_rgb10, icgc410_to_rgba10,
+    icgc412_to_rgb12, icgc412_to_rgba12,
 };
 
 pub use yuv_nv_to_rgba::yuv_nv16_to_bgr;
@@ -292,8 +294,8 @@ pub use ycgco_to_rgb_alpha::{
 };
 
 pub use ycgco_to_rgb_alpha::{
-    icgc010_alpha_to_rgba, icgc012_alpha_to_rgba, icgc210_alpha_to_rgba, icgc212_alpha_to_rgba,
-    icgc410_alpha_to_rgba, icgc412_alpha_to_rgba,
+    icgc010_alpha_to_rgba10, icgc012_alpha_to_rgba12, icgc210_alpha_to_rgba10,
+    icgc212_alpha_to_rgba12, icgc410_alpha_to_rgba10, icgc412_alpha_to_rgba12,
 };
 
 pub use yuv_to_yuy2::yuv420_to_uyvy422;
@@ -475,11 +477,12 @@ pub use f16_converter::{
     convert_rgba_f16_to_rgba16, convert_rgba_to_f16,
 };
 
+#[cfg(feature = "geometry")]
 pub use geometry::{
     rotate_cbcr, rotate_cbcr16, rotate_plane, rotate_plane16, rotate_rgb, rotate_rgb16,
     rotate_rgba, rotate_rgba16, RotationMode,
 };
-
+#[cfg(feature = "geometry")]
 pub use mirroring::{
     mirror_cbcr, mirror_cbcr16, mirror_plane, mirror_plane16, mirror_rgb, mirror_rgb16,
     mirror_rgba, mirror_rgba16, MirrorMode,
