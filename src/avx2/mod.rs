@@ -31,6 +31,8 @@ mod avx2_utils;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
 mod gbr_to_rgb;
+#[cfg(feature = "rdp")]
+mod rdp_to_yuv;
 mod rgb_to_nv;
 mod rgb_to_nv420;
 #[cfg(feature = "professional_mode")]
@@ -90,6 +92,8 @@ mod yuy2_to_yuv;
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{SurfaceU16ToFloat16Avx2, SurfaceU8ToFloat16Avx2};
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
+#[cfg(feature = "rdp")]
+pub(crate) use rdp_to_yuv::rdp_avx2_rgba_to_yuv;
 pub(crate) use rgb_to_nv::avx2_rgba_to_nv;
 pub(crate) use rgb_to_nv420::avx2_rgba_to_nv420;
 #[cfg(feature = "professional_mode")]

@@ -59,14 +59,13 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     Ok(buffer)
 }
 use core::f16;
-use image::imageops::FilterType;
 
 fn main() {
     let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
         .unwrap();
-    let img = DynamicImage::ImageRgb8(img.to_rgb8());
+    let img = DynamicImage::ImageRgba8(img.to_rgba8());
 
     let dimensions = img.dimensions();
 
@@ -104,7 +103,7 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420
     //
     let mut bytes_16: Vec<u16> = src_bytes
         .iter()
@@ -120,88 +119,10 @@ fn main() {
     )
     .unwrap();
 
-    // bytes_16.fill(0);
-    //
-    // println!("rgb_to_yuv_nv12 time: {:?}", start_time.elapsed());
-    //
     println!("Forward time: {:?}", start_time.elapsed());
-    // // // //
-    // let full_size = if width % 2 == 0 {
-    //     2 * width as usize * height as usize
-    // } else {
-    //     2 * (width as usize + 1) * height as usize
-    // };
-    // // //
-    // // // // println!("Full YUY2 {}", full_size);
-    // // //
-    // let yuy2_stride = if width % 2 == 0 {
-    //     2 * width as usize
-    // } else {
-    //     2 * (width as usize + 1)
-    // };
-    //
-    // let mut yuy2_plane = vec![0u8; full_size];
-    // // // // //
-    // // let start_time = Instant::now();
-    // // // // //
-    // let plane = planar_image.to_fixed();
-    // // //
-    // let mut packed_image_mut = YuvPackedImageMut {
-    //     yuy: BufferStoreMut::Owned(yuy2_plane),
-    //     yuy_stride: yuy2_stride as u32,
-    //     width,
-    //     height,
-    // };
-    // //
-    // yuv420_to_yuyv422(&mut packed_image_mut, &plane).unwrap();
-    //
-    // save_yuy2_image("test_lanes_image.yuv2", packed_image_mut.width as usize, packed_image_mut.height as usize, packed_image_mut.yuy.borrow()).unwrap();
-    //
-    // // let end_time = Instant::now().sub(start_time);
-    // // println!("yuv420_to_yuyv422 time: {:?}", end_time);
-    // // // rgba.fill(0);
-    // // // let start_time = Instant::now();
-    // let yuy2_img = packed_image_mut.to_fixed();
-    // yuyv422_to_rgb(
-    //     &yuy2_img,
-    //     &mut rgba,
-    //     rgba_stride as u32,
-    //     YuvRange::Limited,
-    //     YuvStandardMatrix::Bt601,
-    // )
-    // .unwrap();
-    //
-    // let end_time = Instant::now().sub(start_time);
-    // println!("yuyv422_to_rgb time: {:?}", end_time);
-
-    // let start_time = Instant::now();
-    // //
-    //
-    // let packed_image = packed_image_mut.to_fixed();
-    //
-    // yuyv422_to_yuv420(&mut planar_image, &packed_image).unwrap();
-    // // //
-    // let end_time = Instant::now().sub(start_time);
-    // println!("yuyv422_to_yuv444 time: {:?}", end_time);
-    // rgba.fill(0);
-    // let mut bgra = vec![0u8; width as usize * height as usize * 4];
-    // let start_time = Instant::now();
-    // yuv420_to_rgb(
-    //     &y_plane,
-    //     y_stride as u32,
-    //     &u_plane,
-    //     u_stride as u32,
-    //     &v_plane,
-    //     v_stride as u32,
-    //     &mut rgba,
-    //     rgba_stride as u32,
-    //     width as u32,
-    //     height as u32,
-    //     YuvRange::TV,
-    //     YuvStandardMatrix::Bt601,
-    // )
-    // .unwrap();
-    // let end_time = Instant::now().sub(start_time);
+    let fixed = planar_image.to_fixed();
+    rgba.fill(0);
+    rdp_yuv444_to_rgba(&fixed, &mut rgba, rgba_stride as u32).unwrap();
 
     let fixed_biplanar = bi_planar_image.to_fixed();
     let fixed_planar = planar_image.to_fixed();
@@ -216,25 +137,6 @@ fn main() {
         YuvRange::Full,
     )
     .unwrap();
-
-    // let a_plane = vec![1023u16; width as usize * height as usize];
-    // let planar_with_alpha = YuvPlanarImageWithAlpha {
-    //     y_plane: planar_image.y_plane.borrow(),
-    //     y_stride: planar_image.y_stride,
-    //     u_plane: planar_image.u_plane.borrow(),
-    //     u_stride: planar_image.u_stride,
-    //     v_plane: planar_image.v_plane.borrow(),
-    //     v_stride: planar_image.v_stride,
-    //     a_plane: &a_plane,
-    //     a_stride: width,
-    //     width,
-    //     height,
-    // };
-
-    // components = 4;
-    // bytes_16.resize(width as usize * height as usize * 4, 0u16);
-    // rgba.resize(width as usize * height as usize * 4, 0u8);
-
     // let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
     // //
     // i210_to_rgb_f16(

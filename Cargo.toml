@@ -51,8 +51,8 @@ professional_mode = []
 # Enables `rayon` support, use with care, in common, YUV encoding/decoding is more usually used in single thread mode
 rayon = ["dep:rayon"]
 # Support for Big-Endian YUV
-big_endian = []
 geometry = ["dep:fast_transpose"]
+rdp = []
 
 [profile.dev.package]
 miniz_oxide.opt-level = 3
