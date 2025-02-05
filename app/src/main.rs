@@ -40,9 +40,9 @@ use yuvutils_rs::{
     i414_to_rgb_f16, i416_to_rgb16, p210_to_ar30, p212_to_ar30, rgb10_to_i010, rgb10_to_i210,
     rgb10_to_i410, rgb10_to_p210, rgb12_to_i012, rgb12_to_p212, rgb14_to_i014, rgb14_to_i214,
     rgb14_to_i414, rgb16_to_i016, rgb16_to_i216, rgb16_to_i416, rgb_to_ycgco420, rgb_to_ycgco422,
-    rgb_to_ycgco444, rgba14_to_i214, ycgco420_to_rgb, ycgco422_to_rgb, ycgco444_to_rgb,
-    ycgco444_to_rgba, Rgb30ByteOrder, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut,
-    YuvRange, YuvStandardMatrix,
+    rgb_to_ycgco444, rgba14_to_i214, rgba_to_ycgco420, ycgco420_to_rgb, ycgco420_to_rgba,
+    ycgco422_to_rgb, ycgco444_to_rgb, ycgco444_to_rgba, Rgb30ByteOrder, YuvBiPlanarImageMut,
+    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -103,7 +103,7 @@ fn main() {
     );
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
     let mut bytes_16: Vec<u16> = src_bytes
         .iter()
@@ -111,7 +111,7 @@ fn main() {
         .collect();
 
     let start_time = Instant::now();
-    rgb_to_ycgco420(
+    rgba_to_ycgco420(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
@@ -122,7 +122,6 @@ fn main() {
     println!("Forward time: {:?}", start_time.elapsed());
     let fixed = planar_image.to_fixed();
     rgba.fill(0);
-    rdp_yuv444_to_rgba(&fixed, &mut rgba, rgba_stride as u32).unwrap();
 
     let fixed_biplanar = bi_planar_image.to_fixed();
     let fixed_planar = planar_image.to_fixed();
@@ -130,10 +129,10 @@ fn main() {
 
     let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
 
-    ycgco420_to_rgb(
+    ycgco420_to_rgba(
         &fixed_planar,
         &mut rgba,
-        dimensions.0 as u32 * 3,
+        dimensions.0 as u32 * 4,
         YuvRange::Full,
     )
     .unwrap();

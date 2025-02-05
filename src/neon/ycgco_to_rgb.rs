@@ -340,14 +340,14 @@ pub(crate) unsafe fn neon_ycgco420_to_rgba_row<const DESTINATION_CHANNELS: u8>(
             r_values0,
             g_values0,
             b_values0,
-            vdupq_n_u8(0),
+            vdupq_n_u8(255),
         );
         neon_store_rgb8::<DESTINATION_CHANNELS>(
             rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             r_values1,
             g_values1,
             b_values1,
-            vdupq_n_u8(0),
+            vdupq_n_u8(255),
         );
 
         cx += 16;
