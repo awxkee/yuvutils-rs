@@ -233,26 +233,26 @@ trait YCgCoConverterFactory<V> {
     fn make_converter<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         range: YuvRange,
         bit_depth: usize,
-    ) -> Box<dyn CgCoWideRowInversionHandler<V>>;
+    ) -> Box<dyn CgCoWideRowInversionHandler<V> + Sync + Send>;
 
     fn make_converter420<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         range: YuvRange,
         bit_depth: usize,
-    ) -> Box<dyn CgCoWideRowInversionHandler420<V>>;
+    ) -> Box<dyn CgCoWideRowInversionHandler420<V> + Sync + Send>;
 }
 
 impl YCgCoConverterFactory<u8> for u8 {
     fn make_converter<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         range: YuvRange,
         _: usize,
-    ) -> Box<dyn CgCoWideRowInversionHandler<u8>> {
+    ) -> Box<dyn CgCoWideRowInversionHandler<u8> + Sync + Send> {
         Box::new(Rgb8Converter::<DESTINATION_CHANNELS, SAMPLING>::new(range))
     }
 
     fn make_converter420<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         range: YuvRange,
         _: usize,
-    ) -> Box<dyn CgCoWideRowInversionHandler420<u8>> {
+    ) -> Box<dyn CgCoWideRowInversionHandler420<u8> + Sync + Send> {
         Box::new(Rgb8Converter420::<DESTINATION_CHANNELS, SAMPLING>::new(
             range,
         ))
@@ -263,14 +263,14 @@ impl YCgCoConverterFactory<u16> for u16 {
     fn make_converter<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         _: YuvRange,
         _: usize,
-    ) -> Box<dyn CgCoWideRowInversionHandler<u16>> {
+    ) -> Box<dyn CgCoWideRowInversionHandler<u16> + Sync + Send> {
         Box::new(Rgb16Converter::<DESTINATION_CHANNELS, SAMPLING> {})
     }
 
     fn make_converter420<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         _: YuvRange,
         _: usize,
-    ) -> Box<dyn CgCoWideRowInversionHandler420<u16>> {
+    ) -> Box<dyn CgCoWideRowInversionHandler420<u16> + Sync + Send> {
         Box::new(Rgb16Converter420::<DESTINATION_CHANNELS, SAMPLING> {})
     }
 }

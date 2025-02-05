@@ -48,7 +48,7 @@ nightly_i8mm = []
 fast_mode = []
 # Enables `professional_mode` support on available paths
 professional_mode = []
-# Enables `rayon` support, use with care, in common, YUV encoding/decoding is more usually used in single thread mode
+# Enables `rayon` support, use with care, in common, YUV encoding/decoding is more usually expected to be used in single thread mode
 rayon = ["dep:rayon"]
 # Support for Big-Endian YUV
 big_endian = []

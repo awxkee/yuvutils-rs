@@ -177,7 +177,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
 
     ycgco422_to_rgba(
         &planar_image,
-        &mut target_rgb,
+        &mut target_rgba,
         i_width as u32 * 4,
         YuvRange::Full,
     )
