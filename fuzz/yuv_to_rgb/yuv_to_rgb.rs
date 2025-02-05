@@ -31,9 +31,10 @@
 
 use libfuzzer_sys::fuzz_target;
 use yuvutils_rs::{
-    yuv420_alpha_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_alpha_to_rgba, yuv422_to_rgb,
-    yuv422_to_rgba, yuv444_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba, YuvPlanarImage,
-    YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
+    ycgco420_to_rgb, ycgco420_to_rgba, ycgco422_to_rgb, ycgco422_to_rgba, yuv420_alpha_to_rgba,
+    yuv420_to_rgb, yuv420_to_rgba, yuv422_alpha_to_rgba, yuv422_to_rgb, yuv422_to_rgba,
+    yuv444_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba, YuvPlanarImage, YuvPlanarImageWithAlpha,
+    YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
@@ -73,6 +74,14 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     )
     .unwrap();
 
+    ycgco420_to_rgb(
+        &planar_image,
+        &mut target_rgb,
+        i_width as u32 * 3,
+        YuvRange::Full,
+    )
+    .unwrap();
+
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
     yuv420_to_rgba(
@@ -81,6 +90,14 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
+    ycgco420_to_rgba(
+        &planar_image,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Full,
     )
     .unwrap();
 
@@ -139,6 +156,14 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     )
     .unwrap();
 
+    ycgco422_to_rgb(
+        &planar_image,
+        &mut target_rgb,
+        i_width as u32 * 3,
+        YuvRange::Full,
+    )
+    .unwrap();
+
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
     yuv422_to_rgba(
@@ -147,6 +172,14 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
         i_width as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
+    ycgco422_to_rgba(
+        &planar_image,
+        &mut target_rgb,
+        i_width as u32 * 4,
+        YuvRange::Full,
     )
     .unwrap();
 

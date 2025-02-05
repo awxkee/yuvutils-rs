@@ -749,6 +749,34 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("yuvutils YCgCo 4:2:2 Full -> RGBA", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv422_to_rgba(
+                &fixed_planar422,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YCgCo 4:2:2 Limited -> RGBA", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv422_to_rgba(
+                &fixed_planar422,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
     c.bench_function("libyuv YUV 4:2:2 -> RGBA", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| unsafe {
