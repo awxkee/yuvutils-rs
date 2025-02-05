@@ -996,6 +996,85 @@ pub(crate) unsafe fn _mm256_affine_uv_dot<const PRECISION: i32, const HAS_DOT: b
 }
 
 #[inline(always)]
+pub(crate) unsafe fn _mm256_double_affine_uv_dot<const PRECISION: i32>(
+    accumulator: __m256i,
+    v0: __m256i,
+    v1: __m256i,
+    v2: __m256i,
+    v3: __m256i,
+    b0: __m256i,
+    b1: __m256i,
+    b2: __m256i,
+    b3: __m256i,
+    w0: __m256i,
+    w1: __m256i,
+) -> (__m256i, __m256i) {
+    let v0w0 = _mm256_madd_epi16(v0, w0);
+    let v1w0 = _mm256_madd_epi16(v1, w0);
+    let b0w1 = _mm256_madd_epi16(b0, w1);
+    let b1w1 = _mm256_madd_epi16(b1, w1);
+
+    let v2w0 = _mm256_madd_epi16(v2, w0);
+    let v3w0 = _mm256_madd_epi16(v3, w0);
+    let b2w1 = _mm256_madd_epi16(b2, w1);
+    let b3w1 = _mm256_madd_epi16(b3, w1);
+
+    let j0 = _mm256_add_epi32(v0w0, b0w1);
+    let j1 = _mm256_add_epi32(v1w0, b1w1);
+
+    let j2 = _mm256_add_epi32(v2w0, b2w1);
+    let j3 = _mm256_add_epi32(v3w0, b3w1);
+
+    let y0_l_l = _mm256_add_epi32(accumulator, j0);
+    let y0_l_h = _mm256_add_epi32(accumulator, j1);
+
+    let y1_l_l = _mm256_add_epi32(accumulator, j2);
+    let y1_l_h = _mm256_add_epi32(accumulator, j3);
+
+    let m0 = _mm256_srai_epi32::<PRECISION>(y0_l_l);
+    let m1 = _mm256_srai_epi32::<PRECISION>(y0_l_h);
+    let m2 = _mm256_srai_epi32::<PRECISION>(y1_l_l);
+    let m3 = _mm256_srai_epi32::<PRECISION>(y1_l_h);
+    (_mm256_packs_epi32(m0, m1), _mm256_packs_epi32(m2, m3))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm256_double_affine_uv_s_dot<const PRECISION: i32>(
+    v0: __m256i,
+    v1: __m256i,
+    v2: __m256i,
+    v3: __m256i,
+    b0: __m256i,
+    b1: __m256i,
+    b2: __m256i,
+    b3: __m256i,
+    w0: __m256i,
+    w1: __m256i,
+) -> (__m256i, __m256i) {
+    let v0w0 = _mm256_madd_epi16(v0, w0);
+    let v1w0 = _mm256_madd_epi16(v1, w0);
+    let b0w1 = _mm256_madd_epi16(b0, w1);
+    let b1w1 = _mm256_madd_epi16(b1, w1);
+
+    let v2w0 = _mm256_madd_epi16(v2, w0);
+    let v3w0 = _mm256_madd_epi16(v3, w0);
+    let b2w1 = _mm256_madd_epi16(b2, w1);
+    let b3w1 = _mm256_madd_epi16(b3, w1);
+
+    let j0 = _mm256_add_epi32(v0w0, b0w1);
+    let j1 = _mm256_add_epi32(v1w0, b1w1);
+
+    let j2 = _mm256_add_epi32(v2w0, b2w1);
+    let j3 = _mm256_add_epi32(v3w0, b3w1);
+
+    let m0 = _mm256_srai_epi32::<PRECISION>(j0);
+    let m1 = _mm256_srai_epi32::<PRECISION>(j1);
+    let m2 = _mm256_srai_epi32::<PRECISION>(j2);
+    let m3 = _mm256_srai_epi32::<PRECISION>(j3);
+    (_mm256_packs_epi32(m0, m1), _mm256_packs_epi32(m2, m3))
+}
+
+#[inline(always)]
 pub(crate) unsafe fn _mm256_mul_add_epi16<const HAS_DOT: bool>(
     accumulator: __m256i,
     v0: __m256i,

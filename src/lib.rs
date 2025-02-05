@@ -78,6 +78,8 @@ mod mirroring;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
 mod numerics;
+#[cfg(feature = "rdp")]
+mod rdp;
 mod rgb16_to_yuv_p16;
 mod rgb_ar30;
 mod rgb_to_nv_p16;
@@ -501,6 +503,12 @@ pub use yuv_p16_ar30::{
     i410_to_ar30, i410_to_ra30, i412_to_ar30, i412_to_ra30, i414_to_ar30, i414_to_ra30,
 };
 
+#[cfg(feature = "rdp")]
+pub use rdp::{
+    rdp_abgr_to_yuv444, rdp_argb_to_yuv444, rdp_bgr_to_yuv444, rdp_bgra_to_yuv444,
+    rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, rdp_yuv444_to_abgr, rdp_yuv444_to_argb,
+    rdp_yuv444_to_bgr, rdp_yuv444_to_bgra, rdp_yuv444_to_rgb, rdp_yuv444_to_rgba,
+};
 #[cfg(feature = "nightly_f16")]
 pub use yuv_p16_rgba_f16::{
     i010_to_rgb_f16, i010_to_rgba_f16, i012_to_rgb_f16, i012_to_rgba_f16, i014_to_rgb_f16,

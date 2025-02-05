@@ -62,10 +62,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo test
-      - run: cargo test --no-default-features --features nightly_f16
-      - run: cargo test --no-default-features --features fast_mode,professional_mode,nightly_f16
-      - run: cargo test --features fast_mode,professional_mode,nightly_f16
+      - run: cargo test --features rdp
+      - run: cargo test --no-default-features --features nightly_f16,rdp
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,nightly_f16,rdp
+      - run: cargo test --features fast_mode,professional_mode,nightly_f16,rdp
 
   tests_x86:
     name: Testing x86
@@ -73,12 +73,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo test
-      - run: cargo test --features fast_mode,professional_mode,nightly_f16
-      - run: cargo test --no-default-features --features nightly_f16
-      - run: cargo test --no-default-features --features fast_mode,professional_mode,sse,nightly_f16
-      - run: cargo test --no-default-features --features fast_mode,professional_mode,avx,nightly_f16
-      - run: cargo test --no-default-features --features fast_mode,professional_mode,nightly_f16
+      - run: cargo test --features rdp
+      - run: cargo test --features fast_mode,professional_mode,nightly_f16,rdp
+      - run: cargo test --no-default-features --features nightly_f16,rdp
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,sse,nightly_f16,rdp
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,avx,nightly_f16,rdp
+      - run: cargo test --no-default-features --features fast_mode,professional_mode,nightly_f16,rdp
 
   fuzz_arm:
     name: Fuzzing ARM
@@ -168,3 +168,4 @@ jobs:
       - run: cargo fuzz run yuv_nv10_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run shuffle --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run rgb_to_f16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
+      - run: cargo fuzz run rdp --no-default-features --features ${{ matrix.feature }} -- -max_total_time=12
