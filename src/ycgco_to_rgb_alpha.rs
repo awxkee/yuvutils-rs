@@ -40,7 +40,7 @@ use std::ops::Sub;
 
 fn ycgco_ro_rgbx_alpha<
     V: AsPrimitive<J> + 'static + Default + Debug + Send + Sync,
-    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J>,
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const BIT_DEPTH: usize,

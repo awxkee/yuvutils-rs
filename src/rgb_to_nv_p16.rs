@@ -59,7 +59,7 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_D
 }
 
 fn rgbx_to_yuv_bi_planar_10_impl<
-    J: AsPrimitive<i32> + Copy,
+    J: AsPrimitive<i32> + Copy + Send + Sync,
     const ORIGIN_CHANNELS: u8,
     const NV_ORDER: u8,
     const SAMPLING: u8,

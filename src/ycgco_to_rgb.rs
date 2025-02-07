@@ -278,7 +278,7 @@ impl YCgCoConverterFactory<u16> for u16 {
 
 fn ycgco_ro_rgbx<
     V: AsPrimitive<J> + 'static + Default + Debug + Sync + Send + YCgCoConverterFactory<V>,
-    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J>,
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const BIT_DEPTH: usize,
