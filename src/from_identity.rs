@@ -279,7 +279,7 @@ impl<const DEST: u8, const BIT_DEPTH: usize, const PRECISION: i32> LimitedRangeW
 #[inline]
 fn gbr_to_rgbx_impl<
     V: Copy + AsPrimitive<J> + 'static + Sized + Debug + Send + Sync,
-    J: Copy + Sub<Output = J> + AsPrimitive<i32>,
+    J: Copy + Sub<Output = J> + AsPrimitive<i32> + Sync + Send,
     const CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(

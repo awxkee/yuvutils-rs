@@ -43,7 +43,7 @@ use std::ops::Sub;
 #[inline]
 fn gbr_to_rgbx_alpha_impl<
     V: Copy + AsPrimitive<J> + 'static + Sized + Debug + Send + Sync,
-    J: Copy + Sub<Output = J> + AsPrimitive<i32>,
+    J: Copy + Sub<Output = J> + AsPrimitive<i32> + Send + Sync,
     const CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(

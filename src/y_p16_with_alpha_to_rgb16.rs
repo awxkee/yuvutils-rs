@@ -37,7 +37,7 @@ use std::ops::Sub;
 
 // Chroma subsampling always assumed as 400
 fn yuv400_p16_with_alpha_to_rgbx<
-    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J>,
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
