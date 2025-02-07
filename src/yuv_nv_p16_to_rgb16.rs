@@ -408,14 +408,14 @@ fn yuv_nv_p16_to_image_impl<
 
 macro_rules! d_cnv {
     ($method: ident, $px_fmt: expr, $subsampling: expr, $yuv_name: expr, $px_name: expr, $bit_precision: expr) => {
-        #[doc = concat!("Convert ", $yuv_name," format to ", $px_name," format.
+        #[doc = concat!("Convert ", $yuv_name," format to ", $px_name, stringify!($bit_precision)," format.
 
 This function takes ", $yuv_name," data with ", stringify!($bit_precision),"-bit precision
-and converts it to ", $px_name," format with ", $bit_precision," bit-depth precision.
+and converts it to ", $px_name, stringify!($bit_precision)," format with ", $bit_precision," bit-depth precision.
 
 # Arguments
 
-* `bi_planar_image` - Source ", stringify!($bit_precision)," image.
+* `bi_planar_image` - Source ", stringify!($bit_precision)," bit-depth ", $yuv_name," image.
 * `dst` - A mutable slice to store the converted ", $px_name," ", $bit_precision," bit-depth data.
 * `dst_stride` - The stride (components per row) for the ", $px_name," image data.
 * `range` - range of YUV, see [YuvRange] for more info.

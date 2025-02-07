@@ -511,7 +511,7 @@ macro_rules! define_cnv {
         #[doc = concat!("
 Converts ", $name, " to ", $ar_name," format.
 This function takes ", $name, " data with ", stringify!($bit_depth),"-bit precision
-and converts it to ", $name," format.
+and converts it to ", $ar_name," format.
 
 # Arguments
 

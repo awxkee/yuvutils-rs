@@ -38,10 +38,12 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
 use std::mem::size_of;
+use std::ops::Sub;
 
 #[inline]
 fn gbr_to_rgbx_alpha_impl<
-    V: Copy + AsPrimitive<i32> + 'static + Sized + Debug + Send + Sync,
+    V: Copy + AsPrimitive<J> + 'static + Sized + Debug + Send + Sync,
+    J: Copy + Sub<Output = J> + AsPrimitive<i32>,
     const CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(
@@ -52,6 +54,7 @@ fn gbr_to_rgbx_alpha_impl<
 ) -> Result<(), YuvError>
 where
     i32: AsPrimitive<V>,
+    u32: AsPrimitive<J>,
 {
     let destination_channels: YuvSourceChannels = CHANNELS.into();
     let channels = destination_channels.get_channels_count();
@@ -111,9 +114,9 @@ where
             // All channels on identity should use Y range
             let range = get_yuv_range(BIT_DEPTH as u32, yuv_range);
             let range_rgba = (1 << BIT_DEPTH) - 1;
-            let y_coef =
-                ((range_rgba as f32 / range.range_y as f32) * (1 << PRECISION) as f32) as i32;
-            let y_bias = range.bias_y as i32;
+            let y_coef = ((range_rgba as f32 / range.range_y as f32) * (1 << PRECISION) as f32)
+                .round() as i32;
+            let y_bias = range.bias_y.as_();
 
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter).zip(a_iter);
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
@@ -128,11 +131,11 @@ where
                     .zip(a_src)
                 {
                     rgb_dst[destination_channels.get_r_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias) * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias).as_() * y_coef).as_();
                     rgb_dst[destination_channels.get_g_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias) * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias).as_() * y_coef).as_();
                     rgb_dst[destination_channels.get_b_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias) * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias).as_() * y_coef).as_();
                     rgb_dst[destination_channels.get_a_channel_offset()] = a_src;
                 }
             });
@@ -185,7 +188,7 @@ pub fn gbr_with_alpha_to_rgba(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_alpha_impl::<u8, { YuvSourceChannels::Rgba as u8 }, 8>(
+    gbr_to_rgbx_alpha_impl::<u8, i16, { YuvSourceChannels::Rgba as u8 }, 8>(
         image, rgb, rgb_stride, range,
     )
 }
@@ -213,7 +216,7 @@ pub fn gbr_with_alpha_to_bgra(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_alpha_impl::<u8, { YuvSourceChannels::Bgra as u8 }, 8>(
+    gbr_to_rgbx_alpha_impl::<u8, i16, { YuvSourceChannels::Bgra as u8 }, 8>(
         image, rgb, rgb_stride, range,
     )
 }
@@ -242,7 +245,7 @@ pub fn gb12_alpha_to_rgba12(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_alpha_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 12>(
+    gbr_to_rgbx_alpha_impl::<u16, i16, { YuvSourceChannels::Rgba as u8 }, 12>(
         image,
         rgba,
         rgba_stride,
@@ -274,7 +277,7 @@ pub fn gb10_alpha_to_rgba10(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_alpha_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 10>(
+    gbr_to_rgbx_alpha_impl::<u16, i16, { YuvSourceChannels::Rgba as u8 }, 10>(
         image,
         rgba,
         rgba_stride,
@@ -306,7 +309,7 @@ pub fn gb14_alpha_to_rgba14(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_alpha_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 14>(
+    gbr_to_rgbx_alpha_impl::<u16, i16, { YuvSourceChannels::Rgba as u8 }, 14>(
         image,
         rgba,
         rgba_stride,
@@ -338,7 +341,7 @@ pub fn gb16_alpha_to_rgba16(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_alpha_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 16>(
+    gbr_to_rgbx_alpha_impl::<u16, i32, { YuvSourceChannels::Rgba as u8 }, 16>(
         image,
         rgba,
         rgba_stride,

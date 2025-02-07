@@ -71,6 +71,10 @@ mod built_coefficients;
 mod f16_converter;
 mod from_identity;
 mod from_identity_alpha;
+#[cfg(feature = "nightly_f16")]
+mod from_identity_alpha_f16;
+#[cfg(feature = "nightly_f16")]
+mod from_identity_f16;
 #[cfg(feature = "geometry")]
 mod geometry;
 mod images;
@@ -326,7 +330,7 @@ pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
 pub use to_identity::{
     bgr_to_gbr, bgra_to_gbr, rgb10_to_gb10, rgb12_to_gb12, rgb_to_gbr, rgba10_to_gb10,
-    rgba10_to_gb12, rgba_to_gbr,
+    rgba12_to_gb12, rgba_to_gbr,
 };
 
 pub use rgb_to_nv_p16::{
@@ -400,6 +404,17 @@ pub use sharpyuv::SharpYuvGammaTransfer;
 pub use from_identity::{
     gb10_to_rgb10, gb10_to_rgba10, gb12_to_rgb12, gb12_to_rgba12, gb14_to_rgb14, gb14_to_rgba14,
     gb16_to_rgb16, gb16_to_rgba16, gbr_to_bgr, gbr_to_bgra, gbr_to_rgb, gbr_to_rgba,
+};
+
+#[cfg(feature = "nightly_f16")]
+pub use from_identity_f16::{
+    gb10_to_rgb_f16, gb10_to_rgba_f16, gb12_to_rgb_f16, gb12_to_rgba_f16, gb14_to_rgb_f16,
+    gb14_to_rgba_f16, gb16_to_rgb_f16, gb16_to_rgba_f16,
+};
+
+#[cfg(feature = "nightly_f16")]
+pub use from_identity_alpha_f16::{
+    gb10_alpha_to_rgba_f16, gb12_alpha_to_rgba_f16, gb14_alpha_to_rgba_f16, gb16_alpha_to_rgba_f16,
 };
 
 pub use from_identity_alpha::{

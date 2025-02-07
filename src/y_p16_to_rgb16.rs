@@ -30,13 +30,16 @@
 use crate::neon::neon_y_p16_to_rgba16_row;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvGrayImage};
+use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use std::ops::Sub;
 
 // Chroma subsampling always assumed as 400
 fn yuv400_p16_to_rgbx_impl<
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J>,
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
@@ -48,7 +51,11 @@ fn yuv400_p16_to_rgbx_impl<
     bit_depth: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) -> Result<(), YuvError> {
+) -> Result<(), YuvError>
+where
+    u32: AsPrimitive<J>,
+    u16: AsPrimitive<J>,
+{
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let max_colors = (1 << bit_depth) - 1;
@@ -64,7 +71,7 @@ fn yuv400_p16_to_rgbx_impl<
         search_inverse_transform(PRECISION, bit_depth, range, matrix, chroma_range, kr_kb);
     let y_coef = inverse_transform.y_coef;
 
-    let bias_y = chroma_range.bias_y as i32;
+    let bias_y = chroma_range.bias_y.as_();
 
     let iter;
     #[cfg(feature = "rayon")]
@@ -110,7 +117,7 @@ fn yuv400_p16_to_rgbx_impl<
                 }
 
                 for (dst, &y_src) in rgba16.chunks_exact_mut(channels).zip(y_plane).skip(_cx) {
-                    let y_value = (y_src as i32 - bias_y) * y_coef;
+                    let y_value = (y_src.as_() - bias_y).as_() * y_coef;
 
                     let r = ((y_value + ROUNDING_CONST) >> PRECISION)
                         .min(max_colors)
@@ -146,7 +153,7 @@ fn yuv400_p16_to_rgbx_impl<
 }
 
 macro_rules! d_cnv {
-    ($method: ident, $px_fmt: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr) => {
+    ($method: ident, $px_fmt: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr, $intermediate: ident) => {
         #[doc = concat!("Convert ", $yuv_name," format to ", $rgb_name, " ", stringify!($bit_depth),"-bit format.
 
 This function takes ", $yuv_name," format data with ", $rgb_name, " ", stringify!($bit_depth),"-bit precision,
@@ -172,6 +179,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
             yuv400_p16_to_rgbx_impl::<
+                $intermediate,
                 { $px_fmt as u8 },
                 { YuvEndianness::LittleEndian as u8 },
                 { YuvBytesPacking::LeastSignificantBytes as u8 },
@@ -181,11 +189,67 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
     };
 }
 
-d_cnv!(y010_to_rgba10, YuvSourceChannels::Rgba, "Y010", "RGBA", 10);
-d_cnv!(y010_to_rgb10, YuvSourceChannels::Rgb, "Y010", "RGB", 10);
-d_cnv!(y012_to_rgb12, YuvSourceChannels::Rgb, "Y012", "RGBA", 12);
-d_cnv!(y012_to_rgba12, YuvSourceChannels::Rgba, "Y012", "RGBA", 12);
-d_cnv!(y014_to_rgb14, YuvSourceChannels::Rgb, "Y014", "RGBA", 14);
-d_cnv!(y014_to_rgba14, YuvSourceChannels::Rgba, "Y014", "RGBA", 14);
-d_cnv!(y016_to_rgb16, YuvSourceChannels::Rgb, "Y016", "RGBA", 16);
-d_cnv!(y016_to_rgba16, YuvSourceChannels::Rgba, "Y016", "RGBA", 16);
+d_cnv!(
+    y010_to_rgba10,
+    YuvSourceChannels::Rgba,
+    "Y010",
+    "RGBA",
+    10,
+    i16
+);
+d_cnv!(
+    y010_to_rgb10,
+    YuvSourceChannels::Rgb,
+    "Y010",
+    "RGB",
+    10,
+    i16
+);
+d_cnv!(
+    y012_to_rgb12,
+    YuvSourceChannels::Rgb,
+    "Y012",
+    "RGBA",
+    12,
+    i16
+);
+d_cnv!(
+    y012_to_rgba12,
+    YuvSourceChannels::Rgba,
+    "Y012",
+    "RGBA",
+    12,
+    i16
+);
+d_cnv!(
+    y014_to_rgb14,
+    YuvSourceChannels::Rgb,
+    "Y014",
+    "RGBA",
+    14,
+    i16
+);
+d_cnv!(
+    y014_to_rgba14,
+    YuvSourceChannels::Rgba,
+    "Y014",
+    "RGBA",
+    14,
+    i16
+);
+d_cnv!(
+    y016_to_rgb16,
+    YuvSourceChannels::Rgb,
+    "Y016",
+    "RGBA",
+    16,
+    i32
+);
+d_cnv!(
+    y016_to_rgba16,
+    YuvSourceChannels::Rgba,
+    "Y016",
+    "RGBA",
+    16,
+    i32
+);

@@ -57,9 +57,9 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     image.check_constraints(chroma_subsampling)?;
 
     let range_reduction_y =
-        (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i32;
+        (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i16;
     let range_reduction_uv =
-        (range.range_uv as f32 / max_colors as f32 * precision_scale).round() as i32;
+        (range.range_uv as f32 / max_colors as f32 * precision_scale).round() as i16;
 
     let process_halved_chroma_row =
         |y_plane: &mut [u8], u_plane: &mut [u8], v_plane: &mut [u8], rgba: &[u8]| {
@@ -75,8 +75,10 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let g0 = src0[src_chans.get_g_channel_offset()] as i32;
                 let b0 = src0[src_chans.get_b_channel_offset()] as i32;
 
-                let hg0 = (g0 * range_reduction_y) >> 1;
-                let y_0 = (hg0 + ((r0 * range_reduction_y + b0 * range_reduction_y) >> 2) + bias_y)
+                let hg0 = (g0 * range_reduction_y as i32) >> 1;
+                let y_0 = (hg0
+                    + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
+                    + bias_y)
                     >> PRECISION;
 
                 y_dst[0] = y_0 as u8;
@@ -86,14 +88,16 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let r1 = src1[src_chans.get_r_channel_offset()] as i32;
                 let g1 = src1[src_chans.get_g_channel_offset()] as i32;
                 let b1 = src1[src_chans.get_b_channel_offset()] as i32;
-                let hg1 = (g1 * range_reduction_y) >> 1;
-                let y_1 = (hg1 + ((r1 * range_reduction_y + b1 * range_reduction_y) >> 2) + bias_y)
+                let hg1 = (g1 * range_reduction_y as i32) >> 1;
+                let y_1 = (hg1
+                    + ((r1 * range_reduction_y as i32 + b1 * range_reduction_y as i32) >> 2)
+                    + bias_y)
                     >> PRECISION;
                 y_dst[1] = y_1 as u8;
 
-                let r = ((r0 + r1 + 1) >> 1) * range_reduction_uv;
-                let g = ((g0 + g1 + 1) >> 1) * range_reduction_uv;
-                let b = ((b0 + b1 + 1) >> 1) * range_reduction_uv;
+                let r = ((r0 + r1 + 1) >> 1) * range_reduction_uv as i32;
+                let g = ((g0 + g1 + 1) >> 1) * range_reduction_uv as i32;
+                let b = ((b0 + b1 + 1) >> 1) * range_reduction_uv as i32;
 
                 let cg = (((g >> 1) - ((r + b) >> 2)) + bias_uv) >> PRECISION;
                 let co = (((r - b) >> 1) + bias_uv) >> PRECISION;
@@ -112,15 +116,17 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let u_last = u_plane.last_mut().unwrap();
                 let v_last = v_plane.last_mut().unwrap();
 
-                let hg0 = (g0 * range_reduction_y) >> 1;
-                let y_0 = (hg0 + ((r0 * range_reduction_y + b0 * range_reduction_y) >> 2) + bias_y)
+                let hg0 = (g0 * range_reduction_y as i32) >> 1;
+                let y_0 = (hg0
+                    + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
+                    + bias_y)
                     >> PRECISION;
 
                 *y_last = y_0 as u8;
 
-                r0 *= range_reduction_y;
-                g0 *= range_reduction_uv;
-                b0 *= range_reduction_uv;
+                r0 *= range_reduction_y as i32;
+                g0 *= range_reduction_uv as i32;
+                b0 *= range_reduction_uv as i32;
 
                 let cg = (((g0 >> 1) - ((r0 + b0) >> 2)) + bias_uv) >> PRECISION;
                 let co = (((r0 - b0) >> 1) + bias_uv) >> PRECISION;
@@ -148,8 +154,10 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let r00 = src00[src_chans.get_r_channel_offset()] as i32;
             let g00 = src00[src_chans.get_g_channel_offset()] as i32;
             let b00 = src00[src_chans.get_b_channel_offset()] as i32;
-            let hg00 = (g00 * range_reduction_y) >> 1;
-            let y_00 = (hg00 + ((r00 * range_reduction_y + b00 * range_reduction_y) >> 2) + bias_y)
+            let hg00 = (g00 * range_reduction_y as i32) >> 1;
+            let y_00 = (hg00
+                + ((r00 * range_reduction_y as i32 + b00 * range_reduction_y as i32) >> 2)
+                + bias_y)
                 >> PRECISION;
             y_dst0[0] = y_00 as u8;
 
@@ -158,8 +166,10 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let r01 = src1[src_chans.get_r_channel_offset()] as i32;
             let g01 = src1[src_chans.get_g_channel_offset()] as i32;
             let b01 = src1[src_chans.get_b_channel_offset()] as i32;
-            let hg01 = (g01 * range_reduction_y) >> 1;
-            let y_01 = (hg01 + ((r01 * range_reduction_y + b01 * range_reduction_y) >> 2) + bias_y)
+            let hg01 = (g01 * range_reduction_y as i32) >> 1;
+            let y_01 = (hg01
+                + ((r01 * range_reduction_y as i32 + b01 * range_reduction_y as i32) >> 2)
+                + bias_y)
                 >> PRECISION;
             y_dst0[1] = y_01 as u8;
 
@@ -168,8 +178,10 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let r10 = src10[src_chans.get_r_channel_offset()] as i32;
             let g10 = src10[src_chans.get_g_channel_offset()] as i32;
             let b10 = src10[src_chans.get_b_channel_offset()] as i32;
-            let hg10 = (g10 * range_reduction_y) >> 1;
-            let y_10 = (hg10 + ((r10 * range_reduction_y + b10 * range_reduction_y) >> 2) + bias_y)
+            let hg10 = (g10 * range_reduction_y as i32) >> 1;
+            let y_10 = (hg10
+                + ((r10 * range_reduction_y as i32 + b10 * range_reduction_y as i32) >> 2)
+                + bias_y)
                 >> PRECISION;
             y_dst1[0] = y_10 as u8;
 
@@ -178,14 +190,16 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let r11 = src11[src_chans.get_r_channel_offset()] as i32;
             let g11 = src11[src_chans.get_g_channel_offset()] as i32;
             let b11 = src11[src_chans.get_b_channel_offset()] as i32;
-            let hg11 = (g11 * range_reduction_y) >> 1;
-            let y_11 = (hg11 + ((r11 * range_reduction_y + b11 * range_reduction_y) >> 2) + bias_y)
+            let hg11 = (g11 * range_reduction_y as i32) >> 1;
+            let y_11 = (hg11
+                + ((r11 * range_reduction_y as i32 + b11 * range_reduction_y as i32) >> 2)
+                + bias_y)
                 >> PRECISION;
             y_dst1[1] = y_11 as u8;
 
-            let ruv = ((r00 + r01 + r10 + r11 + 2) >> 2) * range_reduction_uv;
-            let guv = ((g00 + g01 + g10 + g11 + 2) >> 2) * range_reduction_uv;
-            let buv = ((b00 + b01 + b10 + b11 + 2) >> 2) * range_reduction_uv;
+            let ruv = ((r00 + r01 + r10 + r11 + 2) >> 2) * range_reduction_uv as i32;
+            let guv = ((g00 + g01 + g10 + g11 + 2) >> 2) * range_reduction_uv as i32;
+            let buv = ((b00 + b01 + b10 + b11 + 2) >> 2) * range_reduction_uv as i32;
 
             let cg = (((guv >> 1) - ((ruv + buv) >> 2)) + bias_uv) >> PRECISION;
             let co = (((ruv - buv) >> 1) + bias_uv) >> PRECISION;
@@ -209,19 +223,23 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let u_last = u_plane.last_mut().unwrap();
             let v_last = v_plane.last_mut().unwrap();
 
-            let hg0 = (g0 * range_reduction_y) >> 1;
-            let y_0 = (hg0 + ((r0 * range_reduction_y + b0 * range_reduction_y) >> 2) + bias_y)
+            let hg0 = (g0 * range_reduction_y as i32) >> 1;
+            let y_0 = (hg0
+                + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
+                + bias_y)
                 >> PRECISION;
             *y0_last = y_0 as u8;
 
-            let hg1 = (g1 * range_reduction_y) >> 1;
-            let y_1 = (hg1 + ((r1 * range_reduction_y + b1 * range_reduction_y) >> 2) + bias_y)
+            let hg1 = (g1 * range_reduction_y as i32) >> 1;
+            let y_1 = (hg1
+                + ((r1 * range_reduction_y as i32 + b1 * range_reduction_y as i32) >> 2)
+                + bias_y)
                 >> PRECISION;
             *y1_last = y_1 as u8;
 
-            let r0 = ((r0 + r1) >> 1) * range_reduction_uv;
-            let g0 = ((g0 + g1) >> 1) * range_reduction_uv;
-            let b0 = ((b0 + b1) >> 1) * range_reduction_uv;
+            let r0 = ((r0 + r1) >> 1) * range_reduction_uv as i32;
+            let g0 = ((g0 + g1) >> 1) * range_reduction_uv as i32;
+            let b0 = ((b0 + b1) >> 1) * range_reduction_uv as i32;
 
             let cg = (((g0 >> 1) - ((r0 + b0) >> 2)) + bias_uv) >> PRECISION;
             let co = (((r0 - b0) >> 1) + bias_uv) >> PRECISION;
@@ -266,14 +284,16 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let mut r0 = rgba[src_chans.get_r_channel_offset()] as i32;
                 let mut g0 = rgba[src_chans.get_g_channel_offset()] as i32;
                 let mut b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-                let hg0 = (g0 * range_reduction_y) >> 1;
-                let y_0 = (hg0 + ((r0 * range_reduction_y + b0 * range_reduction_y) >> 2) + bias_y)
+                let hg0 = (g0 * range_reduction_y as i32) >> 1;
+                let y_0 = (hg0
+                    + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
+                    + bias_y)
                     >> PRECISION;
                 *y_dst = y_0 as u8;
 
-                r0 *= range_reduction_y;
-                g0 *= range_reduction_y;
-                b0 *= range_reduction_y;
+                r0 *= range_reduction_y as i32;
+                g0 *= range_reduction_y as i32;
+                b0 *= range_reduction_y as i32;
 
                 let cg = (((g0 >> 1) - ((r0 + b0) >> 2)) + bias_uv) >> PRECISION;
                 let co = (((r0 - b0) >> 1) + bias_uv) >> PRECISION;

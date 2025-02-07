@@ -34,6 +34,7 @@ use crate::yuv_support::{
 use crate::{
     YuvBiPlanarImageMut, YuvBytesPacking, YuvEndianness, YuvError, YuvRange, YuvStandardMatrix,
 };
+use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
@@ -58,6 +59,7 @@ fn transform_integer<const ENDIANNESS: u8, const BYTES_POSITION: u8, const BIT_D
 }
 
 fn rgbx_to_yuv_bi_planar_10_impl<
+    J: AsPrimitive<i32> + Copy,
     const ORIGIN_CHANNELS: u8,
     const NV_ORDER: u8,
     const SAMPLING: u8,
@@ -70,7 +72,10 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) -> Result<(), YuvError> {
+) -> Result<(), YuvError>
+where
+    i32: AsPrimitive<J>,
+{
     let nv_order: YuvNVOrder = NV_ORDER.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
@@ -83,11 +88,11 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     let kr_kb = matrix.get_kr_kb();
     let max_range = (1u32 << BIT_DEPTH as u32) - 1u32;
 
-    const PRECISION: i32 = 14;
+    const PRECISION: i32 = 15;
 
     let transform_precise =
         get_forward_transform(max_range, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
-    let transform = transform_precise.to_integers(PRECISION as u32);
+    let transform = transform_precise.to_integers(PRECISION as u32).cast::<J>();
     const ROUNDING_CONST_BIAS: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + ROUNDING_CONST_BIAS;
@@ -112,7 +117,10 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let g00 = rgba00[src_chans.get_g_channel_offset()] as i32;
             let b00 = rgba00[src_chans.get_b_channel_offset()] as i32;
 
-            let y_00 = (r00 * transform.yr + g00 * transform.yg + b00 * transform.yb + bias_y)
+            let y_00 = (r00 * transform.yr.as_()
+                + g00 * transform.yg.as_()
+                + b00 * transform.yb.as_()
+                + bias_y)
                 >> PRECISION;
             y_dst0[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_00);
 
@@ -122,7 +130,10 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let g01 = rgba01[src_chans.get_g_channel_offset()] as i32;
             let b01 = rgba01[src_chans.get_b_channel_offset()] as i32;
 
-            let y_01 = (r01 * transform.yr + g01 * transform.yg + b01 * transform.yb + bias_y)
+            let y_01 = (r01 * transform.yr.as_()
+                + g01 * transform.yg.as_()
+                + b01 * transform.yb.as_()
+                + bias_y)
                 >> PRECISION;
             y_dst0[1] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_01);
 
@@ -131,7 +142,10 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let g10 = rgba01[src_chans.get_g_channel_offset()] as i32;
             let b10 = rgba01[src_chans.get_b_channel_offset()] as i32;
 
-            let y_10 = (r10 * transform.yr + g10 * transform.yg + b10 * transform.yb + bias_y)
+            let y_10 = (r10 * transform.yr.as_()
+                + g10 * transform.yg.as_()
+                + b10 * transform.yb.as_()
+                + bias_y)
                 >> PRECISION;
             y_dst1[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_10);
 
@@ -141,7 +155,10 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let g11 = rgba11[src_chans.get_g_channel_offset()] as i32;
             let b11 = rgba11[src_chans.get_b_channel_offset()] as i32;
 
-            let y_11 = (r11 * transform.yr + g11 * transform.yg + b11 * transform.yb + bias_y)
+            let y_11 = (r11 * transform.yr.as_()
+                + g11 * transform.yg.as_()
+                + b11 * transform.yb.as_()
+                + bias_y)
                 >> PRECISION;
             y_dst1[1] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_11);
 
@@ -149,9 +166,15 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let g = (g00 + g01 + g10 + g11 + 2) >> 2;
             let b = (b00 + b01 + b10 + b11 + 2) >> 2;
 
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+            let cb = (r * transform.cb_r.as_()
+                + g * transform.cb_g.as_()
+                + b * transform.cb_b.as_()
+                + bias_uv)
                 >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+            let cr = (r * transform.cr_r.as_()
+                + g * transform.cr_g.as_()
+                + b * transform.cr_b.as_()
+                + bias_uv)
                 >> PRECISION;
             uv_dst[nv_order.get_u_position()] =
                 transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(cb);
@@ -179,17 +202,29 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let g = (g0 + g1 + 1) >> 1;
             let b = (b0 + b1 + 1) >> 1;
 
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
+            let y_0 = (r0 * transform.yr.as_()
+                + g0 * transform.yg.as_()
+                + b0 * transform.yb.as_()
+                + bias_y)
+                >> PRECISION;
             y_dst0[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_0);
 
-            let y_1 =
-                (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
+            let y_1 = (r1 * transform.yr.as_()
+                + g1 * transform.yg.as_()
+                + b1 * transform.yb.as_()
+                + bias_y)
+                >> PRECISION;
             y_dst1[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_1);
 
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+            let cb = (r * transform.cb_r.as_()
+                + g * transform.cb_g.as_()
+                + b * transform.cb_b.as_()
+                + bias_uv)
                 >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+            let cr = (r * transform.cr_r.as_()
+                + g * transform.cr_g.as_()
+                + b * transform.cr_b.as_()
+                + bias_uv)
                 >> PRECISION;
             uv_dst[nv_order.get_u_position()] =
                 transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(cb);
@@ -208,8 +243,11 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let r0 = rgba0[src_chans.get_r_channel_offset()] as i32;
             let g0 = rgba0[src_chans.get_g_channel_offset()] as i32;
             let b0 = rgba0[src_chans.get_b_channel_offset()] as i32;
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
+            let y_0 = (r0 * transform.yr.as_()
+                + g0 * transform.yg.as_()
+                + b0 * transform.yb.as_()
+                + bias_y)
+                >> PRECISION;
             y_dst[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_0);
 
             let rgba1 = &rgba[channels..channels * 2];
@@ -218,17 +256,26 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let g1 = rgba1[src_chans.get_g_channel_offset()] as i32;
             let b1 = rgba1[src_chans.get_b_channel_offset()] as i32;
 
-            let y_1 =
-                (r1 * transform.yr + g1 * transform.yg + b1 * transform.yb + bias_y) >> PRECISION;
+            let y_1 = (r1 * transform.yr.as_()
+                + g1 * transform.yg.as_()
+                + b1 * transform.yb.as_()
+                + bias_y)
+                >> PRECISION;
             y_dst[1] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_1);
 
             let r = (r0 + r1 + 1) >> 1;
             let g = (g0 + g1 + 1) >> 1;
             let b = (b0 + b1 + 1) >> 1;
 
-            let cb = (r * transform.cb_r + g * transform.cb_g + b * transform.cb_b + bias_uv)
+            let cb = (r * transform.cb_r.as_()
+                + g * transform.cb_g.as_()
+                + b * transform.cb_b.as_()
+                + bias_uv)
                 >> PRECISION;
-            let cr = (r * transform.cr_r + g * transform.cr_g + b * transform.cr_b + bias_uv)
+            let cr = (r * transform.cr_r.as_()
+                + g * transform.cr_g.as_()
+                + b * transform.cr_b.as_()
+                + bias_uv)
                 >> PRECISION;
             uv_dst[nv_order.get_u_position()] =
                 transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(cb);
@@ -245,13 +292,22 @@ fn rgbx_to_yuv_bi_planar_10_impl<
             let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
             let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
             let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-            let y_0 =
-                (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y) >> PRECISION;
+            let y_0 = (r0 * transform.yr.as_()
+                + g0 * transform.yg.as_()
+                + b0 * transform.yb.as_()
+                + bias_y)
+                >> PRECISION;
             y_dst[0] = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_0);
 
-            let cb = (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
+            let cb = (r0 * transform.cb_r.as_()
+                + g0 * transform.cb_g.as_()
+                + b0 * transform.cb_b.as_()
+                + bias_uv)
                 >> PRECISION;
-            let cr = (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
+            let cr = (r0 * transform.cr_r.as_()
+                + g0 * transform.cr_g.as_()
+                + b0 * transform.cr_b.as_()
+                + bias_uv)
                 >> PRECISION;
             uv_dst[nv_order.get_u_position()] =
                 transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(cb);
@@ -291,15 +347,22 @@ fn rgbx_to_yuv_bi_planar_10_impl<
                 let r0 = rgba[src_chans.get_r_channel_offset()] as i32;
                 let g0 = rgba[src_chans.get_g_channel_offset()] as i32;
                 let b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-                let y_0 = (r0 * transform.yr + g0 * transform.yg + b0 * transform.yb + bias_y)
+                let y_0 = (r0 * transform.yr.as_()
+                    + g0 * transform.yg.as_()
+                    + b0 * transform.yb.as_()
+                    + bias_y)
                     >> PRECISION;
                 *y_dst = transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(y_0);
-                let cb =
-                    (r0 * transform.cb_r + g0 * transform.cb_g + b0 * transform.cb_b + bias_uv)
-                        >> PRECISION;
-                let cr =
-                    (r0 * transform.cr_r + g0 * transform.cr_g + b0 * transform.cr_b + bias_uv)
-                        >> PRECISION;
+                let cb = (r0 * transform.cb_r.as_()
+                    + g0 * transform.cb_g.as_()
+                    + b0 * transform.cb_b.as_()
+                    + bias_uv)
+                    >> PRECISION;
+                let cr = (r0 * transform.cr_r.as_()
+                    + g0 * transform.cr_g.as_()
+                    + b0 * transform.cr_b.as_()
+                    + bias_uv)
+                    >> PRECISION;
                 uv_dst[nv_order.get_u_position()] =
                     transform_integer::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(cb);
                 uv_dst[nv_order.get_v_position()] =
@@ -377,46 +440,9 @@ fn rgbx_to_yuv_bi_planar_10_impl<
     Ok(())
 }
 
-fn rgbx_to_yuv_bi_planar_10<
-    const ORIGIN_CHANNELS: u8,
-    const NV_ORDER: u8,
-    const SAMPLING: u8,
-    const ENDIANNESS: u8,
-    const BYTES_POSITION: u8,
->(
-    bi_planar_image: &mut YuvBiPlanarImageMut<u16>,
-    rgba: &[u16],
-    rgba_stride: u32,
-    bit_depth: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
-) -> Result<(), YuvError> {
-    if bit_depth == 10 {
-        rgbx_to_yuv_bi_planar_10_impl::<
-            ORIGIN_CHANNELS,
-            NV_ORDER,
-            SAMPLING,
-            ENDIANNESS,
-            BYTES_POSITION,
-            10,
-        >(bi_planar_image, rgba, rgba_stride, range, matrix)
-    } else if bit_depth == 12 {
-        rgbx_to_yuv_bi_planar_10_impl::<
-            ORIGIN_CHANNELS,
-            NV_ORDER,
-            SAMPLING,
-            ENDIANNESS,
-            BYTES_POSITION,
-            12,
-        >(bi_planar_image, rgba, rgba_stride, range, matrix)
-    } else {
-        unreachable!("Bit depth {} is not implemented", bit_depth)
-    }
-}
-
 macro_rules! d_cnv {
-    ($method:ident, $px_fmt: expr, $subsampling: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr) => {
-        #[doc = concat!("Convert ",$rgb_name," image data to ", $yuv_name, " format.
+    ($method:ident, $px_fmt: expr, $subsampling: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr, $intermediate: ident) => {
+        #[doc = concat!("Convert ",$rgb_name, stringify!($bit_depth)," image data to ", $yuv_name, " format.
 
 This function performs ",$rgb_name, stringify!($bit_depth)," to ",$yuv_name," conversion and stores the result in ", $yuv_name, " format,
 with separate planes for Y (luminance), UV (chrominance) components.
@@ -440,13 +466,15 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             range: YuvRange,
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
-            rgbx_to_yuv_bi_planar_10::<
+            rgbx_to_yuv_bi_planar_10_impl::<
+                $intermediate,
                 { $px_fmt as u8 },
                 { YuvNVOrder::UV as u8 },
                 { $subsampling as u8 },
                 { YuvEndianness::LittleEndian as u8 },
                 { YuvBytesPacking::MostSignificantBytes as u8 },
-            >(bi_planar_image, dst, dst_stride, $bit_depth, range, matrix)
+                $bit_depth,
+            >(bi_planar_image, dst, dst_stride, range, matrix)
         }
     };
 }
@@ -457,7 +485,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P010",
     "RGBA",
-    10
+    10,
+    i16
 );
 d_cnv!(
     rgb10_to_p010,
@@ -465,7 +494,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P010",
     "RGB",
-    10
+    10,
+    i16
 );
 d_cnv!(
     rgba10_to_p210,
@@ -473,7 +503,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv422,
     "P210",
     "RGBA",
-    10
+    10,
+    i16
 );
 d_cnv!(
     rgb10_to_p210,
@@ -481,7 +512,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv422,
     "P210",
     "RGB",
-    10
+    10,
+    i16
 );
 d_cnv!(
     rgba10_to_p410,
@@ -489,7 +521,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv444,
     "P410",
     "RGBA",
-    10
+    10,
+    i16
 );
 d_cnv!(
     rgb10_to_p410,
@@ -497,7 +530,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv444,
     "P410",
     "RGB",
-    10
+    10,
+    i16
 );
 
 d_cnv!(
@@ -506,7 +540,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P012",
     "RGBA",
-    12
+    12,
+    i16
 );
 d_cnv!(
     rgb12_to_p012,
@@ -514,7 +549,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P012",
     "RGB",
-    12
+    12,
+    i16
 );
 d_cnv!(
     rgba12_to_p212,
@@ -522,7 +558,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv422,
     "P212",
     "RGBA",
-    12
+    12,
+    i16
 );
 d_cnv!(
     rgb12_to_p212,
@@ -530,7 +567,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv422,
     "P212",
     "RGB",
-    12
+    12,
+    i16
 );
 d_cnv!(
     rgba12_to_p412,
@@ -538,7 +576,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv444,
     "P412",
     "RGBA",
-    12
+    12,
+    i16
 );
 d_cnv!(
     rgb12_to_p412,
@@ -546,7 +585,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv444,
     "P412",
     "RGB",
-    12
+    12,
+    i16
 );
 
 d_cnv!(
@@ -555,7 +595,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P016",
     "RGBA",
-    16
+    16,
+    i32
 );
 d_cnv!(
     rgb16_to_p016,
@@ -563,7 +604,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P016",
     "RGB",
-    16
+    16,
+    i32
 );
 
 d_cnv!(
@@ -572,7 +614,8 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P216",
     "RGBA",
-    16
+    16,
+    i32
 );
 d_cnv!(
     rgb16_to_p216,
@@ -580,5 +623,6 @@ d_cnv!(
     YuvChromaSubsampling::Yuv420,
     "P216",
     "RGB",
-    16
+    16,
+    i32
 );

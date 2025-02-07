@@ -838,9 +838,9 @@ macro_rules! d_cvn {
     $yuv_name: expr, $rgb_name: expr,
     $rgb_small: expr, $bit_depth: expr,
     $endianness: expr) => {
-        #[doc = concat!("Convert RGBA image data to ", $yuv_name, stringify!($bit_depth)," format with ", $bit_depth, " bit depth.
+        #[doc = concat!("Convert ", $rgb_name, " image data to ", $yuv_name, " format with ", $bit_depth, " bit depth.
 
-This function performs ", $rgb_name, " to ",$yuv_name," conversion and stores the result in ", $yuv_name," format,
+This function performs ", $rgb_name, stringify!($bit_depth), " to ",$yuv_name," conversion and stores the result in ", $yuv_name," format,
 with separate planes for Y (luminance), U (chrominance), and V (chrominance) components.
 
 # Arguments

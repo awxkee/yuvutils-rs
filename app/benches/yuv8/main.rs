@@ -675,7 +675,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("yuvutils YCgCo 4:2:0 -> RGBA", |b| {
+    c.bench_function("yuvutils YCgCo 4:2:0 -> RGBA Full", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             ycgco420_to_rgba(
@@ -683,6 +683,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
                 YuvRange::Full,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YCgCo 4:2:0 -> RGBA Limited", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            ycgco420_to_rgba(
+                &fixed_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
             )
             .unwrap();
         })
@@ -810,7 +823,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let fixed_planar444 = planar_image444.to_fixed();
 
-    c.bench_function("yuvutils YCgCo 4:4:4 -> RGBA", |b| {
+    c.bench_function("yuvutils YCgCo 4:4:4 Full -> RGBA", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             ycgco444_to_rgba(
@@ -818,6 +831,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,
                 YuvRange::Full,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YCgCo 4:4:4 Limited -> RGBA", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            ycgco444_to_rgba(
+                &fixed_planar444,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
             )
             .unwrap();
         })

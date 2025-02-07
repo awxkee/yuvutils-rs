@@ -67,7 +67,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     const PRECISION: i32 = 13;
     let inverse_transform =
         search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
-    let y_coef = inverse_transform.y_coef;
+    let y_coef = inverse_transform.y_coef as i16;
 
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
@@ -86,7 +86,7 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         neon_y_to_rgb_row::<PRECISION, DESTINATION_CHANNELS>
     };
 
-    let bias_y = chroma_range.bias_y as i32;
+    let bias_y = chroma_range.bias_y as i16;
 
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -207,7 +207,8 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
             let y_sliced = &y_plane[_cx..];
 
             for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
-                let y_value = (*y_src as i32 - bias_y) * y_coef;
+                let y0 = *y_src as i16;
+                let y_value = (y0 - bias_y) as i32 * y_coef as i32;
 
                 let r = qrshr::<PRECISION, 8>(y_value);
                 rgba[destination_channels.get_r_channel_offset()] = r as u8;
