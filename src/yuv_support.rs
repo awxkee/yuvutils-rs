@@ -597,6 +597,7 @@ impl From<u8> for YuvPacked444Format {
     }
 }
 
+#[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
 impl YuvPacked444Format {
     pub(crate) const fn get_a_ps(&self) -> usize {
         match self {

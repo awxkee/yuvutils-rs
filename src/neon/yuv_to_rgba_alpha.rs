@@ -96,7 +96,7 @@ pub(crate) unsafe fn neon_yuv_to_rgba_alpha<const DESTINATION_CHANNELS: u8, cons
 }
 
 #[inline(always)]
-pub(crate) unsafe fn neon_yuv_to_rgba_alpha_impl<
+unsafe fn neon_yuv_to_rgba_alpha_impl<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const R: bool,

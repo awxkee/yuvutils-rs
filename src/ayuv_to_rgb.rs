@@ -26,7 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::numerics::{div_by_255, qrshr};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
     get_yuv_range, search_inverse_transform, CbCrInverseTransform, YuvPacked444Format,
@@ -38,8 +37,10 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
+#[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
 macro_rules! cnv_exec {
     ($src: expr, $dst: expr, $premultiply_alpha: expr, $ts: expr, $bias_y: expr, $bias_uv: expr, $cn: expr, $packed: expr) => {
+        use crate::numerics::*;
         if $premultiply_alpha {
             for (src, dst) in $src
                 .chunks_exact(4)
@@ -104,8 +105,9 @@ macro_rules! cnv_exec {
     };
 }
 
-type RowExecutor = unsafe fn(&[u8], &mut [u8], bool, CbCrInverseTransform<i16>, i16, i16);
+type RowExecutor = unsafe fn(&[u8], &mut [u8], bool, CbCrInverseTransform<i16>, i16, i16, usize);
 
+#[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
 fn default_executor<const DST: u8, const PACKED: u8, const PRECISION: i32>(
     src: &[u8],
     dst: &mut [u8],
@@ -113,10 +115,51 @@ fn default_executor<const DST: u8, const PACKED: u8, const PRECISION: i32>(
     ts: CbCrInverseTransform<i16>,
     bias_y: i16,
     bias_uv: i16,
+    _: usize,
 ) {
     let cn: YuvSourceChannels = DST.into();
     let packed: YuvPacked444Format = PACKED.into();
     cnv_exec!(src, dst, premultiply_alpha, ts, bias_y, bias_uv, cn, packed);
+}
+
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+fn default_executor_neon<const DST: u8, const PACKED: u8, const PRECISION: i32>(
+    src: &[u8],
+    dst: &mut [u8],
+    premultiply_alpha: bool,
+    ts: CbCrInverseTransform<i16>,
+    bias_y: i16,
+    bias_uv: i16,
+    width: usize,
+) {
+    use crate::neon::neon_ayuv_to_rgba;
+    unsafe {
+        neon_ayuv_to_rgba::<DST, PACKED>(src, dst, &ts, bias_y, bias_uv, width, premultiply_alpha);
+    }
+}
+
+#[cfg(all(target_arch = "aarch64", target_feature = "neon", feature = "rdm"))]
+fn default_executor_neon_rdm<const DST: u8, const PACKED: u8, const PRECISION: i32>(
+    src: &[u8],
+    dst: &mut [u8],
+    premultiply_alpha: bool,
+    ts: CbCrInverseTransform<i16>,
+    bias_y: i16,
+    bias_uv: i16,
+    width: usize,
+) {
+    use crate::neon::neon_ayuv_to_rgba_rdm;
+    unsafe {
+        neon_ayuv_to_rgba_rdm::<DST, PACKED>(
+            src,
+            dst,
+            &ts,
+            bias_y,
+            bias_uv,
+            width,
+            premultiply_alpha,
+        );
+    }
 }
 
 #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
@@ -128,6 +171,7 @@ unsafe fn default_executor_avx2<const DST: u8, const PACKED: u8, const PRECISION
     ts: CbCrInverseTransform<i16>,
     bias_y: i16,
     bias_uv: i16,
+    _: usize,
 ) {
     let cn: YuvSourceChannels = DST.into();
     let packed: YuvPacked444Format = PACKED.into();
@@ -143,6 +187,7 @@ unsafe fn default_executor_sse<const DST: u8, const PACKED: u8, const PRECISION:
     ts: CbCrInverseTransform<i16>,
     bias_y: i16,
     bias_uv: i16,
+    _: usize,
 ) {
     let cn: YuvSourceChannels = DST.into();
     let packed: YuvPacked444Format = PACKED.into();
@@ -161,6 +206,17 @@ fn make_executor<const DST: u8, const PACKED: u8, const PRECISION: i32>() -> Row
             return default_executor_sse::<DST, PACKED, PRECISION>;
         }
     }
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        #[cfg(feature = "rdm")]
+        {
+            if std::arch::is_aarch64_feature_detected!("rdm") {
+                return default_executor_neon_rdm::<DST, PACKED, PRECISION>;
+            }
+        }
+        return default_executor_neon::<DST, PACKED, PRECISION>;
+    }
+    #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
     default_executor::<DST, PACKED, PRECISION>
 }
 
@@ -215,7 +271,15 @@ fn ayuv_to_rgb_launch<const DST: u8, const PACKED: u8>(
         let src = &src[0..image.width as usize * 4];
         let dst = &mut dst[0..image.width as usize * cn.get_channels_count()];
         unsafe {
-            _executor(src, dst, premultiply_alpha, ts, bias_y, bias_uv);
+            _executor(
+                src,
+                dst,
+                premultiply_alpha,
+                ts,
+                bias_y,
+                bias_uv,
+                image.width as usize,
+            );
         }
     });
 

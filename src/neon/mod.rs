@@ -28,6 +28,7 @@
  */
 #![deny(unreachable_code, unreachable_pub)]
 mod ar30_utils;
+mod ayuv_to_rgba;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
 #[cfg(feature = "nightly_f16")]
@@ -100,6 +101,8 @@ mod yuva_p16_to_rgba_f16;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+pub(crate) use ayuv_to_rgba::neon_ayuv_to_rgba;
+pub(crate) use ayuv_to_rgba::neon_ayuv_to_rgba_rdm;
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{
     SurfaceF16ToUnsigned16Neon, SurfaceF16ToUnsigned16NeonFallback, SurfaceF16ToUnsigned8Neon,
