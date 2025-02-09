@@ -52,7 +52,9 @@ professional_mode = []
 rayon = ["dep:rayon"]
 # Support for Big-Endian YUV
 big_endian = []
+# Enables Mirroring and Rotating methods
 geometry = ["dep:fast_transpose"]
+# Enables RemoteFX Conversion
 rdp = []
 
 [profile.dev.package]

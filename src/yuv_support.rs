@@ -77,6 +77,7 @@ impl CbCrInverseTransform<f32> {
 }
 
 impl<V> CbCrInverseTransform<V> {
+    #[inline]
     pub(crate) fn cast<T: Copy + 'static>(&self) -> CbCrInverseTransform<T>
     where
         V: AsPrimitive<T>,
@@ -576,6 +577,52 @@ impl Yuy2Description {
             Yuy2Description::UYVY => 3,
             Yuy2Description::YVYU => 2,
             Yuy2Description::VYUY => 3,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) enum YuvPacked444Format {
+    Ayuv = 0,
+    Vuya = 1,
+}
+
+impl From<u8> for YuvPacked444Format {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => YuvPacked444Format::Ayuv,
+            1 => YuvPacked444Format::Vuya,
+            _ => unimplemented!("{} is not implemented on PackedYuv444", value),
+        }
+    }
+}
+
+impl YuvPacked444Format {
+    pub(crate) const fn get_a_ps(&self) -> usize {
+        match self {
+            YuvPacked444Format::Ayuv => 0,
+            YuvPacked444Format::Vuya => 3,
+        }
+    }
+
+    pub(crate) const fn get_u_ps(&self) -> usize {
+        match self {
+            YuvPacked444Format::Ayuv => 2,
+            YuvPacked444Format::Vuya => 1,
+        }
+    }
+
+    pub(crate) const fn get_v_ps(&self) -> usize {
+        match self {
+            YuvPacked444Format::Ayuv => 3,
+            YuvPacked444Format::Vuya => 0,
+        }
+    }
+
+    pub(crate) const fn get_y_ps(&self) -> usize {
+        match self {
+            YuvPacked444Format::Ayuv => 1,
+            YuvPacked444Format::Vuya => 2,
         }
     }
 }

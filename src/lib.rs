@@ -66,6 +66,7 @@ mod avx2;
     feature = "nightly_avx512"
 ))]
 mod avx512bw;
+mod ayuv_to_rgb;
 mod built_coefficients;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
@@ -534,3 +535,5 @@ pub use yuv_p16_rgba_f16::{
     i214_to_rgb_f16, i214_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16, i412_to_rgb_f16,
     i412_to_rgba_f16, i414_to_rgb_f16, i414_to_rgba_f16,
 };
+
+pub use ayuv_to_rgb::{ayuv_to_rgb, ayuv_to_rgba, vyua_to_rgb, vyua_to_rgba};

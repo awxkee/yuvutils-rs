@@ -132,7 +132,7 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
             }
             use crate::neon::neon_yuv_to_rgba_row;
             RowHandler {
-                handler: Some(neon_yuv_to_rgba_row::<PRECISION, DESTINATION_CHANNELS, SAMPLING>),
+                handler: Some(neon_yuv_to_rgba_row::<DESTINATION_CHANNELS, SAMPLING>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -269,7 +269,7 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> D
             }
             use crate::neon::neon_yuv_to_rgba_row420;
             RowHandler420 {
-                handler: Some(neon_yuv_to_rgba_row420::<PRECISION, DESTINATION_CHANNELS>),
+                handler: Some(neon_yuv_to_rgba_row420::<DESTINATION_CHANNELS>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -1272,21 +1272,24 @@ mod tests {
 
                 assert!(
                     diff_r <= max_diff,
-                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}",
+                    "Matrix {}, diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    diff_r,
                     yuv_accuracy,
                     [or, og, ob],
                     [r, g, b]
                 );
                 assert!(
                     diff_g <= max_diff,
-                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}",
+                    "Matrix {}, diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    diff_g,
                     yuv_accuracy,
                     [or, og, ob],
                     [r, g, b]
                 );
                 assert!(
                     diff_b <= max_diff,
-                    "Matrix {} Original RGB {:?}, Round-tripped RGB {:?}",
+                    "Matrix {}, diff {}, Original RGB {:?}, Round-tripped RGB {:?}",
+                    diff_b,
                     yuv_accuracy,
                     [or, og, ob],
                     [r, g, b]

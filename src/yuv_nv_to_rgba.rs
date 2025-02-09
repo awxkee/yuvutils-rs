@@ -127,12 +127,7 @@ impl<
 
             NVRowHandler {
                 handler: Some(
-                    neon_yuv_nv_to_rgba_row::<
-                        PRECISION,
-                        UV_ORDER,
-                        DESTINATION_CHANNELS,
-                        YUV_CHROMA_SAMPLING,
-                    >,
+                    neon_yuv_nv_to_rgba_row::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING>,
                 ),
             }
         }
@@ -539,9 +534,7 @@ impl<
 
             use crate::neon::neon_yuv_nv_to_rgba_row420;
             NVRow420Handler {
-                handler: Some(
-                    neon_yuv_nv_to_rgba_row420::<PRECISION, UV_ORDER, DESTINATION_CHANNELS>,
-                ),
+                handler: Some(neon_yuv_nv_to_rgba_row420::<UV_ORDER, DESTINATION_CHANNELS>),
             }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
