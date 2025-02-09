@@ -28,13 +28,16 @@
  */
 use crate::yuv_support::*;
 use crate::{YuvError, YuvGrayAlphaImage};
+use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use std::ops::Sub;
 
 // Chroma subsampling always assumed as 400
 fn yuv400_p16_with_alpha_to_rgbx<
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
     const DESTINATION_CHANNELS: u8,
     const ENDIANNESS: u8,
     const BYTES_POSITION: u8,
@@ -45,7 +48,11 @@ fn yuv400_p16_with_alpha_to_rgbx<
     bit_depth: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
-) -> Result<(), YuvError> {
+) -> Result<(), YuvError>
+where
+    u32: AsPrimitive<J>,
+    u16: AsPrimitive<J>,
+{
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let max_colors = (1 << bit_depth) - 1;
 
@@ -71,7 +78,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
         search_inverse_transform(PRECISION, bit_depth, range, matrix, chroma_range, kr_kb);
     let y_coef = inverse_transform.y_coef;
 
-    let bias_y = chroma_range.bias_y as i32;
+    let bias_y = chroma_range.bias_y.as_();
 
     let iter;
     let y_iter;
@@ -100,7 +107,8 @@ fn yuv400_p16_with_alpha_to_rgbx<
                         .zip(a_plane16)
                         .zip(rgba16.chunks_exact_mut(channels))
                     {
-                        let r = (((y_src as i32 - bias_y) * y_coef + ROUNDING_CONST) >> PRECISION)
+                        let r = (((y_src.as_() - bias_y).as_() * y_coef + ROUNDING_CONST)
+                            >> PRECISION)
                             .min(max_colors)
                             .max(0);
                         rgba[destination_channels.get_r_channel_offset()] = r as u16;
@@ -133,7 +141,7 @@ fn yuv400_p16_with_alpha_to_rgbx<
 }
 
 macro_rules! d_cnv {
-    ($method: ident, $px_fmt: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr) => {
+    ($method: ident, $px_fmt: expr, $yuv_name: expr, $rgb_name: expr, $bit_depth: expr, $intd: ident) => {
         #[doc = concat!("Convert ", $yuv_name," format to ", $rgb_name, " ", stringify!($bit_depth),"-bit format.
 
 This function takes ", $yuv_name," format data with ", $rgb_name, " ", stringify!($bit_depth),"-bit precision,
@@ -159,6 +167,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             matrix: YuvStandardMatrix,
         ) -> Result<(), YuvError> {
             yuv400_p16_with_alpha_to_rgbx::<
+                $intd,
                 { $px_fmt as u8 },
                 { YuvEndianness::LittleEndian as u8 },
                 { YuvBytesPacking::LeastSignificantBytes as u8 },
@@ -172,26 +181,30 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     "Y010A",
     "RGBA",
-    10
+    10,
+    i16
 );
 d_cnv!(
     y012_alpha_to_rgba12,
     YuvSourceChannels::Rgba,
     "Y012A",
     "RGBA",
-    12
+    12,
+    i16
 );
 d_cnv!(
     y014_alpha_to_rgba14,
     YuvSourceChannels::Rgba,
     "Y014A",
     "RGBA",
-    14
+    14,
+    i16
 );
 d_cnv!(
     y016_alpha_to_rgba16,
     YuvSourceChannels::Rgba,
     "Y016A",
     "RGBA",
-    16
+    16,
+    i32
 );

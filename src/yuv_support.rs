@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::built_coefficients::{get_built_forward_transform, get_built_inverse_transform};
+use num_traits::AsPrimitive;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Copy, Clone)]
@@ -71,6 +72,21 @@ impl CbCrInverseTransform<f32> {
             cb_coef,
             g_coeff_1: g_coef_1,
             g_coeff_2: g_coef_2,
+        }
+    }
+}
+
+impl<V> CbCrInverseTransform<V> {
+    pub(crate) fn cast<T: Copy + 'static>(&self) -> CbCrInverseTransform<T>
+    where
+        V: AsPrimitive<T>,
+    {
+        CbCrInverseTransform {
+            y_coef: self.y_coef.as_(),
+            cb_coef: self.cb_coef.as_(),
+            cr_coef: self.cr_coef.as_(),
+            g_coeff_1: self.g_coeff_1.as_(),
+            g_coeff_2: self.g_coeff_2.as_(),
         }
     }
 }
@@ -148,6 +164,25 @@ impl ToIntegerTransform for CbCrForwardTransform<f32> {
             cr_r: (self.cr_r * scale).round() as i32,
             cr_g: (self.cr_g * scale).round() as i32,
             cr_b: (self.cr_b * scale).round() as i32,
+        }
+    }
+}
+
+impl<V> CbCrForwardTransform<V> {
+    pub(crate) fn cast<T: Copy + 'static>(&self) -> CbCrForwardTransform<T>
+    where
+        V: AsPrimitive<T>,
+    {
+        CbCrForwardTransform {
+            yr: self.yr.as_(),
+            yg: self.yg.as_(),
+            yb: self.yb.as_(),
+            cb_r: self.cb_r.as_(),
+            cb_g: self.cb_g.as_(),
+            cb_b: self.cb_b.as_(),
+            cr_r: self.cr_r.as_(),
+            cr_g: self.cr_g.as_(),
+            cr_b: self.cr_b.as_(),
         }
     }
 }

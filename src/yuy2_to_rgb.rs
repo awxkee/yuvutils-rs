@@ -67,13 +67,14 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
     let transform = get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb);
     const PRECISION: i32 = 6;
     let inverse_transform = transform.to_integers(PRECISION as u32);
-    let cr_coef = inverse_transform.cr_coef;
-    let cb_coef = inverse_transform.cb_coef;
-    let y_coef = inverse_transform.y_coef;
-    let g_coef_1 = inverse_transform.g_coeff_1;
-    let g_coef_2 = inverse_transform.g_coeff_2;
-    let bias_y = range.bias_y as i32;
-    let bias_uv = range.bias_uv as i32;
+    let i16_transform = inverse_transform.cast::<i16>();
+    let cr_coef = i16_transform.cr_coef;
+    let cb_coef = i16_transform.cb_coef;
+    let y_coef = i16_transform.y_coef;
+    let g_coef_1 = i16_transform.g_coeff_1;
+    let g_coef_2 = i16_transform.g_coeff_2;
+    let bias_y = range.bias_y as i16;
+    let bias_uv = range.bias_uv as i16;
 
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
     let _use_sse = std::arch::is_x86_feature_detected!("sse4.1");
@@ -166,14 +167,16 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
             let u_value = yuy2[yuy2_source.get_u_position()];
             let v_value = yuy2[yuy2_source.get_v_position()];
 
-            let cb = u_value as i32 - bias_uv;
-            let cr = v_value as i32 - bias_uv;
-            let f_y = (first_y as i32 - bias_y) * y_coef;
-            let s_y = (second_y as i32 - bias_y) * y_coef;
+            let cb = u_value as i16 - bias_uv;
+            let cr = v_value as i16 - bias_uv;
+            let f_y = (first_y as i16 - bias_y) as i32 * y_coef as i32;
+            let s_y = (second_y as i16 - bias_y) as i32 * y_coef as i32;
 
-            let r0 = qrshr::<PRECISION, 8>(f_y + cr_coef * cr);
-            let b0 = qrshr::<PRECISION, 8>(f_y + cb_coef * cb);
-            let g0 = qrshr::<PRECISION, 8>(f_y - g_coef_1 * cr - g_coef_2 * cb);
+            let r0 = qrshr::<PRECISION, 8>(f_y + cr_coef as i32 * cr as i32);
+            let b0 = qrshr::<PRECISION, 8>(f_y + cb_coef as i32 * cb as i32);
+            let g0 = qrshr::<PRECISION, 8>(
+                f_y - g_coef_1 as i32 * cr as i32 - g_coef_2 as i32 * cb as i32,
+            );
 
             rgb[dst_chans.get_r_channel_offset()] = r0 as u8;
             rgb[dst_chans.get_g_channel_offset()] = g0 as u8;
@@ -183,9 +186,11 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
                 rgb[dst_chans.get_a_channel_offset()] = 255;
             }
 
-            let r1 = qrshr::<PRECISION, 8>(s_y + cr_coef * cr);
-            let b1 = qrshr::<PRECISION, 8>(s_y + cb_coef * cb);
-            let g1 = qrshr::<PRECISION, 8>(s_y - g_coef_1 * cr - g_coef_2 * cb);
+            let r1 = qrshr::<PRECISION, 8>(s_y + cr_coef as i32 * cr as i32);
+            let b1 = qrshr::<PRECISION, 8>(s_y + cb_coef as i32 * cb as i32);
+            let g1 = qrshr::<PRECISION, 8>(
+                s_y - g_coef_1 as i32 * cr as i32 - g_coef_2 as i32 * cb as i32,
+            );
 
             let rgb = &mut rgb[channels..channels * 2];
 
@@ -207,13 +212,15 @@ fn yuy2_to_rgb_impl<const DESTINATION_CHANNELS: u8, const YUY2_SOURCE: usize>(
             let u_value = yuy2[yuy2_source.get_u_position()];
             let v_value = yuy2[yuy2_source.get_v_position()];
 
-            let cb = u_value as i32 - bias_uv;
-            let cr = v_value as i32 - bias_uv;
-            let f_y = (first_y as i32 - bias_y) * y_coef;
+            let cb = u_value as i16 - bias_uv;
+            let cr = v_value as i16 - bias_uv;
+            let f_y = (first_y as i16 - bias_y) as i32 * y_coef as i32;
 
-            let r0 = qrshr::<PRECISION, 8>(f_y + cr_coef * cr);
-            let b0 = qrshr::<PRECISION, 8>(f_y + cb_coef * cb);
-            let g0 = qrshr::<PRECISION, 8>(f_y - g_coef_1 * cr - g_coef_2 * cb);
+            let r0 = qrshr::<PRECISION, 8>(f_y + cr_coef as i32 * cr as i32);
+            let b0 = qrshr::<PRECISION, 8>(f_y + cb_coef as i32 * cb as i32);
+            let g0 = qrshr::<PRECISION, 8>(
+                f_y - g_coef_1 as i32 * cr as i32 - g_coef_2 as i32 * cb as i32,
+            );
             rgb[dst_chans.get_r_channel_offset()] = r0 as u8;
             rgb[dst_chans.get_g_channel_offset()] = g0 as u8;
             rgb[dst_chans.get_b_channel_offset()] = b0 as u8;

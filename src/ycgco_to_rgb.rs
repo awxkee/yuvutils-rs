@@ -37,6 +37,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
+use std::ops::Sub;
 
 trait CgCoWideRowInversionHandler<V> {
     fn handle_row(
@@ -276,7 +277,8 @@ impl YCgCoConverterFactory<u16> for u16 {
 }
 
 fn ycgco_ro_rgbx<
-    V: AsPrimitive<i32> + 'static + Default + Debug + Sync + Send + YCgCoConverterFactory<V>,
+    V: AsPrimitive<J> + 'static + Default + Debug + Sync + Send + YCgCoConverterFactory<V>,
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
     const BIT_DEPTH: usize,
@@ -288,6 +290,7 @@ fn ycgco_ro_rgbx<
 ) -> Result<(), YuvError>
 where
     i32: AsPrimitive<V>,
+    u32: AsPrimitive<J>,
 {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -297,8 +300,8 @@ where
     image.check_constraints(chroma_subsampling)?;
 
     let chroma_range = get_yuv_range(BIT_DEPTH as u32, range);
-    let bias_y = chroma_range.bias_y as i32;
-    let bias_uv = chroma_range.bias_uv as i32;
+    let bias_y: J = chroma_range.bias_y.as_();
+    let bias_uv: J = chroma_range.bias_uv.as_();
 
     const PRECISION: i32 = 13;
 
@@ -306,9 +309,9 @@ where
     let precision_scale = (1 << PRECISION) as f32;
 
     let range_reduction_y =
-        (max_colors as f32 / chroma_range.range_y as f32 * precision_scale).round() as i32;
+        (max_colors as f32 / chroma_range.range_y as f32 * precision_scale).round() as i16;
     let range_reduction_uv =
-        (max_colors as f32 / chroma_range.range_uv as f32 * precision_scale).round() as i32;
+        (max_colors as f32 / chroma_range.range_uv as f32 * precision_scale).round() as i16;
 
     let converter = V::make_converter::<DESTINATION_CHANNELS, SAMPLING>(range, BIT_DEPTH);
     let converter420 = V::make_converter420::<DESTINATION_CHANNELS, SAMPLING>(range, BIT_DEPTH);
@@ -325,9 +328,9 @@ where
                     .zip(v_plane.iter())
                     .skip(processed_offset.cx)
                 {
-                    let y_value0 = (y_src[0].as_() - bias_y) * range_reduction_y;
-                    let cb_value = (u_src.as_() - bias_uv) * range_reduction_uv;
-                    let cr_value = (v_src.as_() - bias_uv) * range_reduction_uv;
+                    let y_value0 = (y_src[0].as_() - bias_y).as_() * range_reduction_y as i32;
+                    let cb_value = (u_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
+                    let cr_value = (v_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
 
                     let t0 = y_value0 - cb_value;
 
@@ -344,7 +347,7 @@ where
                         rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
                     }
 
-                    let y_value1 = (y_src[1].as_() - bias_y) * range_reduction_y;
+                    let y_value1 = (y_src[1].as_() - bias_y).as_() * range_reduction_y as i32;
 
                     let t1 = y_value1 - cb_value;
 
@@ -363,9 +366,12 @@ where
                 }
 
                 if image.width & 1 != 0 {
-                    let y_value0 = (y_plane.last().unwrap().as_() - bias_y) * range_reduction_y;
-                    let cb_value = (u_plane.last().unwrap().as_() - bias_uv) * range_reduction_uv;
-                    let cr_value = (v_plane.last().unwrap().as_() - bias_uv) * range_reduction_uv;
+                    let y_value0 =
+                        (y_plane.last().unwrap().as_() - bias_y).as_() * range_reduction_y as i32;
+                    let cb_value =
+                        (u_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
+                    let cr_value =
+                        (v_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
                     let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
                     let rgba0 = &mut rgba[0..channels];
 
@@ -411,9 +417,14 @@ where
                 .zip(u_plane.iter())
                 .zip(v_plane.iter())
             {
-                let y_value0 = (y_src0[0].as_() - bias_y) * range_reduction_y;
-                let cb_value = (u_src.as_() - bias_uv) * range_reduction_uv;
-                let cr_value = (v_src.as_() - bias_uv) * range_reduction_uv;
+                let y_value0 = (y_src0[0].as_() - bias_y).as_() * range_reduction_y as i32;
+                let y_value1 = (y_src0[1].as_() - bias_y).as_() * range_reduction_y as i32;
+
+                let cb_value = (u_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
+                let cr_value = (v_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
+
+                let y_value10 = (y_src1[0].as_() - bias_y).as_() * range_reduction_y as i32;
+                let y_value11 = (y_src1[1].as_() - bias_y).as_() * range_reduction_y as i32;
 
                 let t0 = y_value0 - cb_value;
 
@@ -430,8 +441,6 @@ where
                     rgba00[dst_chans.get_a_channel_offset()] = max_colors.as_();
                 }
 
-                let y_value1 = (y_src0[1].as_() - bias_y) * range_reduction_y;
-
                 let t1 = y_value1 - cb_value;
 
                 let r1 = qrshr::<PRECISION, BIT_DEPTH>(t1 + cr_value);
@@ -447,8 +456,6 @@ where
                     rgba01[dst_chans.get_a_channel_offset()] = max_colors.as_();
                 }
 
-                let y_value10 = (y_src1[0].as_() - bias_y) * range_reduction_y;
-
                 let t10 = y_value10 - cb_value;
 
                 let r10 = qrshr::<PRECISION, BIT_DEPTH>(t10 + cr_value);
@@ -463,8 +470,6 @@ where
                 if dst_chans.has_alpha() {
                     rgba10[dst_chans.get_a_channel_offset()] = max_colors.as_();
                 }
-
-                let y_value11 = (y_src1[1].as_() - bias_y) * range_reduction_y;
 
                 let t11 = y_value11 - cb_value;
 
@@ -483,10 +488,14 @@ where
             }
 
             if image.width & 1 != 0 {
-                let y_value0 = (y_plane0.last().unwrap().as_() - bias_y) * range_reduction_y;
-                let y_value1 = (y_plane1.last().unwrap().as_() - bias_y) * range_reduction_y;
-                let cb_value = (u_plane.last().unwrap().as_() - bias_uv) * range_reduction_uv;
-                let cr_value = (v_plane.last().unwrap().as_() - bias_uv) * range_reduction_uv;
+                let y_value0 =
+                    (y_plane0.last().unwrap().as_() - bias_y).as_() * range_reduction_y as i32;
+                let y_value1 =
+                    (y_plane1.last().unwrap().as_() - bias_y).as_() * range_reduction_y as i32;
+                let cb_value =
+                    (u_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
+                let cr_value =
+                    (v_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
                 let rgba = rgba0.chunks_exact_mut(channels).last().unwrap();
                 let rgba0 = &mut rgba[0..channels];
 
@@ -550,9 +559,9 @@ where
                     .zip(u_plane.iter())
                     .zip(v_plane.iter())
                 {
-                    let y_value = (y_src.as_() - bias_y) * range_reduction_y;
-                    let cb_value = (u_src.as_() - bias_uv) * range_reduction_uv;
-                    let cr_value = (v_src.as_() - bias_uv) * range_reduction_uv;
+                    let y_value = (y_src.as_() - bias_y).as_() * range_reduction_y as i32;
+                    let cb_value = (u_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
+                    let cr_value = (v_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
 
                     let t0 = y_value - cb_value;
 
@@ -658,7 +667,7 @@ where
 }
 
 macro_rules! d_cnv {
-    ($method: ident, $clazz: ident, $bp: expr, $cn: expr, $subsampling: expr, $rgb_name: expr, $yuv_name: expr) => {
+    ($method: ident, $clazz: ident, $bp: expr, $cn: expr, $subsampling: expr, $rgb_name: expr, $yuv_name: expr, $intermediate: ident) => {
         #[doc = concat!("Convert ", $yuv_name," planar format to  ", $rgb_name, stringify!($bp)," format.
 
 This function takes ", $yuv_name," planar format data with ", stringify!($bp),"-bit precision,
@@ -681,7 +690,7 @@ on the specified width, height, and strides, or if invalid YUV range or matrix i
             dst_stride: u32,
             range: YuvRange,
         ) -> Result<(), YuvError> {
-            ycgco_ro_rgbx::<$clazz, { $cn as u8 }, { $subsampling as u8 }, $bp>(
+            ycgco_ro_rgbx::<$clazz, $intermediate, { $cn as u8 }, { $subsampling as u8 }, $bp>(
                 image,
                 dst,
                 dst_stride,
@@ -698,7 +707,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "RGB",
-    "YCgCo 420"
+    "YCgCo 420",
+    i16
 );
 d_cnv!(
     ycgco420_to_bgr,
@@ -707,7 +717,8 @@ d_cnv!(
     YuvSourceChannels::Bgr,
     YuvChromaSubsampling::Yuv420,
     "BGR",
-    "YCgCo 420"
+    "YCgCo 420",
+    i16
 );
 d_cnv!(
     ycgco420_to_rgba,
@@ -716,7 +727,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     "RGBA",
-    "YCgCo 420"
+    "YCgCo 420",
+    i16
 );
 d_cnv!(
     ycgco420_to_bgra,
@@ -725,7 +737,8 @@ d_cnv!(
     YuvSourceChannels::Bgra,
     YuvChromaSubsampling::Yuv420,
     "BGRA",
-    "YCgCo 420"
+    "YCgCo 420",
+    i16
 );
 
 d_cnv!(
@@ -735,7 +748,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "RGB",
-    "YCgCo 422"
+    "YCgCo 422",
+    i16
 );
 d_cnv!(
     ycgco422_to_bgr,
@@ -744,7 +758,8 @@ d_cnv!(
     YuvSourceChannels::Bgr,
     YuvChromaSubsampling::Yuv422,
     "BGR",
-    "YCgCo 422"
+    "YCgCo 422",
+    i16
 );
 d_cnv!(
     ycgco422_to_rgba,
@@ -753,7 +768,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     "RGBA",
-    "YCgCo 422"
+    "YCgCo 422",
+    i16
 );
 d_cnv!(
     ycgco422_to_bgra,
@@ -762,7 +778,8 @@ d_cnv!(
     YuvSourceChannels::Bgra,
     YuvChromaSubsampling::Yuv422,
     "BGRA",
-    "YCgCo 422"
+    "YCgCo 422",
+    i16
 );
 
 d_cnv!(
@@ -772,7 +789,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "RGB",
-    "YCgCo 444"
+    "YCgCo 444",
+    i16
 );
 d_cnv!(
     ycgco444_to_bgr,
@@ -781,7 +799,8 @@ d_cnv!(
     YuvSourceChannels::Bgr,
     YuvChromaSubsampling::Yuv444,
     "BGR",
-    "YCgCo 444"
+    "YCgCo 444",
+    i16
 );
 d_cnv!(
     ycgco444_to_rgba,
@@ -790,7 +809,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     "RGBA",
-    "YCgCo 444"
+    "YCgCo 444",
+    i16
 );
 d_cnv!(
     ycgco444_to_bgra,
@@ -799,7 +819,8 @@ d_cnv!(
     YuvSourceChannels::Bgra,
     YuvChromaSubsampling::Yuv444,
     "BGRA",
-    "YCgCo 444"
+    "YCgCo 444",
+    i16
 );
 
 d_cnv!(
@@ -809,7 +830,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "RGB",
-    "YCgCo 4:2:0 10-bit"
+    "YCgCo 4:2:0 10-bit",
+    i16
 );
 d_cnv!(
     icgc010_to_rgba10,
@@ -818,7 +840,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     "RGBA",
-    "YCgCo 4:2:0 10-bit"
+    "YCgCo 4:2:0 10-bit",
+    i16
 );
 d_cnv!(
     icgc210_to_rgb10,
@@ -827,7 +850,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "RGB",
-    "YCgCo 4:2:2 10-bit"
+    "YCgCo 4:2:2 10-bit",
+    i16
 );
 d_cnv!(
     icgc210_to_rgba10,
@@ -836,7 +860,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     "RGBA",
-    "YCgCo 4:2:2 10-bit"
+    "YCgCo 4:2:2 10-bit",
+    i16
 );
 d_cnv!(
     icgc410_to_rgb10,
@@ -845,7 +870,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "RGB",
-    "YCgCo 4:4:4 10-bit"
+    "YCgCo 4:4:4 10-bit",
+    i16
 );
 d_cnv!(
     icgc410_to_rgba10,
@@ -854,7 +880,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     "RGBA",
-    "YCgCo 4:4:4 10-bit"
+    "YCgCo 4:4:4 10-bit",
+    i16
 );
 
 // 12-bit
@@ -866,7 +893,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv420,
     "RGB",
-    "YCgCo 4:2:0 12-bit"
+    "YCgCo 4:2:0 12-bit",
+    i16
 );
 d_cnv!(
     icgc012_to_rgba12,
@@ -875,7 +903,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv420,
     "RGBA",
-    "YCgCo 4:2:0 12-bit"
+    "YCgCo 4:2:0 12-bit",
+    i16
 );
 d_cnv!(
     icgc212_to_rgb12,
@@ -884,7 +913,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv422,
     "RGB",
-    "YCgCo 4:2:2 12-bit"
+    "YCgCo 4:2:2 12-bit",
+    i16
 );
 d_cnv!(
     icgc212_to_rgba12,
@@ -893,7 +923,8 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv422,
     "RGBA",
-    "YCgCo 4:2:2 12-bit"
+    "YCgCo 4:2:2 12-bit",
+    i16
 );
 d_cnv!(
     icgc412_to_rgb12,
@@ -902,7 +933,8 @@ d_cnv!(
     YuvSourceChannels::Rgb,
     YuvChromaSubsampling::Yuv444,
     "RGB",
-    "YCgCo 4:4:4 12-bit"
+    "YCgCo 4:4:4 12-bit",
+    i16
 );
 d_cnv!(
     icgc412_to_rgba12,
@@ -911,5 +943,6 @@ d_cnv!(
     YuvSourceChannels::Rgba,
     YuvChromaSubsampling::Yuv444,
     "RGBA",
-    "YCgCo 4:4:4 12-bit"
+    "YCgCo 4:4:4 12-bit",
+    i16
 );

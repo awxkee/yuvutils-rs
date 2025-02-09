@@ -48,8 +48,8 @@ fn rgbx_to_gbr_impl<
 where
     i32: AsPrimitive<V>,
 {
-    let destination_channels: YuvSourceChannels = CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
+    let cn: YuvSourceChannels = CHANNELS.into();
+    let channels = cn.get_channels_count();
     assert!(
         channels == 3 || channels == 4,
         "GBR -> RGB is implemented only on 3 and 4 channels"
@@ -89,7 +89,7 @@ where
             let range = get_yuv_range(BIT_DEPTH as u32, yuv_range);
             let range_rgba = (1 << BIT_DEPTH) - 1;
             let y_coef =
-                ((range.range_y as f32 / range_rgba as f32) * (1 << PRECISION) as f32) as i32;
+                ((range.range_y as f32 / range_rgba as f32) * (1 << PRECISION) as f32) as i16;
             let y_bias = range.bias_y as i32 * (1 << PRECISION);
 
             for (((y_dst, u_dst), v_dst), rgba) in y_iter.zip(u_iter).zip(v_iter).zip(rgba_iter) {
@@ -102,18 +102,15 @@ where
                     .zip(rgb_chunks)
                 {
                     *v_dst = qrshr::<PRECISION, BIT_DEPTH>(
-                        rgb_dst[destination_channels.get_r_channel_offset()].as_() * y_coef
-                            + y_bias,
+                        rgb_dst[cn.get_r_channel_offset()].as_() * y_coef as i32 + y_bias,
                     )
                     .as_();
                     *y_dst = qrshr::<PRECISION, BIT_DEPTH>(
-                        rgb_dst[destination_channels.get_g_channel_offset()].as_() * y_coef
-                            + y_bias,
+                        rgb_dst[cn.get_g_channel_offset()].as_() * y_coef as i32 + y_bias,
                     )
                     .as_();
                     *u_dst = qrshr::<PRECISION, BIT_DEPTH>(
-                        rgb_dst[destination_channels.get_b_channel_offset()].as_() * y_coef
-                            + y_bias,
+                        rgb_dst[cn.get_b_channel_offset()].as_() * y_coef as i32 + y_bias,
                     )
                     .as_();
                 }
@@ -129,9 +126,9 @@ where
                     .zip(v_dst.iter_mut())
                     .zip(rgb_chunks)
                 {
-                    *v_dst = rgb_dst[destination_channels.get_r_channel_offset()];
-                    *y_dst = rgb_dst[destination_channels.get_g_channel_offset()];
-                    *u_dst = rgb_dst[destination_channels.get_b_channel_offset()];
+                    *v_dst = rgb_dst[cn.get_r_channel_offset()];
+                    *y_dst = rgb_dst[cn.get_g_channel_offset()];
+                    *u_dst = rgb_dst[cn.get_b_channel_offset()];
                 }
             }
         }
@@ -244,7 +241,7 @@ pub fn rgba_to_gbr(
     rgbx_to_gbr_impl::<u8, { YuvSourceChannels::Rgba as u8 }, 8>(image, rgba, rgba_stride, range)
 }
 
-/// Convert RGB to GBR12
+/// Convert RGB12 to GBR12
 ///
 /// This function takes RGB image format data with 12-bit precision,
 /// and converts it to GBR YUV format with 12-bit per channel precision.
@@ -270,9 +267,9 @@ pub fn rgb12_to_gb12(
     rgbx_to_gbr_impl::<u16, { YuvSourceChannels::Rgb as u8 }, 12>(image, rgb12, rgb12_stride, range)
 }
 
-/// Convert RGB to GB10
+/// Convert RGB10 to GB10
 ///
-/// This function takes RGB image format data with 10-bit precision,
+/// This function takes RGB10 image format data with 10-bit precision,
 /// and converts it to GBR YUV format with 10-bit per channel precision.
 ///
 /// # Arguments
@@ -296,9 +293,9 @@ pub fn rgb10_to_gb10(
     rgbx_to_gbr_impl::<u16, { YuvSourceChannels::Rgb as u8 }, 10>(image, rgb10, rgb10_stride, range)
 }
 
-/// Convert RGBA to GBR10
+/// Convert RGBA10 to GBR10
 ///
-/// This function takes RGBA image format data with 10-bit precision,
+/// This function takes RGBA10 image format data with 10-bit precision,
 /// and converts it to GBR YUV format with 10-bit per channel precision.
 ///
 /// # Arguments
@@ -327,9 +324,9 @@ pub fn rgba10_to_gb10(
     )
 }
 
-/// Convert RGBA to GBR12
+/// Convert RGBA12 to GBR12
 ///
-/// This function takes RGBA image format data with 12-bit precision,
+/// This function takes RGBA12 image format data with 12-bit precision,
 /// and converts it to GBR YUV format with 12-bit per channel precision.
 ///
 /// # Arguments
@@ -344,7 +341,7 @@ pub fn rgba10_to_gb10(
 /// This function panics if the lengths of the planes or the input RGB data are not valid based
 /// on the specified width, height, and strides is provided.
 ///
-pub fn rgba10_to_gb12(
+pub fn rgba12_to_gb12(
     image: &mut YuvPlanarImageMut<u16>,
     rgba12: &[u16],
     rgba12_stride: u32,

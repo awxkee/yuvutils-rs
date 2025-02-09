@@ -147,7 +147,7 @@ impl ProcessRowHandler<u8> for WideRowProcessor<u8> {
 // Chroma subsampling always assumed as 400
 #[inline]
 fn y_with_alpha_to_rgbx<
-    V: Copy + AsPrimitive<i32> + 'static + Send + Sync + Debug + Default + Clone,
+    V: Copy + AsPrimitive<i16> + 'static + Send + Sync + Debug + Default + Clone,
     const DESTINATION_CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(
@@ -184,8 +184,8 @@ where
     const PRECISION: i32 = 13;
     let inverse_transform =
         search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
-    let y_coef = inverse_transform.y_coef;
-    let bias_y = chroma_range.bias_y as i32;
+    let y_coef = inverse_transform.y_coef as i16;
+    let bias_y = chroma_range.bias_y as i16;
 
     let iter;
     let y_iter;
@@ -228,7 +228,7 @@ where
                     .zip(rgba.chunks_exact_mut(channels))
                     .skip(_cx)
                 {
-                    let y_value = (y_src.as_() - bias_y) * y_coef;
+                    let y_value = (y_src.as_() - bias_y) as i32 * y_coef as i32;
 
                     let r = qrshr::<PRECISION, BIT_DEPTH>(y_value);
                     rgba[destination_channels.get_r_channel_offset()] = r.as_();

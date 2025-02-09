@@ -39,6 +39,7 @@ use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::size_of;
+use std::ops::Sub;
 
 type TypicalHandlerLimited = fn(
     g_plane: &[u8],
@@ -277,7 +278,8 @@ impl<const DEST: u8, const BIT_DEPTH: usize, const PRECISION: i32> LimitedRangeW
 
 #[inline]
 fn gbr_to_rgbx_impl<
-    V: Copy + AsPrimitive<i32> + 'static + Sized + Debug + Send + Sync,
+    V: Copy + AsPrimitive<J> + 'static + Sized + Debug + Send + Sync,
+    J: Copy + Sub<Output = J> + AsPrimitive<i32> + Sync + Send,
     const CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(
@@ -288,6 +290,7 @@ fn gbr_to_rgbx_impl<
 ) -> Result<(), YuvError>
 where
     i32: AsPrimitive<V>,
+    u32: AsPrimitive<J>,
     WideRowGbrProcessor<V, CHANNELS, BIT_DEPTH>: FullRangeWideRow<V>,
     WideRowGbrLimitedProcessor<V, CHANNELS, BIT_DEPTH, 13>: LimitedRangeWideRow<V>,
 {
@@ -348,9 +351,10 @@ where
             // All channels on identity should use Y range
             let range = get_yuv_range(BIT_DEPTH as u32, yuv_range);
             let range_rgba = (1 << BIT_DEPTH) - 1;
-            let y_coef =
-                ((range_rgba as f32 / range.range_y as f32) * (1 << PRECISION) as f32) as i32;
-            let y_bias = range.bias_y as i32;
+            let y_coef = ((range_rgba as f32 / range.range_y as f32) * (1 << PRECISION) as f32)
+                .round() as i32;
+            let y_bias: J = range.bias_y.as_();
+            let jy_bias = range.bias_y as i32;
 
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter);
 
@@ -366,7 +370,7 @@ where
                     rgb,
                     0,
                     image.width as usize,
-                    y_bias,
+                    jy_bias,
                     y_coef,
                 );
 
@@ -376,11 +380,11 @@ where
                     y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
                 {
                     rgb_dst[destination_channels.get_r_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias) * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias).as_() * y_coef).as_();
                     rgb_dst[destination_channels.get_g_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias) * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias).as_() * y_coef).as_();
                     rgb_dst[destination_channels.get_b_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias) * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias).as_() * y_coef).as_();
                     if channels == 4 {
                         rgb_dst[destination_channels.get_a_channel_offset()] = max_value.as_();
                     }
@@ -416,14 +420,14 @@ where
 
 /// Convert YUV Identity Matrix ( aka 'GBR ) to RGB
 ///
-/// This function takes GBR interleaved format data with 8-bit precision,
+/// This function takes GBR planar format data with 8-bit precision,
 /// and converts it to RGB format with 8-bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgb` - A slice to store the RGB plane data.
-/// * `rgb_stride` - The stride (components per row) for the RGB plane.
+/// * `rgb` - A slice to store the RGB data.
+/// * `rgb_stride` - The stride (components per row) for the RGB.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -437,19 +441,19 @@ pub fn gbr_to_rgb(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u8, { YuvSourceChannels::Rgb as u8 }, 8>(image, rgb, rgb_stride, range)
+    gbr_to_rgbx_impl::<u8, i16, { YuvSourceChannels::Rgb as u8 }, 8>(image, rgb, rgb_stride, range)
 }
 
 /// Convert YUV Identity Matrix ( aka 'GBR ) to BGR
 ///
-/// This function takes GBR interleaved format data with 8-bit precision,
+/// This function takes GBR planar format data with 8-bit precision,
 /// and converts it to BGR format with 8-bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `bgr` - A slice to store the BGR plane data.
-/// * `bgr_stride` - The stride (components per row) for the BGR plane.
+/// * `bgr` - A slice to store the BGR data.
+/// * `bgr_stride` - The stride (components per row) for the BGR.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -463,19 +467,19 @@ pub fn gbr_to_bgr(
     bgr_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u8, { YuvSourceChannels::Bgr as u8 }, 8>(image, bgr, bgr_stride, range)
+    gbr_to_rgbx_impl::<u8, i16, { YuvSourceChannels::Bgr as u8 }, 8>(image, bgr, bgr_stride, range)
 }
 
 /// Convert YUV Identity Matrix ( aka 'GBR ) to RGBA
 ///
-/// This function takes GBR interleaved format data with 8-bit precision,
+/// This function takes GBR planar format data with 8-bit precision,
 /// and converts it to RGBA format with 8-bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgba` - A slice to store the RGBA plane data.
-/// * `rgba_stride` - The stride (components per row) for the RGBA plane.
+/// * `rgba` - A slice to store the RGBA data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -489,19 +493,19 @@ pub fn gbr_to_rgba(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u8, { YuvSourceChannels::Rgba as u8 }, 8>(image, rgb, rgb_stride, range)
+    gbr_to_rgbx_impl::<u8, i16, { YuvSourceChannels::Rgba as u8 }, 8>(image, rgb, rgb_stride, range)
 }
 
 /// Convert YUV Identity Matrix ( aka 'GBR ) to BGRA
 ///
-/// This function takes GBR interleaved format data with 8-bit precision,
+/// This function takes GBR planar format data with 8-bit precision,
 /// and converts it to BGRA format with 8-bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgba` - A slice to store the BGRA plane data.
-/// * `rgba_stride` - The stride (components per row) for the BGRA plane.
+/// * `rgba` - A slice to store the BGRA data.
+/// * `rgba_stride` - The stride (components per row) for the BGRA.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -515,19 +519,19 @@ pub fn gbr_to_bgra(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u8, { YuvSourceChannels::Bgra as u8 }, 8>(image, rgb, rgb_stride, range)
+    gbr_to_rgbx_impl::<u8, i16, { YuvSourceChannels::Bgra as u8 }, 8>(image, rgb, rgb_stride, range)
 }
 
 /// Convert GBR 12 bit-depth to RGB
 ///
-/// This function takes GBR interleaved format data with 12 bit precision,
+/// This function takes GBR planar format data with 12 bit precision,
 /// and converts it to RGB format with 12 bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgb` - A slice to store the RGB plane data.
-/// * `rgb_stride` - The stride (components per row) for the RGB plane.
+/// * `rgb` - A slice to store the RGB data.
+/// * `rgb_stride` - The stride (components per row) for the RGB.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -541,19 +545,21 @@ pub fn gb12_to_rgb12(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgb as u8 }, 12>(image, rgb, rgb_stride, range)
+    gbr_to_rgbx_impl::<u16, i16, { YuvSourceChannels::Rgb as u8 }, 12>(
+        image, rgb, rgb_stride, range,
+    )
 }
 
 /// Convert YUV Identity Matrix ( aka 'GBR ) to RGB
 ///
-/// This function takes GBR interleaved format data with 8+ bit precision,
+/// This function takes GBR planar format data with 8+ bit precision,
 /// and converts it to RGB format with 8+ bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgb` - A slice to store the RGB plane data.
-/// * `rgb_stride` - The stride (components per row) for the RGB plane.
+/// * `rgb` - A slice to store the RGB data.
+/// * `rgb_stride` - The stride (components per row) for the RGB.
 /// * `bit_depth` - YUV and RGB bit depth, only 10 and 12 is supported.
 /// * `range` - Yuv values range.
 ///
@@ -568,19 +574,21 @@ pub fn gb10_to_rgb10(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgb as u8 }, 10>(image, rgb, rgb_stride, range)
+    gbr_to_rgbx_impl::<u16, i16, { YuvSourceChannels::Rgb as u8 }, 10>(
+        image, rgb, rgb_stride, range,
+    )
 }
 
 /// Convert GBR10 to RGBA10
 ///
-/// This function takes GBR interleaved format data with 10 bit precision,
+/// This function takes GBR planar format data with 10 bit precision,
 /// and converts it to RGBA format with 10 bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgba` - A slice to store the RGBA plane data.
-/// * `rgba_stride` - The stride (components per row) for the RGBA plane.
+/// * `rgba` - A slice to store the RGBA data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -594,19 +602,24 @@ pub fn gb10_to_rgba10(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 10>(image, rgba, rgba_stride, range)
+    gbr_to_rgbx_impl::<u16, i16, { YuvSourceChannels::Rgba as u8 }, 10>(
+        image,
+        rgba,
+        rgba_stride,
+        range,
+    )
 }
 
 /// Convert GBR12 to RGBA12
 ///
-/// This function takes GBR interleaved format data with 12 bit precision,
+/// This function takes GBR planar format data with 12 bit precision,
 /// and converts it to RGBA format with 12 bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgba` - A slice to store the RGBA plane data.
-/// * `rgba_stride` - The stride (components per row) for the RGBA plane.
+/// * `rgba` - A slice to store the RGBA data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -620,19 +633,24 @@ pub fn gb12_to_rgba12(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 12>(image, rgba, rgba_stride, range)
+    gbr_to_rgbx_impl::<u16, i16, { YuvSourceChannels::Rgba as u8 }, 12>(
+        image,
+        rgba,
+        rgba_stride,
+        range,
+    )
 }
 
 /// Convert GBR 14 bit-depth to RGB14
 ///
-/// This function takes GBR interleaved format data with 14 bit precision,
+/// This function takes GBR planar format data with 14 bit precision,
 /// and converts it to RGB format with 14 bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgb` - A slice to store the RGB plane data.
-/// * `rgb_stride` - The stride (components per row) for the RGB plane.
+/// * `rgb` - A slice to store the RGB data.
+/// * `rgb_stride` - The stride (components per row) for the RGB.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -646,19 +664,21 @@ pub fn gb14_to_rgb14(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgb as u8 }, 14>(image, rgb, rgb_stride, range)
+    gbr_to_rgbx_impl::<u16, i16, { YuvSourceChannels::Rgb as u8 }, 14>(
+        image, rgb, rgb_stride, range,
+    )
 }
 
 /// Convert GBR14 to RGBA14
 ///
-/// This function takes GBR interleaved format data with 14 bit precision,
+/// This function takes GBR planar format data with 14 bit precision,
 /// and converts it to RGBA format with 14 bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgba` - A slice to store the RGBA plane data.
-/// * `rgba_stride` - The stride (components per row) for the RGBA plane.
+/// * `rgba` - A slice to store the RGBA data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -672,19 +692,24 @@ pub fn gb14_to_rgba14(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 14>(image, rgba, rgba_stride, range)
+    gbr_to_rgbx_impl::<u16, i16, { YuvSourceChannels::Rgba as u8 }, 14>(
+        image,
+        rgba,
+        rgba_stride,
+        range,
+    )
 }
 
 /// Convert GBR16 bit-depth to RGB16
 ///
-/// This function takes GBR interleaved format data with 16 bit precision,
+/// This function takes GBR planar format data with 16 bit precision,
 /// and converts it to RGB format with 16 bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgb` - A slice to store the RGB plane data.
-/// * `rgb_stride` - The stride (components per row) for the RGB plane.
+/// * `rgb` - A slice to store the RGB data.
+/// * `rgb_stride` - The stride (components per row) for the RGB.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -698,19 +723,21 @@ pub fn gb16_to_rgb16(
     rgb_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgb as u8 }, 16>(image, rgb, rgb_stride, range)
+    gbr_to_rgbx_impl::<u16, i32, { YuvSourceChannels::Rgb as u8 }, 16>(
+        image, rgb, rgb_stride, range,
+    )
 }
 
 /// Convert GBR16 to RGBA16
 ///
-/// This function takes GBR interleaved format data with 16 bit precision,
+/// This function takes GBR planar format data with 16 bit precision,
 /// and converts it to RGBA format with 16 bit per channel precision.
 ///
 /// # Arguments
 ///
 /// * `image` - Source GBR image.
-/// * `rgba` - A slice to store the RGBA plane data.
-/// * `rgba_stride` - The stride (components per row) for the RGBA plane.
+/// * `rgba` - A slice to store the RGBA data.
+/// * `rgba_stride` - The stride (components per row) for the RGBA.
 /// * `range` - Yuv values range.
 ///
 /// # Panics
@@ -724,5 +751,10 @@ pub fn gb16_to_rgba16(
     rgba_stride: u32,
     range: YuvRange,
 ) -> Result<(), YuvError> {
-    gbr_to_rgbx_impl::<u16, { YuvSourceChannels::Rgba as u8 }, 16>(image, rgba, rgba_stride, range)
+    gbr_to_rgbx_impl::<u16, i32, { YuvSourceChannels::Rgba as u8 }, 16>(
+        image,
+        rgba,
+        rgba_stride,
+        range,
+    )
 }

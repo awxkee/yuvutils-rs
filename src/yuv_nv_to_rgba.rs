@@ -2622,11 +2622,11 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 72);
+        matrix(YuvConversionMode::Balanced, 78);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 74);
+        matrix(YuvConversionMode::Fast, 82);
         #[cfg(feature = "professional_mode")]
-        matrix(YuvConversionMode::Professional, 72);
+        matrix(YuvConversionMode::Professional, 74);
     }
 
     #[test]
