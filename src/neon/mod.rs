@@ -102,6 +102,7 @@ mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
 pub(crate) use ayuv_to_rgba::neon_ayuv_to_rgba;
+#[cfg(feature = "rdm")]
 pub(crate) use ayuv_to_rgba::neon_ayuv_to_rgba_rdm;
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{
