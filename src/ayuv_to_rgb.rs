@@ -214,7 +214,7 @@ fn make_executor<const DST: u8, const PACKED: u8, const PRECISION: i32>() -> Row
                 return default_executor_neon_rdm::<DST, PACKED, PRECISION>;
             }
         }
-        return default_executor_neon::<DST, PACKED, PRECISION>;
+        default_executor_neon::<DST, PACKED, PRECISION>
     }
     #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
     default_executor::<DST, PACKED, PRECISION>
