@@ -73,7 +73,11 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         let r_high = vqshrn_n_u32::<PRECISION>(y_high);
         let r_low = vqshrn_n_u32::<PRECISION>(y_low);
 
-        let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_max_values);
+        let r_values = if BIT_DEPTH != 16 {
+            vminq_u16(vcombine_u16(r_low, r_high), v_max_values)
+        } else {
+            vcombine_u16(r_low, r_high)
+        };
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
             dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
@@ -112,7 +116,11 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         let r_high = vqshrn_n_u32::<PRECISION>(y_high);
         let r_low = vqshrn_n_u32::<PRECISION>(y_low);
 
-        let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_max_values);
+        let r_values = if BIT_DEPTH != 16 {
+            vminq_u16(vcombine_u16(r_low, r_high), v_max_values)
+        } else {
+            vcombine_u16(r_low, r_high)
+        };
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
             dst_buffer.as_mut_ptr(),

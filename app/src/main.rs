@@ -151,13 +151,15 @@ fn main() {
         height: dimensions.1 as u32,
     };
 
+    rgba.fill(0);
+
     vyua_to_rgba(
         &packed_ayuv,
         &mut rgba,
         dimensions.0 as u32 * 4,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
-        false,
+        true,
     )
     .unwrap();
     // let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];

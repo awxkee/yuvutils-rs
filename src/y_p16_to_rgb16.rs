@@ -37,6 +37,86 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::ops::Sub;
 
+#[inline(always)]
+fn default_full_converter<const CN: u8, const BIT_DEPTH: usize>(
+    rgba16: &mut [u16],
+    y_plane: &[u16],
+) {
+    let cn: YuvSourceChannels = CN.into();
+
+    let max_colors = (1 << BIT_DEPTH) - 1;
+    for (dst, &y_src) in rgba16
+        .chunks_exact_mut(cn.get_channels_count())
+        .zip(y_plane)
+    {
+        let r = y_src;
+
+        dst[cn.get_r_channel_offset()] = r;
+        dst[cn.get_g_channel_offset()] = r;
+        dst[cn.get_b_channel_offset()] = r;
+        if cn.has_alpha() {
+            dst[cn.get_a_channel_offset()] = max_colors as u16;
+        }
+    }
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
+#[target_feature(enable = "sse4.1")]
+unsafe fn default_full_converter_sse4_1<const CN: u8, const BIT_DEPTH: usize>(
+    rgba16: &mut [u16],
+    y_plane: &[u16],
+) {
+    default_full_converter::<CN, BIT_DEPTH>(rgba16, y_plane);
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
+#[target_feature(enable = "avx2")]
+unsafe fn default_full_converter_avx2<const CN: u8, const BIT_DEPTH: usize>(
+    rgba16: &mut [u16],
+    y_plane: &[u16],
+) {
+    default_full_converter::<CN, BIT_DEPTH>(rgba16, y_plane);
+}
+
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
+#[target_feature(enable = "avx512bw")]
+unsafe fn default_full_converter_avx512<const CN: u8, const BIT_DEPTH: usize>(
+    rgba16: &mut [u16],
+    y_plane: &[u16],
+) {
+    default_full_converter::<CN, BIT_DEPTH>(rgba16, y_plane);
+}
+
+type FullRowHandle = unsafe fn(&mut [u16], &[u16]);
+
+fn make_full_converter<const CN: u8, const BIT_DEPTH: usize>() -> FullRowHandle {
+    #[cfg(all(
+        any(target_arch = "x86", target_arch = "x86_64"),
+        feature = "nightly_avx512"
+    ))]
+    {
+        if std::arch::is_x86_feature_detected!("avx512bw") {
+            return default_full_converter_avx512::<CN, BIT_DEPTH>;
+        }
+    }
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx2") {
+            return default_full_converter_avx2::<CN, BIT_DEPTH>;
+        }
+    }
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
+    {
+        if std::arch::is_x86_feature_detected!("sse4.1") {
+            return default_full_converter_sse4_1::<CN, BIT_DEPTH>;
+        }
+    }
+    default_full_converter::<CN, BIT_DEPTH>
+}
+
 // Chroma subsampling always assumed as 400
 fn yuv400_p16_to_rgbx_impl<
     J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
@@ -56,11 +136,11 @@ where
     u32: AsPrimitive<J>,
     u16: AsPrimitive<J>,
 {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let cn: YuvSourceChannels = DESTINATION_CHANNELS.into();
 
     let max_colors = (1 << bit_depth) - 1;
 
-    let channels = destination_channels.get_channels_count();
+    let channels = cn.get_channels_count();
     let chroma_range = get_yuv_range(bit_depth, range);
     let kr_kb = matrix.get_kr_kb();
 
@@ -123,27 +203,21 @@ where
                         .min(max_colors)
                         .max(0);
 
-                    dst[destination_channels.get_r_channel_offset()] = r as u16;
-                    dst[destination_channels.get_g_channel_offset()] = r as u16;
-                    dst[destination_channels.get_b_channel_offset()] = r as u16;
-                    if destination_channels.has_alpha() {
-                        dst[destination_channels.get_a_channel_offset()] = max_colors as u16;
+                    dst[cn.get_r_channel_offset()] = r as u16;
+                    dst[cn.get_g_channel_offset()] = r as u16;
+                    dst[cn.get_b_channel_offset()] = r as u16;
+                    if cn.has_alpha() {
+                        dst[cn.get_a_channel_offset()] = max_colors as u16;
                     }
                 }
             });
         }
         YuvRange::Full => {
+            let mut _executor = make_full_converter::<DESTINATION_CHANNELS, BIT_DEPTH>();
             iter.for_each(|(rgba16, y_plane)| {
                 let y_plane = &y_plane[0..image.width as usize];
-                for (dst, &y_src) in rgba16.chunks_exact_mut(channels).zip(y_plane) {
-                    let r = y_src;
-
-                    dst[destination_channels.get_r_channel_offset()] = r;
-                    dst[destination_channels.get_g_channel_offset()] = r;
-                    dst[destination_channels.get_b_channel_offset()] = r;
-                    if destination_channels.has_alpha() {
-                        dst[destination_channels.get_a_channel_offset()] = max_colors as u16;
-                    }
+                unsafe {
+                    _executor(rgba16, y_plane);
                 }
             });
         }

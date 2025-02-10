@@ -294,8 +294,8 @@ where
     WideRowGbrProcessor<V, CHANNELS, BIT_DEPTH>: FullRangeWideRow<V>,
     WideRowGbrLimitedProcessor<V, CHANNELS, BIT_DEPTH, 13>: LimitedRangeWideRow<V>,
 {
-    let destination_channels: YuvSourceChannels = CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
+    let cn: YuvSourceChannels = CHANNELS.into();
+    let channels = cn.get_channels_count();
     assert!(
         channels == 3 || channels == 4,
         "GBR -> RGB is implemented only on 3 and 4 channels"
@@ -379,14 +379,14 @@ where
                 for (((&y_src, &u_src), &v_src), rgb_dst) in
                     y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
                 {
-                    rgb_dst[destination_channels.get_r_channel_offset()] =
+                    rgb_dst[cn.get_r_channel_offset()] =
                         qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias).as_() * y_coef).as_();
-                    rgb_dst[destination_channels.get_g_channel_offset()] =
+                    rgb_dst[cn.get_g_channel_offset()] =
                         qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias).as_() * y_coef).as_();
-                    rgb_dst[destination_channels.get_b_channel_offset()] =
+                    rgb_dst[cn.get_b_channel_offset()] =
                         qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias).as_() * y_coef).as_();
                     if channels == 4 {
-                        rgb_dst[destination_channels.get_a_channel_offset()] = max_value.as_();
+                        rgb_dst[cn.get_a_channel_offset()] = max_value.as_();
                     }
                 }
             });
@@ -404,11 +404,11 @@ where
                 for (((&y_src, &u_src), &v_src), rgb_dst) in
                     y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
                 {
-                    rgb_dst[destination_channels.get_r_channel_offset()] = v_src;
-                    rgb_dst[destination_channels.get_g_channel_offset()] = y_src;
-                    rgb_dst[destination_channels.get_b_channel_offset()] = u_src;
+                    rgb_dst[cn.get_r_channel_offset()] = v_src;
+                    rgb_dst[cn.get_g_channel_offset()] = y_src;
+                    rgb_dst[cn.get_b_channel_offset()] = u_src;
                     if channels == 4 {
-                        rgb_dst[destination_channels.get_a_channel_offset()] = max_value.as_();
+                        rgb_dst[cn.get_a_channel_offset()] = max_value.as_();
                     }
                 }
             });

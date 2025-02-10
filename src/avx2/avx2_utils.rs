@@ -360,14 +360,14 @@ pub(crate) unsafe fn avx_pairwise_avg_epi16_epi8_j(a: __m256i, f: i8) -> __m256i
 pub(crate) unsafe fn avx2_div_by255_x2(l: __m256i, v: __m256i) -> (__m256i, __m256i) {
     let addition = _mm256_set1_epi16(127);
 
-    let j0 = _mm256_srli_epi16::<8>(l);
-    let j1 = _mm256_srli_epi16::<8>(v);
-
     let k0 = _mm256_add_epi16(l, addition);
     let k1 = _mm256_add_epi16(v, addition);
 
-    let kv0 = _mm256_add_epi16(k0, j0);
-    let kv1 = _mm256_add_epi16(k1, j1);
+    let j0 = _mm256_srli_epi16::<8>(k0);
+    let j1 = _mm256_srli_epi16::<8>(k1);
+
+    let kv0 = _mm256_add_epi16(l, j0);
+    let kv1 = _mm256_add_epi16(v, j1);
 
     (_mm256_srli_epi16::<8>(kv0), _mm256_srli_epi16::<8>(kv1))
 }

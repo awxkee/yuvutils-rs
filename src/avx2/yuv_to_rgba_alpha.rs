@@ -167,9 +167,18 @@ unsafe fn avx2_yuv_to_rgba_alpha_impl<const DESTINATION_CHANNELS: u8, const SAMP
         let b_low = _mm256_add_epi16(y_low, blc);
         let g_low = _mm256_sub_epi16(y_low, _mm256_add_epi16(glc0, glc1));
 
-        let (r_values, g_values, b_values);
+        let mut r_values = _mm256_packus_epi16(r_low, r_high);
+        let mut g_values = _mm256_packus_epi16(g_low, g_high);
+        let mut b_values = _mm256_packus_epi16(b_low, b_high);
 
         if use_premultiply {
+            let r_low = _mm256_unpacklo_epi8(r_values, _mm256_setzero_si256());
+            let r_high = _mm256_unpackhi_epi8(r_values, _mm256_setzero_si256());
+            let g_low = _mm256_unpacklo_epi8(g_values, _mm256_setzero_si256());
+            let g_high = _mm256_unpackhi_epi8(g_values, _mm256_setzero_si256());
+            let b_low = _mm256_unpacklo_epi8(b_values, _mm256_setzero_si256());
+            let b_high = _mm256_unpackhi_epi8(b_values, _mm256_setzero_si256());
+
             let a_high = _mm256_unpackhi_epi8(a_values, _mm256_setzero_si256());
             let a_low = _mm256_unpacklo_epi8(a_values, _mm256_setzero_si256());
 
@@ -307,9 +316,9 @@ unsafe fn avx2_yuv_to_rgba_alpha_impl<const DESTINATION_CHANNELS: u8, const SAMP
         let ghc0 = _mm256_mulhrs_epi16(v_high, v_g_coeff_1);
         let ghc1 = _mm256_mulhrs_epi16(u_high, v_g_coeff_2);
 
-        let r_high = _mm256_add_epi16(y_high, rhc);
-        let b_high = _mm256_add_epi16(y_high, bhc);
-        let g_high = _mm256_sub_epi16(y_high, _mm256_add_epi16(ghc0, ghc1));
+        let mut r_high = _mm256_add_epi16(y_high, rhc);
+        let mut b_high = _mm256_add_epi16(y_high, bhc);
+        let mut g_high = _mm256_sub_epi16(y_high, _mm256_add_epi16(ghc0, ghc1));
 
         let u_low = _mm256_sub_epi16(u_low_u16, uv_corr);
         let v_low = _mm256_sub_epi16(v_low_u16, uv_corr);
@@ -320,13 +329,21 @@ unsafe fn avx2_yuv_to_rgba_alpha_impl<const DESTINATION_CHANNELS: u8, const SAMP
         let glc0 = _mm256_mulhrs_epi16(v_low, v_g_coeff_1);
         let glc1 = _mm256_mulhrs_epi16(u_low, v_g_coeff_2);
 
-        let r_low = _mm256_add_epi16(y_low, rlc);
-        let b_low = _mm256_add_epi16(y_low, blc);
-        let g_low = _mm256_sub_epi16(y_low, _mm256_add_epi16(glc0, glc1));
+        let mut r_low = _mm256_add_epi16(y_low, rlc);
+        let mut b_low = _mm256_add_epi16(y_low, blc);
+        let mut g_low = _mm256_sub_epi16(y_low, _mm256_add_epi16(glc0, glc1));
 
         let (r_values, g_values, b_values);
 
         if use_premultiply {
+            r_high = _mm256_max_epi16(r_high, _mm256_setzero_si256());
+            b_high = _mm256_max_epi16(b_high, _mm256_setzero_si256());
+            g_high = _mm256_max_epi16(g_high, _mm256_setzero_si256());
+
+            r_low = _mm256_max_epi16(r_low, _mm256_setzero_si256());
+            b_low = _mm256_max_epi16(b_low, _mm256_setzero_si256());
+            g_low = _mm256_max_epi16(g_low, _mm256_setzero_si256());
+
             let a_high = _mm256_unpackhi_epi8(a_values, _mm256_setzero_si256());
             let a_low = _mm256_unpacklo_epi8(a_values, _mm256_setzero_si256());
 
