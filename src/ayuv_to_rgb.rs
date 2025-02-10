@@ -37,7 +37,7 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
-#[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+#[allow(unused, dead_code)]
 macro_rules! cnv_exec {
     ($src: expr, $dst: expr, $premultiply_alpha: expr, $ts: expr, $bias_y: expr, $bias_uv: expr, $cn: expr, $packed: expr) => {
         use crate::numerics::*;
@@ -171,11 +171,10 @@ unsafe fn default_executor_avx2<const DST: u8, const PACKED: u8, const PRECISION
     ts: CbCrInverseTransform<i16>,
     bias_y: i16,
     bias_uv: i16,
-    _: usize,
+    width: usize,
 ) {
-    let cn: YuvSourceChannels = DST.into();
-    let packed: YuvPacked444Format = PACKED.into();
-    cnv_exec!(src, dst, premultiply_alpha, ts, bias_y, bias_uv, cn, packed);
+    use crate::avx2::avx2_ayuv_to_rgba;
+    avx2_ayuv_to_rgba::<DST, PACKED>(src, dst, &ts, bias_y, bias_uv, width, premultiply_alpha);
 }
 
 #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]

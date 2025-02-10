@@ -28,6 +28,7 @@
  */
 #![deny(unreachable_code, unreachable_pub)]
 mod avx2_utils;
+mod ayuv_to_rgba;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
 mod gbr_to_rgb;
@@ -89,6 +90,7 @@ mod yuva_p16_to_rgb_f16;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+pub(crate) use ayuv_to_rgba::avx2_ayuv_to_rgba;
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{SurfaceU16ToFloat16Avx2, SurfaceU8ToFloat16Avx2};
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
