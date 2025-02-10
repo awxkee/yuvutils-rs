@@ -40,7 +40,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     neon_y_to_rgb_row_impl::<DESTINATION_CHANNELS, true>(
         range, transform, y_plane, rgba, start_cx, width,
     )
@@ -53,7 +53,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     neon_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
         range, transform, y_plane, rgba, start_cx, width,
     )
@@ -67,7 +67,7 @@ unsafe fn neon_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const R: bool>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -213,9 +213,5 @@ unsafe fn neon_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const R: bool>(
             rgba_ptr.add(dst_shift),
             diff * channels,
         );
-
-        cx += diff;
     }
-
-    cx
 }

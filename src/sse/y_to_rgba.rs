@@ -44,7 +44,7 @@ pub(crate) fn sse_y_to_rgba_row<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     unsafe {
         sse_y_to_rgba_row_impl::<DESTINATION_CHANNELS>(
             range, transform, y_plane, rgba, start_cx, width,
@@ -60,7 +60,7 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -157,9 +157,5 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
             rgba_ptr.add(dst_shift),
             diff * channels,
         );
-
-        cx += diff;
     }
-
-    cx
 }

@@ -39,7 +39,7 @@ pub(crate) unsafe fn wasm_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -115,9 +115,5 @@ pub(crate) unsafe fn wasm_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
             rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );
-
-        cx += diff;
     }
-
-    cx
 }
