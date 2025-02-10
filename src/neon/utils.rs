@@ -61,34 +61,34 @@ pub(crate) unsafe fn vqddotl_overflow_laneq_s16<
     vcombine_s16(vshrn_n_s32::<PRECISION>(lo), vshrn_n_s32::<PRECISION>(hi))
 }
 
-#[inline(always)]
-pub(crate) unsafe fn vdotl_laneq_s16<const PRECISION: i32, const LANE: i32>(
-    acc: (int32x4_t, int32x4_t),
-    v0: int16x8_t,
-    c0: int16x8_t,
-) -> int16x8_t {
-    let hi = vmlal_high_laneq_s16::<LANE>(acc.1, v0, c0);
-    let lo = vmlal_laneq_s16::<LANE>(acc.0, vget_low_s16(v0), c0);
-    vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
-}
+// #[inline(always)]
+// pub(crate) unsafe fn vdotl_laneq_s16<const PRECISION: i32, const LANE: i32>(
+//     acc: (int32x4_t, int32x4_t),
+//     v0: int16x8_t,
+//     c0: int16x8_t,
+// ) -> int16x8_t {
+//     let hi = vmlal_high_laneq_s16::<LANE>(acc.1, v0, c0);
+//     let lo = vmlal_laneq_s16::<LANE>(acc.0, vget_low_s16(v0), c0);
+//     vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
+// }
 
-#[inline(always)]
-pub(crate) unsafe fn vdotl_laneq_s16_x2<
-    const PRECISION: i32,
-    const LANE0: i32,
-    const LANE1: i32,
->(
-    acc: (int32x4_t, int32x4_t),
-    v0: int16x8_t,
-    v1: int16x8_t,
-    c0: int16x8_t,
-) -> int16x8_t {
-    let mut hi = vmlal_high_laneq_s16::<LANE0>(acc.1, v0, c0);
-    let mut lo = vmlal_laneq_s16::<LANE0>(acc.0, vget_low_s16(v0), c0);
-    hi = vmlal_high_laneq_s16::<LANE1>(hi, v1, c0);
-    lo = vmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c0);
-    vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
-}
+// #[inline(always)]
+// pub(crate) unsafe fn vdotl_laneq_s16_x2<
+//     const PRECISION: i32,
+//     const LANE0: i32,
+//     const LANE1: i32,
+// >(
+//     acc: (int32x4_t, int32x4_t),
+//     v0: int16x8_t,
+//     v1: int16x8_t,
+//     c0: int16x8_t,
+// ) -> int16x8_t {
+//     let mut hi = vmlal_high_laneq_s16::<LANE0>(acc.1, v0, c0);
+//     let mut lo = vmlal_laneq_s16::<LANE0>(acc.0, vget_low_s16(v0), c0);
+//     hi = vmlal_high_laneq_s16::<LANE1>(hi, v1, c0);
+//     lo = vmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c0);
+//     vcombine_s16(vrshrn_n_s32::<PRECISION>(lo), vrshrn_n_s32::<PRECISION>(hi))
+// }
 
 #[inline(always)]
 pub(crate) unsafe fn vdotl_laneq_s16_x3<
@@ -157,16 +157,16 @@ pub(crate) unsafe fn vdotl_laneq_u16_x3<
     vcombine_u16(vshrn_n_u32::<PRECISION>(lo), vshrn_n_u32::<PRECISION>(hi))
 }
 
-#[inline(always)]
-pub(crate) unsafe fn vraddn_dot<const PRECISION: i32>(
-    acc: (int32x4_t, int32x4_t),
-    w: (int32x4_t, int32x4_t),
-) -> int16x8_t {
-    vcombine_s16(
-        vrshrn_n_s32::<PRECISION>(vaddq_s32(acc.0, w.0)),
-        vrshrn_n_s32::<PRECISION>(vaddq_s32(acc.1, w.1)),
-    )
-}
+// #[inline(always)]
+// pub(crate) unsafe fn vraddn_dot<const PRECISION: i32>(
+//     acc: (int32x4_t, int32x4_t),
+//     w: (int32x4_t, int32x4_t),
+// ) -> int16x8_t {
+//     vcombine_s16(
+//         vrshrn_n_s32::<PRECISION>(vaddq_s32(acc.0, w.0)),
+//         vrshrn_n_s32::<PRECISION>(vaddq_s32(acc.1, w.1)),
+//     )
+// }
 
 #[inline(always)]
 #[cfg(feature = "professional_mode")]
@@ -180,18 +180,18 @@ pub(crate) unsafe fn vaddn_dot<const PRECISION: i32>(
     )
 }
 
-#[inline(always)]
-pub(crate) unsafe fn vweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
-    v0: int16x8_t,
-    v1: int16x8_t,
-    c1: int16x8_t,
-) -> (int32x4_t, int32x4_t) {
-    let mut lo = vmull_laneq_s16::<LANE0>(vget_low_s16(v0), c1);
-    let mut hi = vmull_high_laneq_s16::<LANE0>(v0, c1);
-    lo = vmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c1);
-    hi = vmlal_high_laneq_s16::<LANE1>(hi, v1, c1);
-    (lo, hi)
-}
+// #[inline(always)]
+// pub(crate) unsafe fn vweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
+//     v0: int16x8_t,
+//     v1: int16x8_t,
+//     c1: int16x8_t,
+// ) -> (int32x4_t, int32x4_t) {
+//     let mut lo = vmull_laneq_s16::<LANE0>(vget_low_s16(v0), c1);
+//     let mut hi = vmull_high_laneq_s16::<LANE0>(v0, c1);
+//     lo = vmlal_laneq_s16::<LANE1>(lo, vget_low_s16(v1), c1);
+//     hi = vmlal_high_laneq_s16::<LANE1>(hi, v1, c1);
+//     (lo, hi)
+// }
 
 #[inline(always)]
 #[cfg(feature = "professional_mode")]
@@ -207,16 +207,16 @@ pub(crate) unsafe fn vqdweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
     (lo, hi)
 }
 
-#[inline(always)]
-pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
-    v: int16x8_t,
-    q: int16x8_t,
-) -> (int32x4_t, int32x4_t) {
-    (
-        vmull_laneq_s16::<LANE>(vget_low_s16(v), q),
-        vmull_high_laneq_s16::<LANE>(v, q),
-    )
-}
+// #[inline(always)]
+// pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
+//     v: int16x8_t,
+//     q: int16x8_t,
+// ) -> (int32x4_t, int32x4_t) {
+//     (
+//         vmull_laneq_s16::<LANE>(vget_low_s16(v), q),
+//         vmull_high_laneq_s16::<LANE>(v, q),
+//     )
+// }
 
 #[inline(always)]
 #[cfg(feature = "professional_mode")]
@@ -238,18 +238,25 @@ pub(crate) unsafe fn vmullnq_s16<const PRECISION: i32>(v: uint16x8_t, q: uint16x
     vcombine_u16(vrshrn_n_u32::<PRECISION>(lo), vrshrn_n_u32::<PRECISION>(hi))
 }
 
-#[inline(always)]
-pub(crate) unsafe fn neon_div_by_255(v: uint16x8_t) -> uint8x8_t {
-    let addition = vdupq_n_u16(127);
-    vqshrn_n_u16::<8>(vrsraq_n_u16::<8>(vaddq_u16(v, addition), v))
-}
+// #[inline(always)]
+// pub(crate) unsafe fn neon_div_by_255(v: uint16x8_t) -> uint8x8_t {
+//     let addition = vdupq_n_u16(127);
+//     vqshrn_n_u16::<8>(vrsraq_n_u16::<8>(vaddq_u16(v, addition), v))
+// }
 
 #[inline(always)]
 pub(crate) unsafe fn neon_premultiply_alpha(v: uint8x16_t, a_values: uint8x16_t) -> uint8x16_t {
     let acc_hi = vmull_high_u8(v, a_values);
     let acc_lo = vmull_u8(vget_low_u8(v), vget_low_u8(a_values));
-    let hi = neon_div_by_255(acc_hi);
-    let lo = neon_div_by_255(acc_lo);
+    let addition = vdupq_n_u16(127);
+    let jh = vaddq_u16(acc_hi, addition);
+    let jl = vaddq_u16(acc_lo, addition);
+
+    let bh = vrsraq_n_u16::<8>(jh, acc_hi);
+    let bl = vrsraq_n_u16::<8>(jl, acc_lo);
+
+    let hi = vqshrn_n_u16::<8>(bh);
+    let lo = vqshrn_n_u16::<8>(bl);
     vcombine_u8(lo, hi)
 }
 
@@ -687,7 +694,6 @@ pub(crate) unsafe fn vpackuq_n_shift16<const BIT_DEPTH: usize>(a: int16x8_t) -> 
 
 /// Expands exactly 8 bit to 10
 #[inline(always)]
-#[cfg(feature = "rdm")]
 pub(crate) unsafe fn vexpand8_to_10(a: uint8x8_t) -> uint16x8_t {
     let k = vcombine_u8(a, a);
     vrshrq_n_u16::<6>(vreinterpretq_u16_u8(vzip1q_u8(k, k)))
@@ -695,7 +701,6 @@ pub(crate) unsafe fn vexpand8_to_10(a: uint8x8_t) -> uint16x8_t {
 
 /// Expands exactly 8 bit to 10
 #[inline(always)]
-#[cfg(feature = "rdm")]
 pub(crate) unsafe fn vexpand_high_8_to_10(a: uint8x16_t) -> uint16x8_t {
     vrshrq_n_u16::<6>(vreinterpretq_u16_u8(vzip2q_u8(a, a)))
 }
@@ -715,5 +720,39 @@ pub(crate) unsafe fn vexpandu_high_bp_by_2<const BIT_DEPTH: usize>(v: uint16x8_t
         vorrq_u16(vshlq_n_u16::<2>(v), vshrq_n_u16::<10>(v))
     } else {
         v
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xqdmlahq_laneq_s16<const LANE: i32, const R: bool>(
+    a: int16x8_t,
+    b: int16x8_t,
+    c: int16x8_t,
+) -> int16x8_t {
+    if R {
+        vqrdmlahq_laneq_s16::<LANE>(a, b, c)
+    } else {
+        vaddq_s16(a, vqdmulhq_laneq_s16::<LANE>(b, c))
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xqdmulhq_laneq_s16<const LANE: i32, const R: bool>(
+    a: int16x8_t,
+    b: int16x8_t,
+) -> int16x8_t {
+    if R {
+        vqrdmulhq_laneq_s16::<LANE>(a, b)
+    } else {
+        vqdmulhq_laneq_s16::<LANE>(a, b)
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xqdmulhq_n_s16<const R: bool>(a: int16x8_t, b: i16) -> int16x8_t {
+    if R {
+        vqrdmulhq_n_s16(a, b)
+    } else {
+        vqdmulhq_n_s16(a, b)
     }
 }

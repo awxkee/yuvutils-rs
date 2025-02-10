@@ -144,7 +144,7 @@ pub(crate) fn check_rgba_destination<V>(
 }
 
 #[inline]
-pub(crate) fn check_yuv_packed<V>(
+pub(crate) fn check_yuv_packed422<V>(
     data: &[V],
     stride: u32,
     width: u32,

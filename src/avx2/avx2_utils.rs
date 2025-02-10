@@ -347,13 +347,29 @@ pub(crate) unsafe fn avx_pairwise_avg_epi16_epi8_j(a: __m256i, f: i8) -> __m256i
     _mm256_maddubs_epi16(a, _mm256_set1_epi8(f))
 }
 
+// #[inline(always)]
+// pub(crate) unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
+//     let addition = _mm256_set1_epi16(127);
+//     _mm256_srli_epi16::<8>(_mm256_add_epi16(
+//         _mm256_add_epi16(v, addition),
+//         _mm256_srli_epi16::<8>(v),
+//     ))
+// }
+
 #[inline(always)]
-pub(crate) unsafe fn avx2_div_by255(v: __m256i) -> __m256i {
+pub(crate) unsafe fn avx2_div_by255_x2(l: __m256i, v: __m256i) -> (__m256i, __m256i) {
     let addition = _mm256_set1_epi16(127);
-    _mm256_srli_epi16::<8>(_mm256_add_epi16(
-        _mm256_add_epi16(v, addition),
-        _mm256_srli_epi16::<8>(v),
-    ))
+
+    let j0 = _mm256_srli_epi16::<8>(l);
+    let j1 = _mm256_srli_epi16::<8>(v);
+
+    let k0 = _mm256_add_epi16(l, addition);
+    let k1 = _mm256_add_epi16(v, addition);
+
+    let kv0 = _mm256_add_epi16(k0, j0);
+    let kv1 = _mm256_add_epi16(k1, j1);
+
+    (_mm256_srli_epi16::<8>(kv0), _mm256_srli_epi16::<8>(kv1))
 }
 
 #[inline(always)]

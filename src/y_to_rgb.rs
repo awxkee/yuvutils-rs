@@ -80,10 +80,10 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
         }
         #[cfg(not(feature = "rdm"))]
         {
-            neon_y_to_rgb_row::<PRECISION, DESTINATION_CHANNELS>
+            neon_y_to_rgb_row::<DESTINATION_CHANNELS>
         }
     } else {
-        neon_y_to_rgb_row::<PRECISION, DESTINATION_CHANNELS>
+        neon_y_to_rgb_row::<DESTINATION_CHANNELS>
     };
 
     let bias_y = chroma_range.bias_y as i16;

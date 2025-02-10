@@ -52,29 +52,26 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     let dst_ptr = rgba;
 
     let y_corr = vdupq_n_u16(range.bias_y as u16);
-    let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
+    let v_luma_coeff = vdupq_n_u16(transform.y_coef as u16);
     let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
     let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
-    let rnd_base = vdupq_n_s32((1 << (PRECISION - 1)) - 1);
+    let rnd_base = vdupq_n_u32((1 << (PRECISION - 1)) - 1);
 
     let mut cx = start_cx;
 
     while cx + 8 < width as usize {
-        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+        let y_values = vqsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
             )),
             y_corr,
-        ));
+        );
 
-        let y_high = vmlal_high_s16(rnd_base, y_values, v_luma_coeff);
-        let y_low = vmlal_s16(rnd_base, vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
+        let y_high = vmlal_high_u16(rnd_base, y_values, v_luma_coeff);
+        let y_low = vmlal_u16(rnd_base, vget_low_u16(y_values), vget_low_u16(v_luma_coeff));
 
-        let rhm = vshrq_n_s32::<PRECISION>(y_high);
-        let rlm = vshrq_n_s32::<PRECISION>(y_low);
-
-        let r_high = vqmovun_s32(rhm);
-        let r_low = vqmovun_s32(rlm);
+        let r_high = vqshrn_n_u32::<PRECISION>(y_high);
+        let r_low = vqshrn_n_u32::<PRECISION>(y_low);
 
         let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_max_values);
 
@@ -102,21 +99,18 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
             diff,
         );
 
-        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+        let y_values = vqsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_buffer.as_ptr(),
             )),
             y_corr,
-        ));
+        );
 
-        let y_high = vmlal_high_s16(rnd_base, y_values, v_luma_coeff);
-        let y_low = vmlal_s16(rnd_base, vget_low_s16(y_values), vget_low_s16(v_luma_coeff));
+        let y_high = vmlal_high_u16(rnd_base, y_values, v_luma_coeff);
+        let y_low = vmlal_u16(rnd_base, vget_low_u16(y_values), vget_low_u16(v_luma_coeff));
 
-        let rhm = vshrq_n_s32::<PRECISION>(y_high);
-        let rlm = vshrq_n_s32::<PRECISION>(y_low);
-
-        let r_high = vqmovun_s32(rhm);
-        let r_low = vqmovun_s32(rlm);
+        let r_high = vqshrn_n_u32::<PRECISION>(y_high);
+        let r_low = vqshrn_n_u32::<PRECISION>(y_low);
 
         let r_values = vminq_u16(vcombine_u16(r_low, r_high), v_max_values);
 

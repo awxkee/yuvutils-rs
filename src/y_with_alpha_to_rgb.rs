@@ -114,10 +114,10 @@ impl ProcessRowHandler<u8> for WideRowProcessor<u8> {
                 }
                 #[cfg(not(feature = "rdm"))]
                 {
-                    neon_y_to_rgb_alpha_row::<PRECISION, DESTINATION_CHANNELS>
+                    neon_y_to_rgb_alpha_row::<DESTINATION_CHANNELS>
                 }
             } else {
-                neon_y_to_rgb_alpha_row::<PRECISION, DESTINATION_CHANNELS>
+                neon_y_to_rgb_alpha_row::<DESTINATION_CHANNELS>
             };
 
             let offset =

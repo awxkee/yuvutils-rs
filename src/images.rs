@@ -27,7 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use crate::yuv_error::{
-    check_chroma_channel, check_interleaved_chroma_channel, check_y8_channel, check_yuv_packed,
+    check_chroma_channel, check_interleaved_chroma_channel, check_rgba_destination,
+    check_y8_channel, check_yuv_packed422,
 };
 use crate::yuv_support::YuvChromaSubsampling;
 use crate::YuvError;
@@ -489,7 +490,12 @@ where
     T: Copy + Debug,
 {
     pub fn check_constraints(&self) -> Result<(), YuvError> {
-        check_yuv_packed(self.yuy, self.yuy_stride, self.width, self.height)?;
+        check_yuv_packed422(self.yuy, self.yuy_stride, self.width, self.height)?;
+        Ok(())
+    }
+
+    pub fn check_constraints444(&self) -> Result<(), YuvError> {
+        check_rgba_destination(self.yuy, self.yuy_stride, self.width, self.height, 4)?;
         Ok(())
     }
 }
@@ -512,7 +518,7 @@ where
     T: Copy + Debug,
 {
     pub fn check_constraints(&self) -> Result<(), YuvError> {
-        check_yuv_packed(self.yuy.borrow(), self.yuy_stride, self.width, self.height)?;
+        check_yuv_packed422(self.yuy.borrow(), self.yuy_stride, self.width, self.height)?;
         Ok(())
     }
 
