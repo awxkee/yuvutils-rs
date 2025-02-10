@@ -78,8 +78,6 @@ unsafe fn neon_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const R: bool>(
 
     let mut cx = start_cx;
 
-    const V_SCALE: i32 = 2;
-
     while cx + 32 < width {
         let y_vals = xvld1q_u8_x2(y_plane.get_unchecked(cx..).as_ptr());
         let y_values0 = vqsubq_u8(y_vals.0, y_corr);
