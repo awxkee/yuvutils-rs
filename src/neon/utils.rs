@@ -207,16 +207,16 @@ pub(crate) unsafe fn vqdweight_laneq_x2<const LANE0: i32, const LANE1: i32>(
     (lo, hi)
 }
 
-#[inline(always)]
-pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
-    v: int16x8_t,
-    q: int16x8_t,
-) -> (int32x4_t, int32x4_t) {
-    (
-        vmull_laneq_s16::<LANE>(vget_low_s16(v), q),
-        vmull_high_laneq_s16::<LANE>(v, q),
-    )
-}
+// #[inline(always)]
+// pub(crate) unsafe fn vmullq_laneq_s16<const LANE: i32>(
+//     v: int16x8_t,
+//     q: int16x8_t,
+// ) -> (int32x4_t, int32x4_t) {
+//     (
+//         vmull_laneq_s16::<LANE>(vget_low_s16(v), q),
+//         vmull_high_laneq_s16::<LANE>(v, q),
+//     )
+// }
 
 #[inline(always)]
 #[cfg(feature = "professional_mode")]
@@ -745,5 +745,14 @@ pub(crate) unsafe fn xqdmulhq_laneq_s16<const LANE: i32, const R: bool>(
         vqrdmulhq_laneq_s16::<LANE>(a, b)
     } else {
         vqdmulhq_laneq_s16::<LANE>(a, b)
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xqdmulhq_n_s16<const R: bool>(a: int16x8_t, b: i16) -> int16x8_t {
+    if R {
+        vqrdmulhq_n_s16(a, b)
+    } else {
+        vqdmulhq_n_s16(a, b)
     }
 }

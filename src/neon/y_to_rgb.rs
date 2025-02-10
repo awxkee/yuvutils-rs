@@ -41,6 +41,33 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
     start_cx: usize,
     width: usize,
 ) -> usize {
+    neon_y_to_rgb_row_impl::<DESTINATION_CHANNELS, true>(
+        range, transform, y_plane, rgba, start_cx, width,
+    )
+}
+
+pub(crate) unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    width: usize,
+) -> usize {
+    neon_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
+        range, transform, y_plane, rgba, start_cx, width,
+    )
+}
+
+#[inline(always)]
+unsafe fn neon_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const R: bool>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    width: usize,
+) -> usize {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -63,10 +90,10 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
         let yh1 = vexpand_high_8_to_10(y_values1);
         let yl1 = vexpand8_to_10(vget_low_u8(y_values1));
 
-        let y_high0 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yh0), transform.y_coef as i16);
-        let y_low0 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yl0), transform.y_coef as i16);
-        let y_high1 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yh1), transform.y_coef as i16);
-        let y_low1 = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yl1), transform.y_coef as i16);
+        let y_high0 = xqdmulhq_n_s16::<R>(vreinterpretq_s16_u16(yh0), transform.y_coef as i16);
+        let y_low0 = xqdmulhq_n_s16::<R>(vreinterpretq_s16_u16(yl0), transform.y_coef as i16);
+        let y_high1 = xqdmulhq_n_s16::<R>(vreinterpretq_s16_u16(yh1), transform.y_coef as i16);
+        let y_low1 = xqdmulhq_n_s16::<R>(vreinterpretq_s16_u16(yl1), transform.y_coef as i16);
 
         let r_high0 = vqmovun_s16(y_high0);
         let r_high1 = vqmovun_s16(y_high1);
@@ -101,11 +128,11 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
     while cx + 16 < width {
         let y_values = vqsubq_u8(vld1q_u8(y_plane.get_unchecked(cx..).as_ptr()), y_corr);
 
-        let yh = vshll_high_n_u8::<V_SCALE>(y_values);
+        let yh = vexpand_high_8_to_10(y_values);
         let yl = vexpand8_to_10(vget_low_u8(y_values));
 
-        let y_high = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yh), transform.y_coef as i16);
-        let y_low = vqrdmulhq_n_s16(vreinterpretq_s16_u16(yl), transform.y_coef as i16);
+        let y_high = xqdmulhq_n_s16::<R>(vreinterpretq_s16_u16(yh), transform.y_coef as i16);
+        let y_low = xqdmulhq_n_s16::<R>(vreinterpretq_s16_u16(yl), transform.y_coef as i16);
 
         let r_high = vqmovun_s16(y_high);
 
@@ -132,7 +159,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
             vget_low_u8(y_corr),
         );
 
-        let y_high = vqrdmulhq_n_s16(
+        let y_high = xqdmulhq_n_s16::<R>(
             vreinterpretq_s16_u16(vexpand8_to_10(y_values)),
             transform.y_coef as i16,
         );
@@ -166,195 +193,12 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
 
         let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr()), vget_low_u8(y_corr));
 
-        let y_high = vqrdmulhq_n_s16(
+        let y_high = xqdmulhq_n_s16::<R>(
             vreinterpretq_s16_u16(vexpand8_to_10(y_values)),
             transform.y_coef as i16,
         );
 
         let r_vl = vqmovun_s16(y_high);
-
-        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst_buffer.as_mut_ptr(),
-            r_vl,
-            r_vl,
-            r_vl,
-            vget_low_u8(v_alpha),
-        );
-
-        let dst_shift = cx * channels;
-
-        std::ptr::copy_nonoverlapping(
-            dst_buffer.as_ptr(),
-            rgba_ptr.add(dst_shift),
-            diff * channels,
-        );
-
-        cx += diff;
-    }
-
-    cx
-}
-
-pub(crate) unsafe fn neon_y_to_rgb_row<const PRECISION: i32, const DESTINATION_CHANNELS: u8>(
-    range: &YuvChromaRange,
-    transform: &CbCrInverseTransform<i32>,
-    y_plane: &[u8],
-    rgba: &mut [u8],
-    start_cx: usize,
-    width: usize,
-) -> usize {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
-
-    let rgba_ptr = rgba.as_mut_ptr();
-
-    let y_corr = vdupq_n_u8(range.bias_y as u8);
-    let v_alpha = vdupq_n_u8(255u8);
-    let v_luma_coeff = vdupq_n_s16(transform.y_coef as i16);
-
-    let mut cx = start_cx;
-
-    while cx + 32 < width {
-        let y_vals = xvld1q_u8_x2(y_plane.get_unchecked(cx..).as_ptr());
-        let y_values0 = vqsubq_u8(y_vals.0, y_corr);
-        let y_values1 = vqsubq_u8(y_vals.1, y_corr);
-
-        let y_hh0 = vmovl_high_u8(y_values0);
-        let y_hh1 = vmovl_high_u8(y_values1);
-        let y_ll0 = vmovl_u8(vget_low_u8(y_values0));
-        let y_ll1 = vmovl_u8(vget_low_u8(y_values1));
-
-        let y_high0 = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(y_hh0), v_luma_coeff);
-        let y_high1 = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(y_hh1), v_luma_coeff);
-
-        let y_low0 = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(y_ll0), v_luma_coeff);
-        let y_low1 = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(y_ll1), v_luma_coeff);
-
-        let r_high0 = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_high0.0),
-            vrshrn_n_s32::<PRECISION>(y_high0.1),
-        ));
-
-        let r_high1 = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_high1.0),
-            vrshrn_n_s32::<PRECISION>(y_high1.1),
-        ));
-
-        let r_low0 = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_low0.0),
-            vrshrn_n_s32::<PRECISION>(y_low0.1),
-        ));
-
-        let r_low1 = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_low1.0),
-            vrshrn_n_s32::<PRECISION>(y_low1.1),
-        ));
-
-        let r_values0 = vcombine_u8(r_low0, r_high0);
-        let r_values1 = vcombine_u8(r_low1, r_high1);
-
-        let dst_shift = cx * channels;
-
-        neon_store_rgb8::<DESTINATION_CHANNELS>(
-            rgba_ptr.add(dst_shift),
-            r_values0,
-            r_values0,
-            r_values0,
-            v_alpha,
-        );
-
-        neon_store_rgb8::<DESTINATION_CHANNELS>(
-            rgba_ptr.add(dst_shift + 16 * channels),
-            r_values1,
-            r_values1,
-            r_values1,
-            v_alpha,
-        );
-
-        cx += 32;
-    }
-
-    while cx + 16 < width {
-        let y_values = vqsubq_u8(vld1q_u8(y_plane.get_unchecked(cx..).as_ptr()), y_corr);
-
-        let y_hh = vmovl_high_u8(y_values);
-        let y_ll = vmovl_u8(vget_low_u8(y_values));
-
-        let y_high = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(y_hh), v_luma_coeff);
-
-        let y_low = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(y_ll), v_luma_coeff);
-
-        let r_high = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_high.0),
-            vrshrn_n_s32::<PRECISION>(y_high.1),
-        ));
-
-        let r_low = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_low.0),
-            vrshrn_n_s32::<PRECISION>(y_low.1),
-        ));
-
-        let r_values = vcombine_u8(r_low, r_high);
-
-        let dst_shift = cx * channels;
-
-        neon_store_rgb8::<DESTINATION_CHANNELS>(
-            rgba_ptr.add(dst_shift),
-            r_values,
-            r_values,
-            r_values,
-            v_alpha,
-        );
-
-        cx += 16;
-    }
-
-    while cx + 8 < width {
-        let y_values = vqsub_u8(
-            vld1_u8(y_plane.get_unchecked(cx..).as_ptr()),
-            vget_low_u8(y_corr),
-        );
-
-        let y_low = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_u8(y_values)), v_luma_coeff);
-
-        let r_vl = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_low.0),
-            vrshrn_n_s32::<PRECISION>(y_low.1),
-        ));
-
-        let dst_shift = cx * channels;
-
-        neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            rgba_ptr.add(dst_shift),
-            r_vl,
-            r_vl,
-            r_vl,
-            vget_low_u8(v_alpha),
-        );
-
-        cx += 8;
-    }
-
-    if cx < width {
-        let diff = width - cx;
-        assert!(diff <= 8);
-
-        let mut y_buffer: [u8; 8] = [0; 8];
-        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
-        std::ptr::copy_nonoverlapping(
-            y_plane.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
-            diff,
-        );
-
-        let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr()), vget_low_u8(y_corr));
-
-        let y_low = vmullq_laneq_s16::<0>(vreinterpretq_s16_u16(vmovl_u8(y_values)), v_luma_coeff);
-
-        let r_vl = vqmovun_s16(vcombine_s16(
-            vrshrn_n_s32::<PRECISION>(y_low.0),
-            vrshrn_n_s32::<PRECISION>(y_low.1),
-        ));
 
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
             dst_buffer.as_mut_ptr(),
