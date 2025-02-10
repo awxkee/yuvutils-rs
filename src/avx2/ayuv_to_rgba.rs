@@ -136,11 +136,20 @@ unsafe fn avx2_ayuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const PACKED: u
         let b_low = _mm256_add_epi16(y_low, blc);
         let g_low = _mm256_sub_epi16(y_low, _mm256_add_epi16(glc0, glc1));
 
-        let (r_values, g_values, b_values);
+        let mut r_values = _mm256_packus_epi16(r_low, r_high);
+        let mut g_values = _mm256_packus_epi16(g_low, g_high);
+        let mut b_values = _mm256_packus_epi16(b_low, b_high);
 
         if use_premultiply {
             let a_high = _mm256_unpackhi_epi8(a, _mm256_setzero_si256());
             let a_low = _mm256_unpacklo_epi8(a, _mm256_setzero_si256());
+
+            let r_low = _mm256_unpacklo_epi8(r_values, _mm256_setzero_si256());
+            let r_high = _mm256_unpackhi_epi8(r_values, _mm256_setzero_si256());
+            let g_low = _mm256_unpacklo_epi8(g_values, _mm256_setzero_si256());
+            let g_high = _mm256_unpackhi_epi8(g_values, _mm256_setzero_si256());
+            let b_low = _mm256_unpacklo_epi8(b_values, _mm256_setzero_si256());
+            let b_high = _mm256_unpackhi_epi8(b_values, _mm256_setzero_si256());
 
             let (r_l, r_h) = avx2_div_by255_x2(
                 _mm256_mullo_epi16(r_low, a_low),
@@ -158,10 +167,6 @@ unsafe fn avx2_ayuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const PACKED: u
             r_values = _mm256_packus_epi16(r_l, r_h);
             g_values = _mm256_packus_epi16(g_l, g_h);
             b_values = _mm256_packus_epi16(b_l, b_h);
-        } else {
-            r_values = _mm256_packus_epi16(r_low, r_high);
-            g_values = _mm256_packus_epi16(g_low, g_high);
-            b_values = _mm256_packus_epi16(b_low, b_high);
         }
 
         let dst_shift = cx * channels;
@@ -188,7 +193,7 @@ unsafe fn avx2_ayuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const PACKED: u
         std::ptr::copy_nonoverlapping(
             ayuv.get_unchecked(cx * 4..).as_ptr(),
             src_buffer.as_mut_ptr(),
-            diff,
+            diff * 4,
         );
 
         let (a, mut y_vals, u, v) = _mm256_load_deintl_ayuv::<PACKED>(src_buffer.as_slice());

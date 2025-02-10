@@ -53,15 +53,15 @@ where
     u32: AsPrimitive<J>,
     u16: AsPrimitive<J>,
 {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let cn: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let max_colors = (1 << bit_depth) - 1;
 
-    let channels = destination_channels.get_channels_count();
+    let channels = cn.get_channels_count();
 
     image.check_constraints()?;
 
     assert!(
-        destination_channels.has_alpha(),
+        cn.has_alpha(),
         "YUV400 with alpha cannot be called on target image without alpha"
     );
     assert_eq!(
@@ -111,10 +111,10 @@ where
                             >> PRECISION)
                             .min(max_colors)
                             .max(0);
-                        rgba[destination_channels.get_r_channel_offset()] = r as u16;
-                        rgba[destination_channels.get_g_channel_offset()] = r as u16;
-                        rgba[destination_channels.get_b_channel_offset()] = r as u16;
-                        rgba[destination_channels.get_a_channel_offset()] = a_src;
+                        rgba[cn.get_r_channel_offset()] = r as u16;
+                        rgba[cn.get_g_channel_offset()] = r as u16;
+                        rgba[cn.get_b_channel_offset()] = r as u16;
+                        rgba[cn.get_a_channel_offset()] = a_src;
                     }
                 });
         }
@@ -129,10 +129,10 @@ where
                         .zip(rgba16.chunks_exact_mut(channels))
                     {
                         let r = y_src;
-                        rgba[destination_channels.get_r_channel_offset()] = r;
-                        rgba[destination_channels.get_g_channel_offset()] = r;
-                        rgba[destination_channels.get_b_channel_offset()] = r;
-                        rgba[destination_channels.get_a_channel_offset()] = a_src;
+                        rgba[cn.get_r_channel_offset()] = r;
+                        rgba[cn.get_g_channel_offset()] = r;
+                        rgba[cn.get_b_channel_offset()] = r;
+                        rgba[cn.get_a_channel_offset()] = a_src;
                     }
                 });
         }

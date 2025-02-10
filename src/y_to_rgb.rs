@@ -26,19 +26,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    feature = "nightly_avx512"
-))]
-use crate::avx512bw::avx512_y_to_rgb_row;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[allow(unused_imports)]
-use crate::internals::ProcessedOffset;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_y_to_rgb_row;
-use crate::numerics::qrshr;
-#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-use crate::wasm32::wasm_y_to_rgb_row;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
 use crate::{YuvError, YuvGrayImage};
@@ -47,16 +34,189 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 
+type RgbFullHandler = unsafe fn(&mut [u8], &[u8], usize);
+
+type RgbLimitedHandler = unsafe fn(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    start_cx: usize,
+    width: usize,
+);
+
+#[inline(always)]
+fn default_full_converter<const CN: u8>(rgba: &mut [u8], y_plane: &[u8], _: usize) {
+    let cn: YuvSourceChannels = CN.into();
+
+    for (y_src, rgba) in y_plane
+        .iter()
+        .zip(rgba.chunks_exact_mut(cn.get_channels_count()))
+    {
+        let r = *y_src;
+        rgba[cn.get_r_channel_offset()] = r;
+        rgba[cn.get_g_channel_offset()] = r;
+        rgba[cn.get_b_channel_offset()] = r;
+        if cn.has_alpha() {
+            rgba[cn.get_a_channel_offset()] = 255;
+        }
+    }
+}
+
+#[inline(always)]
+#[cfg(not(any(
+    all(target_arch = "aarch64", target_feature = "neon"),
+    all(target_arch = "wasm32", target_feature = "simd128")
+)))]
+unsafe fn default_limited_converter<const CN: u8, const PRECISION: i32>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+    y_plane: &[u8],
+    rgba: &mut [u8],
+    _: usize,
+    _: usize,
+) {
+    let cn: YuvSourceChannels = CN.into();
+    let ts = transform.cast::<i16>();
+    let bias_y = range.bias_y as i16;
+
+    for (y_src, rgba) in y_plane
+        .iter()
+        .zip(rgba.chunks_exact_mut(cn.get_channels_count()))
+    {
+        use crate::numerics::qrshr;
+
+        let y0 = *y_src as i16;
+        let y_value = (y0 - bias_y) as i32 * ts.y_coef as i32;
+
+        let r = qrshr::<PRECISION, 8>(y_value);
+        rgba[cn.get_r_channel_offset()] = r as u8;
+        rgba[cn.get_g_channel_offset()] = r as u8;
+        rgba[cn.get_b_channel_offset()] = r as u8;
+        if cn.has_alpha() {
+            rgba[cn.get_a_channel_offset()] = 255;
+        }
+    }
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
+#[target_feature(enable = "sse4.1")]
+unsafe fn default_full_converter_sse4_1<const CN: u8>(
+    rgba: &mut [u8],
+    y_plane: &[u8],
+    width: usize,
+) {
+    default_full_converter::<CN>(rgba, y_plane, width);
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
+#[target_feature(enable = "avx2")]
+unsafe fn default_full_converter_avx2<const CN: u8>(rgba: &mut [u8], y_plane: &[u8], width: usize) {
+    default_full_converter::<CN>(rgba, y_plane, width);
+}
+
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
+#[target_feature(enable = "avx512bw")]
+unsafe fn default_full_converter_avx512<const CN: u8>(
+    rgba: &mut [u8],
+    y_plane: &[u8],
+    width: usize,
+) {
+    default_full_converter::<CN>(rgba, y_plane, width);
+}
+
+fn make_full_converter<const CN: u8>() -> RgbFullHandler {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        #[cfg(feature = "nightly_avx512")]
+        {
+            if std::arch::is_x86_feature_detected!("avx512bw") {
+                return default_full_converter_avx512::<CN>;
+            }
+        }
+        #[cfg(feature = "avx")]
+        {
+            if std::arch::is_x86_feature_detected!("avx2") {
+                return default_full_converter_avx2::<CN>;
+            }
+        }
+        #[cfg(feature = "sse")]
+        {
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                return default_full_converter_sse4_1::<CN>;
+            }
+        }
+    }
+    default_full_converter::<CN>
+}
+
+fn make_limited_converter<const CN: u8, const PRECISION: i32>() -> RgbLimitedHandler {
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        #[cfg(feature = "rdm")]
+        {
+            if std::arch::is_aarch64_feature_detected!("rdm") {
+                use crate::neon::neon_y_to_rgb_row_rdm;
+                return neon_y_to_rgb_row_rdm::<CN>;
+            }
+        }
+        use crate::neon::neon_y_to_rgb_row;
+        neon_y_to_rgb_row::<CN>
+    }
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        #[cfg(feature = "nightly_avx512")]
+        {
+            use crate::avx512bw::avx512_y_to_rgb_row;
+            if std::arch::is_x86_feature_detected!("avx512bw") {
+                let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
+                return if use_vbmi {
+                    avx512_y_to_rgb_row::<CN, true>
+                } else {
+                    avx512_y_to_rgb_row::<CN, false>
+                };
+            }
+        }
+        #[cfg(feature = "avx")]
+        {
+            if std::arch::is_x86_feature_detected!("avx2") {
+                use crate::avx2::avx2_y_to_rgba_row;
+                return avx2_y_to_rgba_row::<CN>;
+            }
+        }
+        #[cfg(feature = "sse")]
+        {
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                use crate::sse::sse_y_to_rgba_row;
+                return sse_y_to_rgba_row::<CN>;
+            }
+        }
+    }
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    {
+        use crate::wasm32::wasm_y_to_rgb_row;
+        return wasm_y_to_rgb_row::<CN>;
+    }
+    #[cfg(not(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(target_arch = "wasm32", target_feature = "simd128")
+    )))]
+    default_limited_converter::<CN, PRECISION>
+}
+
 // Chroma subsampling always assumed as 400
-fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
+fn y_to_rgbx<const CN: u8>(
     image: &YuvGrayImage<u8>,
     rgba: &mut [u8],
     rgba_stride: u32,
     range: YuvRange,
     matrix: YuvStandardMatrix,
 ) -> Result<(), YuvError> {
-    let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
+    let cn: YuvSourceChannels = CN.into();
+    let channels = cn.get_channels_count();
 
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
     image.check_constraints()?;
@@ -67,52 +227,6 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     const PRECISION: i32 = 13;
     let inverse_transform =
         search_inverse_transform(PRECISION, 8, range, matrix, chroma_range, kr_kb);
-    let y_coef = inverse_transform.y_coef as i16;
-
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    let neon_wide_row_handler = if is_rdm_available {
-        #[cfg(feature = "rdm")]
-        {
-            use crate::neon::neon_y_to_rgb_row_rdm;
-            neon_y_to_rgb_row_rdm::<DESTINATION_CHANNELS>
-        }
-        #[cfg(not(feature = "rdm"))]
-        {
-            neon_y_to_rgb_row::<DESTINATION_CHANNELS>
-        }
-    } else {
-        neon_y_to_rgb_row::<DESTINATION_CHANNELS>
-    };
-
-    let bias_y = chroma_range.bias_y as i16;
-
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
-    let use_sse = std::arch::is_x86_feature_detected!("sse4.1");
-    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
-    let use_avx = std::arch::is_x86_feature_detected!("avx2");
-
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let use_avx512 = std::arch::is_x86_feature_detected!("avx512bw");
-
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let use_vbmi = std::arch::is_x86_feature_detected!("avx512vbmi");
-    #[cfg(all(
-        any(target_arch = "x86", target_arch = "x86_64"),
-        feature = "nightly_avx512"
-    ))]
-    let avx512_dispatch = if use_vbmi {
-        avx512_y_to_rgb_row::<DESTINATION_CHANNELS, true>
-    } else {
-        avx512_y_to_rgb_row::<DESTINATION_CHANNELS, false>
-    };
 
     let y_plane = image.y_plane;
     let y_stride = image.y_stride;
@@ -131,109 +245,29 @@ fn y_to_rgbx<const DESTINATION_CHANNELS: u8>(
     }
 
     if range == YuvRange::Limited {
+        let executor = make_limited_converter::<CN, PRECISION>();
+
         iter.zip(y_iter).for_each(|(rgba, y_plane)| {
             let y_plane = &y_plane[0..image.width as usize];
-            let mut _cx = 0usize;
+            let rgba = &mut rgba[..channels * image.width as usize];
 
-            #[cfg(all(
-                any(target_arch = "x86", target_arch = "x86_64"),
-                feature = "nightly_avx512"
-            ))]
-            if use_avx512 {
-                let processed = avx512_dispatch(
-                    &chroma_range,
-                    &inverse_transform,
-                    y_plane,
-                    rgba,
-                    _cx,
-                    image.width as usize,
-                );
-                _cx = processed;
-            }
-            #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
-            if use_avx {
-                use crate::avx2::avx2_y_to_rgba_row;
-                let processed = avx2_y_to_rgba_row::<DESTINATION_CHANNELS>(
-                    &chroma_range,
-                    &inverse_transform,
-                    y_plane,
-                    rgba,
-                    _cx,
-                    image.width as usize,
-                );
-                _cx = processed;
-            }
-            #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
-            if use_sse {
-                use crate::sse::sse_y_to_rgba_row;
-                let processed = sse_y_to_rgba_row::<DESTINATION_CHANNELS>(
-                    &chroma_range,
-                    &inverse_transform,
-                    y_plane,
-                    rgba,
-                    _cx,
-                    image.width as usize,
-                );
-                _cx = processed;
-            }
-
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             unsafe {
-                let offset = neon_wide_row_handler(
+                executor(
                     &chroma_range,
                     &inverse_transform,
                     y_plane,
                     rgba,
-                    _cx,
+                    0,
                     image.width as usize,
                 );
-                _cx = offset;
-            }
-
-            #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-            unsafe {
-                let offset = wasm_y_to_rgb_row::<DESTINATION_CHANNELS>(
-                    &chroma_range,
-                    &inverse_transform,
-                    y_plane,
-                    rgba,
-                    _cx,
-                    image.width as usize,
-                );
-                _cx = offset;
-            }
-
-            let rgba_sliced = &mut rgba[(_cx * channels)..];
-            let y_sliced = &y_plane[_cx..];
-
-            for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
-                let y0 = *y_src as i16;
-                let y_value = (y0 - bias_y) as i32 * y_coef as i32;
-
-                let r = qrshr::<PRECISION, 8>(y_value);
-                rgba[destination_channels.get_r_channel_offset()] = r as u8;
-                rgba[destination_channels.get_g_channel_offset()] = r as u8;
-                rgba[destination_channels.get_b_channel_offset()] = r as u8;
-                if destination_channels.has_alpha() {
-                    rgba[destination_channels.get_a_channel_offset()] = 255;
-                }
             }
         });
     } else {
+        let executor = make_full_converter::<CN>();
         iter.zip(y_iter).for_each(|(rgba, y_plane)| {
-            let mut _cx = 0usize;
             let y_plane = &y_plane[0..image.width as usize];
-            let rgba_sliced = &mut rgba[(_cx * channels)..];
-            let y_sliced = &y_plane[_cx..];
-
-            for (y_src, rgba) in y_sliced.iter().zip(rgba_sliced.chunks_exact_mut(channels)) {
-                let r = *y_src;
-                rgba[destination_channels.get_r_channel_offset()] = r;
-                rgba[destination_channels.get_g_channel_offset()] = r;
-                rgba[destination_channels.get_b_channel_offset()] = r;
-                if destination_channels.has_alpha() {
-                    rgba[destination_channels.get_a_channel_offset()] = 255;
-                }
+            unsafe {
+                executor(rgba, y_plane, image.width as usize);
             }
         });
     }

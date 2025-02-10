@@ -286,7 +286,8 @@ fn ayuv_to_rgb_launch<const DST: u8, const PACKED: u8>(
 }
 
 macro_rules! d_cnv {
-    ($method: ident, $px_fmt: expr, $packed_fmt: expr) => {
+    ($method: ident, $px_fmt: expr, $packed_fmt: expr, $px_fmt_name: expr, $to_fmt: expr) => {
+        #[doc = concat!("Converts ", $px_fmt_name," to ", $to_fmt," 8-bit depth precision.")]
         pub fn $method(
             image: &YuvPackedImage<u8>,
             dst: &mut [u8],
@@ -310,21 +311,29 @@ macro_rules! d_cnv {
 d_cnv!(
     vyua_to_rgb,
     YuvSourceChannels::Rgb,
-    YuvPacked444Format::Vuya
+    YuvPacked444Format::Vuya,
+    "VUYA",
+    "RGB"
 );
 d_cnv!(
     vyua_to_rgba,
     YuvSourceChannels::Rgba,
-    YuvPacked444Format::Vuya
+    YuvPacked444Format::Vuya,
+    "VUYA",
+    "RGBA"
 );
 
 d_cnv!(
     ayuv_to_rgb,
     YuvSourceChannels::Rgb,
-    YuvPacked444Format::Ayuv
+    YuvPacked444Format::Ayuv,
+    "AYUV",
+    "RGB"
 );
 d_cnv!(
     ayuv_to_rgba,
     YuvSourceChannels::Rgba,
-    YuvPacked444Format::Ayuv
+    YuvPacked444Format::Ayuv,
+    "AYUV",
+    "RGBA"
 );

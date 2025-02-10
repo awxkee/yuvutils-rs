@@ -44,7 +44,7 @@ pub(crate) fn sse_y_to_rgba_row<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     unsafe {
         sse_y_to_rgba_row_impl::<DESTINATION_CHANNELS>(
             range, transform, y_plane, rgba, start_cx, width,
@@ -60,7 +60,7 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -77,8 +77,11 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     while cx + 16 < width {
         let y_values = _mm_subs_epu8(_mm_loadu_si128(y_ptr.add(cx) as *const __m128i), y_corr);
 
-        let v_high = _mm_mulhrs_epi16(_mm_expand8_hi_to_10(y_values), v_luma_coeff);
-        let v_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
+        let vh = _mm_expand8_hi_to_10(y_values);
+        let vl = _mm_expand8_lo_to_10(y_values);
+
+        let v_high = _mm_mulhrs_epi16(vh, v_luma_coeff);
+        let v_low = _mm_mulhrs_epi16(vl, v_luma_coeff);
 
         let v_values = _mm_packus_epi16(v_low, v_high);
 
@@ -119,5 +122,40 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
         cx += 8;
     }
 
-    cx
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let y_values = _mm_subs_epi8(_mm_loadu_si64(y_buffer.as_ptr()), y_corr);
+
+        let v_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
+
+        let v_values = _mm_packus_epi16(v_low, zeros);
+
+        let v_alpha = _mm_set1_epi8(255u8 as i8);
+
+        _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            v_values,
+            v_values,
+            v_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.add(dst_shift),
+            diff * channels,
+        );
+    }
 }

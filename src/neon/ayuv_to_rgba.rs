@@ -210,7 +210,7 @@ unsafe fn neon_ayuv_to_rgba_impl<
         std::ptr::copy_nonoverlapping(
             ayuv.get_unchecked(cx * 4..).as_ptr(),
             src_buffer.as_mut_ptr(),
-            diff,
+            diff * 4,
         );
 
         let data_values = vld4q_u8(src_buffer.as_ptr());

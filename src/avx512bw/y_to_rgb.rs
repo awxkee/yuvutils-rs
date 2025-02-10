@@ -41,7 +41,7 @@ pub(crate) fn avx512_y_to_rgb_row<const DESTINATION_CHANNELS: u8, const HAS_VBMI
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     unsafe {
         if HAS_VBMI {
             avx512_y_to_rgb_bmi_row::<DESTINATION_CHANNELS>(
@@ -63,7 +63,7 @@ unsafe fn avx512_y_to_rgb_def_row<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
         range, transform, y_plane, rgba, start_cx, width,
     )
@@ -77,7 +77,7 @@ unsafe fn avx512_y_to_rgb_bmi_row<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     avx512_y_to_rgb_row_impl::<DESTINATION_CHANNELS, true>(
         range, transform, y_plane, rgba, start_cx, width,
     )
@@ -91,7 +91,7 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -131,5 +131,46 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
         cx += 64;
     }
 
-    cx
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 64);
+
+        let mut y_buffer: [u8; 64] = [0; 64];
+        let mut dst_buffer: [u8; 64 * 4] = [0; 64 * 4];
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let y_s = _mm512_subs_epi8(_mm512_loadu_si512(y_buffer.as_ptr() as *const i32), y_corr);
+
+        let y10 = _mm512_expand8_unordered_to_10(y_s);
+
+        let y_high = _mm512_mulhrs_epi16(y10.1, v_luma_coeff);
+
+        let r_high = y_high;
+
+        let y_low = _mm512_mulhrs_epi16(y10.0, v_luma_coeff);
+
+        let r_low = y_low;
+
+        let r_values = _mm512_packus_epi16(r_low, r_high);
+
+        avx512_store_rgba_for_yuv_u8::<DESTINATION_CHANNELS, HAS_VBMI>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba_ptr.add(dst_shift),
+            diff * channels,
+        );
+    }
 }

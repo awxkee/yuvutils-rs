@@ -39,7 +39,7 @@ pub(crate) unsafe fn wasm_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
     rgba: &mut [u8],
     start_cx: usize,
     width: usize,
-) -> usize {
+) {
     let destination_channels: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = destination_channels.get_channels_count();
 
@@ -78,5 +78,42 @@ pub(crate) unsafe fn wasm_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
         cx += 16;
     }
 
-    cx
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 16);
+
+        let mut y_buffer: [u8; 16] = [0; 16];
+        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        std::ptr::copy_nonoverlapping(
+            y_plane.get_unchecked(cx..).as_ptr(),
+            y_buffer.as_mut_ptr(),
+            diff,
+        );
+
+        let y_values = u8x16_sub_sat(v128_load(y_buffer.as_ptr() as *const v128), y_corr);
+
+        let y_high = u16x8_shl(u16x8_extend_high_u8x16(y_values), SCALE);
+        let r_high = i16x8_q15mulr_sat(y_high, v_luma_coeff);
+
+        let y_low = u16x8_shl(u16x8_extend_low_u8x16(y_values), SCALE);
+        let r_low = i16x8_q15mulr_sat(y_low, v_luma_coeff);
+
+        let r_values = i16x8_pack_sat_u8x16(r_low, r_high);
+
+        wasm_store_rgb::<DESTINATION_CHANNELS>(
+            dst_buffer.as_mut_ptr(),
+            r_values,
+            r_values,
+            r_values,
+            v_alpha,
+        );
+
+        let dst_shift = cx * channels;
+
+        std::ptr::copy_nonoverlapping(
+            dst_buffer.as_ptr(),
+            rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
+            diff * channels,
+        );
+    }
 }
