@@ -57,6 +57,12 @@ geometry = ["dep:fast_transpose"]
 # Enables RemoteFX Conversion
 rdp = []
 
+[package.metadata.docs.rs]
+# To build locally:
+# RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --no-deps --open
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [profile.dev.package]
 miniz_oxide.opt-level = 3
 png.opt-level = 3

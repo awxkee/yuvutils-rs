@@ -828,6 +828,7 @@ pub enum YuvConversionMode {
     /// it may significantly increase throughout on some modern CPU's,
     /// even without AVX-512 available. `avxvnni` may be used instead.
     #[cfg(feature = "fast_mode")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "fast_mode")))]
     Fast,
     /// Mixed, but high precision, very good performance.
     /// This is still a VERY fast method, with much more precise encoding.
@@ -837,6 +838,7 @@ pub enum YuvConversionMode {
     Balanced,
     /// Maximizes quality and precision over speed while maintaining reasonable performance.
     #[cfg(feature = "professional_mode")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "professional_mode")))]
     Professional,
 }
 

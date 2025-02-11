@@ -57,6 +57,7 @@
     ),
     feature(stdarch_neon_i8mm)
 )]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod ar30_rgb;
 #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
@@ -69,23 +70,29 @@ mod avx512bw;
 mod ayuv_to_rgb;
 mod built_coefficients;
 #[cfg(feature = "nightly_f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
 mod f16_converter;
 mod from_identity;
 mod from_identity_alpha;
 #[cfg(feature = "nightly_f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
 mod from_identity_alpha_f16;
 #[cfg(feature = "nightly_f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
 mod from_identity_f16;
 #[cfg(feature = "geometry")]
+#[cfg_attr(docsrs, doc(cfg(feature = "geometry")))]
 mod geometry;
 mod images;
 mod internals;
 #[cfg(feature = "geometry")]
+#[cfg_attr(docsrs, doc(cfg(feature = "geometry")))]
 mod mirroring;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon;
 mod numerics;
 #[cfg(feature = "rdp")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rdp")))]
 mod rdp;
 mod rgb16_to_yuv_p16;
 mod rgb_ar30;
@@ -118,6 +125,7 @@ mod yuv_p16_ar30;
 mod yuv_p16_rgba16_alpha;
 mod yuv_p16_rgba_alpha;
 #[cfg(feature = "nightly_f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
 mod yuv_p16_rgba_f16;
 mod yuv_p16_rgba_p16;
 mod yuv_support;
@@ -126,6 +134,7 @@ mod yuv_to_rgba_alpha;
 mod yuv_to_yuy2;
 mod yuv_to_yuy2_p16;
 #[cfg(feature = "nightly_f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
 mod yuva_p16_rgba_f16;
 mod yuy2_to_rgb;
 mod yuy2_to_rgb_p16;
@@ -222,6 +231,7 @@ pub use rgb16_to_yuv_p16::{
     rgba14_to_i014, rgba14_to_i214, rgba14_to_i414, rgba16_to_i016, rgba16_to_i216, rgba16_to_i416,
 };
 #[cfg(feature = "big_endian")]
+#[cfg_attr(docsrs, doc(cfg(feature = "big_endian")))]
 pub use rgb16_to_yuv_p16::{
     rgb10_to_i010_be, rgb10_to_i210_be, rgb10_to_i410_be, rgb12_to_i012_be, rgb12_to_i212_be,
     rgb12_to_i412_be, rgb14_to_i014_be, rgb14_to_i214_be, rgb14_to_i414_be, rgb16_to_i016_be,
@@ -247,6 +257,7 @@ pub use y_to_rgb::yuv400_to_rgb;
 pub use y_to_rgb::yuv400_to_rgba;
 
 #[cfg(feature = "big_endian")]
+#[cfg_attr(docsrs, doc(cfg(feature = "big_endian")))]
 pub use yuv_p10_rgba::{
     i010_be_to_bgr, i010_be_to_bgra, i010_be_to_rgb, i010_be_to_rgba, i012_be_to_bgr,
     i012_be_to_bgra, i012_be_to_rgb, i012_be_to_rgba, i210_be_to_bgr, i210_be_to_bgra,
@@ -330,8 +341,8 @@ pub use yuy2_to_yuv::yvyu422_to_yuv422;
 pub use yuy2_to_yuv::yvyu422_to_yuv444;
 
 pub use to_identity::{
-    bgr_to_gbr, bgra_to_gbr, rgb10_to_gb10, rgb12_to_gb12, rgb_to_gbr, rgba10_to_gb10,
-    rgba12_to_gb12, rgba_to_gbr,
+    bgr_to_gbr, bgra_to_gbr, rgb10_to_gb10, rgb12_to_gb12, rgb14_to_gb14, rgb16_to_gb16,
+    rgb_to_gbr, rgba10_to_gb10, rgba12_to_gb12, rgba14_to_gb14, rgba16_to_gb16, rgba_to_gbr,
 };
 
 pub use rgb_to_nv_p16::{
@@ -443,6 +454,7 @@ pub use yuv_p16_rgba_alpha::{
     i410_alpha_to_rgba, i412_alpha_to_rgba,
 };
 #[cfg(feature = "big_endian")]
+#[cfg_attr(docsrs, doc(cfg(feature = "big_endian")))]
 pub use yuv_p16_rgba_alpha::{
     i010_be_alpha_to_rgba, i012_be_alpha_to_rgba, i210_alpha_be_to_rgba, i212_be_alpha_to_rgba,
     i410_be_alpha_to_rgba, i412_be_alpha_to_rgba,
@@ -454,12 +466,14 @@ pub use yuv_p16_rgba16_alpha::{
     i414_alpha_to_rgba14,
 };
 #[cfg(feature = "big_endian")]
+#[cfg_attr(docsrs, doc(cfg(feature = "big_endian")))]
 pub use yuv_p16_rgba16_alpha::{
     i010_be_alpha_to_rgba10, i012_be_alpha_to_rgba12, i014_be_alpha_to_rgba14,
     i210_alpha_be_to_rgba10, i212_be_alpha_to_rgba12, i214_be_alpha_to_rgba14,
     i410_be_alpha_to_rgba10, i412_be_alpha_to_rgba12, i414_be_alpha_to_rgba14,
 };
 #[cfg(feature = "big_endian")]
+#[cfg_attr(docsrs, doc(cfg(feature = "big_endian")))]
 pub use yuv_p16_rgba_p16::{
     i010_be_to_rgb10, i010_be_to_rgba10, i012_be_to_rgb12, i012_be_to_rgba12, i014_be_to_rgb14,
     i014_be_to_rgba14, i016_be_to_rgb16, i016_be_to_rgba16, i210_be_to_rgb10, i210_be_to_rgba10,
@@ -504,7 +518,10 @@ pub use mirroring::{
     mirror_rgba, mirror_rgba16, MirrorMode,
 };
 
-pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
+pub use rgb_ar30::{
+    rgb10_to_ar30, rgb10_to_ra30, rgb12_to_ar30, rgb12_to_ra30, rgb8_to_ar30, rgb8_to_ra30,
+    rgba10_to_ar30, rgba10_to_ra30, rgba12_to_ar30, rgba12_to_ra30, rgba8_to_ar30, rgba8_to_ra30,
+};
 
 pub use shuffle::{
     bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
@@ -523,6 +540,7 @@ pub use yuv_p16_ar30::{
 };
 
 #[cfg(feature = "rdp")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rdp")))]
 pub use rdp::{
     rdp_abgr_to_yuv444, rdp_argb_to_yuv444, rdp_bgr_to_yuv444, rdp_bgra_to_yuv444,
     rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, rdp_yuv444_to_abgr, rdp_yuv444_to_argb,

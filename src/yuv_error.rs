@@ -31,12 +31,14 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+/// Shows size mismatching
 pub struct MismatchedSize {
     pub expected: usize,
     pub received: usize,
 }
 
 #[derive(Debug)]
+/// Common errors representation
 pub enum YuvError {
     DestinationSizeMismatch(MismatchedSize),
     MinimumStrideSizeMismatch(MismatchedSize),
@@ -227,7 +229,7 @@ pub(crate) fn check_chroma_channel<V>(
     }
     if data.len() < stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize {
         return Err(YuvError::ChromaPlaneMinimumSizeMismatch(MismatchedSize {
-            expected: stride as usize * chroma_height as usize,
+            expected: stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize,
             received: data.len(),
         }));
     }
