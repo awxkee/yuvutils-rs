@@ -403,7 +403,8 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
 }
 
 macro_rules! d_backward {
-    ($method: ident, $cn: expr, $name: ident, $stride_name: ident) => {
+    ($method: ident, $cn: expr, $name: ident, $stride_name: ident, $px_name: expr) => {
+        #[doc = concat!("Converts RemoteFX YUV 4:4:4 to ", $px_name, "with 8 bit-depth precision.")]
         pub fn $method(
             planar_image: &YuvPlanarImage<i16>,
             $name: &mut [u8],
@@ -414,12 +415,36 @@ macro_rules! d_backward {
     };
 }
 
-d_backward!(rdp_yuv444_to_rgb, RdpChannels::Rgb, rgb, rgb_stride);
-d_backward!(rdp_yuv444_to_rgba, RdpChannels::Rgba, rgba, rgba_stride);
-d_backward!(rdp_yuv444_to_bgra, RdpChannels::Bgra, bgra, bgra_stride);
-d_backward!(rdp_yuv444_to_abgr, RdpChannels::Abgr, abgr, abgr_stride);
-d_backward!(rdp_yuv444_to_bgr, RdpChannels::Bgr, bgr, bgr_stride);
-d_backward!(rdp_yuv444_to_argb, RdpChannels::Argb, argb, argb_stride);
+d_backward!(rdp_yuv444_to_rgb, RdpChannels::Rgb, rgb, rgb_stride, "RGB");
+d_backward!(
+    rdp_yuv444_to_rgba,
+    RdpChannels::Rgba,
+    rgba,
+    rgba_stride,
+    "RGBA"
+);
+d_backward!(
+    rdp_yuv444_to_bgra,
+    RdpChannels::Bgra,
+    bgra,
+    bgra_stride,
+    "BGRA"
+);
+d_backward!(
+    rdp_yuv444_to_abgr,
+    RdpChannels::Abgr,
+    abgr,
+    abgr_stride,
+    "ABGR"
+);
+d_backward!(rdp_yuv444_to_bgr, RdpChannels::Bgr, bgr, bgr_stride, "BGR");
+d_backward!(
+    rdp_yuv444_to_argb,
+    RdpChannels::Argb,
+    argb,
+    argb_stride,
+    "ARGB"
+);
 
 #[cfg(test)]
 mod tests {
