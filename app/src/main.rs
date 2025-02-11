@@ -33,20 +33,7 @@ use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageRea
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{
-    ar30_to_rgb8, ayuv_to_rgba, gb12_to_rgb12, gb12_to_rgba12, gbr_to_rgba, i010_to_rgb10,
-    i010_to_rgb_f16, i012_to_rgb12, i014_to_rgb14, i016_to_rgb16, i210_to_rgb10, i210_to_rgb_f16,
-    i210_to_rgba_f16, i214_to_rgb14, i214_to_rgb_f16, i214_to_rgba14, i216_to_rgb16, i410_to_rgb10,
-    i410_to_rgb_f16, i410_to_rgba10, i414_to_rgb14, i414_to_rgb_f16, i416_to_rgb16, p210_to_ar30,
-    p212_to_ar30, rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb10_to_p210, rgb12_to_i012,
-    rgb12_to_p212, rgb14_to_i014, rgb14_to_i214, rgb14_to_i414, rgb16_to_i016, rgb16_to_i216,
-    rgb16_to_i416, rgb_to_ycgco420, rgb_to_ycgco422, rgb_to_ycgco444, rgba12_to_gb12,
-    rgba14_to_i214, rgba_to_gbr, rgba_to_ycgco420, rgba_to_yuv422, rgba_to_yuv444,
-    rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgb, ycgco420_to_rgba, ycgco422_to_rgb,
-    ycgco444_to_rgb, ycgco444_to_rgba, yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgba,
-    Rgb30ByteOrder, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvPackedImage,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
-};
+use yuvutils_rs::{ar30_to_rgb8, ayuv_to_rgba, convert_rgba_f16_to_rgba, convert_rgba_to_f16, gb12_to_rgb12, gb12_to_rgba12, gbr_to_rgba, i010_to_rgb10, i010_to_rgb_f16, i012_to_rgb12, i014_to_rgb14, i016_to_rgb16, i210_to_rgb10, i210_to_rgb_f16, i210_to_rgba_f16, i214_to_rgb14, i214_to_rgb_f16, i214_to_rgba14, i216_to_rgb16, i410_to_rgb10, i410_to_rgb_f16, i410_to_rgba10, i412_to_rgba12, i414_to_rgb14, i414_to_rgb_f16, i416_to_rgb16, p210_to_ar30, p212_to_ar30, rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb10_to_p210, rgb12_to_i012, rgb12_to_p212, rgb14_to_i014, rgb14_to_i214, rgb14_to_i414, rgb16_to_i016, rgb16_to_i216, rgb16_to_i416, rgb_to_ycgco420, rgb_to_ycgco422, rgb_to_ycgco444, rgba12_to_gb12, rgba12_to_i412, rgba14_to_i214, rgba_to_gbr, rgba_to_ycgco420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgb, ycgco420_to_rgba, ycgco422_to_rgb, ycgco444_to_rgb, ycgco444_to_rgba, yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgba, Rgb30ByteOrder, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvPackedImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -64,7 +51,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 use core::f16;
 
 fn main() {
-    let mut img = ImageReader::open("./assets/bench.png")
+    let mut img = ImageReader::open("./assets/blue_lights.png")
         .unwrap()
         .decode()
         .unwrap();
@@ -111,13 +98,14 @@ fn main() {
         .collect();
 
     let start_time = Instant::now();
-    rgba12_to_gb12(
-        &mut planar_image,
-        &bytes_16,
-        rgba_stride as u32,
-        YuvRange::Limited,
-    )
-    .unwrap();
+    // rgba12_to_i412(
+    //     &mut planar_image,
+    //     &bytes_16,
+    //     rgba_stride as u32,
+    //     YuvRange::Limited,
+    //     YuvStandardMatrix::Bt709,
+    // )
+    // .unwrap();
 
     println!("Forward time: {:?}", start_time.elapsed());
     let fixed = planar_image.to_fixed();
@@ -160,7 +148,25 @@ fn main() {
     //     true,
     // )
     // .unwrap();
-    // let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
+    let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
+    convert_rgba_to_f16(
+        &src_bytes,
+        dimensions.0 as usize * 4,
+        &mut rgba_f16,
+        dimensions.0 as usize * 4,
+        dimensions.0 as usize,
+        dimensions.1 as usize,
+    )
+    .unwrap();
+    convert_rgba_f16_to_rgba(
+        &rgba_f16,
+        dimensions.0 as usize * 4,
+        &mut rgba,
+        dimensions.0 as usize * 4,
+        dimensions.0 as usize,
+        dimensions.1 as usize,
+    )
+        .unwrap();
     // //
     // i210_to_rgb_f16(
     //     &fixed_planar,
@@ -178,16 +184,16 @@ fn main() {
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
 
-    gb12_to_rgba12(
-        &fixed_planar,
-        &mut bytes_16,
-        dimensions.0 as u32 * 4,
-        YuvRange::Limited,
-    )
-        .unwrap();
+    // i412_to_rgba12(
+    //     &fixed_planar,
+    //     &mut bytes_16,
+    //     dimensions.0 as u32 * 4,
+    //     YuvRange::Limited,
+    //     YuvStandardMatrix::Bt709,
+    // )
+    // .unwrap();
 
-
-    rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 

@@ -518,7 +518,10 @@ pub use mirroring::{
     mirror_rgba, mirror_rgba16, MirrorMode,
 };
 
-pub use rgb_ar30::{rgb8_to_ar30, rgb8_to_ra30, rgba8_to_ar30, rgba8_to_ra30};
+pub use rgb_ar30::{
+    rgb10_to_ar30, rgb10_to_ra30, rgb12_to_ar30, rgb12_to_ra30, rgb8_to_ar30, rgb8_to_ra30,
+    rgba10_to_ar30, rgba10_to_ra30, rgba12_to_ar30, rgba12_to_ra30, rgba8_to_ar30, rgba8_to_ra30,
+};
 
 pub use shuffle::{
     bgr_to_bgra, bgr_to_rgb, bgr_to_rgba, bgra_to_bgr, bgra_to_rgb, bgra_to_rgba, rgb_to_bgr,
