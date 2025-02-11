@@ -30,6 +30,117 @@ use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{Rgb30, YuvSourceChannels};
 use crate::{Rgb30ByteOrder, YuvError};
 
+type RgbRa30RowHandler = unsafe fn(src: &[u8], dst: &mut [u8]);
+
+#[inline(always)]
+fn default_row_converter<
+    const AR30_LAYOUT: usize,
+    const AR30_BYTE_ORDER: usize,
+    const RGBA_LAYOUT: u8,
+>(
+    src: &[u8],
+    dst: &mut [u8],
+) {
+    let rgba_layout: YuvSourceChannels = RGBA_LAYOUT.into();
+    let ar30_layout: Rgb30 = AR30_LAYOUT.into();
+    for (src, dst) in src
+        .chunks_exact(rgba_layout.get_channels_count())
+        .zip(dst.chunks_exact_mut(4))
+    {
+        let r = src[rgba_layout.get_r_channel_offset()];
+        let g = src[rgba_layout.get_g_channel_offset()];
+        let b = src[rgba_layout.get_b_channel_offset()];
+
+        let r = u16::from_ne_bytes([r, r]) >> 6;
+        let g = u16::from_ne_bytes([g, g]) >> 6;
+        let b = u16::from_ne_bytes([b, b]) >> 6;
+
+        let packed = if rgba_layout.has_alpha() {
+            ar30_layout.pack_w_a::<AR30_BYTE_ORDER>(
+                r as i32,
+                g as i32,
+                b as i32,
+                src[3] as i32 >> 6,
+            )
+        } else {
+            ar30_layout.pack::<AR30_BYTE_ORDER>(r as i32, g as i32, b as i32)
+        };
+        let v_bytes = packed.to_ne_bytes();
+        dst[0] = v_bytes[0];
+        dst[1] = v_bytes[1];
+        dst[2] = v_bytes[2];
+        dst[3] = v_bytes[3];
+    }
+}
+
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    feature = "nightly_avx512"
+))]
+#[target_feature(enable = "avx512bw")]
+unsafe fn default_row_converter_avx512<
+    const AR30_LAYOUT: usize,
+    const AR30_BYTE_ORDER: usize,
+    const RGBA_LAYOUT: u8,
+>(
+    src: &[u8],
+    dst: &mut [u8],
+) {
+    default_row_converter::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>(src, dst);
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "avx"))]
+#[target_feature(enable = "avx2")]
+unsafe fn default_row_converter_avx2<
+    const AR30_LAYOUT: usize,
+    const AR30_BYTE_ORDER: usize,
+    const RGBA_LAYOUT: u8,
+>(
+    src: &[u8],
+    dst: &mut [u8],
+) {
+    default_row_converter::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>(src, dst);
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
+#[target_feature(enable = "sse4.1")]
+unsafe fn default_row_converter_sse4_1<
+    const AR30_LAYOUT: usize,
+    const AR30_BYTE_ORDER: usize,
+    const RGBA_LAYOUT: u8,
+>(
+    src: &[u8],
+    dst: &mut [u8],
+) {
+    default_row_converter::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>(src, dst);
+}
+
+fn make_converter<const AR30_LAYOUT: usize, const AR30_BYTE_ORDER: usize, const RGBA_LAYOUT: u8>(
+) -> RgbRa30RowHandler {
+    #[cfg(all(any(target_arch = "x86", target_arch = "x86_64")))]
+    {
+        #[cfg(feature = "nightly_avx512")]
+        {
+            if std::arch::is_x86_feature_detected!("avx512bw") {
+                return default_row_converter_avx512::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>;
+            }
+        }
+        #[cfg(feature = "avx")]
+        {
+            if std::arch::is_x86_feature_detected!("avx2") {
+                return default_row_converter_avx2::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>;
+            }
+        }
+        #[cfg(feature = "sse")]
+        {
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                return default_row_converter_sse4_1::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>;
+            }
+        }
+    }
+    default_row_converter::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>
+}
+
 #[inline]
 fn rgb_to_ar30_impl<
     const AR30_LAYOUT: usize,
@@ -44,7 +155,6 @@ fn rgb_to_ar30_impl<
     height: u32,
 ) -> Result<(), YuvError> {
     let rgba_layout: YuvSourceChannels = RGBA_LAYOUT.into();
-    let ar30_layout: Rgb30 = AR30_LAYOUT.into();
     check_rgba_destination(ar30, ar30_stride, width, height, 1)?;
     check_rgba_destination(
         rgba,
@@ -54,39 +164,16 @@ fn rgb_to_ar30_impl<
         rgba_layout.get_channels_count(),
     )?;
 
+    let row_handler = make_converter::<AR30_LAYOUT, AR30_BYTE_ORDER, RGBA_LAYOUT>();
+
     for (src, dst) in rgba
         .chunks_exact(rgba_stride as usize)
         .zip(ar30.chunks_exact_mut(ar30_stride as usize))
     {
         let src = &src[0..width as usize * rgba_layout.get_channels_count()];
         let dst = &mut dst[0..width as usize * 4];
-        for (src, dst) in src
-            .chunks_exact(rgba_layout.get_channels_count())
-            .zip(dst.chunks_exact_mut(4))
-        {
-            let r = src[rgba_layout.get_r_channel_offset()];
-            let g = src[rgba_layout.get_g_channel_offset()];
-            let b = src[rgba_layout.get_b_channel_offset()];
-
-            let r = u16::from_ne_bytes([r, r]) >> 6;
-            let g = u16::from_ne_bytes([g, g]) >> 6;
-            let b = u16::from_ne_bytes([b, b]) >> 6;
-
-            let packed = if rgba_layout.has_alpha() {
-                ar30_layout.pack_w_a::<AR30_BYTE_ORDER>(
-                    r as i32,
-                    g as i32,
-                    b as i32,
-                    src[3] as i32 >> 6,
-                )
-            } else {
-                ar30_layout.pack::<AR30_BYTE_ORDER>(r as i32, g as i32, b as i32)
-            };
-            let v_bytes = packed.to_ne_bytes();
-            dst[0] = v_bytes[0];
-            dst[1] = v_bytes[1];
-            dst[2] = v_bytes[2];
-            dst[3] = v_bytes[3];
+        unsafe {
+            row_handler(src, dst);
         }
     }
     Ok(())

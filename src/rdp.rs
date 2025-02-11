@@ -303,6 +303,7 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
 
 macro_rules! d_forward {
     ($method: ident, $cn: expr, $name: ident, $stride_name: ident) => {
+        #[doc = concat!("RemoteFX conversion RGBx to YUV 4:4:4")]
         pub fn $method(
             planar_image: &mut YuvPlanarImageMut<i16>,
             $name: &[u8],

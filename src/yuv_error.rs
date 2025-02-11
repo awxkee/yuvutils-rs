@@ -31,12 +31,14 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+/// Shows size mismatching
 pub struct MismatchedSize {
     pub expected: usize,
     pub received: usize,
 }
 
 #[derive(Debug)]
+/// Common errors representation
 pub enum YuvError {
     DestinationSizeMismatch(MismatchedSize),
     MinimumStrideSizeMismatch(MismatchedSize),
