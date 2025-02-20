@@ -98,14 +98,14 @@ fn main() {
         .collect();
 
     let start_time = Instant::now();
-    // rgba12_to_i412(
-    //     &mut planar_image,
-    //     &bytes_16,
-    //     rgba_stride as u32,
-    //     YuvRange::Limited,
-    //     YuvStandardMatrix::Bt709,
-    // )
-    // .unwrap();
+    rgba12_to_i412(
+        &mut planar_image,
+        &bytes_16,
+        rgba_stride as u32,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt2020,
+    )
+    .unwrap();
 
     println!("Forward time: {:?}", start_time.elapsed());
     let fixed = planar_image.to_fixed();
@@ -148,25 +148,6 @@ fn main() {
     //     true,
     // )
     // .unwrap();
-    let mut rgba_f16: Vec<f16> = vec![0.; rgba.len()];
-    convert_rgba_to_f16(
-        &src_bytes,
-        dimensions.0 as usize * 4,
-        &mut rgba_f16,
-        dimensions.0 as usize * 4,
-        dimensions.0 as usize,
-        dimensions.1 as usize,
-    )
-    .unwrap();
-    convert_rgba_f16_to_rgba(
-        &rgba_f16,
-        dimensions.0 as usize * 4,
-        &mut rgba,
-        dimensions.0 as usize * 4,
-        dimensions.0 as usize,
-        dimensions.1 as usize,
-    )
-        .unwrap();
     // //
     // i210_to_rgb_f16(
     //     &fixed_planar,
