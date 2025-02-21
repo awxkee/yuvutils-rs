@@ -622,6 +622,9 @@ mod tests {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn sqrdml(v: i32, k: i32) -> i32 {
+        #[cfg(target_arch = "x86")]
+        use std::arch::x86::*;
+        #[cfg(target_arch = "x86_64")]
         use std::arch::x86_64::*;
         unsafe {
             _mm_extract_epi16::<0>(_mm_mulhrs_epi16(
