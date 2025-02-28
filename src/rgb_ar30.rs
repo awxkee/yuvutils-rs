@@ -308,7 +308,7 @@ fn rgb_to_ar30_impl<
     height: u32,
 ) -> Result<(), YuvError> {
     let rgba_layout: YuvSourceChannels = RGBA_LAYOUT.into();
-    check_rgba_destination(ar30, ar30_stride, width, height, 1)?;
+    check_rgba_destination(ar30, ar30_stride, width, height, 4)?;
     check_rgba_destination(
         rgba,
         rgba_stride,

@@ -23,13 +23,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: rustup target add aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu i686-unknown-linux-gnu powerpc-unknown-linux-gnu wasm32-unknown-unknown
-      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --all-targets --target aarch64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --all-targets --features nightly_f16 --target aarch64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --all-targets --target i686-unknown-linux-gnu
-      - run: cargo build --all-targets --target powerpc-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --all-targets --features nightly_avx512 --target x86_64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --all-targets --features nightly_f16 --target x86_64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+simd128" cargo build --all-targets --target wasm32-unknown-unknown
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --lib --target i686-unknown-linux-gnu
+      - run: cargo build --lib --target powerpc-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --lib --tests --features nightly_avx512 --target x86_64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --lib --tests --features nightly_f16 --target x86_64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+simd128" cargo build --lib --target wasm32-unknown-unknown
+
+  build_arm:
+    name: Build ARM
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: rustup target add aarch64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --lib --target aarch64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --lib --features nightly_f16 --target aarch64-unknown-linux-gnu
 
   clippy_x86:
     name: Clippy x86 Stable
