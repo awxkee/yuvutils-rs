@@ -23,13 +23,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: rustup target add aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu i686-unknown-linux-gnu powerpc-unknown-linux-gnu wasm32-unknown-unknown
-      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --libs --tests --target aarch64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --libs --tests --features nightly_f16 --target aarch64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --libs --tests --target i686-unknown-linux-gnu
-      - run: cargo build --libs --tests --target powerpc-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --libs --tests --features nightly_avx512 --target x86_64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --libs --tests --features nightly_f16 --target x86_64-unknown-linux-gnu
-      - run: RUSTFLAGS="-C target-feature=+simd128" cargo build --libs --tests --target wasm32-unknown-unknown
+      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --lib --tests --target aarch64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+neon" cargo build --lib --tests --features nightly_f16 --target aarch64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --lib --tests --target i686-unknown-linux-gnu
+      - run: cargo build --lib --tests --target powerpc-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --lib --tests --features nightly_avx512 --target x86_64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --lib --tests --features nightly_f16 --target x86_64-unknown-linux-gnu
+      - run: RUSTFLAGS="-C target-feature=+simd128" cargo build --lib --tests --target wasm32-unknown-unknown
 
   clippy_x86:
     name: Clippy x86 Stable
