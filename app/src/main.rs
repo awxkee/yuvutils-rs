@@ -116,38 +116,7 @@ fn main() {
     // bytes_16.fill(0);
 
     let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
-
-    // let mut ayuv = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
-    // for (((dst, &y), &u), &v) in ayuv
-    //     .chunks_exact_mut(4)
-    //     .zip(fixed_planar.y_plane.iter())
-    //     .zip(fixed_planar.u_plane.iter())
-    //     .zip(fixed_planar.v_plane.iter())
-    // {
-    //     dst[0] = v;
-    //     dst[1] = u;
-    //     dst[2] = y;
-    //     dst[3] = 255;
-    // }
-    //
-    // let packed_ayuv = YuvPackedImage {
-    //     yuy: &ayuv,
-    //     yuy_stride: dimensions.0 as u32 * 4,
-    //     width: dimensions.0,
-    //     height: dimensions.1 as u32,
-    // };
-    //
-    // rgba.fill(0);
-    //
-    // vyua_to_rgba(
-    //     &packed_ayuv,
-    //     &mut rgba,
-    //     dimensions.0 as u32 * 4,
-    //     YuvRange::Limited,
-    //     YuvStandardMatrix::Bt709,
-    //     true,
-    // )
-    // .unwrap();
+    
     // //
     // i210_to_rgb_f16(
     //     &fixed_planar,
@@ -174,7 +143,7 @@ fn main() {
     // )
     // .unwrap();
 
-    // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
+    rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 
