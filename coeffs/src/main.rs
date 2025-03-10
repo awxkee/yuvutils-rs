@@ -366,14 +366,22 @@ impl YuvStandardMatrix {
 fn main() {
     let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
     let range = YuvRange::Full;
-    let bit_depth = 1102;
+    let bit_depth = 8;
     let transform = get_forward_coeffs(kr_kb.kr, kr_kb.kb, bit_depth, range);
     println!("Precise {:?};", transform);
-    let integral = get_forward_coeffs_integral(kr_kb.kr, kr_kb.kb, bit_depth, range, 13);
+    let integral = get_forward_coeffs_integral(kr_kb.kr, kr_kb.kb, bit_depth, range, 14);
     println!("Integral {:?};", integral);
 
     let inverse = get_inverse_transform(kr_kb.kr, kr_kb.kb, bit_depth, range);
     println!("Inverse {:?}", inverse);
-    let inverse_integral = get_inverse_transform_integral(kr_kb.kr, kr_kb.kb, bit_depth, 13, range);
+    let inverse_float = CbCrInverseTransform{ 
+        y_coef: inverse.y_coef.to_f32(),
+      g_coeff_1: inverse.g_coeff_1.to_f32(),
+        g_coeff_2: inverse.g_coeff_2.to_f32(),
+        cb_coef: inverse.cb_coef.to_f32(),
+        cr_coef: inverse.cr_coef.to_f32(),
+    };
+    println!("Inverse {:?}", inverse_float);
+    let inverse_integral = get_inverse_transform_integral(kr_kb.kr, kr_kb.kb, bit_depth, 14, range);
     println!("Inverse Integral {:?};", inverse_integral);
 }
