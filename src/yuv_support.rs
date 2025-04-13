@@ -273,7 +273,6 @@ pub enum YuvStandardMatrix {
     Bt2020,
     Smpte240,
     Bt470_6,
-    Fcc,
     /// Custom parameters first goes for kr, second for kb.
     /// Methods will *panic* if 1.0f32 - kr - kb == 0
     Custom(f32, f32),
@@ -308,7 +307,6 @@ impl YuvStandardMatrix {
                 kr: 0.2220f32,
                 kb: 0.0713f32,
             },
-            YuvStandardMatrix::Fcc => YuvBias { kr: 0.30, kb: 0.11 },
             YuvStandardMatrix::Custom(kr, kb) => YuvBias { kr, kb },
         }
     }
