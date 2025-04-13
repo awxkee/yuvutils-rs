@@ -404,7 +404,7 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
 
 macro_rules! d_backward {
     ($method: ident, $cn: expr, $name: ident, $stride_name: ident, $px_name: expr) => {
-        #[doc = concat!("Converts RemoteFX YUV 4:4:4 to ", $px_name, "with 8 bit-depth precision.")]
+        #[doc = concat!("Converts RemoteFX YUV 4:4:4 to ", $px_name, " with 8 bit-depth precision.")]
         pub fn $method(
             planar_image: &YuvPlanarImage<i16>,
             $name: &mut [u8],

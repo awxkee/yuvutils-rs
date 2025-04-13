@@ -30,7 +30,7 @@
 #![no_main]
 use core::f16;
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     convert_plane16_to_f16, convert_plane_f16_to_planar, convert_plane_to_f16, convert_rgb_to_f16,
     convert_rgba_to_f16,
 };

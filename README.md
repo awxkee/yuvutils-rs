@@ -91,6 +91,10 @@ The following planar formats are used for HDR content, with either **10-bit** or
 - **P**: A **biplanar format** (similar to **NV12**), but with **16-bit precision**, where the valid bits are stored in the high bits. This format has:
     - A **Y plane**
     - A **UV plane** (with U and V interleaved)
+- **GB**: Represents the GBR planar format, which uses 3 separate planes for each of the red, green, and blue color components. This format has:
+    - G plane (green channel)
+    - B plane (blue channel)
+    - R plane (red channel)
 
 ### Subsampling:
 

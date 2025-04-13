@@ -28,8 +28,8 @@
  */
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{EncodableLayout, GenericImageView, ImageReader};
+use yuv::{rotate_plane, rotate_rgba, RotationMode};
 use yuv_sys::{RotationMode_kRotate180, RotationMode_kRotate270, RotationMode_kRotate90};
-use yuvutils_rs::{rotate_plane, rotate_rgba, RotationMode};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let img = ImageReader::open("../assets/bench.jpg")

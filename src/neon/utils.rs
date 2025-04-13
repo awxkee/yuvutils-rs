@@ -271,7 +271,7 @@ pub(crate) unsafe fn vld_s16_endian<
     let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let mut v = vld1_u16(ptr);
-    #[cfg(feature = "big_endian")]
+    #[cfg(all(feature = "big_endian", target_endian = "little"))]
     if _endianness == YuvEndianness::BigEndian {
         v = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v)));
     }
@@ -298,7 +298,7 @@ pub(crate) unsafe fn vldq_s16_endian<
     let _endianness: YuvEndianness = ENDIANNESS.into();
     let bytes_position: YuvBytesPacking = BYTES_POSITION.into();
     let mut v = vld1q_u16(ptr);
-    #[cfg(feature = "big_endian")]
+    #[cfg(all(feature = "big_endian", target_endian = "little"))]
     if _endianness == YuvEndianness::BigEndian {
         v = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v)));
     }

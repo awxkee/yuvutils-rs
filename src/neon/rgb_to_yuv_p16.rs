@@ -101,7 +101,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
             y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
-        #[cfg(feature = "big_endian")]
+        #[cfg(all(feature = "big_endian", target_endian = "little"))]
         if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
@@ -144,7 +144,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
                 cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cb_vl)));
                 cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
@@ -184,7 +184,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
                 cr_s = vtomsb_u16::<BIT_DEPTH>(cr_s);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb_s = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cb_s)));
                 cr_s = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr_s)));
@@ -235,7 +235,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
             y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
-        #[cfg(feature = "big_endian")]
+        #[cfg(all(feature = "big_endian", target_endian = "little"))]
         if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
@@ -278,7 +278,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
                 cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cb_vl)));
                 cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
@@ -316,7 +316,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16<
                 cr_s = vtomsb_u16::<BIT_DEPTH>(cr_s);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb_s = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cb_s)));
                 cr_s = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr_s)));
@@ -440,7 +440,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
-        #[cfg(feature = "big_endian")]
+        #[cfg(all(feature = "big_endian", target_endian = "little"))]
         if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
@@ -468,7 +468,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cb_vl)));
                 cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
@@ -503,7 +503,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr = vtomsb_u16::<BIT_DEPTH>(cr);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cb)));
                 cr = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr)));
@@ -561,7 +561,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             y_vl = vtomsbq_u16::<BIT_DEPTH>(y_vl);
         }
 
-        #[cfg(feature = "big_endian")]
+        #[cfg(all(feature = "big_endian", target_endian = "little"))]
         if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
@@ -589,7 +589,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr_vl = vtomsbq_u16::<BIT_DEPTH>(cr_vl);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cb_vl)));
                 cr_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(cr_vl)));
@@ -622,7 +622,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
                 cr = vtomsb_u16::<BIT_DEPTH>(cr);
             }
 
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 cb = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cb)));
                 cr = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(cr)));

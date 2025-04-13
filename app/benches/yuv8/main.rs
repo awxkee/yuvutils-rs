@@ -29,11 +29,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use std::alloc::Layout;
-use yuv_sys::{
-    rs_ABGRToI420, rs_ABGRToJ422, rs_ABGRToNV21, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24,
-    rs_I422ToABGR, rs_I444ToABGR, rs_NV21ToABGR, rs_RGB24ToI420,
-};
-use yuvutils_rs::{
+use yuv::{
     gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
     rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
     rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgba, ycgco444_to_rgba, yuv400_to_rgba,
@@ -41,6 +37,10 @@ use yuvutils_rs::{
     yuv_nv12_to_rgba, yuv_nv16_to_rgb, YuvBiPlanarImageMut, YuvChromaSubsampling,
     YuvConversionMode, YuvGrayImageMut, YuvPackedImage, YuvPlanarImageMut, YuvRange,
     YuvStandardMatrix,
+};
+use yuv_sys::{
+    rs_ABGRToI420, rs_ABGRToJ422, rs_ABGRToNV21, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24,
+    rs_I422ToABGR, rs_I444ToABGR, rs_NV21ToABGR, rs_RGB24ToI420,
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {

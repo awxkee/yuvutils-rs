@@ -30,7 +30,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{bgr_to_rgb, rgba_to_bgr, rgba_to_bgra};
+use yuv::{bgr_to_rgb, rgba_to_bgr, rgba_to_bgra};
 
 fuzz_target!(|data: (u8, u8, bool, bool)| {
     fuzz_shuffler(data.0, data.1, data.2, data.3);

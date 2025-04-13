@@ -92,7 +92,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     while cx + 8 < width as usize {
         let mut a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
 
-        #[cfg(feature = "big_endian")]
+        #[cfg(all(feature = "big_endian", target_endian = "little"))]
         if _endianness == YuvEndianness::BigEndian {
             a_values_l = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(a_values_l)));
         }

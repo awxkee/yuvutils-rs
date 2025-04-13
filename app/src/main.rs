@@ -33,7 +33,10 @@ use image::{ColorType, DynamicImage, EncodableLayout, GenericImageView, ImageRea
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use yuvutils_rs::{rgba12_to_i412, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix};
+use yuv::{
+    rgba12_to_i412, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange,
+    YuvStandardMatrix,
+};
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Open the file
@@ -116,7 +119,7 @@ fn main() {
     // bytes_16.fill(0);
 
     let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
-    
+
     // //
     // i210_to_rgb_f16(
     //     &fixed_planar,
