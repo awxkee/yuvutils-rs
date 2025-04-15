@@ -29,7 +29,7 @@
 
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{y010_to_rgb10, y010_to_rgba10, YuvGrayImage, YuvRange, YuvStandardMatrix};
+use yuv::{y010_to_rgb10, y010_to_rgba10, YuvGrayImage, YuvRange, YuvStandardMatrix};
 
 fuzz_target!(|data: (u8, u8, u8)| {
     fuzz_yuv(data.0, data.1, data.2);

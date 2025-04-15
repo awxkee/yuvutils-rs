@@ -10,15 +10,15 @@ cargo-fuzz = true
 [dependencies]
 arbitrary = "1.4.1"
 libfuzzer-sys = "0.4"
-yuvutils-rs = { path = "..", features = ["nightly_f16", "fast_mode", "professional_mode", "rdp"], default-features = false }
+yuv = { path = "..", features = ["nightly_f16", "fast_mode", "professional_mode", "rdp"], default-features = false }
 
 [features]
 default = []
-avx = ["yuvutils-rs/avx"]
-sse = ["yuvutils-rs/sse"]
-rdm = ["yuvutils-rs/rdm"]
-nightly_avx512 = ["yuvutils-rs/nightly_avx512"]
-nightly_i8mm = ["yuvutils-rs/nightly_i8mm"]
+avx = ["yuv/avx"]
+sse = ["yuv/sse"]
+rdm = ["yuv/rdm"]
+nightly_avx512 = ["yuv/nightly_avx512"]
+nightly_i8mm = ["yuv/nightly_i8mm"]
 
 [[bin]]
 name = "yuv_to_rgb"

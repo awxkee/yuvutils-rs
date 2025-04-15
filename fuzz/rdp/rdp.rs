@@ -30,7 +30,7 @@
 #![no_main]
 use arbitrary::{Arbitrary, Unstructured};
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     rdp_abgr_to_yuv444, rdp_argb_to_yuv444, rdp_bgr_to_yuv444, rdp_bgra_to_yuv444,
     rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, rdp_yuv444_to_abgr, rdp_yuv444_to_argb,
     rdp_yuv444_to_bgra, rdp_yuv444_to_rgb, rdp_yuv444_to_rgba, BufferStoreMut, YuvPlanarImageMut,

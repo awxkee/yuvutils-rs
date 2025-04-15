@@ -28,7 +28,7 @@
  */
 use core::f16;
 use rand::Rng;
-use yuvutils_rs::{
+use yuv::{
     i410_to_rgb_f16, rgb10_to_i410, YuvChromaSubsampling, YuvConversionMode, YuvPlanarImageMut,
     YuvRange, YuvStandardMatrix,
 };

@@ -102,7 +102,7 @@ where
     /// Stride here always means components per row.
     pub y_stride: u32,
     pub uv_plane: BufferStoreMut<'a, T>,
-    /// Stride here always means components per row.
+    /// Stride here always means color components per row.
     pub uv_stride: u32,
     pub width: u32,
     pub height: u32,

@@ -68,12 +68,12 @@ pub(crate) unsafe fn deinterleave_10_bit_uv<
             }
 
             let mut u_vl = uv_values_u.0;
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 u_vl = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(u_vl)));
             }
             let mut v_vl = uv_values_u.1;
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 v_vl = vreinterpret_u16_u8(vrev16_u8(vreinterpret_u8_u16(v_vl)));
             }
@@ -96,12 +96,12 @@ pub(crate) unsafe fn deinterleave_10_bit_uv<
                 uv_values_u = uint16x8x2_t(uv_values_u.1, uv_values_u.0);
             }
             let mut u_vl = uv_values_u.0;
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 u_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(u_vl)));
             }
             let mut v_vl = uv_values_u.1;
-            #[cfg(feature = "big_endian")]
+            #[cfg(all(feature = "big_endian", target_endian = "little"))]
             if _endianness == YuvEndianness::BigEndian {
                 v_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(v_vl)));
             }

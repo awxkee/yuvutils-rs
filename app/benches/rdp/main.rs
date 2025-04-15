@@ -31,7 +31,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use image::{EncodableLayout, GenericImageView, ImageReader};
 use std::cmp::min;
 use std::io::{self, Write};
-use yuvutils_rs::{rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, YuvChromaSubsampling, YuvPlanarImageMut};
+use yuv::{rdp_rgb_to_yuv444, rdp_rgba_to_yuv444, YuvChromaSubsampling, YuvPlanarImageMut};
 
 const ALPHA: u8 = 255;
 

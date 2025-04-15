@@ -374,9 +374,9 @@ fn main() {
 
     let inverse = get_inverse_transform(kr_kb.kr, kr_kb.kb, bit_depth, range);
     println!("Inverse {:?}", inverse);
-    let inverse_float = CbCrInverseTransform{ 
+    let inverse_float = CbCrInverseTransform {
         y_coef: inverse.y_coef.to_f32(),
-      g_coeff_1: inverse.g_coeff_1.to_f32(),
+        g_coeff_1: inverse.g_coeff_1.to_f32(),
         g_coeff_2: inverse.g_coeff_2.to_f32(),
         cb_coef: inverse.cb_coef.to_f32(),
         cr_coef: inverse.cr_coef.to_f32(),

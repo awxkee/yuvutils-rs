@@ -30,7 +30,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     ayuv_to_rgba, ycgco420_to_rgb, ycgco420_to_rgba, ycgco422_to_rgb, ycgco422_to_rgba,
     yuv420_alpha_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_alpha_to_rgba, yuv422_to_rgb,
     yuv422_to_rgba, yuv444_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba, YuvPackedImage,

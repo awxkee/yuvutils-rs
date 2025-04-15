@@ -30,7 +30,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     yuv420_to_yuyv422, yuv422_to_yuyv422, yuv444_to_yuyv422, BufferStoreMut, YuvPackedImageMut,
     YuvPlanarImage,
 };

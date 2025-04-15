@@ -29,7 +29,7 @@
 
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     yuv400_alpha_to_rgba, yuv400_to_rgb, yuv400_to_rgba, YuvGrayAlphaImage, YuvGrayImage, YuvRange,
     YuvStandardMatrix,
 };

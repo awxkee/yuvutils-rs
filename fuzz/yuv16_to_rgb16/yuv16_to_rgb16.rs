@@ -30,7 +30,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     i010_alpha_to_rgba10, i010_to_rgb10, i010_to_rgba10, i012_to_rgba12, i016_to_rgba16,
     i210_alpha_to_rgba10, i210_to_rgb10, i210_to_rgba10, i212_to_rgba12, i216_to_rgba16,
     i410_alpha_to_rgba10, i410_to_rgb10, i410_to_rgba10, i412_to_rgba12, i416_to_rgba16,

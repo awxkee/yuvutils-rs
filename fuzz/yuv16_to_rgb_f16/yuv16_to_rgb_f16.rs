@@ -31,7 +31,7 @@
 
 use core::f16;
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     i010_alpha_to_rgba_f16, i010_to_rgb_f16, i010_to_rgba_f16, i210_alpha_to_rgba_f16,
     i210_to_rgb_f16, i210_to_rgba_f16, i410_alpha_to_rgba_f16, i410_to_rgb_f16, i410_to_rgba_f16,
     YuvPlanarImage, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,

@@ -30,7 +30,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use yuvutils_rs::{
+use yuv::{
     rgb10_to_p010, rgb10_to_p210, rgb10_to_p410, rgba10_to_p010, rgba10_to_p210, rgba10_to_p410,
     BufferStoreMut, YuvBiPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
