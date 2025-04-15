@@ -89,7 +89,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
         let dst_ptr = bgra.get_unchecked_mut(cx * channels..).as_mut_ptr();
 
         let mut y_vl = vld1q_u16(y_ld_ptr.get_unchecked(cx..).as_ptr());
-        #[cfg(feature = "big_endian")]
+        #[cfg(all(feature = "big_endian", target_endian = "little"))]
         if _endianness == YuvEndianness::BigEndian {
             y_vl = vreinterpretq_u16_u8(vrev16q_u8(vreinterpretq_u8_u16(y_vl)));
         }
