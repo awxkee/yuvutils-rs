@@ -141,8 +141,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
     );
 
     while cx + 64 < width {
-        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
-        let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const i32);
+        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const _);
+        let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const _);
 
         let y_values = _mm512_subs_epu8(y_vl0, y_corr);
 
@@ -237,8 +237,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
             hv,
         );
 
-        let y_vl0 = _mm512_loadu_si512(y_buffer0.as_ptr() as *const i32);
-        let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const i32);
+        let y_vl0 = _mm512_loadu_si512(y_buffer0.as_ptr() as *const _);
+        let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const _);
 
         let y_values = _mm512_subs_epu8(y_vl0, y_corr);
 

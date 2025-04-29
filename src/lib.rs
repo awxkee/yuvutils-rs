@@ -47,6 +47,13 @@
         feature = "nightly_avx512",
         any(target_arch = "x86", target_arch = "x86_64")
     ),
+    feature(x86_amx_intrinsics)
+)]
+#![cfg_attr(
+    all(
+        feature = "nightly_avx512",
+        any(target_arch = "x86", target_arch = "x86_64")
+    ),
     feature(stdarch_x86_avx512)
 )]
 #![cfg_attr(feature = "nightly_f16", feature(f16))]

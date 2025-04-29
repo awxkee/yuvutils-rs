@@ -613,9 +613,9 @@ pub(crate) unsafe fn avx512_load_rgb_u8<const CN: u8, const HAS_VBMI: bool>(
     let (r_values, g_values, b_values);
     match source_channels {
         YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-            let row_1 = _mm512_loadu_si512(src as *const i32);
-            let row_2 = _mm512_loadu_si512(src.add(64) as *const i32);
-            let row_3 = _mm512_loadu_si512(src.add(128) as *const i32);
+            let row_1 = _mm512_loadu_si512(src as *const _);
+            let row_2 = _mm512_loadu_si512(src.add(64) as *const _);
+            let row_3 = _mm512_loadu_si512(src.add(128) as *const _);
 
             let (it1, it2, it3) = avx512_deinterleave_rgb::<HAS_VBMI>(row_1, row_2, row_3);
             if source_channels == YuvSourceChannels::Rgb {
@@ -629,10 +629,10 @@ pub(crate) unsafe fn avx512_load_rgb_u8<const CN: u8, const HAS_VBMI: bool>(
             }
         }
         YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-            let row_1 = _mm512_loadu_si512(src as *const i32);
-            let row_2 = _mm512_loadu_si512(src.add(64) as *const i32);
-            let row_3 = _mm512_loadu_si512(src.add(128) as *const i32);
-            let row_4 = _mm512_loadu_si512(src.add(128 + 64) as *const i32);
+            let row_1 = _mm512_loadu_si512(src as *const _);
+            let row_2 = _mm512_loadu_si512(src.add(64) as *const _);
+            let row_3 = _mm512_loadu_si512(src.add(128) as *const _);
+            let row_4 = _mm512_loadu_si512(src.add(128 + 64) as *const _);
 
             let (it1, it2, it3, _) =
                 avx512_deinterleave_rgba::<HAS_VBMI>(row_1, row_2, row_3, row_4);
@@ -658,8 +658,8 @@ pub(crate) unsafe fn avx512_load_half_rgb_u8<const CN: u8, const HAS_VBMI: bool>
     let (r_values, g_values, b_values);
     match source_channels {
         YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
-            let row_1 = _mm512_loadu_si512(src as *const i32);
-            let row_2 = _mm256_loadu_si256(src.add(64) as *const __m256i);
+            let row_1 = _mm512_loadu_si512(src as *const _);
+            let row_2 = _mm256_loadu_si256(src.add(64) as *const _);
 
             let (it1, it2, it3) = avx512_deinterleave_rgb::<HAS_VBMI>(
                 row_1,
@@ -677,8 +677,8 @@ pub(crate) unsafe fn avx512_load_half_rgb_u8<const CN: u8, const HAS_VBMI: bool>
             }
         }
         YuvSourceChannels::Rgba | YuvSourceChannels::Bgra => {
-            let row_1 = _mm512_loadu_si512(src as *const i32);
-            let row_2 = _mm512_loadu_si512(src.add(64) as *const i32);
+            let row_1 = _mm512_loadu_si512(src as *const _);
+            let row_2 = _mm512_loadu_si512(src.add(64) as *const _);
             let (it1, it2, it3, _) = avx512_deinterleave_rgba::<HAS_VBMI>(
                 row_1,
                 row_2,
@@ -759,9 +759,9 @@ pub(crate) unsafe fn _mm512_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
 
     let source_channels: YuvSourceChannels = CHANS.into();
 
-    let row0 = _mm512_loadu_si512(ptr as *const i32);
-    let row1 = _mm512_loadu_si512(ptr.add(32) as *const i32);
-    let row2 = _mm512_loadu_si512(ptr.add(64) as *const i32);
+    let row0 = _mm512_loadu_si512(ptr as *const _);
+    let row1 = _mm512_loadu_si512(ptr.add(32) as *const _);
+    let row2 = _mm512_loadu_si512(ptr.add(64) as *const _);
 
     match source_channels {
         YuvSourceChannels::Rgb | YuvSourceChannels::Bgr => {
@@ -777,14 +777,14 @@ pub(crate) unsafe fn _mm512_load_deinterleave_rgb16_for_yuv<const CHANS: u8>(
             }
         }
         YuvSourceChannels::Rgba => {
-            let row3 = _mm512_loadu_si512(ptr.add(96) as *const i32);
+            let row3 = _mm512_loadu_si512(ptr.add(96) as *const _);
             let rgb_values = avx512_deinterleave_rgba16(row0, row1, row2, row3);
             r_values = rgb_values.0;
             g_values = rgb_values.1;
             b_values = rgb_values.2;
         }
         YuvSourceChannels::Bgra => {
-            let row3 = _mm512_loadu_si512(ptr.add(96) as *const i32);
+            let row3 = _mm512_loadu_si512(ptr.add(96) as *const _);
             let rgb_values = avx512_deinterleave_rgba16(row0, row1, row2, row3);
             r_values = rgb_values.2;
             g_values = rgb_values.1;

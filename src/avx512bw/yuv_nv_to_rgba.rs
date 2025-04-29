@@ -144,13 +144,13 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 64 < width {
-        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
+        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const _);
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const i32);
+                let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const _);
 
                 let (u_values0, v_values0) =
                     avx512_unzip_epi8::<HAS_VBMI>(uv_values, _mm512_setzero_si512());
@@ -175,8 +175,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
             YuvChromaSubsampling::Yuv444 => {
                 let offset = uv_x;
                 let v_str = uv_ptr.add(offset);
-                let uv_values_l = _mm512_loadu_si512(v_str as *const i32);
-                let uv_values_h = _mm512_loadu_si512(v_str.add(64) as *const i32);
+                let uv_values_l = _mm512_loadu_si512(v_str as *const _);
+                let uv_values_h = _mm512_loadu_si512(v_str.add(64) as *const _);
 
                 let (mut u_values, mut v_values) =
                     avx512_unzip_epi8::<HAS_VBMI>(uv_values_l, uv_values_h);
@@ -279,13 +279,13 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
             hv,
         );
 
-        let y_vl0 = _mm512_loadu_si512(y_buffer.as_ptr() as *const i32);
+        let y_vl0 = _mm512_loadu_si512(y_buffer.as_ptr() as *const _);
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const i32);
+                let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const _);
 
                 let (u_values0, v_values0) =
                     avx512_unzip_epi8::<HAS_VBMI>(uv_values, _mm512_setzero_si512());
@@ -308,8 +308,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
                 v_low_u8 = _mm512_srli_epi16::<6>(vl);
             }
             YuvChromaSubsampling::Yuv444 => {
-                let uv_values_l = _mm512_loadu_si512(uv_buffer.as_ptr() as *const i32);
-                let uv_values_h = _mm512_loadu_si512(uv_buffer.as_ptr().add(64) as *const i32);
+                let uv_values_l = _mm512_loadu_si512(uv_buffer.as_ptr() as *const _);
+                let uv_values_h = _mm512_loadu_si512(uv_buffer.as_ptr().add(64) as *const _);
 
                 let (mut u_values, mut v_values) =
                     avx512_unzip_epi8::<HAS_VBMI>(uv_values_l, uv_values_h);

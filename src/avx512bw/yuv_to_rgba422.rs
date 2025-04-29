@@ -129,7 +129,7 @@ unsafe fn avx512_yuv_to_rgba_impl422<const DESTINATION_CHANNELS: u8, const HAS_V
     let uv_mask = _mm512_setr_epi64(0, 0, 1, 0, 2, 0, 3, 0);
 
     while cx + 64 < width {
-        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const i32);
+        let y_vl0 = _mm512_loadu_si512(y_ptr.add(cx) as *const _);
 
         let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
         let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
