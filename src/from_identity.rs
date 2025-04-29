@@ -278,8 +278,8 @@ impl<const DEST: u8, const BIT_DEPTH: usize, const PRECISION: i32> LimitedRangeW
 
 #[inline]
 fn gbr_to_rgbx_impl<
-    V: Copy + AsPrimitive<J> + 'static + Sized + Debug + Send + Sync,
-    J: Copy + Sub<Output = J> + AsPrimitive<i32> + Sync + Send,
+    V: Copy + AsPrimitive<J> + AsPrimitive<u32> + 'static + Sized + Debug + Send + Sync,
+    J: Copy + Sub<Output = J> + AsPrimitive<i32> + Sync + Send + Ord,
     const CHANNELS: u8,
     const BIT_DEPTH: usize,
 >(
@@ -290,7 +290,7 @@ fn gbr_to_rgbx_impl<
 ) -> Result<(), YuvError>
 where
     i32: AsPrimitive<V>,
-    u32: AsPrimitive<J>,
+    u32: AsPrimitive<J> + AsPrimitive<V>,
     WideRowGbrProcessor<V, CHANNELS, BIT_DEPTH>: FullRangeWideRow<V>,
     WideRowGbrLimitedProcessor<V, CHANNELS, BIT_DEPTH, 13>: LimitedRangeWideRow<V>,
 {
@@ -323,7 +323,8 @@ where
     image.check_constraints(YuvChromaSubsampling::Yuv444)?;
     check_rgba_destination(rgba, rgba_stride, image.width, height, channels)?;
 
-    let max_value = (1 << BIT_DEPTH) - 1;
+    let max_value = (1i32 << BIT_DEPTH) - 1;
+    let max_value_u32: u32 = ((1u32 << BIT_DEPTH) - 1).as_();
 
     let y_iter;
     let rgb_iter;
@@ -379,12 +380,15 @@ where
                 for (((&y_src, &u_src), &v_src), rgb_dst) in
                     y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
                 {
+                    let v_32: J = v_src.as_();
+                    let y_32: J = y_src.as_();
+                    let u_32: J = u_src.as_();
                     rgb_dst[cn.get_r_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias).as_() * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((v_32 - y_bias).as_() * y_coef).as_();
                     rgb_dst[cn.get_g_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias).as_() * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((y_32 - y_bias).as_() * y_coef).as_();
                     rgb_dst[cn.get_b_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias).as_() * y_coef).as_();
+                        qrshr::<PRECISION, BIT_DEPTH>((u_32 - y_bias).as_() * y_coef).as_();
                     if channels == 4 {
                         rgb_dst[cn.get_a_channel_offset()] = max_value.as_();
                     }
@@ -401,14 +405,30 @@ where
 
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
-                for (((&y_src, &u_src), &v_src), rgb_dst) in
-                    y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
-                {
-                    rgb_dst[cn.get_r_channel_offset()] = v_src;
-                    rgb_dst[cn.get_g_channel_offset()] = y_src;
-                    rgb_dst[cn.get_b_channel_offset()] = u_src;
-                    if channels == 4 {
-                        rgb_dst[cn.get_a_channel_offset()] = max_value.as_();
+                if size_of::<V>() == 1 {
+                    for (((&y_src, &u_src), &v_src), rgb_dst) in
+                        y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
+                    {
+                        rgb_dst[cn.get_r_channel_offset()] = v_src;
+                        rgb_dst[cn.get_g_channel_offset()] = y_src;
+                        rgb_dst[cn.get_b_channel_offset()] = u_src;
+                        if channels == 4 {
+                            rgb_dst[cn.get_a_channel_offset()] = max_value.as_();
+                        }
+                    }
+                } else {
+                    for (((&y_src, &u_src), &v_src), rgb_dst) in
+                        y_src.iter().zip(u_src).zip(v_src).zip(rgb_chunks).skip(cx)
+                    {
+                        let v_32: u32 = v_src.as_();
+                        let y_32: u32 = y_src.as_();
+                        let u_32: u32 = u_src.as_();
+                        rgb_dst[cn.get_r_channel_offset()] = v_32.min(max_value_u32).as_();
+                        rgb_dst[cn.get_g_channel_offset()] = y_32.min(max_value_u32).as_();
+                        rgb_dst[cn.get_b_channel_offset()] = u_32.min(max_value_u32).as_();
+                        if channels == 4 {
+                            rgb_dst[cn.get_a_channel_offset()] = max_value.as_();
+                        }
                     }
                 }
             });
