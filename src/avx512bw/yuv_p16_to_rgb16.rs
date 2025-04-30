@@ -137,7 +137,7 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
     while cx + 32 < width as usize {
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
-        let mut y_vl = _mm512_loadu_si512(y_plane.get_unchecked(cx..).as_ptr() as *const i32);
+        let mut y_vl = _mm512_loadu_si512(y_plane.get_unchecked(cx..).as_ptr() as *const _);
         #[cfg(feature = "big_endian")]
         if _endianness == YuvEndianness::BigEndian {
             y_vl = _mm512_shuffle_epi8(y_vl, big_endian_shuffle_flag);
@@ -153,9 +153,9 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let mut u_vals =
-                    _mm256_loadu_si256(u_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
+                    _mm256_loadu_si256(u_plane.get_unchecked(ux..).as_ptr() as *const _);
                 let mut v_vals =
-                    _mm256_loadu_si256(v_plane.get_unchecked(ux..).as_ptr() as *const __m256i);
+                    _mm256_loadu_si256(v_plane.get_unchecked(ux..).as_ptr() as *const _);
                 #[cfg(feature = "big_endian")]
                 if _endianness == YuvEndianness::BigEndian {
                     u_vals = _mm256_shuffle_epi8(u_vals, big_endian_shuffle_flag_avx);
@@ -174,9 +174,9 @@ unsafe fn avx_yuv_p16_to_rgba_row16_impl<
             }
             YuvChromaSubsampling::Yuv444 => {
                 let mut u_vals =
-                    _mm512_loadu_si512(u_plane.get_unchecked(ux..).as_ptr() as *const i32);
+                    _mm512_loadu_si512(u_plane.get_unchecked(ux..).as_ptr() as *const _);
                 let mut v_vals =
-                    _mm512_loadu_si512(v_plane.get_unchecked(ux..).as_ptr() as *const i32);
+                    _mm512_loadu_si512(v_plane.get_unchecked(ux..).as_ptr() as *const _);
                 #[cfg(feature = "big_endian")]
                 if _endianness == YuvEndianness::BigEndian {
                     u_vals = _mm512_shuffle_epi8(u_vals, big_endian_shuffle_flag);

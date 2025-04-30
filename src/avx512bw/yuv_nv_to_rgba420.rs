@@ -140,10 +140,10 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 64 < width {
-        let yl0 = _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const i32);
-        let yl1 = _mm512_loadu_si512(y_plane1.get_unchecked(cx..).as_ptr() as *const i32);
+        let yl0 = _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const _);
+        let yl1 = _mm512_loadu_si512(y_plane1.get_unchecked(cx..).as_ptr() as *const _);
 
-        let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const i32);
+        let uv_values = _mm512_loadu_si512(uv_ptr.add(uv_x) as *const _);
 
         let y_values0 = _mm512_subs_epu8(yl0, y_corr);
         let y_values1 = _mm512_subs_epu8(yl1, y_corr);
@@ -270,10 +270,10 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
             hv,
         );
 
-        let yl0 = _mm512_loadu_si512(y_buffer0.as_ptr() as *const i32);
-        let yl1 = _mm512_loadu_si512(y_buffer1.as_ptr() as *const i32);
+        let yl0 = _mm512_loadu_si512(y_buffer0.as_ptr() as *const _);
+        let yl1 = _mm512_loadu_si512(y_buffer1.as_ptr() as *const _);
 
-        let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const i32);
+        let uv_values = _mm512_loadu_si512(uv_buffer.as_ptr() as *const _);
 
         let y_values0 = _mm512_subs_epu8(yl0, y_corr);
         let y_values1 = _mm512_subs_epu8(yl1, y_corr);

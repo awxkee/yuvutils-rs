@@ -138,8 +138,8 @@ unsafe fn avx512_yuv_to_rgba_impl420<const DESTINATION_CHANNELS: u8, const HAS_V
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 64 < width {
-        let y_vl0 = _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const i32);
-        let y_vl1 = _mm512_loadu_si512(y_plane1.get_unchecked(cx..).as_ptr() as *const i32);
+        let y_vl0 = _mm512_loadu_si512(y_plane0.get_unchecked(cx..).as_ptr() as *const _);
+        let y_vl1 = _mm512_loadu_si512(y_plane1.get_unchecked(cx..).as_ptr() as *const _);
 
         let u_values = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
         let v_values = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);

@@ -185,7 +185,7 @@ unsafe fn avx512_yuv_to_rgba_alpha_impl<
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
     while cx + 64 < width {
-        let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
+        let y_values = _mm512_subs_epu8(_mm512_loadu_si512(y_ptr.add(cx) as *const _), y_corr);
 
         let (u_high_u8, v_high_u8, u_low_u8, v_low_u8);
 
@@ -203,8 +203,8 @@ unsafe fn avx512_yuv_to_rgba_alpha_impl<
                 v_low_u8 = v_low;
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const i32);
-                let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const i32);
+                let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const _);
+                let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const _);
 
                 u_high_u8 = _mm512_extracti64x4_epi64::<1>(u_values);
                 v_high_u8 = _mm512_extracti64x4_epi64::<1>(v_values);
@@ -247,7 +247,7 @@ unsafe fn avx512_yuv_to_rgba_alpha_impl<
             ),
         );
 
-        let a_values = _mm512_loadu_si512(a_plane.as_ptr().add(cx) as *const i32);
+        let a_values = _mm512_loadu_si512(a_plane.as_ptr().add(cx) as *const _);
 
         let (r_values, g_values, b_values);
 

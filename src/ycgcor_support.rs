@@ -39,7 +39,7 @@ impl From<usize> for YCgCoR {
             1 => YCgCoR::YCgCoRo,
             2 => YCgCoR::YCgCoRe,
             _ => {
-                panic!("Not found suitable type of YCgCoR for {}", value);
+                panic!("Not found suitable type of YCgCoR for {value}");
             }
         }
     }

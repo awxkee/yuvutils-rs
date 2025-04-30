@@ -104,7 +104,7 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
     let v_alpha = _mm512_set1_epi8(255u8 as i8);
 
     while cx + 64 < width {
-        let y_s = _mm512_subs_epi8(_mm512_loadu_si512(y_ptr.add(cx) as *const i32), y_corr);
+        let y_s = _mm512_subs_epi8(_mm512_loadu_si512(y_ptr.add(cx) as *const _), y_corr);
 
         let y10 = _mm512_expand8_unordered_to_10(y_s);
 
@@ -143,7 +143,7 @@ unsafe fn avx512_y_to_rgb_row_impl<const DESTINATION_CHANNELS: u8, const HAS_VBM
             diff,
         );
 
-        let y_s = _mm512_subs_epi8(_mm512_loadu_si512(y_buffer.as_ptr() as *const i32), y_corr);
+        let y_s = _mm512_subs_epi8(_mm512_loadu_si512(y_buffer.as_ptr() as *const _), y_corr);
 
         let y10 = _mm512_expand8_unordered_to_10(y_s);
 

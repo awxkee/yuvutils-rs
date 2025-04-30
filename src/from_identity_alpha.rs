@@ -42,7 +42,7 @@ use std::ops::Sub;
 
 #[inline]
 fn gbr_to_rgbx_alpha_impl<
-    V: Copy + AsPrimitive<J> + 'static + Sized + Debug + Send + Sync,
+    V: Copy + AsPrimitive<J> + AsPrimitive<u32> + 'static + Sized + Debug + Send + Sync,
     J: Copy + Sub<Output = J> + AsPrimitive<i32> + Send + Sync,
     const CHANNELS: u8,
     const BIT_DEPTH: usize,
@@ -54,10 +54,10 @@ fn gbr_to_rgbx_alpha_impl<
 ) -> Result<(), YuvError>
 where
     i32: AsPrimitive<V>,
-    u32: AsPrimitive<J>,
+    u32: AsPrimitive<J> + AsPrimitive<V>,
 {
-    let destination_channels: YuvSourceChannels = CHANNELS.into();
-    let channels = destination_channels.get_channels_count();
+    let cn: YuvSourceChannels = CHANNELS.into();
+    let channels = cn.get_channels_count();
     assert_eq!(
         channels, 4,
         "GBRA -> RGBA is implemented only on 4 channels"
@@ -108,6 +108,8 @@ where
         a_iter = image.a_plane.chunks_exact(image.a_stride as usize);
     }
 
+    let max_value_u32: u32 = ((1u32 << BIT_DEPTH) - 1).as_();
+
     match yuv_range {
         YuvRange::Limited => {
             const PRECISION: i32 = 13;
@@ -130,13 +132,16 @@ where
                     .zip(rgb_chunks)
                     .zip(a_src)
                 {
-                    rgb_dst[destination_channels.get_r_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((v_src.as_() - y_bias).as_() * y_coef).as_();
-                    rgb_dst[destination_channels.get_g_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((y_src.as_() - y_bias).as_() * y_coef).as_();
-                    rgb_dst[destination_channels.get_b_channel_offset()] =
-                        qrshr::<PRECISION, BIT_DEPTH>((u_src.as_() - y_bias).as_() * y_coef).as_();
-                    rgb_dst[destination_channels.get_a_channel_offset()] = a_src;
+                    let v_32: J = v_src.as_();
+                    let y_32: J = y_src.as_();
+                    let u_32: J = u_src.as_();
+                    rgb_dst[cn.get_r_channel_offset()] =
+                        qrshr::<PRECISION, BIT_DEPTH>((v_32 - y_bias).as_() * y_coef).as_();
+                    rgb_dst[cn.get_g_channel_offset()] =
+                        qrshr::<PRECISION, BIT_DEPTH>((y_32 - y_bias).as_() * y_coef).as_();
+                    rgb_dst[cn.get_b_channel_offset()] =
+                        qrshr::<PRECISION, BIT_DEPTH>((u_32 - y_bias).as_() * y_coef).as_();
+                    rgb_dst[cn.get_a_channel_offset()] = a_src;
                 }
             });
         }
@@ -146,17 +151,35 @@ where
                 let y_src = &y_src[0..image.width as usize];
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
-                for ((((&y_src, &u_src), &v_src), rgb_dst), &a_src) in y_src
-                    .iter()
-                    .zip(u_src)
-                    .zip(v_src)
-                    .zip(rgb_chunks)
-                    .zip(a_src)
-                {
-                    rgb_dst[destination_channels.get_r_channel_offset()] = v_src;
-                    rgb_dst[destination_channels.get_g_channel_offset()] = y_src;
-                    rgb_dst[destination_channels.get_b_channel_offset()] = u_src;
-                    rgb_dst[destination_channels.get_a_channel_offset()] = a_src;
+                if size_of::<V>() == 1 {
+                    for ((((&y_src, &u_src), &v_src), rgb_dst), &a_src) in y_src
+                        .iter()
+                        .zip(u_src)
+                        .zip(v_src)
+                        .zip(rgb_chunks)
+                        .zip(a_src)
+                    {
+                        rgb_dst[cn.get_r_channel_offset()] = v_src;
+                        rgb_dst[cn.get_g_channel_offset()] = y_src;
+                        rgb_dst[cn.get_b_channel_offset()] = u_src;
+                        rgb_dst[cn.get_a_channel_offset()] = a_src;
+                    }
+                } else {
+                    for ((((&y_src, &u_src), &v_src), rgb_dst), &a_src) in y_src
+                        .iter()
+                        .zip(u_src)
+                        .zip(v_src)
+                        .zip(rgb_chunks)
+                        .zip(a_src)
+                    {
+                        let v_32: u32 = v_src.as_();
+                        let y_32: u32 = y_src.as_();
+                        let u_32: u32 = u_src.as_();
+                        rgb_dst[cn.get_r_channel_offset()] = v_32.min(max_value_u32).as_();
+                        rgb_dst[cn.get_g_channel_offset()] = y_32.min(max_value_u32).as_();
+                        rgb_dst[cn.get_b_channel_offset()] = u_32.min(max_value_u32).as_();
+                        rgb_dst[cn.get_a_channel_offset()] = a_src;
+                    }
                 }
             });
         }
