@@ -27,7 +27,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use std::fs::File;
-use std::io::Write;
+use std::io::{Error, Read, Write};
+use std::path::Path;
+use yuv::{BufferStoreMut, YuvPlanarImageMut};
 
 pub(crate) fn save_yuy2_image(
     filename: &str,
@@ -38,4 +40,48 @@ pub(crate) fn save_yuy2_image(
     let mut file = File::create(filename)?;
     file.write_all(yuy2_data)?;
     Ok(())
+}
+
+pub fn read_yuv420_16bit<P: AsRef<Path>>(
+    path: P,
+    width: usize,
+    height: usize,
+) -> Result<YuvPlanarImageMut<'static, u16>, Error> {
+    let mut file = File::open(path)?;
+    let frame_size = width * height;
+    let chroma_size = (width / 2) * (height / 2);
+
+    let mut y_buf = vec![0u8; frame_size * 2];
+    let mut u_buf = vec![0u8; chroma_size * 2];
+    let mut v_buf = vec![0u8; chroma_size * 2];
+
+    file.read_exact(&mut y_buf)?;
+    file.read_exact(&mut u_buf)?;
+    file.read_exact(&mut v_buf)?;
+
+    let y = y_buf
+        .chunks_exact(2)
+        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+        .collect::<Vec<u16>>();
+
+    let u = u_buf
+        .chunks_exact(2)
+        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+        .collect::<Vec<u16>>();
+
+    let v = v_buf
+        .chunks_exact(2)
+        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+        .collect::<Vec<u16>>();
+
+    Ok(YuvPlanarImageMut {
+        y_plane: BufferStoreMut::Owned(y),
+        y_stride: width as u32,
+        u_plane: BufferStoreMut::Owned(u),
+        u_stride: (width as u32).div_ceil(2),
+        v_plane: BufferStoreMut::Owned(v),
+        v_stride: (width as u32).div_ceil(2),
+        width: width as u32,
+        height: height as u32,
+    })
 }

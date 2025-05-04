@@ -125,7 +125,7 @@ pub(crate) unsafe fn neon_ycgco_full_range_to_rgb<
             r_values,
             g_values,
             b_values,
-            vdupq_n_u8(0),
+            vdupq_n_u8(255),
         );
 
         cx += 16;
@@ -236,7 +236,7 @@ pub(crate) unsafe fn neon_ycgco_full_range_to_rgb<
             r_values,
             g_values,
             b_values,
-            vdupq_n_u8(0),
+            vdupq_n_u8(255),
         );
 
         let dst_shift = cx * channels;
