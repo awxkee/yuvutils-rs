@@ -319,7 +319,10 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|((((rgba, y_plane), a_plane), u_plane), v_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
+            let y_plane = &y_plane[..image.width as usize];
+            let u_plane = &u_plane[..image.width as usize];
+            let v_plane = &v_plane[..image.width as usize];
+            let a_plane = &a_plane[..image.width as usize];
             let cx = handler
                 .handle_row(
                     y_plane,
@@ -388,11 +391,11 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
         }
         iter.for_each(|((((rgba, y_plane), a_plane), u_plane), v_plane)| {
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &a_plane[0..image.width as usize],
-                &mut rgba[0..image.width as usize * channels],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &a_plane[..image.width as usize],
+                &mut rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -422,11 +425,11 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 .zip(a_plane.chunks_exact(image.a_stride as usize))
             {
                 process_halved_chroma_row(
-                    &y_plane[0..image.width as usize],
-                    &u_plane[0..(image.width as usize).div_ceil(2)],
-                    &v_plane[0..(image.width as usize).div_ceil(2)],
-                    &a_plane[0..image.width as usize],
-                    &mut rgba[0..image.width as usize * channels],
+                    &y_plane[..image.width as usize],
+                    &u_plane[..(image.width as usize).div_ceil(2)],
+                    &v_plane[..(image.width as usize).div_ceil(2)],
+                    &a_plane[..image.width as usize],
+                    &mut rgba[..image.width as usize * channels],
                 );
             }
         });
@@ -454,11 +457,11 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                 .last()
                 .unwrap();
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &a_plane[0..image.width as usize],
-                &mut rgba[0..image.width as usize * channels],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &a_plane[..image.width as usize],
+                &mut rgba[..image.width as usize * channels],
             );
         }
     } else {

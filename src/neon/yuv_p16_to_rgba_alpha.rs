@@ -38,7 +38,6 @@ use crate::yuv_support::{
     YuvSourceChannels,
 };
 
-#[inline(always)]
 pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,

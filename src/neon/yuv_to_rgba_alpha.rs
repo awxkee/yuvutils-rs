@@ -411,7 +411,7 @@ unsafe fn neon_yuv_to_rgba_alpha_impl<
         std::ptr::copy_nonoverlapping(
             a_plane.get_unchecked(cx..).as_ptr(),
             a_buffer.as_mut_ptr(),
-            ux_diff,
+            diff,
         );
 
         std::ptr::copy_nonoverlapping(
