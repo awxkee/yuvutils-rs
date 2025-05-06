@@ -26,121 +26,119 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 use crate::yuv_error::check_rgba_destination;
-#[allow(unused_imports)]
 use crate::yuv_support::*;
 use crate::{YuvError, YuvPlanarImageMut};
+use num_traits::AsPrimitive;
 #[cfg(feature = "rayon")]
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 #[cfg(feature = "rayon")]
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use std::fmt::Debug;
 
-fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
-    image: &mut YuvPlanarImageMut<u8>,
-    rgba: &[u8],
+/// Convert RGB to YCgCo
+/// Note: YCgCo requires to adjust range on RGB rather than YUV
+fn rgbx_to_ycgco<
+    V: Copy + AsPrimitive<i32> + 'static + Clone + Debug + Send + Sync,
+    const ORIGIN_CHANNELS: u8,
+    const SAMPLING: u8,
+    const BP: i32,
+>(
+    image: &mut YuvPlanarImageMut<V>,
+    rgba: &[V],
     rgba_stride: u32,
     range: YuvRange,
-) -> Result<(), YuvError> {
+) -> Result<(), YuvError>
+where
+    i32: AsPrimitive<V>,
+{
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let src_chans: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = src_chans.get_channels_count();
     const PRECISION: i32 = 13;
-    let range = get_yuv_range(8, range);
+    let range = get_yuv_range(BP as u32, range);
     let precision_scale = (1 << PRECISION) as f32;
     let rounding_const_bias: i32 = (1 << (PRECISION - 1)) - 1;
     let bias_y = range.bias_y as i32 * (1 << PRECISION) + rounding_const_bias;
     let bias_uv = range.bias_uv as i32 * (1 << PRECISION) + rounding_const_bias;
-    let max_colors = (1 << 8) - 1i32;
+    let max_colors = (1 << BP) - 1i32;
 
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
     image.check_constraints(chroma_subsampling)?;
 
     let range_reduction_y =
         (range.range_y as f32 / max_colors as f32 * precision_scale).round() as i16;
-    let range_reduction_uv =
-        (range.range_uv as f32 / max_colors as f32 * precision_scale).round() as i16;
 
-    let process_halved_chroma_row =
-        |y_plane: &mut [u8], u_plane: &mut [u8], v_plane: &mut [u8], rgba: &[u8]| {
-            for (((y_dst, u_dst), v_dst), rgba) in y_plane
-                .chunks_exact_mut(2)
-                .zip(u_plane.iter_mut())
-                .zip(v_plane.iter_mut())
-                .zip(rgba.chunks_exact(channels * 2))
-            {
-                let src0 = &rgba[0..channels];
+    let process_halved_chroma_row = |y_plane: &mut [V],
+                                     u_plane: &mut [V],
+                                     v_plane: &mut [V],
+                                     rgba: &[V]| {
+        for (((y_dst, u_dst), v_dst), rgba) in y_plane
+            .chunks_exact_mut(2)
+            .zip(u_plane.iter_mut())
+            .zip(v_plane.iter_mut())
+            .zip(rgba.chunks_exact(channels * 2))
+        {
+            let src0 = &rgba[0..channels];
 
-                let r0 = src0[src_chans.get_r_channel_offset()] as i32;
-                let g0 = src0[src_chans.get_g_channel_offset()] as i32;
-                let b0 = src0[src_chans.get_b_channel_offset()] as i32;
+            let r0 = src0[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g0 = src0[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b0 = src0[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-                let hg0 = (g0 * range_reduction_y as i32) >> 1;
-                let y_0 = (hg0
-                    + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
-                    + bias_y)
-                    >> PRECISION;
+            let hg0 = (g0) >> 1;
+            let y_0 = (hg0 + ((r0 + b0) >> 2) + bias_y) >> PRECISION;
 
-                y_dst[0] = y_0 as u8;
+            y_dst[0] = y_0.min(max_colors).max(0).as_();
 
-                let src1 = &rgba[channels..channels * 2];
+            let src1 = &rgba[channels..channels * 2];
 
-                let r1 = src1[src_chans.get_r_channel_offset()] as i32;
-                let g1 = src1[src_chans.get_g_channel_offset()] as i32;
-                let b1 = src1[src_chans.get_b_channel_offset()] as i32;
-                let hg1 = (g1 * range_reduction_y as i32) >> 1;
-                let y_1 = (hg1
-                    + ((r1 * range_reduction_y as i32 + b1 * range_reduction_y as i32) >> 2)
-                    + bias_y)
-                    >> PRECISION;
-                y_dst[1] = y_1 as u8;
+            let r1 = src1[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g1 = src1[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b1 = src1[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-                let r = ((r0 + r1 + 1) >> 1) * range_reduction_uv as i32;
-                let g = ((g0 + g1 + 1) >> 1) * range_reduction_uv as i32;
-                let b = ((b0 + b1 + 1) >> 1) * range_reduction_uv as i32;
+            let hg1 = (g1) >> 1;
+            let y_1 = (hg1 + ((r1 + b1) >> 2) + bias_y) >> PRECISION;
+            y_dst[1] = y_1.min(max_colors).max(0).as_();
 
-                let cg = (((g >> 1) - ((r + b) >> 2)) + bias_uv) >> PRECISION;
-                let co = (((r - b) >> 1) + bias_uv) >> PRECISION;
+            let r = (r0 + r1 + 1) >> 1;
+            let g = (g0 + g1 + 1) >> 1;
+            let b = (b0 + b1 + 1) >> 1;
 
-                *u_dst = cg as u8;
-                *v_dst = co as u8;
-            }
+            let cg = (((g >> 1) - ((r + b) >> 2)) + bias_uv) >> PRECISION;
+            let co = (((r - b) >> 1) + bias_uv) >> PRECISION;
 
-            if image.width & 1 != 0 {
-                let rgb_last = rgba.chunks_exact(channels * 2).remainder();
-                let mut r0 = rgb_last[src_chans.get_r_channel_offset()] as i32;
-                let mut g0 = rgb_last[src_chans.get_g_channel_offset()] as i32;
-                let mut b0 = rgb_last[src_chans.get_b_channel_offset()] as i32;
+            *u_dst = cg.min(max_colors).max(0).as_();
+            *v_dst = co.min(max_colors).max(0).as_();
+        }
 
-                let y_last = y_plane.last_mut().unwrap();
-                let u_last = u_plane.last_mut().unwrap();
-                let v_last = v_plane.last_mut().unwrap();
+        if image.width & 1 != 0 {
+            let rgb_last = rgba.chunks_exact(channels * 2).remainder();
+            let r0 = rgb_last[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g0 = rgb_last[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b0 = rgb_last[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-                let hg0 = (g0 * range_reduction_y as i32) >> 1;
-                let y_0 = (hg0
-                    + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
-                    + bias_y)
-                    >> PRECISION;
+            let y_last = y_plane.last_mut().unwrap();
+            let u_last = u_plane.last_mut().unwrap();
+            let v_last = v_plane.last_mut().unwrap();
 
-                *y_last = y_0 as u8;
+            let hg0 = (g0) >> 1;
+            let y_0 = (hg0 + ((r0 + b0) >> 2) + bias_y) >> PRECISION;
 
-                r0 *= range_reduction_y as i32;
-                g0 *= range_reduction_uv as i32;
-                b0 *= range_reduction_uv as i32;
+            *y_last = y_0.min(max_colors).max(0).as_();
 
-                let cg = (((g0 >> 1) - ((r0 + b0) >> 2)) + bias_uv) >> PRECISION;
-                let co = (((r0 - b0) >> 1) + bias_uv) >> PRECISION;
-                *u_last = cg as u8;
-                *v_last = co as u8;
-            }
-        };
+            let cg = (((g0 >> 1) - ((r0 + b0) >> 2)) + bias_uv) >> PRECISION;
+            let co = (((r0 - b0) >> 1) + bias_uv) >> PRECISION;
+            *u_last = cg.min(max_colors).max(0).as_();
+            *v_last = co.min(max_colors).max(0).as_();
+        }
+    };
 
-    let process_doubled_row = |y_plane0: &mut [u8],
-                               y_plane1: &mut [u8],
-                               u_plane: &mut [u8],
-                               v_plane: &mut [u8],
-                               rgba0: &[u8],
-                               rgba1: &[u8]| {
+    let process_doubled_row = |y_plane0: &mut [V],
+                               y_plane1: &mut [V],
+                               u_plane: &mut [V],
+                               v_plane: &mut [V],
+                               rgba0: &[V],
+                               rgba1: &[V]| {
         for (((((y_dst0, y_dst1), u_dst), v_dst), rgba0), rgba1) in y_plane0
             .chunks_exact_mut(2)
             .zip(y_plane1.chunks_exact_mut(2))
@@ -151,100 +149,82 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         {
             let src00 = &rgba0[0..channels];
 
-            let r00 = src00[src_chans.get_r_channel_offset()] as i32;
-            let g00 = src00[src_chans.get_g_channel_offset()] as i32;
-            let b00 = src00[src_chans.get_b_channel_offset()] as i32;
-            let hg00 = (g00 * range_reduction_y as i32) >> 1;
-            let y_00 = (hg00
-                + ((r00 * range_reduction_y as i32 + b00 * range_reduction_y as i32) >> 2)
-                + bias_y)
-                >> PRECISION;
-            y_dst0[0] = y_00 as u8;
+            let r00 = src00[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g00 = src00[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b00 = src00[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
+            let hg00 = (g00) >> 1;
+            let y_00 = (hg00 + ((r00 + b00) >> 2) + bias_y) >> PRECISION;
+            y_dst0[0] = y_00.min(max_colors).max(0).as_();
 
             let src1 = &rgba0[channels..channels * 2];
 
-            let r01 = src1[src_chans.get_r_channel_offset()] as i32;
-            let g01 = src1[src_chans.get_g_channel_offset()] as i32;
-            let b01 = src1[src_chans.get_b_channel_offset()] as i32;
-            let hg01 = (g01 * range_reduction_y as i32) >> 1;
-            let y_01 = (hg01
-                + ((r01 * range_reduction_y as i32 + b01 * range_reduction_y as i32) >> 2)
-                + bias_y)
-                >> PRECISION;
-            y_dst0[1] = y_01 as u8;
+            let r01 = src1[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g01 = src1[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b01 = src1[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
+            let hg01 = (g01) >> 1;
+            let y_01 = (hg01 + ((r01 + b01) >> 2) + bias_y) >> PRECISION;
+            y_dst0[1] = y_01.min(max_colors).max(0).as_();
 
             let src10 = &rgba1[0..channels];
 
-            let r10 = src10[src_chans.get_r_channel_offset()] as i32;
-            let g10 = src10[src_chans.get_g_channel_offset()] as i32;
-            let b10 = src10[src_chans.get_b_channel_offset()] as i32;
-            let hg10 = (g10 * range_reduction_y as i32) >> 1;
-            let y_10 = (hg10
-                + ((r10 * range_reduction_y as i32 + b10 * range_reduction_y as i32) >> 2)
-                + bias_y)
-                >> PRECISION;
-            y_dst1[0] = y_10 as u8;
+            let r10 = src10[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g10 = src10[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b10 = src10[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
+            let hg10 = (g10) >> 1;
+            let y_10 = (hg10 + ((r10 + b10) >> 2) + bias_y) >> PRECISION;
+            y_dst1[0] = y_10.min(max_colors).max(0).as_();
 
             let src11 = &rgba1[channels..channels * 2];
 
-            let r11 = src11[src_chans.get_r_channel_offset()] as i32;
-            let g11 = src11[src_chans.get_g_channel_offset()] as i32;
-            let b11 = src11[src_chans.get_b_channel_offset()] as i32;
-            let hg11 = (g11 * range_reduction_y as i32) >> 1;
-            let y_11 = (hg11
-                + ((r11 * range_reduction_y as i32 + b11 * range_reduction_y as i32) >> 2)
-                + bias_y)
-                >> PRECISION;
-            y_dst1[1] = y_11 as u8;
+            let r11 = src11[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g11 = src11[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b11 = src11[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
+            let hg11 = (g11) >> 1;
+            let y_11 = (hg11 + ((r11 + b11) >> 2) + bias_y) >> PRECISION;
+            y_dst1[1] = y_11.min(max_colors).max(0).as_();
 
-            let ruv = ((r00 + r01 + r10 + r11 + 2) >> 2) * range_reduction_uv as i32;
-            let guv = ((g00 + g01 + g10 + g11 + 2) >> 2) * range_reduction_uv as i32;
-            let buv = ((b00 + b01 + b10 + b11 + 2) >> 2) * range_reduction_uv as i32;
+            let ruv = (r00 + r01 + r10 + r11 + 2) >> 2;
+            let guv = (g00 + g01 + g10 + g11 + 2) >> 2;
+            let buv = (b00 + b01 + b10 + b11 + 2) >> 2;
 
             let cg = (((guv >> 1) - ((ruv + buv) >> 2)) + bias_uv) >> PRECISION;
             let co = (((ruv - buv) >> 1) + bias_uv) >> PRECISION;
-            *u_dst = cg as u8;
-            *v_dst = co as u8;
+            *u_dst = cg.min(max_colors).max(0).as_();
+            *v_dst = co.min(max_colors).max(0).as_();
         }
 
         if image.width & 1 != 0 {
             let rgb_last0 = rgba0.chunks_exact(channels * 2).remainder();
             let rgb_last1 = rgba1.chunks_exact(channels * 2).remainder();
-            let r0 = rgb_last0[src_chans.get_r_channel_offset()] as i32;
-            let g0 = rgb_last0[src_chans.get_g_channel_offset()] as i32;
-            let b0 = rgb_last0[src_chans.get_b_channel_offset()] as i32;
+            let r0 = rgb_last0[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g0 = rgb_last0[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b0 = rgb_last0[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-            let r1 = rgb_last1[src_chans.get_r_channel_offset()] as i32;
-            let g1 = rgb_last1[src_chans.get_g_channel_offset()] as i32;
-            let b1 = rgb_last1[src_chans.get_b_channel_offset()] as i32;
+            let r1 = rgb_last1[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g1 = rgb_last1[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b1 = rgb_last1[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
             let y0_last = y_plane0.last_mut().unwrap();
             let y1_last = y_plane1.last_mut().unwrap();
             let u_last = u_plane.last_mut().unwrap();
             let v_last = v_plane.last_mut().unwrap();
 
-            let hg0 = (g0 * range_reduction_y as i32) >> 1;
-            let y_0 = (hg0
-                + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
-                + bias_y)
-                >> PRECISION;
-            *y0_last = y_0 as u8;
+            let hg0 = (g0) >> 1;
+            let y_0 = (hg0 + ((r0 + b0) >> 2) + bias_y) >> PRECISION;
+            *y0_last = y_0.min(max_colors).max(0).as_();
 
-            let hg1 = (g1 * range_reduction_y as i32) >> 1;
-            let y_1 = (hg1
-                + ((r1 * range_reduction_y as i32 + b1 * range_reduction_y as i32) >> 2)
-                + bias_y)
-                >> PRECISION;
-            *y1_last = y_1 as u8;
+            let hg1 = (g1) >> 1;
+            let y_1 = (hg1 + ((r1 + b1) >> 2) + bias_y) >> PRECISION;
+            *y1_last = y_1.min(max_colors).max(0).as_();
 
-            let r0 = ((r0 + r1) >> 1) * range_reduction_uv as i32;
-            let g0 = ((g0 + g1) >> 1) * range_reduction_uv as i32;
-            let b0 = ((b0 + b1) >> 1) * range_reduction_uv as i32;
+            let r0 = (r0 + r1) >> 1;
+            let g0 = (g0 + g1) >> 1;
+            let b0 = (b0 + b1) >> 1;
 
             let cg = (((g0 >> 1) - ((r0 + b0) >> 2)) + bias_uv) >> PRECISION;
             let co = (((r0 - b0) >> 1) + bias_uv) >> PRECISION;
-            *u_last = cg as u8;
-            *v_last = co as u8;
+            *u_last = cg.min(max_colors).max(0).as_();
+            *v_last = co.min(max_colors).max(0).as_();
         }
     };
 
@@ -281,24 +261,17 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 .zip(v_plane.iter_mut())
                 .zip(rgba.chunks_exact(channels))
             {
-                let mut r0 = rgba[src_chans.get_r_channel_offset()] as i32;
-                let mut g0 = rgba[src_chans.get_g_channel_offset()] as i32;
-                let mut b0 = rgba[src_chans.get_b_channel_offset()] as i32;
-                let hg0 = (g0 * range_reduction_y as i32) >> 1;
-                let y_0 = (hg0
-                    + ((r0 * range_reduction_y as i32 + b0 * range_reduction_y as i32) >> 2)
-                    + bias_y)
-                    >> PRECISION;
-                *y_dst = y_0 as u8;
-
-                r0 *= range_reduction_y as i32;
-                g0 *= range_reduction_y as i32;
-                b0 *= range_reduction_y as i32;
+                let r0 = rgba[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+                let g0 = rgba[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+                let b0 = rgba[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
+                let hg0 = (g0) >> 1;
+                let y_0 = (hg0 + ((r0 + b0) >> 2) + bias_y) >> PRECISION;
+                *y_dst = y_0.min(max_colors).max(0).as_();
 
                 let cg = (((g0 >> 1) - ((r0 + b0) >> 2)) + bias_uv) >> PRECISION;
                 let co = (((r0 - b0) >> 1) + bias_uv) >> PRECISION;
-                *u_dst = cg as u8;
-                *v_dst = co as u8;
+                *u_dst = cg.min(max_colors).max(0).as_();
+                *v_dst = co.min(max_colors).max(0).as_();
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
@@ -378,354 +351,178 @@ fn rgbx_to_ycgco<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     Ok(())
 }
 
-/// Convert RGB image data to YCgCo 422 planar format.
-///
-/// This function performs RGB to YCgCo conversion and stores the result in YUV422 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (components per row) for the RGB image data.
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_ycgco422(
-    image: &mut YuvPlanarImageMut<u8>,
-    rgb: &[u8],
-    rgb_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
-        image, rgb, rgb_stride, range,
-    )
+macro_rules! d_cv {
+    ($m_name: ident, $tpz: ident, $bp: expr, $cn: expr, $sampling: expr, $yuv_name: expr, $rgb_name: expr) => {
+        #[doc = concat!("Convert ", $rgb_name, stringify!($bp)," image data to ", $yuv_name ," planar format.                                           
+                                                                                              
+This function performs ", $rgb_name, stringify!($bp)," to ", $yuv_name ," conversion and stores the result in ", $yuv_name ," planar format,
+with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.    
+                                                                                              
+# Arguments                                                                                   
+                                                                                              
+* `image` - Target ", $yuv_name ," planar image.                                                              
+* `bgra` - The input ", $rgb_name, stringify!($bp)," image data slice.                                                   
+* `bgra_stride` - The stride (components per row) for the ", $rgb_name, stringify!($bp)," image data.                    
+* `range` - The YUV range (limited or full).                                                  
+                                                                                              
+# Panics                                                                                      
+                                                                                              
+This function panics if the lengths of the planes or the input ", $rgb_name, stringify!($bp)," data are not valid based  
+on the specified width, height, and strides, or if invalid YUV range or matrix is provided.   ")]
+        pub fn $m_name(
+            image: &mut YuvPlanarImageMut<$tpz>,
+            dst: &[$tpz],
+            dst_stride: u32,
+            range: YuvRange,
+        ) -> Result<(), YuvError> {
+            rgbx_to_ycgco::<$tpz, { $cn as u8 }, { $sampling as u8 }, $bp>(
+                image, dst, dst_stride, range,
+            )
+        }
+    };
 }
 
-/// Convert BGR image data to YCgCo 422 planar format.
-///
-/// This function performs BGR to YCgCo conversion and stores the result in YUV422 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (components per row) for the BGR image data.
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn bgr_to_ycgco422(
-    image: &mut YuvPlanarImageMut<u8>,
-    bgr: &[u8],
-    bgr_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
-        image, bgr, bgr_stride, range,
-    )
+macro_rules! d_bundle {
+    ($bgr: ident, $rgb: ident, $rgba: ident, $bgra: ident, $sampling: expr, $name: expr) => {
+        d_cv!($bgr, u8, 8, YuvSourceChannels::Bgr, $sampling, $name, "BGR");
+
+        d_cv!($rgb, u8, 8, YuvSourceChannels::Rgb, $sampling, $name, "RGB");
+
+        d_cv!(
+            $rgba,
+            u8,
+            8,
+            YuvSourceChannels::Rgba,
+            $sampling,
+            $name,
+            "RGBA"
+        );
+
+        d_cv!(
+            $bgra,
+            u8,
+            8,
+            YuvSourceChannels::Bgra,
+            $sampling,
+            $name,
+            "BGRA"
+        );
+    };
 }
 
-/// Convert RGBA image data to YCgCo 422 planar format.
-///
-/// This function performs RGBA to YCgCo conversion and stores the result in YUV422 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_ycgco422(
-    image: &mut YuvPlanarImageMut<u8>,
-    rgba: &[u8],
-    rgba_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
-        image,
-        rgba,
-        rgba_stride,
-        range,
-    )
-}
+d_bundle!(
+    bgr_to_ycgco420,
+    rgb_to_ycgco420,
+    rgba_to_ycgco420,
+    bgra_to_ycgco420,
+    YuvChromaSubsampling::Yuv420,
+    "YCgCo 4:2:0"
+);
 
-/// Convert BGRA image data to YCgCo 422 planar format.
-///
-/// This function performs BGRA to YCgCo conversion and stores the result in YUV422 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn bgra_to_ycgco422(
-    image: &mut YuvPlanarImageMut<u8>,
-    bgra: &[u8],
-    bgra_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv422 as u8 }>(
-        image,
-        bgra,
-        bgra_stride,
-        range,
-    )
-}
+d_bundle!(
+    bgr_to_ycgco422,
+    rgb_to_ycgco422,
+    rgba_to_ycgco422,
+    bgra_to_ycgco422,
+    YuvChromaSubsampling::Yuv422,
+    "YCgCo 4:2:2"
+);
 
-/// Convert RGB image data to YCgCo 420 planar format.
-///
-/// This function performs RGB to YCgCo conversion and stores the result in YUV420 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (components per row) for the RGB image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_ycgco420(
-    image: &mut YuvPlanarImageMut<u8>,
-    rgb: &[u8],
-    rgb_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
-        image, rgb, rgb_stride, range,
-    )
-}
+d_bundle!(
+    bgr_to_ycgco444,
+    rgb_to_ycgco444,
+    rgba_to_ycgco444,
+    bgra_to_ycgco444,
+    YuvChromaSubsampling::Yuv444,
+    "YCgCo 4:4:4"
+);
 
-/// Convert BGR image data to YCgCo 420 planar format.
-///
-/// This function performs BGR to YCgCo conversion and stores the result in YUV420 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `bgr` - The input BGR image data slice.
-/// * `bgr_stride` - The stride (components per row) for the BGR image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn bgr_to_ycgco420(
-    image: &mut YuvPlanarImageMut<u8>,
-    bgr: &[u8],
-    bgr_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
-        image, bgr, bgr_stride, range,
-    )
-}
+d_cv!(
+    rgb10_to_icgc010,
+    u16,
+    10,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "YCgCo 4:2:0 10-bit",
+    "RGB"
+);
 
-/// Convert RGBA image data to YCgCo 420 planar format.
-///
-/// This function performs RGBA to YCgCo conversion and stores the result in YUV420 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_ycgco420(
-    image: &mut YuvPlanarImageMut<u8>,
-    rgba: &[u8],
-    rgba_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
-        image,
-        rgba,
-        rgba_stride,
-        range,
-    )
-}
+d_cv!(
+    rgba10_to_icgc010,
+    u16,
+    10,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "YCgCo 4:2:0 10-bit",
+    "RGBA"
+);
 
-/// Convert BGRA image data to YCgCo 420 planar format.
-///
-/// This function performs BGRA to YCgCo conversion and stores the result in YUV420 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn bgra_to_ycgco420(
-    image: &mut YuvPlanarImageMut<u8>,
-    bgra: &[u8],
-    bgra_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv420 as u8 }>(
-        image,
-        bgra,
-        bgra_stride,
-        range,
-    )
-}
+d_cv!(
+    rgb10_to_icgc210,
+    u16,
+    10,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "YCgCo 4:2:2 10-bit",
+    "RGB"
+);
 
-/// Convert RGB image data to YCgCo 444 planar format.
-///
-/// This function performs RGB to YCgCo conversion and stores the result in YUV444 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `rgb` - The input RGB image data slice.
-/// * `rgb_stride` - The stride (components per row) for the RGB image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGB data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgb_to_ycgco444(
-    image: &mut YuvPlanarImageMut<u8>,
-    rgb: &[u8],
-    rgb_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
-        image, rgb, rgb_stride, range,
-    )
-}
+d_cv!(
+    rgba10_to_icgc210,
+    u16,
+    10,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "YCgCo 4:2:2 10-bit",
+    "RGBA"
+);
 
-/// Convert BGR image data to YCgCo 444 planar format.
-///
-/// This function performs BGR to YCgCo conversion and stores the result in YUV444 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `bgr` - The input RGB image data slice.
-/// * `bgr_stride` - The stride (components per row) for the BGR image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGR data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn bgr_to_ycgco444(
-    image: &mut YuvPlanarImageMut<u8>,
-    bgr: &[u8],
-    bgr_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgr as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
-        image, bgr, bgr_stride, range,
-    )
-}
+d_cv!(
+    rgb10_to_icgc410,
+    u16,
+    10,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "YCgCo 4:4:4 10-bit",
+    "RGB"
+);
 
-/// Convert RGBA image data to YCgCo 444 planar format.
-///
-/// This function performs RGBA to YCgCo conversion and stores the result in YUV444 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `rgba` - The input RGBA image data slice.
-/// * `rgba_stride` - The stride (components per row) for the RGBA image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input RGBA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn rgba_to_ycgco444(
-    image: &mut YuvPlanarImageMut<u8>,
-    rgba: &[u8],
-    rgba_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Rgba as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
-        image,
-        rgba,
-        rgba_stride,
-        range,
-    )
-}
+d_cv!(
+    rgba10_to_icgc410,
+    u16,
+    10,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "YCgCo 4:4:4 10-bit",
+    "RGBA"
+);
 
-/// Convert BGRA image data to YCgCo 444 planar format.
-///
-/// This function performs BGRA to YCgCo conversion and stores the result in YUV444 planar format,
-/// with separate planes for Y (luminance), Cg (chrominance), and Co (chrominance) components.
-///
-/// # Arguments
-///
-/// * `image` - Target planar image.
-/// * `bgra` - The input BGRA image data slice.
-/// * `bgra_stride` - The stride (components per row) for the BGRA image data.
-/// * `range` - The YUV range (limited or full).
-///
-/// # Panics
-///
-/// This function panics if the lengths of the planes or the input BGRA data are not valid based
-/// on the specified width, height, and strides, or if invalid YUV range or matrix is provided.
-///
-pub fn bgra_to_ycgco444(
-    image: &mut YuvPlanarImageMut<u8>,
-    bgra: &[u8],
-    bgra_stride: u32,
-    range: YuvRange,
-) -> Result<(), YuvError> {
-    rgbx_to_ycgco::<{ YuvSourceChannels::Bgra as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
-        image,
-        bgra,
-        bgra_stride,
-        range,
-    )
-}
+d_cv!(
+    rgba12_to_icgc012,
+    u16,
+    12,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "YCgCo 4:2:0 12-bit",
+    "RGBA"
+);
+
+d_cv!(
+    rgba12_to_icgc212,
+    u16,
+    12,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "YCgCo 4:2:2 12-bit",
+    "RGBA"
+);
+
+d_cv!(
+    rgba12_to_icgc412,
+    u16,
+    12,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv444,
+    "YCgCo 4:4:4 12-bit",
+    "RGBA"
+);

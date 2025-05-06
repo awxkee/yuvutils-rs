@@ -34,8 +34,10 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 use yuv::{
-    rgba12_to_i412, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    icgc_re010_to_rgba, icgc_ro010_to_rgba, icgc_ro210_to_rgba, icgc_ro410_to_rgba, rgba12_to_i412,
+    rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410,
+    rgba_to_ycgco420, rgba_to_ycgco444, ycgco420_to_rgba, ycgco444_to_rgba, YuvBiPlanarImageMut,
+    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -54,7 +56,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 use core::f16;
 
 fn main() {
-    let mut img = ImageReader::open("./assets/blue_lights.png")
+    let mut img = ImageReader::open("./assets/bench.jpg")
         .unwrap()
         .decode()
         .unwrap();
@@ -89,24 +91,20 @@ fn main() {
     let mut y_nv_plane = vec![0u8; width as usize * height as usize];
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
-    let mut bi_planar_image =
-        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
-
     let mut planar_image =
         YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
     //
-    let mut bytes_16: Vec<u16> = src_bytes
-        .iter()
-        .map(|&x| ((x as u16) << 4) | ((x as u16) >> 4))
-        .collect();
+    // let mut bytes_16: Vec<u16> = src_bytes
+    //     .iter()
+    //     .map(|&x| ((x as u16) << 4) | ((x as u16) >> 4))
+    //     .collect();
 
     let start_time = Instant::now();
-    rgba12_to_i412(
+    rgba_to_icgc_ro410(
         &mut planar_image,
-        &bytes_16,
+        &src_bytes,
         rgba_stride as u32,
-        YuvRange::Limited,
-        YuvStandardMatrix::Bt2020,
+        YuvRange::Full,
     )
     .unwrap();
 
@@ -114,11 +112,14 @@ fn main() {
     let fixed = planar_image.to_fixed();
     rgba.fill(0);
 
-    let fixed_biplanar = bi_planar_image.to_fixed();
-    let fixed_planar = planar_image.to_fixed();
-    // bytes_16.fill(0);
+    icgc_ro410_to_rgba(&fixed, &mut rgba, rgba_stride as u32, YuvRange::Full).unwrap();
 
-    let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
+    //
+    // let fixed_biplanar = bi_planar_image.to_fixed();
+    // let fixed_planar = planar_image.to_fixed();
+    // // bytes_16.fill(0);
+    //
+    // let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
 
     // //
     // i210_to_rgb_f16(
@@ -146,7 +147,7 @@ fn main() {
     // )
     // .unwrap();
 
-    rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
 
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 

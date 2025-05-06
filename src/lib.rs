@@ -78,6 +78,9 @@ mod ayuv_to_rgb;
 mod built_coefficients;
 #[cfg(feature = "nightly_f16")]
 #[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
+mod f16_ar30;
+#[cfg(feature = "nightly_f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
 mod f16_converter;
 mod from_identity;
 mod from_identity_alpha;
@@ -106,6 +109,9 @@ mod rgb_ar30;
 mod rgb_to_nv_p16;
 mod rgb_to_y;
 mod rgb_to_ycgco;
+#[cfg(feature = "ycgco_r_type")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ycgco_r_type")))]
+mod rgb_to_ycgco_r;
 mod rgba_to_nv;
 mod rgba_to_yuv;
 mod sharpyuv;
@@ -119,6 +125,12 @@ mod y_p16_to_rgb16;
 mod y_p16_with_alpha_to_rgb16;
 mod y_to_rgb;
 mod y_with_alpha_to_rgb;
+#[cfg(feature = "ycgco_r_type")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ycgco_r_type")))]
+mod ycgco_re_to_rgb;
+#[cfg(feature = "ycgco_r_type")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ycgco_r_type")))]
+mod ycgco_re_to_rgb_alpha;
 mod ycgco_to_rgb;
 mod ycgco_to_rgb_alpha;
 mod ycgcor_support;
@@ -277,18 +289,13 @@ pub use yuv_p10_rgba::{
     i212_to_rgb, i212_to_rgba, i410_to_rgba,
 };
 
-pub use rgb_to_ycgco::bgr_to_ycgco420;
-pub use rgb_to_ycgco::bgr_to_ycgco422;
-pub use rgb_to_ycgco::bgr_to_ycgco444;
-pub use rgb_to_ycgco::bgra_to_ycgco420;
-pub use rgb_to_ycgco::bgra_to_ycgco422;
-pub use rgb_to_ycgco::bgra_to_ycgco444;
-pub use rgb_to_ycgco::rgb_to_ycgco420;
-pub use rgb_to_ycgco::rgb_to_ycgco422;
-pub use rgb_to_ycgco::rgb_to_ycgco444;
-pub use rgb_to_ycgco::rgba_to_ycgco420;
-pub use rgb_to_ycgco::rgba_to_ycgco422;
-pub use rgb_to_ycgco::rgba_to_ycgco444;
+pub use rgb_to_ycgco::{
+    bgr_to_ycgco420, bgr_to_ycgco422, bgr_to_ycgco444, bgra_to_ycgco420, bgra_to_ycgco422,
+    bgra_to_ycgco444, rgb10_to_icgc010, rgb10_to_icgc210, rgb10_to_icgc410, rgb_to_ycgco420,
+    rgb_to_ycgco422, rgb_to_ycgco444, rgba10_to_icgc010, rgba10_to_icgc210, rgba10_to_icgc410,
+    rgba12_to_icgc012, rgba12_to_icgc212, rgba12_to_icgc412, rgba_to_ycgco420, rgba_to_ycgco422,
+    rgba_to_ycgco444,
+};
 
 pub use ycgco_to_rgb::{
     ycgco420_to_bgr, ycgco420_to_bgra, ycgco420_to_rgb, ycgco420_to_rgba, ycgco422_to_bgr,
@@ -562,3 +569,43 @@ pub use yuv_p16_rgba_f16::{
 };
 
 pub use ayuv_to_rgb::{ayuv_to_rgb, ayuv_to_rgba, vyua_to_rgb, vyua_to_rgba};
+
+#[cfg(feature = "nightly_f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
+pub use f16_ar30::{rgb_f16_to_ar30, rgb_f16_to_ra30, rgba_f16_to_ar30, rgba_f16_to_ra30};
+
+#[cfg(feature = "ycgco_r_type")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ycgco_r_type")))]
+pub use ycgco_re_to_rgb::{
+    icgc_re010_to_bgr, icgc_re010_to_bgra, icgc_re010_to_rgb, icgc_re010_to_rgba,
+    icgc_re012_to_rgb10, icgc_re012_to_rgba10, icgc_re210_to_bgr, icgc_re210_to_bgra,
+    icgc_re210_to_rgb, icgc_re210_to_rgba, icgc_re212_to_rgb10, icgc_re212_to_rgba10,
+    icgc_re410_to_bgr, icgc_re410_to_bgra, icgc_re410_to_rgb, icgc_re410_to_rgba,
+    icgc_re412_to_rgb10, icgc_re412_to_rgba10, icgc_ro010_to_bgr, icgc_ro010_to_bgra,
+    icgc_ro010_to_rgb, icgc_ro010_to_rgba, icgc_ro012_to_rgb10, icgc_ro012_to_rgba10,
+    icgc_ro210_to_bgr, icgc_ro210_to_bgra, icgc_ro210_to_rgb, icgc_ro210_to_rgba,
+    icgc_ro212_to_rgb10, icgc_ro212_to_rgba10, icgc_ro410_to_bgr, icgc_ro410_to_bgra,
+    icgc_ro410_to_rgb, icgc_ro410_to_rgba, icgc_ro412_to_rgb10, icgc_ro412_to_rgba10,
+};
+
+#[cfg(feature = "ycgco_r_type")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ycgco_r_type")))]
+pub use ycgco_re_to_rgb_alpha::{
+    icgc_re_alpha010_to_bgra, icgc_re_alpha010_to_rgba, icgc_re_alpha012_to_rgba10,
+    icgc_re_alpha210_to_bgra, icgc_re_alpha210_to_rgba, icgc_re_alpha212_to_rgba10,
+    icgc_re_alpha410_to_bgra, icgc_re_alpha410_to_rgba, icgc_re_alpha412_to_rgba10,
+    icgc_ro_alpha010_to_bgra, icgc_ro_alpha010_to_rgba, icgc_ro_alpha012_to_rgba10,
+    icgc_ro_alpha210_to_bgra, icgc_ro_alpha210_to_rgba, icgc_ro_alpha212_to_rgba10,
+    icgc_ro_alpha410_to_bgra, icgc_ro_alpha410_to_rgba, icgc_ro_alpha412_to_rgba10,
+};
+
+#[cfg(feature = "ycgco_r_type")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ycgco_r_type")))]
+pub use rgb_to_ycgco_r::{
+    rgb10_to_icgc_re012, rgb10_to_icgc_re212, rgb10_to_icgc_re412, rgb10_to_icgc_ro012,
+    rgb10_to_icgc_ro212, rgb10_to_icgc_ro412, rgb_to_icgc_re010, rgb_to_icgc_re210,
+    rgb_to_icgc_re410, rgb_to_icgc_ro010, rgb_to_icgc_ro210, rgb_to_icgc_ro410,
+    rgba10_to_icgc_re012, rgba10_to_icgc_re212, rgba10_to_icgc_re412, rgba10_to_icgc_ro012,
+    rgba10_to_icgc_ro212, rgba10_to_icgc_ro412, rgba_to_icgc_re010, rgba_to_icgc_re210,
+    rgba_to_icgc_re410, rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410,
+};

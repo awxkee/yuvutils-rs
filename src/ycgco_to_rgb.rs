@@ -276,6 +276,8 @@ impl YCgCoConverterFactory<u16> for u16 {
     }
 }
 
+/// Convert YCgCo to RGB
+/// Note: YCgCo requires to adjust range on RGB rather than YUV
 fn ycgco_ro_rgbx<
     V: AsPrimitive<J> + 'static + Default + Debug + Sync + Send + YCgCoConverterFactory<V>,
     J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
@@ -305,90 +307,90 @@ where
 
     const PRECISION: i32 = 13;
 
-    let max_colors = (1 << BIT_DEPTH) - 1i32;
+    let max_colors = (1i32 << BIT_DEPTH) - 1i32;
     let precision_scale = (1 << PRECISION) as f32;
 
     let range_reduction_y =
         (max_colors as f32 / chroma_range.range_y as f32 * precision_scale).round() as i16;
-    let range_reduction_uv =
-        (max_colors as f32 / chroma_range.range_uv as f32 * precision_scale).round() as i16;
 
     let converter = V::make_converter::<DESTINATION_CHANNELS, SAMPLING>(range, BIT_DEPTH);
     let converter420 = V::make_converter420::<DESTINATION_CHANNELS, SAMPLING>(range, BIT_DEPTH);
 
-    let process_halved_chroma_row =
-        |y_plane: &[V], u_plane: &[V], v_plane: &[V], rgba: &mut [V]| {
-            let processed_offset =
-                converter.handle_row(y_plane, u_plane, v_plane, rgba, image.width, chroma_range);
-            if processed_offset.cx != image.width as usize {
-                for (((rgba, y_src), &u_src), &v_src) in rgba
-                    .chunks_exact_mut(channels * 2)
-                    .zip(y_plane.chunks_exact(2))
-                    .zip(u_plane.iter())
-                    .zip(v_plane.iter())
-                    .skip(processed_offset.cx)
-                {
-                    let y_value0 = (y_src[0].as_() - bias_y).as_() * range_reduction_y as i32;
-                    let cb_value = (u_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
-                    let cr_value = (v_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
+    let process_halved_chroma_row = |y_plane: &[V],
+                                     u_plane: &[V],
+                                     v_plane: &[V],
+                                     rgba: &mut [V]| {
+        let processed_offset =
+            converter.handle_row(y_plane, u_plane, v_plane, rgba, image.width, chroma_range);
+        if processed_offset.cx != image.width as usize {
+            for (((rgba, y_src), &u_src), &v_src) in rgba
+                .chunks_exact_mut(channels * 2)
+                .zip(y_plane.chunks_exact(2))
+                .zip(u_plane.iter())
+                .zip(v_plane.iter())
+                .skip(processed_offset.cx)
+            {
+                let y_value0 = (y_src[0].as_() - bias_y).as_();
+                let cb_value = (u_src.as_() - bias_uv).as_();
+                let cr_value = (v_src.as_() - bias_uv).as_();
 
-                    let t0 = y_value0 - cb_value;
+                let t0 = y_value0 - cb_value;
 
-                    let r0 = qrshr::<PRECISION, BIT_DEPTH>(t0 + cr_value);
-                    let b0 = qrshr::<PRECISION, BIT_DEPTH>(t0 - cr_value);
-                    let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_value);
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>((t0 + cr_value) * range_reduction_y as i32);
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>((t0 - cr_value) * range_reduction_y as i32);
+                let g0 =
+                    qrshr::<PRECISION, BIT_DEPTH>((y_value0 + cb_value) * range_reduction_y as i32);
 
-                    let rgba0 = &mut rgba[0..channels];
+                let rgba0 = &mut rgba[0..channels];
 
-                    rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
-                    rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
-                    rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
-                    if dst_chans.has_alpha() {
-                        rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
-                    }
-
-                    let y_value1 = (y_src[1].as_() - bias_y).as_() * range_reduction_y as i32;
-
-                    let t1 = y_value1 - cb_value;
-
-                    let r1 = qrshr::<PRECISION, BIT_DEPTH>(t1 + cr_value);
-                    let b1 = qrshr::<PRECISION, BIT_DEPTH>(t1 - cr_value);
-                    let g1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_value);
-
-                    let rgba1 = &mut rgba[channels..channels * 2];
-
-                    rgba1[dst_chans.get_r_channel_offset()] = r1.as_();
-                    rgba1[dst_chans.get_g_channel_offset()] = g1.as_();
-                    rgba1[dst_chans.get_b_channel_offset()] = b1.as_();
-                    if dst_chans.has_alpha() {
-                        rgba1[dst_chans.get_a_channel_offset()] = max_colors.as_();
-                    }
+                rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
+                rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
+                rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
+                if dst_chans.has_alpha() {
+                    rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
                 }
 
-                if image.width & 1 != 0 {
-                    let y_value0 =
-                        (y_plane.last().unwrap().as_() - bias_y).as_() * range_reduction_y as i32;
-                    let cb_value =
-                        (u_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
-                    let cr_value =
-                        (v_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
-                    let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
-                    let rgba0 = &mut rgba[0..channels];
+                let y_value1 = (y_src[1].as_() - bias_y).as_();
 
-                    let t0 = y_value0 - cb_value;
+                let t1 = y_value1 - cb_value;
 
-                    let r0 = qrshr::<PRECISION, BIT_DEPTH>(t0 + cr_value);
-                    let b0 = qrshr::<PRECISION, BIT_DEPTH>(t0 - cr_value);
-                    let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_value);
-                    rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
-                    rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
-                    rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
-                    if dst_chans.has_alpha() {
-                        rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
-                    }
+                let r1 = qrshr::<PRECISION, BIT_DEPTH>((t1 + cr_value) * range_reduction_y as i32);
+                let b1 = qrshr::<PRECISION, BIT_DEPTH>((t1 - cr_value) * range_reduction_y as i32);
+                let g1 =
+                    qrshr::<PRECISION, BIT_DEPTH>((y_value1 + cb_value) * range_reduction_y as i32);
+
+                let rgba1 = &mut rgba[channels..channels * 2];
+
+                rgba1[dst_chans.get_r_channel_offset()] = r1.as_();
+                rgba1[dst_chans.get_g_channel_offset()] = g1.as_();
+                rgba1[dst_chans.get_b_channel_offset()] = b1.as_();
+                if dst_chans.has_alpha() {
+                    rgba1[dst_chans.get_a_channel_offset()] = max_colors.as_();
                 }
             }
-        };
+
+            if image.width & 1 != 0 {
+                let y_value0 = (y_plane.last().unwrap().as_() - bias_y).as_();
+                let cb_value = (u_plane.last().unwrap().as_() - bias_uv).as_();
+                let cr_value = (v_plane.last().unwrap().as_() - bias_uv).as_();
+                let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
+                let rgba0 = &mut rgba[0..channels];
+
+                let t0 = y_value0 - cb_value;
+
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>((t0 + cr_value) * range_reduction_y as i32);
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>((t0 - cr_value) * range_reduction_y as i32);
+                let g0 =
+                    qrshr::<PRECISION, BIT_DEPTH>((y_value0 + cb_value) * range_reduction_y as i32);
+                rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
+                rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
+                rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
+                if dst_chans.has_alpha() {
+                    rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
+                }
+            }
+        }
+    };
 
     let process_doubled_chroma_row = |y_plane0: &[V],
                                       y_plane1: &[V],
@@ -417,20 +419,21 @@ where
                 .zip(u_plane.iter())
                 .zip(v_plane.iter())
             {
-                let y_value0 = (y_src0[0].as_() - bias_y).as_() * range_reduction_y as i32;
-                let y_value1 = (y_src0[1].as_() - bias_y).as_() * range_reduction_y as i32;
+                let y_value0 = (y_src0[0].as_() - bias_y).as_();
+                let y_value1 = (y_src0[1].as_() - bias_y).as_();
 
-                let cb_value = (u_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
-                let cr_value = (v_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
+                let cb_value = (u_src.as_() - bias_uv).as_();
+                let cr_value = (v_src.as_() - bias_uv).as_();
 
-                let y_value10 = (y_src1[0].as_() - bias_y).as_() * range_reduction_y as i32;
-                let y_value11 = (y_src1[1].as_() - bias_y).as_() * range_reduction_y as i32;
+                let y_value10 = (y_src1[0].as_() - bias_y).as_();
+                let y_value11 = (y_src1[1].as_() - bias_y).as_();
 
                 let t0 = y_value0 - cb_value;
 
-                let r0 = qrshr::<PRECISION, BIT_DEPTH>(t0 + cr_value);
-                let b0 = qrshr::<PRECISION, BIT_DEPTH>(t0 - cr_value);
-                let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_value);
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>((t0 + cr_value) * range_reduction_y as i32);
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>((t0 - cr_value) * range_reduction_y as i32);
+                let g0 =
+                    qrshr::<PRECISION, BIT_DEPTH>((y_value0 + cb_value) * range_reduction_y as i32);
 
                 let rgba00 = &mut rgba0[0..channels];
 
@@ -443,9 +446,10 @@ where
 
                 let t1 = y_value1 - cb_value;
 
-                let r1 = qrshr::<PRECISION, BIT_DEPTH>(t1 + cr_value);
-                let b1 = qrshr::<PRECISION, BIT_DEPTH>(t1 - cr_value);
-                let g1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_value);
+                let r1 = qrshr::<PRECISION, BIT_DEPTH>((t1 + cr_value) * range_reduction_y as i32);
+                let b1 = qrshr::<PRECISION, BIT_DEPTH>((t1 - cr_value) * range_reduction_y as i32);
+                let g1 =
+                    qrshr::<PRECISION, BIT_DEPTH>((y_value1 + cb_value) * range_reduction_y as i32);
 
                 let rgba01 = &mut rgba0[channels..channels * 2];
 
@@ -458,9 +462,13 @@ where
 
                 let t10 = y_value10 - cb_value;
 
-                let r10 = qrshr::<PRECISION, BIT_DEPTH>(t10 + cr_value);
-                let b10 = qrshr::<PRECISION, BIT_DEPTH>(t10 - cr_value);
-                let g10 = qrshr::<PRECISION, BIT_DEPTH>(y_value10 + cb_value);
+                let r10 =
+                    qrshr::<PRECISION, BIT_DEPTH>((t10 + cr_value) * range_reduction_y as i32);
+                let b10 =
+                    qrshr::<PRECISION, BIT_DEPTH>((t10 - cr_value) * range_reduction_y as i32);
+                let g10 = qrshr::<PRECISION, BIT_DEPTH>(
+                    (y_value10 + cb_value) * range_reduction_y as i32,
+                );
 
                 let rgba10 = &mut rgba1[0..channels];
 
@@ -473,9 +481,13 @@ where
 
                 let t11 = y_value11 - cb_value;
 
-                let r11 = qrshr::<PRECISION, BIT_DEPTH>(t11 + cr_value);
-                let b11 = qrshr::<PRECISION, BIT_DEPTH>(t11 - cr_value);
-                let g11 = qrshr::<PRECISION, BIT_DEPTH>(y_value11 + cb_value);
+                let r11 =
+                    qrshr::<PRECISION, BIT_DEPTH>((t11 + cr_value) * range_reduction_y as i32);
+                let b11 =
+                    qrshr::<PRECISION, BIT_DEPTH>((t11 - cr_value) * range_reduction_y as i32);
+                let g11 = qrshr::<PRECISION, BIT_DEPTH>(
+                    (y_value11 + cb_value) * range_reduction_y as i32,
+                );
 
                 let rgba11 = &mut rgba1[channels..channels * 2];
 
@@ -488,22 +500,19 @@ where
             }
 
             if image.width & 1 != 0 {
-                let y_value0 =
-                    (y_plane0.last().unwrap().as_() - bias_y).as_() * range_reduction_y as i32;
-                let y_value1 =
-                    (y_plane1.last().unwrap().as_() - bias_y).as_() * range_reduction_y as i32;
-                let cb_value =
-                    (u_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
-                let cr_value =
-                    (v_plane.last().unwrap().as_() - bias_uv).as_() * range_reduction_uv as i32;
+                let y_value0 = (y_plane0.last().unwrap().as_() - bias_y).as_();
+                let y_value1 = (y_plane1.last().unwrap().as_() - bias_y).as_();
+                let cb_value = (u_plane.last().unwrap().as_() - bias_uv).as_();
+                let cr_value = (v_plane.last().unwrap().as_() - bias_uv).as_();
                 let rgba = rgba0.chunks_exact_mut(channels).last().unwrap();
                 let rgba0 = &mut rgba[0..channels];
 
                 let t0 = y_value0 - cb_value;
 
-                let r0 = qrshr::<PRECISION, BIT_DEPTH>(t0 + cr_value);
-                let b0 = qrshr::<PRECISION, BIT_DEPTH>(t0 - cr_value);
-                let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_value);
+                let r0 = qrshr::<PRECISION, BIT_DEPTH>((t0 + cr_value) * range_reduction_y as i32);
+                let b0 = qrshr::<PRECISION, BIT_DEPTH>((t0 - cr_value) * range_reduction_y as i32);
+                let g0 =
+                    qrshr::<PRECISION, BIT_DEPTH>((y_value0 + cb_value) * range_reduction_y as i32);
 
                 rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
                 rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
@@ -514,9 +523,10 @@ where
 
                 let t1 = y_value1 - cb_value;
 
-                let r1 = qrshr::<PRECISION, BIT_DEPTH>(t1 + cr_value);
-                let b1 = qrshr::<PRECISION, BIT_DEPTH>(t1 - cr_value);
-                let g1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + cb_value);
+                let r1 = qrshr::<PRECISION, BIT_DEPTH>((t1 + cr_value) * range_reduction_y as i32);
+                let b1 = qrshr::<PRECISION, BIT_DEPTH>((t1 - cr_value) * range_reduction_y as i32);
+                let g1 =
+                    qrshr::<PRECISION, BIT_DEPTH>((y_value1 + cb_value) * range_reduction_y as i32);
 
                 let rgba = rgba1.chunks_exact_mut(channels).last().unwrap();
                 let rgba1 = &mut rgba[0..channels];
@@ -559,15 +569,19 @@ where
                     .zip(u_plane.iter())
                     .zip(v_plane.iter())
                 {
-                    let y_value = (y_src.as_() - bias_y).as_() * range_reduction_y as i32;
-                    let cb_value = (u_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
-                    let cr_value = (v_src.as_() - bias_uv).as_() * range_reduction_uv as i32;
+                    let y_value = (y_src.as_() - bias_y).as_();
+                    let cb_value = (u_src.as_() - bias_uv).as_();
+                    let cr_value = (v_src.as_() - bias_uv).as_();
 
                     let t0 = y_value - cb_value;
 
-                    let r = qrshr::<PRECISION, BIT_DEPTH>(t0 + cr_value);
-                    let b = qrshr::<PRECISION, BIT_DEPTH>(t0 - cr_value);
-                    let g = qrshr::<PRECISION, BIT_DEPTH>(y_value + cb_value);
+                    let r =
+                        qrshr::<PRECISION, BIT_DEPTH>((t0 + cr_value) * range_reduction_y as i32);
+                    let b =
+                        qrshr::<PRECISION, BIT_DEPTH>((t0 - cr_value) * range_reduction_y as i32);
+                    let g = qrshr::<PRECISION, BIT_DEPTH>(
+                        (y_value + cb_value) * range_reduction_y as i32,
+                    );
 
                     rgba[dst_chans.get_r_channel_offset()] = r.as_();
                     rgba[dst_chans.get_g_channel_offset()] = g.as_();

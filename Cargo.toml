@@ -2,7 +2,7 @@ workspace = { members = ["app", "fuzz", "coeffs"] }
 
 [package]
 name = "yuv"
-version = "0.8.3"
+version = "0.8.4"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"
@@ -56,6 +56,8 @@ big_endian = []
 geometry = ["dep:fast_transpose"]
 # Enables RemoteFX Conversion
 rdp = []
+# Enables YCgCo-Re/YCgCo-Ro support
+ycgco_r_type = []
 
 [package.metadata.docs.rs]
 # To build locally:

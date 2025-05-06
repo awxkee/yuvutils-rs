@@ -363,7 +363,47 @@ impl YuvStandardMatrix {
     }
 }
 
+fn kr_kb_for_color_primaries(primaries: [[f32; 2]; 4]) -> (f32, f32) {
+    let r_x = primaries[0][0];
+    let r_y = primaries[0][1];
+    let g_x = primaries[1][0];
+    let g_y = primaries[1][1];
+    let b_x = primaries[2][0];
+    let b_y = primaries[2][1];
+    let w_x = primaries[3][0];
+    let w_y = primaries[3][1];
+    let r_z = 1.0 - (r_x + r_y);
+    let g_z = 1.0 - (g_x + g_y);
+    let b_z = 1.0 - (b_x + b_y);
+    let w_z = 1.0 - (w_x + w_y);
+    let kr = (r_y
+        * (w_x * (g_y * b_z - b_y * g_z)
+            + w_y * (b_x * g_z - g_x * b_z)
+            + w_z * (g_x * b_y - b_x * g_y)))
+        / (w_y
+            * (r_x * (g_y * b_z - b_y * g_z)
+                + g_x * (b_y * r_z - r_y * b_z)
+                + b_x * (r_y * g_z - g_y * r_z)));
+    let kb = (b_y
+        * (w_x * (r_y * g_z - g_y * r_z)
+            + w_y * (g_x * r_z - r_x * g_z)
+            + w_z * (r_x * g_y - g_x * r_y)))
+        / (w_y
+            * (r_x * (g_y * b_z - b_y * g_z)
+                + g_x * (b_y * r_z - r_y * b_z)
+                + b_x * (r_y * g_z - g_y * r_z)));
+    (kr, kb)
+}
+
 fn main() {
+    let display_p3_kr_kb = kr_kb_for_color_primaries([
+        [0.630, 0.340],
+        [0.295, 0.605],
+        [0.155, 0.077],
+        [0.3127, 0.3290],
+    ]);
+    println!("kr kb {display_p3_kr_kb:?}");
+
     let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
     let range = YuvRange::Full;
     let bit_depth = 8;

@@ -13,6 +13,7 @@ x86 targets with SSE and AVX uses runtime dispatch to detect available cpu featu
 Supports:
 - [x] YCbCr ( aka YUV )
 - [x] YCgCo
+- [x] YCgCo-Re/YCgCo-Ro
 - [x] YUY2
 - [x] Identity ( GBR )
 - [x] Sharp YUV

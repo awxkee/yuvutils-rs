@@ -351,8 +351,8 @@ macro_rules! rgb102_cnv {
 * `", $ab_l_format, "`: Dest ", $ab_format, " data
 * `", $ab_l_format, "_stride`: Dest ", $ab_format, " stride
 * `byte_order`: See [Rgb30ByteOrder] for more info
-* `", $rgb_s,"`: Destination ",$rgb_l, stringify!($bp)," data
-* `", $rgb_s,"_stride`: Destination ",$rgb_l, stringify!($bp)," stride
+* `", $rgb_s,"`: Source ",$rgb_l, stringify!($bp)," data
+* `", $rgb_s,"_stride`: Source ",$rgb_l, stringify!($bp)," stride
 * `width`: Image width
 * `height`: Image height")]
         pub fn $method_name(
