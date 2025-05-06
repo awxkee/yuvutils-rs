@@ -752,7 +752,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
         std::ptr::copy_nonoverlapping(
             a_ld_ptr.get_unchecked(cx..).as_ptr(),
             a_buffer.as_mut_ptr(),
-            ux_diff,
+            diff,
         );
 
         std::ptr::copy_nonoverlapping(
