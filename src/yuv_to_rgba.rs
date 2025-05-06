@@ -634,7 +634,9 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
+            let y_plane = &y_plane[..image.width as usize];
+            let u_plane = &u_plane[..image.width as usize];
+            let v_plane = &v_plane[..image.width as usize];
             let cx = row_handler
                 .handle_row(
                     y_plane,

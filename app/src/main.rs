@@ -36,8 +36,9 @@ use std::time::Instant;
 use yuv::{
     icgc_re010_to_rgba, icgc_ro010_to_rgba, icgc_ro210_to_rgba, icgc_ro410_to_rgba, rgba12_to_i412,
     rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410,
-    rgba_to_ycgco420, rgba_to_ycgco444, ycgco420_to_rgba, ycgco444_to_rgba, YuvBiPlanarImageMut,
-    YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    rgba_to_ycgco420, rgba_to_ycgco444, rgba_to_yuv420, ycgco420_to_rgba, ycgco444_to_rgba,
+    yuv420_alpha_to_rgba, yuv420_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling,
+    YuvConversionMode, YuvPlanarImageMut, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -56,7 +57,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 use core::f16;
 
 fn main() {
-    let mut img = ImageReader::open("./assets/bench.jpg")
+    let mut img = ImageReader::open("./assets/jpeg_test.jpeg")
         .unwrap()
         .decode()
         .unwrap();
@@ -92,7 +93,7 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
     // let mut bytes_16: Vec<u16> = src_bytes
     //     .iter()
@@ -100,19 +101,44 @@ fn main() {
     //     .collect();
 
     let start_time = Instant::now();
-    rgba_to_icgc_ro410(
+    rgba_to_yuv420(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::Full,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt709,
+        YuvConversionMode::Balanced,
     )
     .unwrap();
 
     println!("Forward time: {:?}", start_time.elapsed());
     let fixed = planar_image.to_fixed();
-    rgba.fill(0);
+    rgba.fill(255);
 
-    icgc_ro410_to_rgba(&fixed, &mut rgba, rgba_stride as u32, YuvRange::Full).unwrap();
+    let a_plane = vec![255; height as usize * width as usize];
+
+    let alpha = YuvPlanarImageWithAlpha {
+        y_plane: planar_image.y_plane.borrow(),
+        y_stride: planar_image.y_stride,
+        u_plane: planar_image.u_plane.borrow(),
+        u_stride: planar_image.u_stride,
+        v_plane: planar_image.v_plane.borrow(),
+        v_stride: planar_image.v_stride,
+        a_plane: &a_plane,
+        a_stride: width as u32,
+        width,
+        height,
+    };
+
+    yuv420_alpha_to_rgba(
+        &alpha,
+        &mut rgba,
+        rgba_stride as u32,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt709,
+        false,
+    )
+    .unwrap();
 
     //
     // let fixed_biplanar = bi_planar_image.to_fixed();
