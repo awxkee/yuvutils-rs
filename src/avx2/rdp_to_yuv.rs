@@ -29,7 +29,7 @@
 
 use crate::avx2::avx2_utils::{
     _mm256_deinterleave_rgba_epi8, _mm256_double_affine_uv_dot, _mm256_double_affine_uv_s_dot,
-    avx2_deinterleave_rgb,
+    avx2_deinterleave_rgb, shuffle,
 };
 use crate::internals::ProcessedOffset;
 use crate::rdp::RdpChannels;
@@ -48,9 +48,20 @@ pub(crate) fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const Q: i32>(
     width: usize,
 ) -> ProcessedOffset {
     unsafe {
-        rdp_avx2_rgba_to_yuv_impl::<ORIGIN_CHANNELS, Q>(
-            transform, y_plane, u_plane, v_plane, rgba, width,
-        )
+        let source_channels: RdpChannels = ORIGIN_CHANNELS.into();
+        if source_channels == RdpChannels::Abgr
+            || source_channels == RdpChannels::Argb
+            || source_channels == RdpChannels::Bgra
+            || source_channels == RdpChannels::Rgba
+        {
+            rdp_avx2_4chan_to_yuv_impl::<ORIGIN_CHANNELS, Q>(
+                transform, y_plane, u_plane, v_plane, rgba, width,
+            )
+        } else {
+            rdp_avx2_rgba_to_yuv_impl::<ORIGIN_CHANNELS, Q>(
+                transform, y_plane, u_plane, v_plane, rgba, width,
+            )
+        }
     }
 }
 
@@ -292,6 +303,261 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
             v_buffer.get_unchecked_mut(16..).as_mut_ptr() as *mut __m256i,
             cr_vl.1,
         );
+
+        std::ptr::copy_nonoverlapping(
+            u_buffer.as_ptr(),
+            u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            diff,
+        );
+        std::ptr::copy_nonoverlapping(
+            v_buffer.as_ptr(),
+            v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
+            diff,
+        );
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer.as_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        cx += diff;
+        ux += diff;
+    }
+
+    ProcessedOffset { ux, cx }
+}
+
+impl CbCrForwardTransform<i32> {
+    #[inline]
+    fn rdp_avx_make_transform_y(&self, cn: RdpChannels) -> i64 {
+        let r = self.yr.to_ne_bytes();
+        let g = self.yg.to_ne_bytes();
+        let b = self.yb.to_ne_bytes();
+        match cn {
+            RdpChannels::Rgba => i64::from_ne_bytes([r[0], r[1], g[0], g[1], b[0], b[1], 0, 0]),
+            RdpChannels::Bgra => i64::from_ne_bytes([b[0], b[1], g[0], g[1], r[0], r[1], 0, 0]),
+            RdpChannels::Abgr => i64::from_ne_bytes([0, 0, b[0], b[1], g[0], g[1], r[0], r[1]]),
+            RdpChannels::Argb => i64::from_ne_bytes([0, 0, r[0], r[1], g[0], g[1], b[0], b[1]]),
+            _ => unreachable!(),
+        }
+    }
+
+    #[inline]
+    fn rdp_avx_make_transform_cb(&self, cn: RdpChannels) -> i64 {
+        let r = self.cb_r.to_ne_bytes();
+        let g = self.cb_g.to_ne_bytes();
+        let b = self.cb_b.to_ne_bytes();
+        match cn {
+            RdpChannels::Rgba => i64::from_ne_bytes([r[0], r[1], g[0], g[1], b[0], b[1], 0, 0]),
+            RdpChannels::Bgra => i64::from_ne_bytes([b[0], b[1], g[0], g[1], r[0], r[1], 0, 0]),
+            RdpChannels::Abgr => i64::from_ne_bytes([0, 0, b[0], b[1], g[0], g[1], r[0], r[1]]),
+            RdpChannels::Argb => i64::from_ne_bytes([0, 0, r[0], r[1], g[0], g[1], b[0], b[1]]),
+            _ => unreachable!(),
+        }
+    }
+
+    #[inline]
+    fn rdp_avx_make_transform_cr(&self, cn: RdpChannels) -> i64 {
+        let r = self.cr_r.to_ne_bytes();
+        let g = self.cr_g.to_ne_bytes();
+        let b = self.cr_b.to_ne_bytes();
+        match cn {
+            RdpChannels::Rgba => i64::from_ne_bytes([r[0], r[1], g[0], g[1], b[0], b[1], 0, 0]),
+            RdpChannels::Bgra => i64::from_ne_bytes([b[0], b[1], g[0], g[1], r[0], r[1], 0, 0]),
+            RdpChannels::Abgr => i64::from_ne_bytes([0, 0, b[0], b[1], g[0], g[1], r[0], r[1]]),
+            RdpChannels::Argb => i64::from_ne_bytes([0, 0, r[0], r[1], g[0], g[1], b[0], b[1]]),
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[target_feature(enable = "avx2")]
+unsafe fn rdp_avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
+    transform: &CbCrForwardTransform<i32>,
+    y_plane: &mut [i16],
+    u_plane: &mut [i16],
+    v_plane: &mut [i16],
+    rgba: &[u8],
+    width: usize,
+) -> ProcessedOffset {
+    let source_channels: RdpChannels = ORIGIN_CHANNELS.into();
+    assert!(
+        source_channels == RdpChannels::Abgr
+            || source_channels == RdpChannels::Argb
+            || source_channels == RdpChannels::Bgra
+            || source_channels == RdpChannels::Rgba
+    );
+    let channels = source_channels.get_channels_count();
+
+    let src_ptr = rgba;
+    let y_transform = _mm256_set1_epi64x(transform.rdp_avx_make_transform_y(source_channels));
+    let cb_transform = _mm256_set1_epi64x(transform.rdp_avx_make_transform_cb(source_channels));
+    let cr_transform = _mm256_set1_epi64x(transform.rdp_avx_make_transform_cr(source_channels));
+    let j_y_bias = _mm256_set1_epi32(4096);
+
+    let mut cx = 0;
+    let mut ux = 0;
+
+    while cx + 16 < width {
+        let src_ptr = src_ptr.get_unchecked(cx * channels..);
+
+        let row_z0 = _mm256_loadu_si256(src_ptr.as_ptr() as *const _);
+
+        let row0_z0 = _mm256_unpacklo_epi8(row_z0, _mm256_setzero_si256());
+        let row1_z0 = _mm256_unpackhi_epi8(row_z0, _mm256_setzero_si256());
+
+        let row_z1 = _mm256_loadu_si256(src_ptr.get_unchecked(32..).as_ptr() as *const _);
+
+        let y_row0 = _mm256_madd_epi16(row0_z0, y_transform);
+        let y_row1 = _mm256_madd_epi16(row1_z0, y_transform);
+        let cb_row0 = _mm256_madd_epi16(row0_z0, cb_transform);
+        let cb_row1 = _mm256_madd_epi16(row1_z0, cb_transform);
+        let cr_row0 = _mm256_madd_epi16(row0_z0, cr_transform);
+        let cr_row1 = _mm256_madd_epi16(row1_z0, cr_transform);
+
+        const M: i32 = shuffle(3, 1, 2, 0);
+
+        let mut f_y0 = _mm256_hadd_epi32(y_row0, y_row1);
+        let mut f_cb0 = _mm256_hadd_epi32(cb_row0, cb_row1);
+        let mut f_cr0 = _mm256_hadd_epi32(cr_row0, cr_row1);
+
+        let row0_z1 = _mm256_unpacklo_epi8(row_z1, _mm256_setzero_si256());
+        let row1_z1 = _mm256_unpackhi_epi8(row_z1, _mm256_setzero_si256());
+
+        let y1_row0 = _mm256_madd_epi16(row0_z1, y_transform);
+        let y1_row1 = _mm256_madd_epi16(row1_z1, y_transform);
+        let cb1_row0 = _mm256_madd_epi16(row0_z1, cb_transform);
+        let cb1_row1 = _mm256_madd_epi16(row1_z1, cb_transform);
+        let cr1_row0 = _mm256_madd_epi16(row0_z1, cr_transform);
+        let cr1_row1 = _mm256_madd_epi16(row1_z1, cr_transform);
+
+        f_y0 = _mm256_srai_epi32::<Q>(f_y0);
+        f_cb0 = _mm256_srai_epi32::<Q>(f_cb0);
+        f_cr0 = _mm256_srai_epi32::<Q>(f_cr0);
+
+        let mut f_y1 = _mm256_hadd_epi32(y1_row0, y1_row1);
+        let mut f_cb1 = _mm256_hadd_epi32(cb1_row0, cb1_row1);
+        let mut f_cr1 = _mm256_hadd_epi32(cr1_row0, cr1_row1);
+
+        f_y1 = _mm256_srai_epi32::<Q>(f_y1);
+        f_cb1 = _mm256_srai_epi32::<Q>(f_cb1);
+        f_cr1 = _mm256_srai_epi32::<Q>(f_cr1);
+
+        f_y0 = _mm256_sub_epi32(f_y0, j_y_bias);
+        f_y1 = _mm256_sub_epi32(f_y1, j_y_bias);
+
+        let z_y = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_y0, f_y1));
+        let z_cb = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_cb0, f_cb1));
+        let z_cr = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_cr0, f_cr1));
+
+        _mm256_storeu_si256(u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, z_cb);
+        _mm256_storeu_si256(v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, z_cr);
+        _mm256_storeu_si256(y_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _, z_y);
+
+        ux += 16;
+        cx += 16;
+    }
+
+    while cx + 8 < width {
+        let src_ptr = src_ptr.get_unchecked(cx * channels..);
+
+        let row = _mm256_loadu_si256(src_ptr.as_ptr() as *const _);
+
+        let row0 = _mm256_unpacklo_epi8(row, _mm256_setzero_si256());
+        let row1 = _mm256_unpackhi_epi8(row, _mm256_setzero_si256());
+
+        let y_row0 = _mm256_madd_epi16(row0, y_transform);
+        let y_row1 = _mm256_madd_epi16(row1, y_transform);
+        let cb_row0 = _mm256_madd_epi16(row0, cb_transform);
+        let cb_row1 = _mm256_madd_epi16(row1, cb_transform);
+        let cr_row0 = _mm256_madd_epi16(row0, cr_transform);
+        let cr_row1 = _mm256_madd_epi16(row1, cr_transform);
+
+        const M: i32 = shuffle(3, 1, 2, 0);
+
+        let mut f_y = _mm256_hadd_epi32(y_row0, y_row1);
+        let mut f_cb = _mm256_hadd_epi32(cb_row0, cb_row1);
+        let mut f_cr = _mm256_hadd_epi32(cr_row0, cr_row1);
+
+        f_y = _mm256_srai_epi32::<Q>(f_y);
+        f_cb = _mm256_srai_epi32::<Q>(f_cb);
+        f_cr = _mm256_srai_epi32::<Q>(f_cr);
+
+        f_y = _mm256_sub_epi32(f_y, j_y_bias);
+
+        let z_y = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_y, _mm256_setzero_si256()));
+        let z_cb = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_cb, _mm256_setzero_si256()));
+        let z_cr = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_cr, _mm256_setzero_si256()));
+
+        _mm_storeu_si128(
+            u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+            _mm256_castsi256_si128(z_cb),
+        );
+        _mm_storeu_si128(
+            v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+            _mm256_castsi256_si128(z_cr),
+        );
+        _mm_storeu_si128(
+            y_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+            _mm256_castsi256_si128(z_y),
+        );
+
+        ux += 8;
+        cx += 8;
+    }
+
+    if cx < width {
+        let diff = width - cx;
+        assert!(diff <= 8);
+        let mut src_buffer: [u8; 32] = [0; 32];
+        let mut y_buffer: [i16; 8] = [0; 8];
+        let mut u_buffer: [i16; 8] = [0; 8];
+        let mut v_buffer: [i16; 8] = [0; 8];
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        let row = _mm256_loadu_si256(src_buffer.as_ptr() as *const _);
+
+        let row0 = _mm256_unpacklo_epi8(row, _mm256_setzero_si256());
+        let row1 = _mm256_unpackhi_epi8(row, _mm256_setzero_si256());
+
+        let y_row0 = _mm256_madd_epi16(row0, y_transform);
+        let y_row1 = _mm256_madd_epi16(row1, y_transform);
+        let cb_row0 = _mm256_madd_epi16(row0, cb_transform);
+        let cb_row1 = _mm256_madd_epi16(row1, cb_transform);
+        let cr_row0 = _mm256_madd_epi16(row0, cr_transform);
+        let cr_row1 = _mm256_madd_epi16(row1, cr_transform);
+
+        const M: i32 = shuffle(3, 1, 2, 0);
+
+        let mut f_y = _mm256_hadd_epi32(y_row0, y_row1);
+        let mut f_cb = _mm256_hadd_epi32(cb_row0, cb_row1);
+        let mut f_cr = _mm256_hadd_epi32(cr_row0, cr_row1);
+
+        f_y = _mm256_srai_epi32::<Q>(f_y);
+        f_cb = _mm256_srai_epi32::<Q>(f_cb);
+        f_cr = _mm256_srai_epi32::<Q>(f_cr);
+
+        f_y = _mm256_sub_epi32(f_y, j_y_bias);
+
+        let z_y = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_y, _mm256_setzero_si256()));
+        let z_cb = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_cb, _mm256_setzero_si256()));
+        let z_cr = _mm256_permute4x64_epi64::<M>(_mm256_packs_epi32(f_cr, _mm256_setzero_si256()));
+
+        _mm_storeu_si128(
+            u_buffer.as_mut_ptr() as *mut _,
+            _mm256_castsi256_si128(z_cb),
+        );
+        _mm_storeu_si128(
+            v_buffer.as_mut_ptr() as *mut _,
+            _mm256_castsi256_si128(z_cr),
+        );
+        _mm_storeu_si128(y_buffer.as_mut_ptr() as *mut _, _mm256_castsi256_si128(z_y));
 
         std::ptr::copy_nonoverlapping(
             u_buffer.as_ptr(),
