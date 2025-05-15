@@ -300,12 +300,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let dimensions = img.dimensions();
     let binding = img.to_rgba8();
     let src_bytes = binding.as_bytes();
+    let src_bytes_rgb = img.to_rgb8();
 
     let mut plane =
         YuvPlanarImageMut::alloc(dimensions.0, dimensions.1, YuvChromaSubsampling::Yuv444);
-    c.bench_function("Rdp", |b| {
+    c.bench_function("Rdp Rgba", |b| {
         b.iter(|| {
             rdp_rgba_to_yuv444(&mut plane, src_bytes, dimensions.0 * 4).unwrap();
+        })
+    });
+
+    c.bench_function("Rdp Rgb", |b| {
+        b.iter(|| {
+            rdp_rgb_to_yuv444(&mut plane, &src_bytes_rgb, dimensions.0 * 3).unwrap();
         })
     });
 
