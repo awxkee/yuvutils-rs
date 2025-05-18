@@ -62,144 +62,75 @@ pub(crate) unsafe fn neon_rgba_to_nv_dot_rgba<
     let y_bias = vdupq_n_s32(range.bias_y as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias = vdupq_n_s32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
-    let weights_yr: [i8; 16] = [
-        transform.yr as i8,
-        transform.yg as i8,
-        transform.yb as i8,
+    let weights_yr: i32 = i32::from_ne_bytes([
+        transform.yr as u8,
+        transform.yg as u8,
+        transform.yb as u8,
         0,
-        transform.yr as i8,
-        transform.yg as i8,
-        transform.yb as i8,
+    ]);
+    let weights_yr_bgra: i32 = i32::from_ne_bytes([
+        transform.yb as u8,
+        transform.yg as u8,
+        transform.yr as u8,
         0,
-        transform.yr as i8,
-        transform.yg as i8,
-        transform.yb as i8,
-        0,
-        transform.yr as i8,
-        transform.yg as i8,
-        transform.yb as i8,
-        0,
-    ];
-    let weights_yr_bgra: [i8; 16] = [
-        transform.yb as i8,
-        transform.yg as i8,
-        transform.yr as i8,
-        0,
-        transform.yb as i8,
-        transform.yg as i8,
-        transform.yr as i8,
-        0,
-        transform.yb as i8,
-        transform.yg as i8,
-        transform.yr as i8,
-        0,
-        transform.yb as i8,
-        transform.yg as i8,
-        transform.yr as i8,
-        0,
-    ];
+    ]);
 
-    let weights_cb_rgba: [i8; 16] = [
-        transform.cb_r as i8,
-        transform.cb_g as i8,
-        transform.cb_b as i8,
+    let weights_cb_rgba: i32 = i32::from_ne_bytes([
+        transform.cb_r as u8,
+        transform.cb_g as u8,
+        transform.cb_b as u8,
         0,
-        transform.cb_r as i8,
-        transform.cb_g as i8,
-        transform.cb_b as i8,
-        0,
-        transform.cb_r as i8,
-        transform.cb_g as i8,
-        transform.cb_b as i8,
-        0,
-        transform.cb_r as i8,
-        transform.cb_g as i8,
-        transform.cb_b as i8,
-        0,
-    ];
+    ]);
 
-    let weights_cb_bgra: [i8; 16] = [
-        transform.cb_b as i8,
-        transform.cb_g as i8,
-        transform.cb_r as i8,
+    let weights_cb_bgra: i32 = i32::from_ne_bytes([
+        transform.cb_b as u8,
+        transform.cb_g as u8,
+        transform.cb_r as u8,
         0,
-        transform.cb_b as i8,
-        transform.cb_g as i8,
-        transform.cb_r as i8,
-        0,
-        transform.cb_b as i8,
-        transform.cb_g as i8,
-        transform.cb_r as i8,
-        0,
-        transform.cb_b as i8,
-        transform.cb_g as i8,
-        transform.cb_r as i8,
-        0,
-    ];
+    ]);
 
-    let weights_cr_rgba: [i8; 16] = [
-        transform.cr_r as i8,
-        transform.cr_g as i8,
-        transform.cr_b as i8,
+    let weights_cr_rgba: i32 = i32::from_ne_bytes([
+        transform.cr_r as u8,
+        transform.cr_g as u8,
+        transform.cr_b as u8,
         0,
-        transform.cr_r as i8,
-        transform.cr_g as i8,
-        transform.cr_b as i8,
+    ]);
+    let weights_cr_bgra: i32 = i32::from_ne_bytes([
+        transform.cr_b as u8,
+        transform.cr_g as u8,
+        transform.cr_r as u8,
         0,
-        transform.cr_r as i8,
-        transform.cr_g as i8,
-        transform.cr_b as i8,
-        0,
-        transform.cr_r as i8,
-        transform.cr_g as i8,
-        transform.cr_b as i8,
-        0,
-    ];
-    let weights_cr_bgra: [i8; 16] = [
-        transform.cr_b as i8,
-        transform.cr_g as i8,
-        transform.cr_r as i8,
-        0,
-        transform.cr_b as i8,
-        transform.cr_g as i8,
-        transform.cr_r as i8,
-        0,
-        transform.cr_b as i8,
-        transform.cr_g as i8,
-        transform.cr_r as i8,
-        0,
-        transform.cr_b as i8,
-        transform.cr_g as i8,
-        transform.cr_r as i8,
-        0,
-    ];
+    ]);
 
-    let y_weights = vld1q_s8(if source_channels == YuvSourceChannels::Rgba {
-        weights_yr.as_ptr()
-    } else {
-        weights_yr_bgra.as_ptr()
-    });
-    let cb_weights = vld1q_s8(if source_channels == YuvSourceChannels::Rgba {
-        weights_cb_rgba.as_ptr()
-    } else {
-        weights_cb_bgra.as_ptr()
-    });
-    let cr_weights = vld1q_s8(if source_channels == YuvSourceChannels::Rgba {
-        weights_cr_rgba.as_ptr()
-    } else {
-        weights_cr_bgra.as_ptr()
-    });
+    let y_weights =
+        vreinterpretq_s8_s32(vdupq_n_s32(if source_channels == YuvSourceChannels::Rgba {
+            weights_yr
+        } else {
+            weights_yr_bgra
+        }));
+    let cb_weights =
+        vreinterpretq_s8_s32(vdupq_n_s32(if source_channels == YuvSourceChannels::Rgba {
+            weights_cb_rgba
+        } else {
+            weights_cb_bgra
+        }));
+    let cr_weights =
+        vreinterpretq_s8_s32(vdupq_n_s32(if source_channels == YuvSourceChannels::Rgba {
+            weights_cr_rgba
+        } else {
+            weights_cr_bgra
+        }));
 
     let mut cx = start_cx;
     let mut ux = start_ux;
 
     while cx + 16 < width as usize {
-        let src = rgba.get_unchecked(cx * channels..).as_ptr();
+        let src = rgba.get_unchecked(cx * channels..);
 
-        let v0 = vld1q_u8(src);
-        let v1 = vld1q_u8(src.add(16));
-        let v2 = vld1q_u8(src.add(32));
-        let v3 = vld1q_u8(src.add(48));
+        let v0 = vld1q_u8(src.as_ptr());
+        let v1 = vld1q_u8(src.get_unchecked(16..).as_ptr());
+        let v2 = vld1q_u8(src.get_unchecked(32..).as_ptr());
+        let v3 = vld1q_u8(src.get_unchecked(48..).as_ptr());
 
         let y0 = vusdotq_s32(y_bias, v0, y_weights);
         let y1 = vusdotq_s32(y_bias, v1, y_weights);

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-yuv = { path = "..", features = ["nightly_f16", "fast_mode", "sse", "avx", "professional_mode", "nightly_avx512", "rdp", "ycgco_r_type"], default-features = false }
+yuv = { path = "..", features = ["nightly_f16", "fast_mode", "sse", "avx", "professional_mode", "nightly_avx512", "rdp", "ycgco_r_type", "nightly_i8mm"], default-features = false }
 image = { version = "0.25.5", default-features = false, features = ["png", "jpeg"] }
 yuv-sys = "0.3.7"
 rand = "0.9.0"
@@ -18,7 +18,7 @@ rdm = ["yuv/rdm"]
 professional_mode = ["yuv/professional_mode"]
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.6"
 
 [[bench]]
 name = "yuv8"

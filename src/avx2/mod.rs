@@ -90,6 +90,7 @@ mod yuva_p16_to_rgb_f16;
 mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
+use crate::yuv_support::{CbCrForwardTransform, YuvSourceChannels};
 pub(crate) use ayuv_to_rgba::avx2_ayuv_to_rgba;
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{SurfaceU16ToFloat16Avx2, SurfaceU8ToFloat16Avx2};
@@ -151,3 +152,36 @@ pub(crate) use yuv_to_yuv2::yuv_to_yuy2_avx2_row;
 pub(crate) use yuva_p16_to_rgb_f16::avx_yuva_p16_to_rgba_f16_row;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_avx;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_avx;
+
+#[cfg(feature = "professional_mode")]
+impl CbCrForwardTransform<i32> {
+    #[inline]
+    fn avx_pack(r: i16, g: i16, b: i16, cn: YuvSourceChannels) -> i64 {
+        let r = r.to_ne_bytes();
+        let g = g.to_ne_bytes();
+        let b = b.to_ne_bytes();
+        match cn {
+            YuvSourceChannels::Rgb | YuvSourceChannels::Rgba => {
+                i64::from_ne_bytes([r[0], r[1], g[0], g[1], b[0], b[1], 0, 0])
+            }
+            YuvSourceChannels::Bgra | YuvSourceChannels::Bgr => {
+                i64::from_ne_bytes([b[0], b[1], g[0], g[1], r[0], r[1], 0, 0])
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn avx_make_transform_y(&self, cn: YuvSourceChannels) -> i64 {
+        Self::avx_pack(self.yr as i16, self.yg as i16, self.yb as i16, cn)
+    }
+
+    #[inline]
+    pub(crate) fn avx_make_transform_cb(&self, cn: YuvSourceChannels) -> i64 {
+        Self::avx_pack(self.cb_r as i16, self.cb_g as i16, self.cb_b as i16, cn)
+    }
+
+    #[inline]
+    fn avx_make_transform_cr(&self, cn: YuvSourceChannels) -> i64 {
+        Self::avx_pack(self.cr_r as i16, self.cr_g as i16, self.cr_b as i16, cn)
+    }
+}
