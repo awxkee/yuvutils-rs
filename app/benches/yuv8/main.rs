@@ -136,7 +136,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("yuvutils RGB -> YUV 4:2:0 Fast", |b| {
+    /* c.bench_function("yuvutils RGB -> YUV 4:2:0 Fast", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -266,7 +266,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             )
             .unwrap();
         })
-    });
+    });*/
 
     c.bench_function("yuvutils RGBA -> YUV 4:2:0 Professional", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
@@ -436,6 +436,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
                 YuvConversionMode::Balanced,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils RGBA -> YUV 4:4:4 Professional", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv444,
+        );
+        b.iter(|| {
+            rgba_to_yuv444(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+                YuvConversionMode::Professional,
             )
             .unwrap();
         })

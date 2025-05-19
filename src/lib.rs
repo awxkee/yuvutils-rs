@@ -35,6 +35,7 @@
     ),
     feature(cfg_version)
 )]
+#![allow(stable_features)]
 #![cfg_attr(
     all(
         feature = "nightly_avx512",

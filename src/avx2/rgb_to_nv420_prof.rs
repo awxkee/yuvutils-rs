@@ -57,6 +57,7 @@ pub(crate) fn avx2_rgba_to_nv420_prof<
 ) -> ProcessedOffset {
     unsafe {
         #[cfg(feature = "nightly_avx512")]
+        #[allow(clippy::incompatible_msrv)]
         if std::arch::is_x86_feature_detected!("avxvnni") {
             return avx2_rgba_to_nv_prof_dot::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
                 y_plane0, y_plane1, uv_plane, rgba0, rgba1, width, range, transform, start_cx,

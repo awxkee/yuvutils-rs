@@ -37,9 +37,10 @@ use yuv::{
     i010_alpha_to_rgba10, i010_to_rgba10, icgc_re010_to_rgba, icgc_ro010_to_rgba,
     icgc_ro210_to_rgba, icgc_ro410_to_rgba, rgba10_to_i010, rgba12_to_i412, rgba_to_icgc_re010,
     rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444,
-    rgba_to_yuv420, ycgco420_to_rgba, ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgba,
-    YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvPlanarImageMut,
-    YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
+    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, ycgco420_to_rgba, ycgco444_to_rgba,
+    yuv420_alpha_to_rgba, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, YuvBiPlanarImageMut,
+    YuvChromaSubsampling, YuvConversionMode, YuvPlanarImageMut, YuvPlanarImageWithAlpha, YuvRange,
+    YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -58,7 +59,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
 use core::f16;
 
 fn main() {
-    let mut img = ImageReader::open("./assets/jpeg_test.jpeg")
+    let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
         .unwrap();
@@ -94,20 +95,21 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
     //
-    let mut bytes_16: Vec<u16> = src_bytes
-        .iter()
-        .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
-        .collect();
+    // let mut bytes_16: Vec<u16> = src_bytes
+    //     .iter()
+    //     .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
+    //     .collect();
 
     let start_time = Instant::now();
-    rgba10_to_i010(
+    rgba_to_yuv444(
         &mut planar_image,
-        &bytes_16,
+        &src_bytes,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
+        YuvConversionMode::Professional,
     )
     .unwrap();
 
@@ -115,24 +117,24 @@ fn main() {
     let fixed = planar_image.to_fixed();
     rgba.fill(255);
 
-    let a_plane = vec![1023; height as usize * width as usize];
+    // let a_plane = vec![1023; height as usize * width as usize];
+    //
+    // let alpha = YuvPlanarImageWithAlpha {
+    //     y_plane: planar_image.y_plane.borrow(),
+    //     y_stride: planar_image.y_stride,
+    //     u_plane: planar_image.u_plane.borrow(),
+    //     u_stride: planar_image.u_stride,
+    //     v_plane: planar_image.v_plane.borrow(),
+    //     v_stride: planar_image.v_stride,
+    //     a_plane: &a_plane,
+    //     a_stride: width as u32,
+    //     width,
+    //     height,
+    // };
 
-    let alpha = YuvPlanarImageWithAlpha {
-        y_plane: planar_image.y_plane.borrow(),
-        y_stride: planar_image.y_stride,
-        u_plane: planar_image.u_plane.borrow(),
-        u_stride: planar_image.u_stride,
-        v_plane: planar_image.v_plane.borrow(),
-        v_stride: planar_image.v_stride,
-        a_plane: &a_plane,
-        a_stride: width as u32,
-        width,
-        height,
-    };
-
-    i010_alpha_to_rgba10(
-        &alpha,
-        &mut bytes_16,
+    yuv444_to_rgba(
+        &fixed,
+        &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
@@ -172,7 +174,7 @@ fn main() {
     // )
     // .unwrap();
 
-    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 

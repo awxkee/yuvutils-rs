@@ -60,6 +60,7 @@ pub(crate) fn avx_rgba_to_yuv_p16_d16<
 ) -> ProcessedOffset {
     unsafe {
         #[cfg(feature = "nightly_avx512")]
+        #[allow(clippy::incompatible_msrv)]
         if std::arch::is_x86_feature_detected!("avxvnni") {
             return avx_rgba_to_yuv_vnni_d16::<
                 ORIGIN_CHANNELS,
