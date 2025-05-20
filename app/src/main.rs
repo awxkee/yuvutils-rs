@@ -37,10 +37,11 @@ use yuv::{
     i010_alpha_to_rgba10, i010_to_rgba10, icgc_re010_to_rgba, icgc_ro010_to_rgba,
     icgc_ro210_to_rgba, icgc_ro410_to_rgba, rgba10_to_i010, rgba12_to_i412, rgba_to_icgc_re010,
     rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444,
-    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, ycgco420_to_rgba, ycgco444_to_rgba,
-    yuv420_alpha_to_rgba, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, YuvBiPlanarImageMut,
-    YuvChromaSubsampling, YuvConversionMode, YuvPlanarImageMut, YuvPlanarImageWithAlpha, YuvRange,
-    YuvStandardMatrix,
+    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16,
+    rgba_to_yuv_nv24, ycgco420_to_rgba, ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgba,
+    yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv24_to_rgba,
+    YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvPlanarImageMut,
+    YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -95,7 +96,7 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut planar_image =
-        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
+        YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
     //
     // let mut bytes_16: Vec<u16> = src_bytes
     //     .iter()
@@ -103,7 +104,7 @@ fn main() {
     //     .collect();
 
     let start_time = Instant::now();
-    rgba_to_yuv444(
+    rgba_to_yuv_nv24(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
@@ -132,12 +133,13 @@ fn main() {
     //     height,
     // };
 
-    yuv444_to_rgba(
+    yuv_nv24_to_rgba(
         &fixed,
         &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
+        YuvConversionMode::Balanced,
     )
     .unwrap();
 
