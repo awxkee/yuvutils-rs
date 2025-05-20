@@ -668,14 +668,14 @@ pub(crate) unsafe fn _mm_store_interleave_rgb_for_yuv<const CHANS: u8>(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CHANS: u8>(
+pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CN: u8>(
     ptr: *mut u8,
     r: __m128i,
     g: __m128i,
     b: __m128i,
     a: __m128i,
 ) {
-    let destination_channels: YuvSourceChannels = CHANS.into();
+    let destination_channels: YuvSourceChannels = CN.into();
 
     match destination_channels {
         YuvSourceChannels::Rgb => {
