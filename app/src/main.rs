@@ -167,13 +167,6 @@ fn main() {
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
 
-    rdp_yuv444_to_rgba(
-        &fixed_planar,
-        &mut rgba,
-        dimensions.0 as u32 * 4,
-    )
-    .unwrap();
-
     // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
