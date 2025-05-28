@@ -53,6 +53,7 @@ pub(crate) fn avx2_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const SAMPLIN
     unsafe {
         #[cfg(feature = "nightly_avx512")]
         {
+            #[allow(clippy::incompatible_msrv)]
             if std::arch::is_x86_feature_detected!("avxvnni") {
                 return avx2_rgba_to_yuv_dot_rgba_impl_dot::<ORIGIN_CHANNELS, SAMPLING>(
                     transform, range, y_plane, u_plane, v_plane, rgba, start_cx, start_ux, width,

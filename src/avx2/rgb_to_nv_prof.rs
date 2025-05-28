@@ -29,7 +29,7 @@
 
 use crate::avx2::avx2_utils::{
     _mm256_affine_dot, _mm256_interleave_epi16, _mm256_interleave_x2_epi8,
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8_j,
+    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx_pairwise_avg_epi16_epi8_j, shuffle,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -56,7 +56,15 @@ pub(crate) fn avx2_rgba_to_nv_prof<
     start_ux: usize,
 ) -> ProcessedOffset {
     unsafe {
+        let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+        if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
+        {
+            return avx2_rgba_to_nv_4chan::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
+                y_plane, uv_plane, rgba, width, range, transform, start_cx, start_ux,
+            );
+        }
         #[cfg(feature = "nightly_avx512")]
+        #[allow(clippy::incompatible_msrv)]
         if std::arch::is_x86_feature_detected!("avxvnni") {
             return avx2_rgba_to_nv_dot::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
                 y_plane, uv_plane, rgba, width, range, transform, start_cx, start_ux,
@@ -302,6 +310,376 @@ unsafe fn avx2_rgba_to_nv_impl<
             range,
             transform,
         );
+
+        std::ptr::copy_nonoverlapping(
+            y_buffer0.as_mut_ptr(),
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
+            diff,
+        );
+
+        let ux_size = match chroma_subsampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => diff.div_ceil(2) * 2,
+            YuvChromaSubsampling::Yuv444 => diff * 2,
+        };
+
+        std::ptr::copy_nonoverlapping(
+            uv_buffer.as_mut_ptr(),
+            uv_plane.get_unchecked_mut(uv_x..).as_mut_ptr(),
+            ux_size,
+        );
+
+        cx += diff;
+        uv_x += ux_size;
+    }
+
+    ProcessedOffset { cx, ux: uv_x }
+}
+
+#[target_feature(enable = "avx2")]
+unsafe fn avx2_rgba_to_nv_4chan<
+    const ORIGIN_CHANNELS: u8,
+    const UV_ORDER: u8,
+    const SAMPLING: u8,
+    const PRECISION: i32,
+>(
+    y_plane: &mut [u8],
+    uv_plane: &mut [u8],
+    rgba: &[u8],
+    width: u32,
+    range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
+    start_cx: usize,
+    start_ux: usize,
+) -> ProcessedOffset {
+    let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
+    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let channels = source_channels.get_channels_count();
+
+    let y_transform = _mm256_set1_epi64x(transform.avx_make_transform_y(source_channels));
+    let cb_transform = _mm256_set1_epi64x(transform.avx_make_transform_cb(source_channels));
+    let cr_transform = _mm256_set1_epi64x(transform.avx_make_transform_cr(source_channels));
+    let rounding_const_y = (1 << (PRECISION - 1)) - 1;
+    let y_bias = _mm256_set1_epi32(range.bias_y as i32 * (1 << PRECISION) + rounding_const_y);
+    let precision_uv = if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+        PRECISION
+    } else {
+        PRECISION + 1
+    };
+    let rounding_const_uv = (1 << (precision_uv - 1)) - 1;
+    let shuf_uv = _mm256_setr_epi8(
+        0, 4, 1, 5, 2, 6, -1, -1, 8, 12, 9, 13, 10, 14, -1, -1, 0, 4, 1, 5, 2, 6, -1, -1, 8, 12, 9,
+        13, 10, 14, -1, -1,
+    );
+
+    const M: i32 = shuffle(3, 1, 2, 0);
+
+    let uv_bias = _mm256_set1_epi32(range.bias_uv as i32 * (1 << precision_uv) + rounding_const_uv);
+
+    let shuf_uv_back = _mm256_setr_epi32(0, 4, -1, -1, -1, -1, -1, -1);
+
+    let mut cx = start_cx;
+    let mut uv_x = start_ux;
+
+    let order: YuvNVOrder = UV_ORDER.into();
+
+    while cx + 16 < width as usize {
+        let src_ptr0 = rgba.get_unchecked(cx * channels..);
+
+        let row_z0_0 = _mm256_loadu_si256(src_ptr0.as_ptr() as *const _);
+        let row_z1_0 = _mm256_loadu_si256(src_ptr0.get_unchecked(32..).as_ptr() as *const _);
+
+        let w0 = _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256());
+        let w1 = _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256());
+
+        let rgba0_row0 = _mm256_madd_epi16(w0, y_transform);
+        let rgba0_row1 = _mm256_madd_epi16(w1, y_transform);
+
+        let mut f_y0 = _mm256_hadd_epi32(rgba0_row0, rgba0_row1);
+        f_y0 = _mm256_add_epi32(f_y0, y_bias);
+        f_y0 = _mm256_srai_epi32::<PRECISION>(f_y0);
+
+        let w2 = _mm256_unpacklo_epi8(row_z1_0, _mm256_setzero_si256());
+        let w3 = _mm256_unpackhi_epi8(row_z1_0, _mm256_setzero_si256());
+
+        let rgba1_row0 = _mm256_madd_epi16(w2, y_transform);
+        let rgba1_row1 = _mm256_madd_epi16(w3, y_transform);
+
+        let mut f_y1 = _mm256_hadd_epi32(rgba1_row0, rgba1_row1);
+        f_y1 = _mm256_add_epi32(f_y1, y_bias);
+        f_y1 = _mm256_srai_epi32::<PRECISION>(f_y1);
+
+        let z_y = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+            _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_y0, f_y1)),
+            _mm256_setzero_si256(),
+        ));
+
+        _mm_storeu_si128(
+            y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
+            _mm256_castsi256_si128(z_y),
+        );
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+        {
+            let avgu0_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z0_0, shuf_uv), 1);
+            let avgu1_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z1_0, shuf_uv), 1);
+
+            let cb_row0 = _mm256_madd_epi16(avgu0_v, cb_transform);
+            let cb_row1 = _mm256_madd_epi16(avgu1_v, cb_transform);
+            let cr_row0 = _mm256_madd_epi16(avgu0_v, cr_transform);
+            let cr_row1 = _mm256_madd_epi16(avgu1_v, cr_transform);
+
+            const M: i32 = shuffle(3, 1, 2, 0);
+
+            let mut f_cb0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(cb_row0, cb_row1));
+            let mut f_cr0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(cr_row0, cr_row1));
+
+            f_cb0 = _mm256_add_epi32(f_cb0, uv_bias);
+            f_cr0 = _mm256_add_epi32(f_cr0, uv_bias);
+
+            f_cb0 = _mm256_srai_epi32::<16>(f_cb0);
+            f_cr0 = _mm256_srai_epi32::<16>(f_cr0);
+
+            let z_cb = _mm256_permutevar8x32_epi32(
+                _mm256_packus_epi16(
+                    _mm256_packus_epi32(f_cb0, _mm256_setzero_si256()),
+                    _mm256_setzero_si256(),
+                ),
+                shuf_uv_back,
+            );
+            let z_cr = _mm256_permutevar8x32_epi32(
+                _mm256_packus_epi16(
+                    _mm256_packus_epi32(f_cr0, _mm256_setzero_si256()),
+                    _mm256_setzero_si256(),
+                ),
+                shuf_uv_back,
+            );
+
+            let z_cb_cr = match order {
+                YuvNVOrder::UV => {
+                    _mm_unpacklo_epi8(_mm256_castsi256_si128(z_cb), _mm256_castsi256_si128(z_cr))
+                }
+                YuvNVOrder::VU => {
+                    _mm_unpacklo_epi8(_mm256_castsi256_si128(z_cr), _mm256_castsi256_si128(z_cb))
+                }
+            };
+
+            _mm_storeu_si128(
+                uv_plane.get_unchecked_mut(uv_x..).as_mut_ptr() as *mut _,
+                z_cb_cr,
+            );
+        } else {
+            let cb0_row0 = _mm256_madd_epi16(w0, cb_transform);
+            let cb0_row1 = _mm256_madd_epi16(w1, cb_transform);
+            let cr0_row0 = _mm256_madd_epi16(w0, cr_transform);
+            let cr0_row1 = _mm256_madd_epi16(w1, cr_transform);
+
+            let mut f_cb0 = _mm256_hadd_epi32(cb0_row0, cb0_row1);
+            let mut f_cr0 = _mm256_hadd_epi32(cr0_row0, cr0_row1);
+
+            let cb1_row0 = _mm256_madd_epi16(w2, cb_transform);
+            let cb1_row1 = _mm256_madd_epi16(w3, cb_transform);
+            let cr1_row0 = _mm256_madd_epi16(w2, cr_transform);
+            let cr1_row1 = _mm256_madd_epi16(w3, cr_transform);
+
+            let mut f_cb1 = _mm256_hadd_epi32(cb1_row0, cb1_row1);
+            let mut f_cr1 = _mm256_hadd_epi32(cr1_row0, cr1_row1);
+
+            f_cb0 = _mm256_add_epi32(f_cb0, uv_bias);
+            f_cr0 = _mm256_add_epi32(f_cr0, uv_bias);
+
+            f_cb1 = _mm256_add_epi32(f_cb1, uv_bias);
+            f_cr1 = _mm256_add_epi32(f_cr1, uv_bias);
+
+            f_cb0 = _mm256_srai_epi32::<PRECISION>(f_cb0);
+            f_cr0 = _mm256_srai_epi32::<PRECISION>(f_cr0);
+
+            f_cb1 = _mm256_srai_epi32::<PRECISION>(f_cb1);
+            f_cr1 = _mm256_srai_epi32::<PRECISION>(f_cr1);
+
+            let z_cb = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cb0, f_cb1)),
+                _mm256_setzero_si256(),
+            ));
+            let z_cr = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cr0, f_cr1)),
+                _mm256_setzero_si256(),
+            ));
+
+            let (row0, _) = match order {
+                YuvNVOrder::UV => _mm256_interleave_x2_epi8(z_cb, z_cr),
+                YuvNVOrder::VU => _mm256_interleave_x2_epi8(z_cr, z_cb),
+            };
+
+            _mm256_storeu_si256(
+                uv_plane.get_unchecked_mut(uv_x..).as_mut_ptr() as *mut _,
+                row0,
+            );
+        }
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            uv_x += 32;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+        {
+            uv_x += 16;
+        }
+
+        cx += 16;
+    }
+
+    if cx < width as usize {
+        let diff = width as usize - cx;
+        assert!(diff <= 16);
+
+        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer0: [u8; 16] = [0; 16];
+        let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+
+        std::ptr::copy_nonoverlapping(
+            rgba.get_unchecked(cx * channels..).as_ptr(),
+            src_buffer.as_mut_ptr(),
+            diff * channels,
+        );
+
+        // Replicate last item to one more position for subsampling
+        if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
+            let lst = (width as usize - 1) * channels;
+            let last_items = rgba.get_unchecked(lst..(lst + channels));
+            let dvb = diff * channels;
+            let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
+            for (dst, src) in dst.iter_mut().zip(last_items) {
+                *dst = *src;
+            }
+        }
+
+        let row_z0_0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const _);
+        let row_z1_0 = _mm256_loadu_si256(src_buffer.get_unchecked(32..).as_ptr() as *const _);
+
+        let w0 = _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256());
+        let w1 = _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256());
+
+        let rgba0_row0 = _mm256_madd_epi16(w0, y_transform);
+        let rgba0_row1 = _mm256_madd_epi16(w1, y_transform);
+
+        let mut f_y0 = _mm256_hadd_epi32(rgba0_row0, rgba0_row1);
+        f_y0 = _mm256_add_epi32(f_y0, y_bias);
+        f_y0 = _mm256_srai_epi32::<PRECISION>(f_y0);
+
+        let w2 = _mm256_unpacklo_epi8(row_z1_0, _mm256_setzero_si256());
+        let w3 = _mm256_unpackhi_epi8(row_z1_0, _mm256_setzero_si256());
+
+        let rgba1_row0 = _mm256_madd_epi16(w2, y_transform);
+        let rgba1_row1 = _mm256_madd_epi16(w3, y_transform);
+
+        let mut f_y1 = _mm256_hadd_epi32(rgba1_row0, rgba1_row1);
+        f_y1 = _mm256_add_epi32(f_y1, y_bias);
+        f_y1 = _mm256_srai_epi32::<PRECISION>(f_y1);
+
+        let z_y = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+            _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_y0, f_y1)),
+            _mm256_setzero_si256(),
+        ));
+
+        _mm_storeu_si128(
+            y_buffer0.as_mut_ptr() as *mut _,
+            _mm256_castsi256_si128(z_y),
+        );
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
+        {
+            let avgu0_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z0_0, shuf_uv), 1);
+            let avgu1_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z1_0, shuf_uv), 1);
+
+            let cb_row0 = _mm256_madd_epi16(avgu0_v, cb_transform);
+            let cb_row1 = _mm256_madd_epi16(avgu1_v, cb_transform);
+            let cr_row0 = _mm256_madd_epi16(avgu0_v, cr_transform);
+            let cr_row1 = _mm256_madd_epi16(avgu1_v, cr_transform);
+
+            const M: i32 = shuffle(3, 1, 2, 0);
+
+            let mut f_cb0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(cb_row0, cb_row1));
+            let mut f_cr0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(cr_row0, cr_row1));
+
+            f_cb0 = _mm256_add_epi32(f_cb0, uv_bias);
+            f_cr0 = _mm256_add_epi32(f_cr0, uv_bias);
+
+            f_cb0 = _mm256_srai_epi32::<16>(f_cb0);
+            f_cr0 = _mm256_srai_epi32::<16>(f_cr0);
+
+            let z_cb = _mm256_permutevar8x32_epi32(
+                _mm256_packus_epi16(
+                    _mm256_packus_epi32(f_cb0, _mm256_setzero_si256()),
+                    _mm256_setzero_si256(),
+                ),
+                shuf_uv_back,
+            );
+
+            let z_cr = _mm256_permutevar8x32_epi32(
+                _mm256_packus_epi16(
+                    _mm256_packus_epi32(f_cr0, _mm256_setzero_si256()),
+                    _mm256_setzero_si256(),
+                ),
+                shuf_uv_back,
+            );
+
+            let z_cb_cr = match order {
+                YuvNVOrder::UV => {
+                    _mm_unpacklo_epi8(_mm256_castsi256_si128(z_cb), _mm256_castsi256_si128(z_cr))
+                }
+                YuvNVOrder::VU => {
+                    _mm_unpacklo_epi8(_mm256_castsi256_si128(z_cr), _mm256_castsi256_si128(z_cb))
+                }
+            };
+
+            _mm_storeu_si128(uv_buffer.as_mut_ptr() as *mut _, z_cb_cr);
+        } else {
+            let cb0_row0 = _mm256_madd_epi16(w0, cb_transform);
+            let cb0_row1 = _mm256_madd_epi16(w1, cb_transform);
+            let cr0_row0 = _mm256_madd_epi16(w0, cr_transform);
+            let cr0_row1 = _mm256_madd_epi16(w1, cr_transform);
+
+            let mut f_cb0 = _mm256_hadd_epi32(cb0_row0, cb0_row1);
+            let mut f_cr0 = _mm256_hadd_epi32(cr0_row0, cr0_row1);
+
+            let cb1_row0 = _mm256_madd_epi16(w2, cb_transform);
+            let cb1_row1 = _mm256_madd_epi16(w3, cb_transform);
+            let cr1_row0 = _mm256_madd_epi16(w2, cr_transform);
+            let cr1_row1 = _mm256_madd_epi16(w3, cr_transform);
+
+            let mut f_cb1 = _mm256_hadd_epi32(cb1_row0, cb1_row1);
+            let mut f_cr1 = _mm256_hadd_epi32(cr1_row0, cr1_row1);
+
+            f_cb0 = _mm256_add_epi32(f_cb0, uv_bias);
+            f_cr0 = _mm256_add_epi32(f_cr0, uv_bias);
+
+            f_cb1 = _mm256_add_epi32(f_cb1, uv_bias);
+            f_cr1 = _mm256_add_epi32(f_cr1, uv_bias);
+
+            f_cb0 = _mm256_srai_epi32::<PRECISION>(f_cb0);
+            f_cr0 = _mm256_srai_epi32::<PRECISION>(f_cr0);
+
+            f_cb1 = _mm256_srai_epi32::<PRECISION>(f_cb1);
+            f_cr1 = _mm256_srai_epi32::<PRECISION>(f_cr1);
+
+            let z_cb = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cb0, f_cb1)),
+                _mm256_setzero_si256(),
+            ));
+
+            let z_cr = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cr0, f_cr1)),
+                _mm256_setzero_si256(),
+            ));
+
+            let (row0, _) = match order {
+                YuvNVOrder::UV => _mm256_interleave_x2_epi8(z_cb, z_cr),
+                YuvNVOrder::VU => _mm256_interleave_x2_epi8(z_cr, z_cb),
+            };
+
+            _mm256_storeu_si256(uv_buffer.as_mut_ptr() as *mut _, row0);
+        }
 
         std::ptr::copy_nonoverlapping(
             y_buffer0.as_mut_ptr(),

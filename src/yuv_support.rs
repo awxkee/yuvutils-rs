@@ -400,7 +400,7 @@ impl From<u8> for YuvEndianness {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 /// Most of the cases of storage bytes is least significant whereas b`0000000111111` integers stored in low part.
 ///
-/// However most modern hardware encoders (Apple, Android manufacturers) uses most significant bytes
+/// However, most modern hardware encoders (Apple, Android manufacturers) uses most significant bytes
 /// where same number stored as b`111111000000` and need to be shifted right before working with this.
 /// This is not the same and endianness. I never met `big endian` packing with `most significant bytes`
 /// so this case may not work fully correct, however, `little endian` + `most significant bytes`

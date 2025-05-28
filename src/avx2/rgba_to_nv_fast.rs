@@ -56,6 +56,7 @@ pub(crate) fn avx2_rgba_to_nv_fast_rgba<
     unsafe {
         #[cfg(feature = "nightly_avx512")]
         {
+            #[allow(clippy::incompatible_msrv)]
             if std::arch::is_x86_feature_detected!("avxvnni") {
                 return avx2_rgba_to_nv_fast_rgba_impl_dot::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
                     y_plane, uv_plane, rgba, width, range, transform, start_cx, start_ux,
