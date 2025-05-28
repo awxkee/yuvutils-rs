@@ -97,13 +97,13 @@ fn main() {
 
     let mut planar_image =
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv444);
-    //
     // let mut bytes_16: Vec<u16> = src_bytes
     //     .iter()
     //     .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
     //     .collect();
 
     let start_time = Instant::now();
+
     rgba_to_yuv_nv24(
         &mut planar_image,
         &src_bytes,
@@ -142,10 +142,10 @@ fn main() {
         YuvConversionMode::Balanced,
     )
     .unwrap();
-
+      
     //
     // let fixed_biplanar = bi_planar_image.to_fixed();
-    // let fixed_planar = planar_image.to_fixed();
+    let fixed_planar = planar_image.to_fixed();
     // // bytes_16.fill(0);
     //
     // let mut j_rgba = vec![0u8; dimensions.0 as usize * dimensions.1 as usize * 4];
@@ -166,15 +166,6 @@ fn main() {
     //
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
-
-    // i412_to_rgba12(
-    //     &fixed_planar,
-    //     &mut bytes_16,
-    //     dimensions.0 as u32 * 4,
-    //     YuvRange::Limited,
-    //     YuvStandardMatrix::Bt709,
-    // )
-    // .unwrap();
 
     // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
