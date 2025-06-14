@@ -32,6 +32,7 @@ use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 #[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
@@ -265,9 +266,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
 
         assert!(diff <= 8);
 
-        let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
-        let mut y_buffer0: [u8; 8] = [0; 8];
-        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
+        let mut src_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut y_buffer0: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
+        let mut uv_buffer: [MaybeUninit<u8>; 8 * 2] = [MaybeUninit::uninit(); 8 * 2];
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
@@ -276,20 +277,20 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
         }
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * channels,
         );
 
         let src = src_buffer;
 
         let (r_values0, g_values0, b_values0) =
-            neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr());
+            neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(src.as_ptr().cast());
 
         let r_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(r_values0));
         let g_low = vreinterpretq_s16_u16(vshll_n_u8::<V_SCALE>(g_values0));
@@ -300,7 +301,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
         y_low = vqrdmlahq_laneq_s16::<2>(y_low, b_low, v_weights);
 
         let y_low = vqshrn_n_u16::<A_E>(vreinterpretq_u16_s16(y_low));
-        vst1_u8(y_buffer0.as_mut_ptr(), y_low);
+        vst1_u8(y_buffer0.as_mut_ptr().cast(), y_low);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_low = vqrdmlahq_laneq_s16::<3>(uv_bias, r_low, v_weights);
@@ -319,11 +320,11 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             match order {
                 YuvNVOrder::UV => {
                     let store = uint8x8x2_t(cb, cr);
-                    vst2_u8(uv_buffer.as_mut_ptr(), store);
+                    vst2_u8(uv_buffer.as_mut_ptr().cast(), store);
                 }
                 YuvNVOrder::VU => {
                     let store = uint8x8x2_t(cr, cb);
-                    vst2_u8(uv_buffer.as_mut_ptr(), store);
+                    vst2_u8(uv_buffer.as_mut_ptr().cast(), store);
                 }
             }
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
@@ -346,17 +347,17 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
             match order {
                 YuvNVOrder::UV => {
                     let store = vzip1_u8(cb, cr);
-                    vst1_u8(uv_buffer.as_mut_ptr(), store);
+                    vst1_u8(uv_buffer.as_mut_ptr().cast(), store);
                 }
                 YuvNVOrder::VU => {
                     let store = vzip1_u8(cr, cb);
-                    vst1_u8(uv_buffer.as_mut_ptr(), store);
+                    vst1_u8(uv_buffer.as_mut_ptr().cast(), store);
                 }
             }
         }
 
         std::ptr::copy_nonoverlapping(
-            y_buffer0.as_mut_ptr(),
+            y_buffer0.as_mut_ptr().cast(),
             y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );
@@ -367,7 +368,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
         };
 
         std::ptr::copy_nonoverlapping(
-            uv_buffer.as_mut_ptr(),
+            uv_buffer.as_mut_ptr().cast(),
             uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             ux_size,
         );
@@ -583,9 +584,9 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
         let diff = width as usize - cx;
         assert!(diff <= 16);
 
-        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
-        let mut y_buffer0: [u8; 16] = [0; 16];
-        let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+        let mut src_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut y_buffer0: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut uv_buffer: [MaybeUninit<u8>; 16 * 2] = [MaybeUninit::uninit(); 16 * 2];
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
@@ -594,24 +595,28 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
         }
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * channels,
         );
 
         encode_16_part(
-            src_buffer.as_slice(),
-            y_buffer0.as_mut_slice(),
-            uv_buffer.as_mut_slice(),
+            std::mem::transmute::<&[std::mem::MaybeUninit<u8>], &[u8]>(src_buffer.as_slice()),
+            std::mem::transmute::<&mut [std::mem::MaybeUninit<u8>], &mut [u8]>(
+                y_buffer0.as_mut_slice(),
+            ),
+            std::mem::transmute::<&mut [std::mem::MaybeUninit<u8>], &mut [u8]>(
+                uv_buffer.as_mut_slice(),
+            ),
         );
 
         std::ptr::copy_nonoverlapping(
-            y_buffer0.as_mut_ptr(),
+            y_buffer0.as_mut_ptr().cast(),
             y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );
@@ -622,7 +627,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
         };
 
         std::ptr::copy_nonoverlapping(
-            uv_buffer.as_mut_ptr(),
+            uv_buffer.as_mut_ptr().cast(),
             uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             ux_size,
         );

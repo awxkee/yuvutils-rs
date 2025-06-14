@@ -27,13 +27,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::arch::aarch64::*;
-
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::*;
 use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
+use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
     const DESTINATION_CHANNELS: u8,
@@ -396,19 +396,19 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         let diff = width as usize - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [u16; 8] = [0; 8];
-        let mut u_buffer: [u16; 8] = [0; 8];
-        let mut v_buffer: [u16; 8] = [0; 8];
+        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut u_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut v_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
 
         std::ptr::copy_nonoverlapping(
             y_ld_ptr.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
+            y_buffer.as_mut_ptr().cast(),
             diff,
         );
 
         let y_values = vqsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_buffer.as_ptr(),
+                y_buffer.as_ptr().cast(),
             )),
             y_corr,
         );
@@ -421,19 +421,19 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             std::ptr::copy_nonoverlapping(
                 u_ld_ptr.get_unchecked(ux..).as_ptr(),
-                u_buffer.as_mut_ptr(),
+                u_buffer.as_mut_ptr().cast(),
                 diff,
             );
             std::ptr::copy_nonoverlapping(
                 v_ld_ptr.get_unchecked(ux..).as_ptr(),
-                v_buffer.as_mut_ptr(),
+                v_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
             let mut u_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr());
+                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr().cast());
             let mut v_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr());
+                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr().cast());
 
             u_values_l =
                 vreinterpretq_s16_u16(vsubq_u16(vreinterpretq_u16_s16(u_values_l), uv_corr));
@@ -447,19 +447,19 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         } else {
             std::ptr::copy_nonoverlapping(
                 u_ld_ptr.get_unchecked(ux..).as_ptr(),
-                u_buffer.as_mut_ptr(),
+                u_buffer.as_mut_ptr().cast(),
                 diff.div_ceil(2),
             );
             std::ptr::copy_nonoverlapping(
                 v_ld_ptr.get_unchecked(ux..).as_ptr(),
-                v_buffer.as_mut_ptr(),
+                v_buffer.as_mut_ptr().cast(),
                 diff.div_ceil(2),
             );
 
             let mut u_values_l =
-                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr());
+                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr().cast());
             let mut v_values_l =
-                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr());
+                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr().cast());
 
             u_values_l = vreinterpret_s16_u16(vsub_u16(
                 vreinterpret_u16_s16(u_values_l),
@@ -519,10 +519,10 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
             vminq_u16(vcombine_u16(b_low, b_high), v_alpha)
         };
 
-        let mut buffer: [u16; 8 * 4] = [0; 8 * 4];
+        let mut buffer: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
-            buffer.as_mut_ptr(),
+            buffer.as_mut_ptr().cast(),
             r_values,
             g_values,
             b_values,
@@ -530,7 +530,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         );
 
         std::ptr::copy_nonoverlapping(
-            buffer.as_ptr(),
+            buffer.as_ptr().cast(),
             dst_ptr.get_unchecked_mut(cx * channels..).as_mut_ptr(),
             diff * channels,
         );
@@ -798,19 +798,19 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         let diff = width as usize - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [u16; 8] = [0; 8];
-        let mut u_buffer: [u16; 8] = [0; 8];
-        let mut v_buffer: [u16; 8] = [0; 8];
+        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut u_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut v_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
 
         std::ptr::copy_nonoverlapping(
             y_ld_ptr.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
+            y_buffer.as_mut_ptr().cast(),
             diff,
         );
 
         let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_buffer.as_ptr(),
+                y_buffer.as_ptr().cast(),
             )),
             y_corr,
         ));
@@ -821,19 +821,19 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             std::ptr::copy_nonoverlapping(
                 u_ld_ptr.get_unchecked(ux..).as_ptr(),
-                u_buffer.as_mut_ptr(),
+                u_buffer.as_mut_ptr().cast(),
                 diff,
             );
             std::ptr::copy_nonoverlapping(
                 v_ld_ptr.get_unchecked(ux..).as_ptr(),
-                v_buffer.as_mut_ptr(),
+                v_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
             let mut u_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr());
+                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr().cast());
             let mut v_values_l =
-                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr());
+                vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr().cast());
 
             u_values_l = vsubq_s16(u_values_l, uv_corr);
             v_values_l = vsubq_s16(v_values_l, uv_corr);
@@ -843,19 +843,19 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         } else {
             std::ptr::copy_nonoverlapping(
                 u_ld_ptr.get_unchecked(ux..).as_ptr(),
-                u_buffer.as_mut_ptr(),
+                u_buffer.as_mut_ptr().cast(),
                 diff.div_ceil(2),
             );
             std::ptr::copy_nonoverlapping(
                 v_ld_ptr.get_unchecked(ux..).as_ptr(),
-                v_buffer.as_mut_ptr(),
+                v_buffer.as_mut_ptr().cast(),
                 diff.div_ceil(2),
             );
 
             let mut u_values_l =
-                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr());
+                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(u_buffer.as_ptr().cast());
             let mut v_values_l =
-                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr());
+                vld_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(v_buffer.as_ptr().cast());
             u_values_l = vsub_s16(u_values_l, vget_low_s16(uv_corr));
             v_values_l = vsub_s16(v_values_l, vget_low_s16(uv_corr));
 
@@ -888,10 +888,10 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         let g_values = vminq_u16(vreinterpretq_u16_s16(glv), v_alpha);
         let b_values = vminq_u16(vreinterpretq_u16_s16(blv), v_alpha);
 
-        let mut buffer: [u16; 8 * 4] = [0; 8 * 4];
+        let mut buffer: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
-            buffer.as_mut_ptr(),
+            buffer.as_mut_ptr().cast(),
             r_values,
             g_values,
             b_values,
@@ -899,7 +899,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         );
 
         std::ptr::copy_nonoverlapping(
-            buffer.as_ptr(),
+            buffer.as_ptr().cast(),
             rgba.get_unchecked_mut(cx * channels..).as_mut_ptr(),
             diff * channels,
         );

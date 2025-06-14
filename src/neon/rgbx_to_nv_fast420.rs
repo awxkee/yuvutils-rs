@@ -31,6 +31,7 @@ use crate::internals::ProcessedOffset;
 use crate::neon::utils::neon_vld_rgb_for_yuv;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 #[allow(clippy::cast_abs_to_unsigned)]
 pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8>(
@@ -138,20 +139,20 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
         let diff = width as usize - cx;
         assert!(diff <= 16);
 
-        let mut src_buffer0: [u8; 16 * 4] = [0; 16 * 4];
-        let mut src_buffer1: [u8; 16 * 4] = [0; 16 * 4];
-        let mut y_buffer0: [u8; 16] = [0; 16];
-        let mut y_buffer1: [u8; 16] = [0; 16];
-        let mut uv_buffer: [u8; 32] = [0; 32];
+        let mut src_buffer0: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut src_buffer1: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut y_buffer0: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut y_buffer1: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut uv_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer0.as_mut_ptr(),
+            src_buffer0.as_mut_ptr().cast(),
             diff * channels,
         );
         std::ptr::copy_nonoverlapping(
             rgba1.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer1.as_mut_ptr(),
+            src_buffer1.as_mut_ptr().cast(),
             diff * channels,
         );
 
@@ -164,17 +165,17 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
             let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
             let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst0.iter_mut().zip(last_items0) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
             for (dst, src) in dst1.iter_mut().zip(last_items1) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
         }
 
         let (r_values0, g_values0, b_values0) =
-            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer0.as_ptr());
+            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer0.as_ptr().cast());
         let (r_values1, g_values1, b_values1) =
-            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer1.as_ptr());
+            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer1.as_ptr().cast());
 
         let mut yh0 = vmlal_high_u8(y_bias, r_values0, v_yr);
         let mut yh1 = vmlal_high_u8(y_bias, r_values1, v_yr);
@@ -199,8 +200,8 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
         let y_vl0 = vcombine_u8(yn_0, yn_1);
         let y_vl1 = vcombine_u8(yn_2, yn_3);
 
-        vst1q_u8(y_buffer0.as_mut_ptr(), y_vl0);
-        vst1q_u8(y_buffer1.as_mut_ptr(), y_vl1);
+        vst1q_u8(y_buffer0.as_mut_ptr().cast(), y_vl0);
+        vst1q_u8(y_buffer1.as_mut_ptr().cast(), y_vl1);
 
         let rhv = vhaddq_u8(r_values0, r_values1);
         let ghv = vhaddq_u8(g_values0, g_values1);
@@ -228,15 +229,15 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
             std::mem::swap(&mut cb, &mut cr);
         }
 
-        vst2_u8(uv_buffer.as_mut_ptr(), uint8x8x2_t(cb, cr));
+        vst2_u8(uv_buffer.as_mut_ptr().cast(), uint8x8x2_t(cb, cr));
 
         std::ptr::copy_nonoverlapping(
-            y_buffer0.as_ptr(),
+            y_buffer0.as_ptr().cast(),
             y_plane0.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );
         std::ptr::copy_nonoverlapping(
-            y_buffer1.as_ptr(),
+            y_buffer1.as_ptr().cast(),
             y_plane1.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );
@@ -244,7 +245,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
         let hv = diff.div_ceil(2) * 2;
 
         std::ptr::copy_nonoverlapping(
-            uv_buffer.as_ptr(),
+            uv_buffer.as_ptr().cast(),
             uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             hv,
         );

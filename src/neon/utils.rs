@@ -756,3 +756,8 @@ pub(crate) unsafe fn xqdmulhq_n_s16<const R: bool>(a: int16x8_t, b: i16) -> int1
         vqdmulhq_n_s16(a, b)
     }
 }
+
+#[inline(always)]
+pub(crate) fn xvld1_4u8(ptr: *const u8) -> uint8x8_t {
+    unsafe { vreinterpret_u8_u32(vld1_lane_u32::<0>(ptr.cast(), vdup_n_u32(0))) }
+}

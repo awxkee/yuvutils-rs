@@ -151,6 +151,7 @@ mod yuv_p16_rgba_p16;
 mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
+mod yuv_to_rgba_bilinear;
 mod yuv_to_yuy2;
 mod yuv_to_yuy2_p16;
 #[cfg(feature = "nightly_f16")]
@@ -609,4 +610,10 @@ pub use rgb_to_ycgco_r::{
     rgba10_to_icgc_re012, rgba10_to_icgc_re212, rgba10_to_icgc_re412, rgba10_to_icgc_ro012,
     rgba10_to_icgc_ro212, rgba10_to_icgc_ro412, rgba_to_icgc_re010, rgba_to_icgc_re210,
     rgba_to_icgc_re410, rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410,
+};
+
+pub use yuv_to_rgba_bilinear::{
+    yuv420_to_bgr_bilinear, yuv420_to_bgra_bilinear, yuv420_to_rgb_bilinear,
+    yuv420_to_rgba_bilinear, yuv422_to_bgr_bilinear, yuv422_to_bgra_bilinear,
+    yuv422_to_rgb_bilinear, yuv422_to_rgba_bilinear,
 };

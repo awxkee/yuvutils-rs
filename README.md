@@ -119,7 +119,7 @@ AVX2 tests performed on `m4.large` with Ubuntu 24.04 droplet.
 AVX2 Win test performed on Windows 11 Intel Core i9-14900HX.
 
 ```bash
-cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml --features fast_mode,professional_mode
+cargo bench --bench yuv8 --manifest-path ./app/Cargo.toml --features fast_mode,professional_mode,rdm
 ```
 
 AVX-512 tests performed on `AWS c5.large` with Ubuntu 24.04 instance with command
@@ -132,11 +132,11 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 
 | Conversion             | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) |
 |------------------------|:----------:|:--------------:|:----------:|:-------------:|
-| utils RGB->YUV 4:2:0   |  261.66µs  |    354.25µs    |  973.17µs  |   722.87µs    |
+| utils RGB->YUV 4:2:0   |  255.25µs  |    354.25µs    |  973.17µs  |   722.87µs    |
 | libyuv RGB->YUV 4:2:0  |  306.80µs  |     3.62ms     |   1.10ms   |   972.52µs    |
-| utils RGBA->YUV 4:2:0  |  266.66µs  |    367.47µs    |  781.54µs  |   785.93µs    |
+| utils RGBA->YUV 4:2:0  |  257.02µs  |    367.47µs    |  781.54µs  |   785.93µs    |
 | libyuv RGBA->YUV 4:2:0 |  429.36µs  |     2.70ms     |  846.69µs  |   707.33µs    |
-| utils RGBA->YUV 4:2:2  |  362.72µs  |    464.82µs    |   1.06ms   |   964.87µs    |
+| utils RGBA->YUV 4:2:2  |  327.11µs  |    464.82µs    |   1.06ms   |   964.87µs    |
 | libyuv RGBA->YUV 4:2:2 |  616.29µs  |    4.3003ms    |   1.09ms   |   947.97µs    |
 | utils RGBA->YUV 4:4:4  |  378.49µs  |    534.87µs    |   1.09ms   |   974.29µs    |
 
@@ -144,16 +144,16 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 
 | Conversion             | time(NEON) | Time(AVX2 Win) | Time(AVX2) | Time(AVX-512) | 
 |------------------------|:----------:|:--------------:|:----------:|:-------------:| 
-| utils YUV NV12->RGBA   |  399.37µs  |    359.11µs    |  917.52µs  |   736.21µs    | 
-| utils YUV NV12->RGB    |  312.38µs  |    339.53µs    |  817.71µs  |   654.37µs    | 
+| utils YUV NV12->RGBA   |  377.59µs  |    359.11µs    |  917.52µs  |   736.21µs    | 
+| utils YUV NV12->RGB    |  273.38µs  |    339.53µs    |  817.71µs  |   654.37µs    | 
 | libyuv YUV NV12->RGB   |  621.11µs  |     5.46ms     |  979.96µs  |   800.85µs    | 
 | utils YUV 4:2:0->RGB   |  346.13µs  |    375.34µs    |  923.83µs  |   614.19µs    | 
-| libyuv YUV 4:2:0->RGB  |  747.18µs  |    5.8231ms    |   1.42ms   |    1.16ms     | 
+| libyuv YUV 4:2:0->RGB  |  675.72µs  |    5.8231ms    |   1.42ms   |    1.16ms     | 
 | utils YUV 4:2:0->RGBA  |  396.58µs  |    380.13µs    |  942.92µs  |   733.88µs    | 
 | libyuv YUV 4:2:0->RGBA |  710.88µs  |    557.44µs    |   1.03ms   |   870.64µs    | 
-| utils YUV 4:2:2->RGBA  |  449.25µs  |    410.71µs    |   1.10ms   |   824.69µs    | 
+| utils YUV 4:2:2->RGBA  |  438.19µs  |    410.71µs    |   1.10ms   |   824.69µs    | 
 | libyuv YUV 4:2:2->RGBA |  734.25µs  |    579.24µs    |   1.04ms   |   851.24µs    | 
-| utils YUV 4:4:4->RGBA  |  432.32µs  |    366.85µs    |   1.10ms   |   819.17µs    | 
+| utils YUV 4:4:4->RGBA  |  429.60µs  |    366.85µs    |   1.10ms   |   819.17µs    | 
 | libyuv YUV 4:4:4->RGBA |  596.55µs  |    525.90µs    |  963.66µs  |   803.62µs    | 
 | utils YUV 4:0:0->RGBA  |  220.67µs  |    254.83µs    |  651.88µs  |   600.43µs    | 
 | libyuv YUV 4:0:0->RGBA |  522.71µs  |    1.8204ms    |  635.61µs  |   525.56µs    | 
@@ -161,7 +161,7 @@ cargo +nightly bench --bench yuv8 --manifest-path ./app/Cargo.toml --features ni
 YUV 16 bit-depth conversion
 
 ```bash
-cargo bench --bench yuv16 --manifest-path ./app/Cargo.toml
+cargo bench --bench yuv16 --manifest-path ./app/Cargo.toml --features rdm
 ```
 
 AVX-512 tests performed on `AWS c5.large` with Ubuntu 24.04 instance with command

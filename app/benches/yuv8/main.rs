@@ -33,10 +33,10 @@ use yuv::{
     gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
     rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
     rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgba, ycgco444_to_rgba, yuv400_to_rgba,
-    yuv420_to_rgb, yuv420_to_rgba, yuv422_to_rgba, yuv444_to_rgba, yuv_nv12_to_rgb,
-    yuv_nv12_to_rgba, yuv_nv16_to_rgb, YuvBiPlanarImageMut, YuvChromaSubsampling,
-    YuvConversionMode, YuvGrayImageMut, YuvPackedImage, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    yuv420_to_rgb, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgba,
+    yuv422_to_rgba_bilinear, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb,
+    YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvGrayImageMut, YuvPackedImage,
+    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 use yuv_sys::{
     rs_ABGRToI420, rs_ABGRToJ422, rs_ABGRToNV21, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24,
@@ -136,7 +136,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    /* c.bench_function("yuvutils RGB -> YUV 4:2:0 Fast", |b| {
+    c.bench_function("yuvutils RGB -> YUV 4:2:0 Fast", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
             dimensions.0,
             dimensions.1,
@@ -266,7 +266,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             )
             .unwrap();
         })
-    });*/
+    });
 
     c.bench_function("yuvutils RGBA -> YUV 4:2:0 Professional", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
@@ -735,6 +735,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("yuvutils YUV 4:2:0 Bilinear -> RGBA", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv420_to_rgba_bilinear(
+                &fixed_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
     c.bench_function("libyuv YUV 4:2:0 -> RGBA", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| unsafe {
@@ -772,6 +786,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             yuv422_to_rgba(
+                &fixed_planar422,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YUV 4:2:2 Bilinear -> RGBA", |b| {
+        let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            yuv422_to_rgba_bilinear(
                 &fixed_planar422,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,

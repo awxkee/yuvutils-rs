@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![deny(unreachable_code, unreachable_pub)]
+#![allow(clippy::incompatible_msrv)]
 mod avx512_setr;
 mod avx512_utils;
 mod rgb_to_nv420;

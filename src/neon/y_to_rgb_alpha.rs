@@ -30,6 +30,7 @@
 use crate::neon::utils::*;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 #[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
@@ -192,23 +193,23 @@ unsafe fn neon_y_to_rgb_row_alpha_impl<const DESTINATION_CHANNELS: u8, const R: 
         let diff = width - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [u8; 8] = [0; 8];
-        let mut a_buffer: [u8; 8] = [0; 8];
-        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
+        let mut a_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
+        let mut dst_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
+            y_buffer.as_mut_ptr().cast(),
             diff,
         );
         std::ptr::copy_nonoverlapping(
             a_plane.get_unchecked(cx..).as_ptr(),
-            a_buffer.as_mut_ptr(),
+            a_buffer.as_mut_ptr().cast(),
             diff,
         );
 
-        let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr()), vget_low_u8(y_corr));
+        let y_values = vqsub_u8(vld1_u8(y_buffer.as_ptr().cast()), vget_low_u8(y_corr));
 
-        let a_vals = vld1_u8(a_buffer.as_ptr());
+        let a_vals = vld1_u8(a_buffer.as_ptr().cast());
 
         let y_low = xqdmulhq_n_s16::<R>(
             vreinterpretq_s16_u16(vexpand8_to_10(y_values)),
@@ -218,7 +219,7 @@ unsafe fn neon_y_to_rgb_row_alpha_impl<const DESTINATION_CHANNELS: u8, const R: 
         let r_vl = vqmovun_s16(y_low);
 
         neon_store_half_rgb8::<DESTINATION_CHANNELS>(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_mut_ptr().cast(),
             r_vl,
             r_vl,
             r_vl,
@@ -228,7 +229,7 @@ unsafe fn neon_y_to_rgb_row_alpha_impl<const DESTINATION_CHANNELS: u8, const R: 
         let dst_shift = cx * channels;
 
         std::ptr::copy_nonoverlapping(
-            dst_buffer.as_ptr(),
+            dst_buffer.as_ptr().cast(),
             rgba_ptr.add(dst_shift),
             diff * channels,
         );
