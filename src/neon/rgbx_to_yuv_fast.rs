@@ -33,6 +33,7 @@ use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 #[allow(clippy::cast_abs_to_unsigned)]
 pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
@@ -155,14 +156,14 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMP
         let diff = width - cx;
         assert!(diff <= 16);
 
-        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
-        let mut y_buffer: [u8; 16] = [0; 16];
-        let mut u_buffer: [u8; 16] = [0; 16];
-        let mut v_buffer: [u8; 16] = [0; 16];
+        let mut src_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut y_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut u_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut v_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * channels,
         );
 
@@ -173,12 +174,12 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMP
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
         }
 
         let (r_values0, g_values0, b_values0) =
-            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+            neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr().cast());
 
         let mut yh0 = vmlal_high_u8(y_bias, r_values0, v_yr);
         let mut yl0 = vmlal_u8(y_bias, vget_low_u8(r_values0), vget_low_u8(v_yr));
@@ -194,7 +195,7 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMP
 
         let y_vl = vcombine_u8(yn_0, yn_1);
 
-        vst1q_u8(y_buffer.as_mut_ptr(), y_vl);
+        vst1q_u8(y_buffer.as_mut_ptr().cast(), y_vl);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let mut cb_lq = vmlal_u8(uv_bias, vget_low_u8(b_values0), vget_low_u8(v_cb_b));
@@ -221,8 +222,8 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMP
             let cb_vl = vcombine_u8(cb_0, cb_1);
             let cr_vl = vcombine_u8(cr_0, cr_1);
 
-            vst1q_u8(u_buffer.as_mut_ptr(), cb_vl);
-            vst1q_u8(v_buffer.as_mut_ptr(), cr_vl);
+            vst1q_u8(u_buffer.as_mut_ptr().cast(), cb_vl);
+            vst1q_u8(v_buffer.as_mut_ptr().cast(), cr_vl);
         } else if (chroma_subsampling == YuvChromaSubsampling::Yuv420)
             || (chroma_subsampling == YuvChromaSubsampling::Yuv422)
         {
@@ -244,12 +245,12 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMP
             let cb = vqshrn_n_u16::<A_E>(cb_q);
             let cr = vqshrn_n_u16::<A_E>(cr_q);
 
-            vst1_u8(u_buffer.as_mut_ptr(), cb);
-            vst1_u8(v_buffer.as_mut_ptr(), cr);
+            vst1_u8(u_buffer.as_mut_ptr().cast(), cb);
+            vst1_u8(v_buffer.as_mut_ptr().cast(), cr);
         }
 
         std::ptr::copy_nonoverlapping(
-            y_buffer.as_ptr(),
+            y_buffer.as_ptr().cast(),
             y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );
@@ -258,12 +259,12 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMP
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             std::ptr::copy_nonoverlapping(
-                u_buffer.as_ptr(),
+                u_buffer.as_ptr().cast(),
                 u_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
                 diff,
             );
             std::ptr::copy_nonoverlapping(
-                v_buffer.as_ptr(),
+                v_buffer.as_ptr().cast(),
                 v_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
                 diff,
             );
@@ -274,12 +275,12 @@ pub(crate) unsafe fn neon_rgbx_to_yuv_fast<const ORIGIN_CHANNELS: u8, const SAMP
         {
             let hv = diff.div_ceil(2);
             std::ptr::copy_nonoverlapping(
-                u_buffer.as_ptr(),
+                u_buffer.as_ptr().cast(),
                 u_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
                 hv,
             );
             std::ptr::copy_nonoverlapping(
-                v_buffer.as_ptr(),
+                v_buffer.as_ptr().cast(),
                 v_ptr.get_unchecked_mut(ux..).as_mut_ptr(),
                 hv,
             );

@@ -290,7 +290,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-/// Non-mutable representation of Bi-Planar YUV image
+/// Non-mutable representation of Planar YUV image
 pub struct YuvPlanarImage<'a, T>
 where
     T: Copy + Debug,
@@ -513,7 +513,7 @@ where
     pub height: u32,
 }
 
-impl<T> YuvPackedImageMut<'_, T>
+impl<'a, T> YuvPackedImageMut<'a, T>
 where
     T: Copy + Debug,
 {
@@ -522,8 +522,8 @@ where
         Ok(())
     }
 
-    pub fn to_fixed(&self) -> YuvPackedImage<T> {
-        YuvPackedImage {
+    pub fn to_fixed(&'a self) -> YuvPackedImage<'a, T> {
+        YuvPackedImage::<'a, T> {
             yuy: self.yuy.borrow(),
             yuy_stride: self.yuy_stride,
             width: self.width,

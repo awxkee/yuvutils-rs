@@ -27,11 +27,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::arch::aarch64::*;
-
 use crate::internals::ProcessedOffset;
 use crate::neon::utils::{neon_store_rgb16, vldq_s16_endian};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
+use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     const DESTINATION_CHANNELS: u8,
@@ -94,18 +94,18 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         let diff = width as usize - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [u16; 8] = [0; 8];
-        let mut dst_buffer: [u16; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut dst_buffer: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
 
         std::ptr::copy_nonoverlapping(
             y_ld_ptr.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
+            y_buffer.as_mut_ptr().cast(),
             diff,
         );
 
         let y_values = vqsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                y_buffer.as_ptr(),
+                y_buffer.as_ptr().cast(),
             )),
             y_corr,
         );
@@ -123,7 +123,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         };
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_mut_ptr().cast(),
             r_values,
             r_values,
             r_values,
@@ -133,7 +133,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         let dst_shift = cx * channels;
 
         std::ptr::copy_nonoverlapping(
-            dst_buffer.as_ptr(),
+            dst_buffer.as_ptr().cast(),
             dst_ptr.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );

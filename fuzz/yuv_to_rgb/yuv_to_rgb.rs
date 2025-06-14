@@ -32,9 +32,10 @@
 use libfuzzer_sys::fuzz_target;
 use yuv::{
     ayuv_to_rgba, ycgco420_to_rgb, ycgco420_to_rgba, ycgco422_to_rgb, ycgco422_to_rgba,
-    yuv420_alpha_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv422_alpha_to_rgba, yuv422_to_rgb,
-    yuv422_to_rgba, yuv444_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba, YuvPackedImage,
-    YuvPlanarImage, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
+    yuv420_alpha_to_rgba, yuv420_to_rgb, yuv420_to_rgb_bilinear, yuv420_to_rgba,
+    yuv420_to_rgba_bilinear, yuv422_alpha_to_rgba, yuv422_to_rgb, yuv422_to_rgb_bilinear,
+    yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_alpha_to_rgba, yuv444_to_rgb, yuv444_to_rgba,
+    YuvPackedImage, YuvPlanarImage, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
@@ -74,6 +75,15 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     )
     .unwrap();
 
+    yuv420_to_rgb_bilinear(
+        &planar_image,
+        &mut target_rgb,
+        i_width as u32 * 3,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
     ycgco420_to_rgb(
         &planar_image,
         &mut target_rgb,
@@ -85,6 +95,15 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
     yuv420_to_rgba(
+        &planar_image,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
+    yuv420_to_rgba_bilinear(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,
@@ -156,6 +175,15 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     )
     .unwrap();
 
+    yuv422_to_rgb_bilinear(
+        &planar_image,
+        &mut target_rgb,
+        i_width as u32 * 3,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
     ycgco422_to_rgb(
         &planar_image,
         &mut target_rgb,
@@ -167,6 +195,15 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
 
     yuv422_to_rgba(
+        &planar_image,
+        &mut target_rgba,
+        i_width as u32 * 4,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt601,
+    )
+    .unwrap();
+
+    yuv422_to_rgba_bilinear(
         &planar_image,
         &mut target_rgba,
         i_width as u32 * 4,

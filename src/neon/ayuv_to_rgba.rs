@@ -30,6 +30,7 @@
 use crate::neon::utils::*;
 use crate::yuv_support::{CbCrInverseTransform, YuvPacked444Format, YuvSourceChannels};
 use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 #[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
@@ -204,16 +205,16 @@ unsafe fn neon_ayuv_to_rgba_impl<
 
         assert!(diff <= 16);
 
-        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
-        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut src_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
 
         std::ptr::copy_nonoverlapping(
             ayuv.get_unchecked(cx * 4..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * 4,
         );
 
-        let data_values = vld4q_u8(src_buffer.as_ptr());
+        let data_values = vld4q_u8(src_buffer.as_ptr().cast());
 
         let u_high_u8: int8x8_t;
         let v_high_u8: int8x8_t;
@@ -288,7 +289,7 @@ unsafe fn neon_ayuv_to_rgba_impl<
         }
 
         neon_store_rgb8::<DESTINATION_CHANNELS>(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_mut_ptr().cast(),
             r_values,
             g_values,
             b_values,
@@ -297,7 +298,7 @@ unsafe fn neon_ayuv_to_rgba_impl<
 
         let dst_shift = cx * channels;
         std::ptr::copy_nonoverlapping(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_mut_ptr().cast(),
             rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );

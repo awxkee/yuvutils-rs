@@ -37,6 +37,7 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) fn sse_rgba_to_yuv_p16_420<
     const ORIGIN_CHANNELS: u8,
@@ -194,12 +195,12 @@ unsafe fn sse_rgba_to_yuv_impl<
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 8);
-        let mut src_buffer0: [u16; 8 * 4] = [0; 8 * 4];
-        let mut src_buffer1: [u16; 8 * 4] = [0; 8 * 4];
-        let mut y_buffer0: [u16; 8] = [0; 8];
-        let mut y_buffer1: [u16; 8] = [0; 8];
-        let mut u_buffer: [u16; 8] = [0; 8];
-        let mut v_buffer: [u16; 8] = [0; 8];
+        let mut src_buffer0: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut src_buffer1: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut y_buffer0: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut y_buffer1: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut u_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut v_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
 
         // Replicate last item to one more position for subsampling
         if diff % 2 != 0 {
@@ -210,28 +211,28 @@ unsafe fn sse_rgba_to_yuv_impl<
             let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
             let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst0.iter_mut().zip(last_items0) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
             for (dst, src) in dst1.iter_mut().zip(last_items1) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
         }
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer0.as_mut_ptr(),
+            src_buffer0.as_mut_ptr().cast(),
             diff * channels,
         );
         std::ptr::copy_nonoverlapping(
             rgba1.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer1.as_mut_ptr(),
+            src_buffer1.as_mut_ptr().cast(),
             diff * channels,
         );
 
         let (r_values0, g_values0, b_values0) =
-            _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer0.as_ptr());
+            _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer0.as_ptr().cast());
         let (r_values1, g_values1, b_values1) =
-            _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer1.as_ptr());
+            _mm_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_buffer1.as_ptr().cast());
 
         let (r_g_lo0, r_g_hi0) = _mm_interleave_epi16(r_values0, g_values0);
         let b_hi0 = _mm_unpackhi_epi16(b_values0, zeros);
@@ -286,21 +287,21 @@ unsafe fn sse_rgba_to_yuv_impl<
         _mm_storeu_si64(v_buffer.as_mut_ptr() as *mut u8, cr_s);
 
         let y_dst_0 = y_plane0.get_unchecked_mut(cx..);
-        std::ptr::copy_nonoverlapping(y_buffer0.as_ptr(), y_dst_0.as_mut_ptr(), diff);
+        std::ptr::copy_nonoverlapping(y_buffer0.as_ptr().cast(), y_dst_0.as_mut_ptr(), diff);
         let y_dst_1 = y_plane1.get_unchecked_mut(cx..);
-        std::ptr::copy_nonoverlapping(y_buffer1.as_ptr(), y_dst_1.as_mut_ptr(), diff);
+        std::ptr::copy_nonoverlapping(y_buffer1.as_ptr().cast(), y_dst_1.as_mut_ptr(), diff);
 
         cx += diff;
 
         let hv = diff.div_ceil(2);
 
         std::ptr::copy_nonoverlapping(
-            u_buffer.as_ptr(),
+            u_buffer.as_ptr().cast(),
             u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             hv,
         );
         std::ptr::copy_nonoverlapping(
-            v_buffer.as_ptr(),
+            v_buffer.as_ptr().cast(),
             v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             hv,
         );

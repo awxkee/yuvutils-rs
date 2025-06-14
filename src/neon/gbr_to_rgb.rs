@@ -29,6 +29,7 @@
 use crate::neon::utils::{neon_store_rgb8, vmullnq_s16};
 use crate::yuv_support::YuvSourceChannels;
 use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 #[cfg(feature = "rdm")]
 pub(crate) fn yuv_to_rgba_row_limited_rdm<const DESTINATION_CHANNELS: u8>(
@@ -115,26 +116,26 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
         let diff = width - cx;
         assert!(diff <= 16);
 
-        let mut g_buffer: [u8; 16] = [0; 16];
-        let mut b_buffer: [u8; 16] = [0; 16];
-        let mut r_buffer: [u8; 16] = [0; 16];
-        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        let mut g_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut b_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut r_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
 
         std::ptr::copy_nonoverlapping(
             g_plane.get_unchecked(cx..).as_ptr(),
-            g_buffer.as_mut_ptr(),
+            g_buffer.as_mut_ptr().cast(),
             diff,
         );
 
         std::ptr::copy_nonoverlapping(
             b_plane.get_unchecked(cx..).as_ptr(),
-            b_buffer.as_mut_ptr(),
+            b_buffer.as_mut_ptr().cast(),
             diff,
         );
 
         std::ptr::copy_nonoverlapping(
             r_plane.get_unchecked(cx..).as_ptr(),
-            r_buffer.as_mut_ptr(),
+            r_buffer.as_mut_ptr().cast(),
             diff,
         );
 
@@ -166,7 +167,7 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
         let b_values = vcombine_u8(vqmovun_s16(bl_lo), vqmovun_s16(bl_hi));
 
         neon_store_rgb8::<DESTINATION_CHANNELS>(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_mut_ptr().cast(),
             r_values,
             g_values,
             b_values,
@@ -177,7 +178,7 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
         let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
         std::ptr::copy_nonoverlapping(
             dst_buffer.as_ptr(),
-            rgba_ptr.as_mut_ptr(),
+            rgba_ptr.as_mut_ptr().cast(),
             diff * destination_channels.get_channels_count(),
         );
 
@@ -252,26 +253,26 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
             let diff = width - cx;
             assert!(diff <= 16);
 
-            let mut g_buffer: [u8; 16] = [0; 16];
-            let mut b_buffer: [u8; 16] = [0; 16];
-            let mut r_buffer: [u8; 16] = [0; 16];
-            let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+            let mut g_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+            let mut b_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+            let mut r_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+            let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
 
             std::ptr::copy_nonoverlapping(
                 g_plane.get_unchecked(cx..).as_ptr(),
-                g_buffer.as_mut_ptr(),
+                g_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
             std::ptr::copy_nonoverlapping(
                 b_plane.get_unchecked(cx..).as_ptr(),
-                b_buffer.as_mut_ptr(),
+                b_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
             std::ptr::copy_nonoverlapping(
                 r_plane.get_unchecked(cx..).as_ptr(),
-                r_buffer.as_mut_ptr(),
+                r_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
@@ -303,7 +304,7 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
             let b_values = vcombine_u8(vqmovn_u16(bl_lo), vqmovn_u16(bl_hi));
 
             neon_store_rgb8::<DESTINATION_CHANNELS>(
-                dst_buffer.as_mut_ptr(),
+                dst_buffer.as_mut_ptr().cast(),
                 r_values,
                 g_values,
                 b_values,
@@ -313,7 +314,7 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
             let dst_shift = cx * destination_channels.get_channels_count();
             let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
             std::ptr::copy_nonoverlapping(
-                dst_buffer.as_ptr(),
+                dst_buffer.as_ptr().cast(),
                 rgba_ptr.as_mut_ptr(),
                 diff * destination_channels.get_channels_count(),
             );
@@ -362,26 +363,26 @@ pub(crate) fn yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
             let diff = width - cx;
             assert!(diff <= 16);
 
-            let mut g_buffer: [u8; 16] = [0; 16];
-            let mut b_buffer: [u8; 16] = [0; 16];
-            let mut r_buffer: [u8; 16] = [0; 16];
-            let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+            let mut g_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+            let mut b_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+            let mut r_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+            let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
 
             std::ptr::copy_nonoverlapping(
                 g_plane.get_unchecked(cx..).as_ptr(),
-                g_buffer.as_mut_ptr(),
+                g_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
             std::ptr::copy_nonoverlapping(
                 b_plane.get_unchecked(cx..).as_ptr(),
-                b_buffer.as_mut_ptr(),
+                b_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
             std::ptr::copy_nonoverlapping(
                 r_plane.get_unchecked(cx..).as_ptr(),
-                r_buffer.as_mut_ptr(),
+                r_buffer.as_mut_ptr().cast(),
                 diff,
             );
 
@@ -390,7 +391,7 @@ pub(crate) fn yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
             let r_values = vld1q_u8(r_buffer.as_ptr() as *const _);
 
             neon_store_rgb8::<DESTINATION_CHANNELS>(
-                dst_buffer.as_mut_ptr(),
+                dst_buffer.as_mut_ptr().cast(),
                 r_values,
                 g_values,
                 b_values,
@@ -400,7 +401,7 @@ pub(crate) fn yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
             let dst_shift = cx * destination_channels.get_channels_count();
             let rgba_ptr = rgba.get_unchecked_mut(dst_shift..);
             std::ptr::copy_nonoverlapping(
-                dst_buffer.as_ptr(),
+                dst_buffer.as_ptr().cast(),
                 rgba_ptr.as_mut_ptr(),
                 diff * destination_channels.get_channels_count(),
             );

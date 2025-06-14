@@ -36,6 +36,7 @@ use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     transform: &CbCrForwardTransform<i32>,
@@ -139,17 +140,18 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 16);
-        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
-        let mut y_buffer: [u8; 16] = [0; 16];
+        let mut src_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut y_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * channels,
         );
 
-        let (r_values, g_values, b_values) =
-            _mm256_load_deinterleave_half_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+        let (r_values, g_values, b_values) = _mm256_load_deinterleave_half_rgb_for_yuv::<
+            ORIGIN_CHANNELS,
+        >(src_buffer.as_ptr().cast());
 
         let rl = _mm256_unpacklo_epi8(r_values, r_values);
         let gl = _mm256_unpacklo_epi8(g_values, g_values);
@@ -174,7 +176,7 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         );
 
         std::ptr::copy_nonoverlapping(
-            y_buffer.as_ptr(),
+            y_buffer.as_ptr().cast(),
             y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );

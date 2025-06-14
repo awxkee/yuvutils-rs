@@ -38,6 +38,7 @@ use crate::yuv_support::CbCrForwardTransform;
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) fn rdp_avx2_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const Q: i32>(
     transform: &CbCrForwardTransform<i32>,
@@ -230,19 +231,19 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 32);
-        let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
-        let mut y_buffer: [i16; 32] = [0; 32];
-        let mut u_buffer: [i16; 32] = [0; 32];
-        let mut v_buffer: [i16; 32] = [0; 32];
+        let mut src_buffer: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
+        let mut y_buffer: [MaybeUninit<i16>; 32] = [MaybeUninit::uninit(); 32];
+        let mut u_buffer: [MaybeUninit<i16>; 32] = [MaybeUninit::uninit(); 32];
+        let mut v_buffer: [MaybeUninit<i16>; 32] = [MaybeUninit::uninit(); 32];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * channels,
         );
 
         let (r_values, g_values, b_values) =
-            _mm256_load_rdp_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr());
+            _mm256_load_rdp_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src_buffer.as_ptr().cast());
 
         let r_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values));
         let g_lo = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(g_values));
@@ -305,18 +306,18 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         );
 
         std::ptr::copy_nonoverlapping(
-            u_buffer.as_ptr(),
+            u_buffer.as_ptr().cast(),
             u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             diff,
         );
         std::ptr::copy_nonoverlapping(
-            v_buffer.as_ptr(),
+            v_buffer.as_ptr().cast(),
             v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             diff,
         );
 
         std::ptr::copy_nonoverlapping(
-            y_buffer.as_ptr(),
+            y_buffer.as_ptr().cast(),
             y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );
@@ -510,14 +511,14 @@ unsafe fn rdp_avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 8);
-        let mut src_buffer: [u8; 32] = [0; 32];
-        let mut y_buffer: [i16; 8] = [0; 8];
-        let mut u_buffer: [i16; 8] = [0; 8];
-        let mut v_buffer: [i16; 8] = [0; 8];
+        let mut src_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
+        let mut y_buffer: [MaybeUninit<i16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut u_buffer: [MaybeUninit<i16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut v_buffer: [MaybeUninit<i16>; 8] = [MaybeUninit::uninit(); 8];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * channels,
         );
 
@@ -560,18 +561,18 @@ unsafe fn rdp_avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         _mm_storeu_si128(y_buffer.as_mut_ptr() as *mut _, _mm256_castsi256_si128(z_y));
 
         std::ptr::copy_nonoverlapping(
-            u_buffer.as_ptr(),
+            u_buffer.as_ptr().cast(),
             u_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             diff,
         );
         std::ptr::copy_nonoverlapping(
-            v_buffer.as_ptr(),
+            v_buffer.as_ptr().cast(),
             v_plane.get_unchecked_mut(ux..).as_mut_ptr(),
             diff,
         );
 
         std::ptr::copy_nonoverlapping(
-            y_buffer.as_ptr(),
+            y_buffer.as_ptr().cast(),
             y_plane.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );

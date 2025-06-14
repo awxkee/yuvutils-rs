@@ -34,6 +34,7 @@ use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSo
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
 
 /// This is an exceptional path for doubled row with 4:2:0 subsampling only.
 pub(crate) fn avx_yuv_nv_to_rgba_fast420<const UV_ORDER: u8, const DESTINATION_CHANNELS: u8>(
@@ -199,21 +200,21 @@ unsafe fn avx_yuv_nv_to_rgba_impl_fast420<const UV_ORDER: u8, const DESTINATION_
 
         assert!(diff <= 32);
 
-        let mut dst_buffer0: [u8; 32 * 4] = [0; 32 * 4];
-        let mut dst_buffer1: [u8; 32 * 4] = [0; 32 * 4];
-        let mut y_buffer0: [u8; 32] = [0; 32];
-        let mut y_buffer1: [u8; 32] = [0; 32];
-        let mut uv_buffer: [u8; 32 * 2] = [0; 32 * 2];
+        let mut dst_buffer0: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
+        let mut dst_buffer1: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
+        let mut y_buffer0: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
+        let mut y_buffer1: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
+        let mut uv_buffer: [MaybeUninit<u8>; 32 * 2] = [MaybeUninit::uninit(); 32 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane0.get_unchecked(cx..).as_ptr(),
-            y_buffer0.as_mut_ptr(),
+            y_buffer0.as_mut_ptr().cast(),
             diff,
         );
 
         std::ptr::copy_nonoverlapping(
             y_plane1.get_unchecked(cx..).as_ptr(),
-            y_buffer1.as_mut_ptr(),
+            y_buffer1.as_mut_ptr().cast(),
             diff,
         );
 
@@ -221,7 +222,7 @@ unsafe fn avx_yuv_nv_to_rgba_impl_fast420<const UV_ORDER: u8, const DESTINATION_
 
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(uv_x..).as_ptr(),
-            uv_buffer.as_mut_ptr(),
+            uv_buffer.as_mut_ptr().cast(),
             hv,
         );
 
@@ -298,14 +299,14 @@ unsafe fn avx_yuv_nv_to_rgba_impl_fast420<const UV_ORDER: u8, const DESTINATION_
         let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
         _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
-            dst_buffer0.as_mut_ptr(),
+            dst_buffer0.as_mut_ptr().cast(),
             r_values0,
             g_values0,
             b_values0,
             v_alpha,
         );
         _mm256_store_interleave_rgb_for_yuv::<DESTINATION_CHANNELS>(
-            dst_buffer1.as_mut_ptr(),
+            dst_buffer1.as_mut_ptr().cast(),
             r_values1,
             g_values1,
             b_values1,
@@ -315,13 +316,13 @@ unsafe fn avx_yuv_nv_to_rgba_impl_fast420<const UV_ORDER: u8, const DESTINATION_
         let dst_shift = cx * channels;
 
         std::ptr::copy_nonoverlapping(
-            dst_buffer0.as_mut_ptr(),
+            dst_buffer0.as_ptr().cast(),
             rgba0.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );
 
         std::ptr::copy_nonoverlapping(
-            dst_buffer1.as_mut_ptr(),
+            dst_buffer1.as_ptr().cast(),
             rgba1.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );
