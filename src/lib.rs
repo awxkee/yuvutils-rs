@@ -148,6 +148,7 @@ mod yuv_p16_rgba_alpha;
 #[cfg_attr(docsrs, doc(cfg(feature = "nightly_f16")))]
 mod yuv_p16_rgba_f16;
 mod yuv_p16_rgba_p16;
+mod yuv_p16_to_rgba16_bilinear;
 mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
@@ -616,4 +617,13 @@ pub use yuv_to_rgba_bilinear::{
     yuv420_to_bgr_bilinear, yuv420_to_bgra_bilinear, yuv420_to_rgb_bilinear,
     yuv420_to_rgba_bilinear, yuv422_to_bgr_bilinear, yuv422_to_bgra_bilinear,
     yuv422_to_rgb_bilinear, yuv422_to_rgba_bilinear,
+};
+
+pub use yuv_p16_to_rgba16_bilinear::{
+    i010_to_rgb10_bilinear, i010_to_rgba10_bilinear, i012_to_rgb12_bilinear,
+    i012_to_rgba12_bilinear, i014_to_rgb14_bilinear, i014_to_rgba14_bilinear,
+    i016_to_rgb16_bilinear, i016_to_rgba16_bilinear, i210_to_rgb10_bilinear,
+    i210_to_rgba10_bilinear, i212_to_rgb12_bilinear, i212_to_rgba12_bilinear,
+    i214_to_rgb14_bilinear, i214_to_rgba14_bilinear, i216_to_rgb16_bilinear,
+    i216_to_rgba16_bilinear, i414_to_rgb14_bilinear, i414_to_rgba14_bilinear,
 };

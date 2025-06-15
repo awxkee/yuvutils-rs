@@ -553,6 +553,35 @@ pub(crate) unsafe fn neon_store_rgb16<const ORIGINS: u8>(
 }
 
 #[inline(always)]
+pub(crate) unsafe fn neon_store_half_rgb16<const ORIGINS: u8>(
+    ptr: *mut u16,
+    r_values: uint16x4_t,
+    g_values: uint16x4_t,
+    b_values: uint16x4_t,
+    v_max_colors: uint16x4_t,
+) {
+    let destination_channels: YuvSourceChannels = ORIGINS.into();
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack = uint16x4x3_t(r_values, g_values, b_values);
+            vst3_u16(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack = uint16x4x3_t(b_values, g_values, r_values);
+            vst3_u16(ptr, dst_pack);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack = uint16x4x4_t(r_values, g_values, b_values, v_max_colors);
+            vst4_u16(ptr, dst_pack);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack = uint16x4x4_t(b_values, g_values, r_values, v_max_colors);
+            vst4_u16(ptr, dst_pack);
+        }
+    }
+}
+
+#[inline(always)]
 pub(crate) unsafe fn neon_store_rgb8<const ORIGINS: u8>(
     ptr: *mut u8,
     r_values: uint8x16_t,
@@ -760,4 +789,9 @@ pub(crate) unsafe fn xqdmulhq_n_s16<const R: bool>(a: int16x8_t, b: i16) -> int1
 #[inline(always)]
 pub(crate) fn xvld1_4u8(ptr: *const u8) -> uint8x8_t {
     unsafe { vreinterpret_u8_u32(vld1_lane_u32::<0>(ptr.cast(), vdup_n_u32(0))) }
+}
+
+#[inline(always)]
+pub(crate) fn xvld1_2u16(ptr: *const u16) -> uint16x4_t {
+    unsafe { vreinterpret_u16_u32(vld1_lane_u32::<0>(ptr.cast(), vdup_n_u32(0))) }
 }

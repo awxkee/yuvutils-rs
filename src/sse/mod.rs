@@ -55,6 +55,7 @@ mod shuffle;
 pub(crate) mod utils;
 mod y_to_rgba;
 mod y_to_rgba_alpha;
+mod yuv16_to_rgba16_bilinear;
 mod yuv_nv_p16_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
@@ -108,6 +109,9 @@ pub(crate) use shuffle::{ShuffleConverterSse, ShuffleQTableConverterSse};
 pub(crate) use utils::*;
 pub(crate) use y_to_rgba::sse_y_to_rgba_row;
 pub(crate) use y_to_rgba_alpha::sse_y_to_rgba_alpha_row;
+pub(crate) use yuv16_to_rgba16_bilinear::{
+    sse_planar16_bilinear_1_row_rgba, sse_planar16_bilinear_2_rows_rgba,
+};
 pub(crate) use yuv_nv_p16_to_rgb::sse_yuv_nv_p16_to_rgba_row;
 pub(crate) use yuv_nv_to_rgba::sse_yuv_nv_to_rgba;
 pub(crate) use yuv_nv_to_rgba420::sse_yuv_nv_to_rgba420;

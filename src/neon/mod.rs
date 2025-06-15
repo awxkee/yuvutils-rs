@@ -88,6 +88,7 @@ mod yuv_nv_to_rgbx_fast;
 mod yuv_nv_to_rgbx_fast420;
 mod yuv_p16_to_rgba16;
 mod yuv_p16_to_rgba16_alpha;
+mod yuv_p16_to_rgba16_bilinear;
 mod yuv_p16_to_rgba8;
 mod yuv_p16_to_rgba_alpha;
 #[cfg(feature = "nightly_f16")]
@@ -195,6 +196,9 @@ pub(crate) use yuv_p16_to_rgba16::neon_yuv_p16_to_rgba16_row_rdm;
 pub(crate) use yuv_p16_to_rgba16_alpha::neon_yuv_p16_to_rgba16_alpha_row;
 #[cfg(feature = "rdm")]
 pub(crate) use yuv_p16_to_rgba16_alpha::neon_yuv_p16_to_rgba16_alpha_row_rdm;
+pub(crate) use yuv_p16_to_rgba16_bilinear::{
+    neon_planar16_bilinear_1_row_rgba16, neon_planar16_bilinear_2_rows_rgba,
+};
 pub(crate) use yuv_p16_to_rgba8::neon_yuv_p16_to_rgba_row;
 pub(crate) use yuv_p16_to_rgba_alpha::neon_yuv_p16_to_rgba_alpha_row;
 #[cfg(feature = "nightly_f16")]
