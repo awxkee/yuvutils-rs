@@ -38,6 +38,7 @@ use crate::yuv_support::{
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) fn avx2_rgba_to_nv_fast_rgba<
     const ORIGIN_CHANNELS: u8,
@@ -326,13 +327,13 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
         let diff = width as usize - cx;
         assert!(diff <= 32);
 
-        let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
-        let mut y_buffer: [u8; 32] = [0; 32];
-        let mut uv_buffer: [u8; 64] = [0; 64];
+        let mut src_buffer: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
+        let mut y_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
+        let mut uv_buffer: [MaybeUninit<u8>; 64] = [MaybeUninit::uninit(); 64];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
-            src_buffer.as_mut_ptr(),
+            src_buffer.as_mut_ptr().cast(),
             diff * channels,
         );
 
@@ -343,7 +344,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = *src;
+                *dst = MaybeUninit::new(*src);
             }
         }
 
@@ -502,7 +503,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
         }
 
         std::ptr::copy_nonoverlapping(
-            y_buffer.as_ptr(),
+            y_buffer.as_ptr().cast(),
             y_ptr.get_unchecked_mut(cx..).as_mut_ptr(),
             diff,
         );
@@ -511,7 +512,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             std::ptr::copy_nonoverlapping(
-                uv_buffer.as_ptr(),
+                uv_buffer.as_ptr().cast(),
                 uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
                 diff * 2,
             );
@@ -522,7 +523,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
         {
             let hv = diff.div_ceil(2) * 2;
             std::ptr::copy_nonoverlapping(
-                uv_buffer.as_ptr(),
+                uv_buffer.as_ptr().cast(),
                 uv_plane.get_unchecked_mut(ux..).as_mut_ptr(),
                 hv,
             );

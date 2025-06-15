@@ -26,13 +26,13 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use std::arch::aarch64::*;
-
 use crate::internals::ProcessedOffset;
 use crate::neon::ar30_utils::vzipq_4_ar30;
 use crate::neon::utils::vldq_s16_endian;
 use crate::neon::yuv_nv_p10_to_rgba::deinterleave_10_bit_uv;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling};
+use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
     const NV_ORDER: u8,
@@ -180,13 +180,13 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
 
         assert!(diff <= 8);
 
-        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
-        let mut y_buffer: [u16; 8] = [0; 8];
-        let mut uv_buffer: [u16; 8 * 2] = [0; 8 * 2];
+        let mut dst_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut uv_buffer: [MaybeUninit<u16>; 8 * 2] = [MaybeUninit::uninit(); 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
+            y_buffer.as_mut_ptr().cast(),
             diff,
         );
 
@@ -197,17 +197,17 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
 
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
-            uv_buffer.as_mut_ptr(),
+            uv_buffer.as_mut_ptr().cast(),
             ux_size,
         );
 
         let y_vl = vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-            y_buffer.as_ptr(),
+            y_buffer.as_ptr().cast(),
         ));
 
         let (u_low, v_low, u_high, v_high) =
             deinterleave_10_bit_uv::<NV_ORDER, SAMPLING, ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                uv_buffer.as_slice(),
+                std::mem::transmute::<&[std::mem::MaybeUninit<u16>], &[u16]>(uv_buffer.as_slice()),
                 uv_corr_q,
             );
 
@@ -275,7 +275,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
         );
 
         std::ptr::copy_nonoverlapping(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_mut_ptr().cast(),
             ar30.get_unchecked_mut(cx * CN..).as_mut_ptr(),
             diff * CN,
         );

@@ -40,6 +40,7 @@ use crate::yuv_support::{
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn avx_yuv_p16_to_rgba_row<
     const DESTINATION_CHANNELS: u8,
@@ -400,13 +401,13 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let diff = width as usize - cx;
         assert!(diff <= 16);
 
-        let mut y_buffer: [u16; 16] = [0; 16];
-        let mut u_buffer: [u16; 16] = [0; 16];
-        let mut v_buffer: [u16; 16] = [0; 16];
+        let mut y_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
+        let mut u_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
+        let mut v_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
+            y_buffer.as_mut_ptr().cast(),
             diff,
         );
 
@@ -431,12 +432,12 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 std::ptr::copy_nonoverlapping(
                     u_plane.get_unchecked(ux..).as_ptr(),
-                    u_buffer.as_mut_ptr(),
+                    u_buffer.as_mut_ptr().cast(),
                     diff.div_ceil(2),
                 );
                 std::ptr::copy_nonoverlapping(
                     v_plane.get_unchecked(ux..).as_ptr(),
-                    v_buffer.as_mut_ptr(),
+                    v_buffer.as_mut_ptr().cast(),
                     diff.div_ceil(2),
                 );
                 let mut u_vals = _mm_loadu_si128(u_buffer.as_ptr() as *const __m128i);
@@ -467,12 +468,12 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
             YuvChromaSubsampling::Yuv444 => {
                 std::ptr::copy_nonoverlapping(
                     u_plane.get_unchecked(cx..).as_ptr(),
-                    u_buffer.as_mut_ptr(),
+                    u_buffer.as_mut_ptr().cast(),
                     diff,
                 );
                 std::ptr::copy_nonoverlapping(
                     v_plane.get_unchecked(cx..).as_ptr(),
-                    v_buffer.as_mut_ptr(),
+                    v_buffer.as_mut_ptr().cast(),
                     diff,
                 );
                 let mut u_vals = _mm256_loadu_si256(u_buffer.as_ptr() as *const __m256i);
@@ -510,17 +511,21 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
         let g_values = _mm256_min_epu16(_mm256_max_epi16(g_vals, zeros), v_max_colors);
         let b_values = _mm256_min_epu16(_mm256_max_epi16(b_vals, zeros), v_max_colors);
 
-        let mut buffer: [u16; 16 * 4] = [0u16; 16 * 4];
+        let mut buffer: [MaybeUninit<u16>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
 
         _mm256_store_interleave_rgb16_for_yuv::<DESTINATION_CHANNELS>(
-            buffer.as_mut_ptr(),
+            buffer.as_mut_ptr().cast(),
             r_values,
             g_values,
             b_values,
             v_max_colors,
         );
 
-        std::ptr::copy_nonoverlapping(buffer.as_ptr(), dst_ptr.as_mut_ptr(), diff * channels);
+        std::ptr::copy_nonoverlapping(
+            buffer.as_ptr().cast(),
+            dst_ptr.as_mut_ptr(),
+            diff * channels,
+        );
 
         cx += diff;
         match chroma_subsampling {

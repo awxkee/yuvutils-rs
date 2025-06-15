@@ -32,6 +32,7 @@ use crate::neon::utils::*;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 use crate::YuvChromaSubsampling;
 use std::arch::aarch64::*;
+use std::mem::MaybeUninit;
 
 // PRECISION is always expected to be 6 bits
 pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row<
@@ -145,13 +146,13 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row<
 
         assert!(diff <= 16);
 
-        let mut dst_buffer0: [u8; 16 * 4] = [0; 16 * 4];
-        let mut y_buffer0: [u8; 16] = [0; 16];
-        let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
+        let mut dst_buffer0: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut y_buffer0: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut uv_buffer: [MaybeUninit<u8>; 16 * 2] = [MaybeUninit::uninit(); 16 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
-            y_buffer0.as_mut_ptr(),
+            y_buffer0.as_mut_ptr().cast(),
             diff,
         );
 
@@ -162,18 +163,18 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row<
 
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(ux..).as_ptr(),
-            uv_buffer.as_mut_ptr(),
+            uv_buffer.as_mut_ptr().cast(),
             hv,
         );
 
-        let vl0 = vld1q_u8(y_buffer0.as_ptr());
+        let vl0 = vld1q_u8(y_buffer0.as_ptr().cast());
 
         let y_values0 = vqsubq_u8(vl0, y_corr);
         let (u_high, v_high, u_low, v_low);
 
         match sampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let mut uv_values = vld2_u8(uv_buffer.as_ptr());
+                let mut uv_values = vld2_u8(uv_buffer.as_ptr().cast());
 
                 if order == YuvNVOrder::VU {
                     uv_values = uint8x8x2_t(uv_values.1, uv_values.0);
@@ -188,7 +189,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row<
                 v_low = vreinterpret_s8_u8(vzip1_u8(uv_values.1, uv_values.1));
             }
             YuvChromaSubsampling::Yuv444 => {
-                let mut uv_values = vld2q_u8(uv_buffer.as_ptr());
+                let mut uv_values = vld2q_u8(uv_buffer.as_ptr().cast());
 
                 if order == YuvNVOrder::VU {
                     uv_values = uint8x16x2_t(uv_values.1, uv_values.0);
@@ -221,7 +222,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row<
         let b_values0 = vcombine_u8(vqrshrun_n_s16::<6>(b_low0), vqrshrun_n_s16::<6>(b_high0));
 
         neon_store_rgb8::<DESTINATION_CHANNELS>(
-            dst_buffer0.as_mut_ptr(),
+            dst_buffer0.as_mut_ptr().cast(),
             r_values0,
             g_values0,
             b_values0,
@@ -231,7 +232,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row<
         let dst_shift = cx * channels;
 
         std::ptr::copy_nonoverlapping(
-            dst_buffer0.as_mut_ptr(),
+            dst_buffer0.as_mut_ptr().cast(),
             rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );

@@ -39,6 +39,7 @@ use crate::yuv_support::{
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
 
 /// This is common NV row conversion to RGBx, supports any subsampling
 pub(crate) fn sse_yuv_nv_to_rgba<
@@ -309,13 +310,13 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
         assert!(diff <= 8);
 
-        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
-        let mut y_buffer: [u8; 8] = [0; 8];
-        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
+        let mut dst_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut y_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
+        let mut uv_buffer: [MaybeUninit<u8>; 8 * 2] = [MaybeUninit::uninit(); 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
-            y_buffer.as_mut_ptr(),
+            y_buffer.as_mut_ptr().cast(),
             diff,
         );
 
@@ -326,7 +327,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
         std::ptr::copy_nonoverlapping(
             uv_plane.get_unchecked(uv_x..).as_ptr(),
-            uv_buffer.as_mut_ptr(),
+            uv_buffer.as_mut_ptr().cast(),
             hv,
         );
 
@@ -336,7 +337,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let uv_values_ = _mm_loadu_si64(uv_buffer.as_ptr());
+                let uv_values_ = _mm_loadu_si64(uv_buffer.as_ptr().cast());
 
                 let sh_e = _mm_setr_epi8(0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 6);
                 let sh_o = _mm_setr_epi8(1, 1, 1, 1, 3, 3, 3, 3, 5, 5, 5, 5, 7, 7, 7, 7);
@@ -405,7 +406,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
         let v_alpha = _mm_set1_epi8(255u8 as i8);
 
         _mm_store_interleave_half_rgb_for_yuv::<DESTINATION_CHANNELS>(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_mut_ptr().cast(),
             r_values,
             g_values,
             b_values,
@@ -415,7 +416,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
         let dst_shift = cx * channels;
 
         std::ptr::copy_nonoverlapping(
-            dst_buffer.as_mut_ptr(),
+            dst_buffer.as_ptr().cast(),
             rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
             diff * channels,
         );
