@@ -30,11 +30,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use yuv::{
-    i010_to_rgb10, i010_to_rgba, i010_to_rgba10, i010_to_rgba_f16, i210_to_rgba, i210_to_rgba10,
-    i410_to_rgba10, p010_to_rgba10, rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb10_to_p010,
-    rgba10_to_i010, rgba10_to_i210, rgba10_to_i410, rgba12_to_i212, rgba12_to_i412, rgba16_to_i016,
-    rgba16_to_i216, rgba16_to_i416, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut,
-    YuvRange, YuvStandardMatrix,
+    i010_to_rgb10, i010_to_rgba, i010_to_rgba10, i010_to_rgba10_bilinear, i010_to_rgba_f16,
+    i210_to_rgba, i210_to_rgba10, i210_to_rgba10_bilinear, i410_to_rgba10, p010_to_rgba10,
+    rgb10_to_i010, rgb10_to_i210, rgb10_to_i410, rgb10_to_p010, rgba10_to_i010, rgba10_to_i210,
+    rgba10_to_i410, rgba12_to_i212, rgba12_to_i412, rgba16_to_i016, rgba16_to_i216, rgba16_to_i416,
+    YuvBiPlanarImageMut, YuvChromaSubsampling, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 use yuv_sys::{rs_I010ToABGR, rs_I210ToABGR};
 
@@ -301,6 +301,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("yuvutils YUV10 4:2:0 Bilinear -> RGBA10", |b| {
+        let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            i010_to_rgba10_bilinear(
+                &fixed_planar,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
     c.bench_function("yuvutils YUV10 4:2:0 -> RGBAF16", |b| {
         use core::f16;
         let mut rgb_bytes: Vec<f16> = vec![0.; dimensions.0 as usize * 4 * dimensions.1 as usize];
@@ -366,6 +380,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             i210_to_rgba10(
+                &fixed_planar422,
+                &mut rgb_bytes,
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YUV10 4:2:2 Bilinear -> RGBA10", |b| {
+        let mut rgb_bytes = vec![0u16; dimensions.0 as usize * 4 * dimensions.1 as usize];
+        b.iter(|| {
+            i210_to_rgba10_bilinear(
                 &fixed_planar422,
                 &mut rgb_bytes,
                 dimensions.0 * 4u32,

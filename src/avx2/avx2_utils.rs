@@ -1415,3 +1415,119 @@ pub(crate) unsafe fn _mm_store_interleave_half_rgb_for_yuv<const CN: u8>(
         }
     }
 }
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_interleave_rgb_epi16(
+    a: __m128i,
+    b: __m128i,
+    c: __m128i,
+) -> (__m128i, __m128i, __m128i) {
+    let sh_a = _mm_setr_epi8(0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5, 10, 11);
+    let sh_b = _mm_setr_epi8(10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15, 4, 5);
+    let sh_c = _mm_setr_epi8(4, 5, 10, 11, 0, 1, 6, 7, 12, 13, 2, 3, 8, 9, 14, 15);
+    let a0 = _mm_shuffle_epi8(a, sh_a);
+    let b0 = _mm_shuffle_epi8(b, sh_b);
+    let c0 = _mm_shuffle_epi8(c, sh_c);
+
+    let v0 = _mm_blend_epi16::<0x24>(_mm_blend_epi16::<0x92>(a0, b0), c0);
+    let v1 = _mm_blend_epi16::<0x24>(_mm_blend_epi16::<0x92>(c0, a0), b0);
+    let v2 = _mm_blend_epi16::<0x24>(_mm_blend_epi16::<0x92>(b0, c0), a0);
+    (v0, v1, v2)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_interleave_rgba_epi16(
+    a: __m128i,
+    b: __m128i,
+    c: __m128i,
+    d: __m128i,
+) -> (__m128i, __m128i, __m128i, __m128i) {
+    // a0 a1 a2 a3 ....
+    // b0 b1 b2 b3 ....
+    // c0 c1 c2 c3 ....
+    // d0 d1 d2 d3 ....
+    let u0 = _mm_unpacklo_epi16(a, c); // a0 c0 a1 c1 ...
+    let u1 = _mm_unpackhi_epi16(a, c); // a4 c4 a5 c5 ...
+    let u2 = _mm_unpacklo_epi16(b, d); // b0 d0 b1 d1 ...
+    let u3 = _mm_unpackhi_epi16(b, d); // b4 d4 b5 d5 ...
+
+    let v0 = _mm_unpacklo_epi16(u0, u2); // a0 b0 c0 d0 ...
+    let v1 = _mm_unpackhi_epi16(u0, u2); // a2 b2 c2 d2 ...
+    let v2 = _mm_unpacklo_epi16(u1, u3); // a4 b4 c4 d4 ...
+    let v3 = _mm_unpackhi_epi16(u1, u3); // a6 b6 c6 d6 ...
+    (v0, v1, v2, v3)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_store_interleave_half_rgb16_for_yuv<const CHANS: u8>(
+    ptr: *mut u16,
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    a: __m128i,
+) {
+    let destination_channels: YuvSourceChannels = CHANS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack = _mm_interleave_rgb_epi16(r, g, b);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si64(ptr.add(8) as *mut _, dst_pack.1);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack = _mm_interleave_rgb_epi16(b, g, r);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si64(ptr.add(8) as *mut _, dst_pack.1);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack = _mm_interleave_rgba_epi16(r, g, b, a);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack = _mm_interleave_rgba_epi16(b, g, r, a);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+        }
+    }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn _mm_store_interleave_rgb16_for_yuv<const CHANS: u8>(
+    ptr: *mut u16,
+    r: __m128i,
+    g: __m128i,
+    b: __m128i,
+    a: __m128i,
+) {
+    let destination_channels: YuvSourceChannels = CHANS.into();
+
+    match destination_channels {
+        YuvSourceChannels::Rgb => {
+            let dst_pack = _mm_interleave_rgb_epi16(r, g, b);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+        }
+        YuvSourceChannels::Bgr => {
+            let dst_pack = _mm_interleave_rgb_epi16(b, g, r);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+        }
+        YuvSourceChannels::Rgba => {
+            let dst_pack = _mm_interleave_rgba_epi16(r, g, b, a);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+            _mm_storeu_si128(ptr.add(24) as *mut __m128i, dst_pack.3);
+        }
+        YuvSourceChannels::Bgra => {
+            let dst_pack = _mm_interleave_rgba_epi16(b, g, r, a);
+            _mm_storeu_si128(ptr as *mut __m128i, dst_pack.0);
+            _mm_storeu_si128(ptr.add(8) as *mut __m128i, dst_pack.1);
+            _mm_storeu_si128(ptr.add(16) as *mut __m128i, dst_pack.2);
+            _mm_storeu_si128(ptr.add(24) as *mut __m128i, dst_pack.3);
+        }
+    }
+}
