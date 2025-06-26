@@ -266,7 +266,6 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
         }));
     }
     if stride as usize * chroma_height as usize != data.len()
-        || chroma_min_width as usize * chroma_height as usize != data.len()
     {
         return Err(YuvError::ChromaPlaneSizeMismatch(MismatchedSize {
             expected: stride as usize * chroma_height as usize,
