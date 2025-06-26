@@ -38,6 +38,7 @@ trait ShuffleConverterFactory<V> {
     fn make_converter<const SRC: u8, const DST: u8>() -> Box<dyn ShuffleConverter<V, SRC, DST>>;
 }
 
+#[allow(dead_code)]
 struct Rgba8DefaultConverter<const SRC: u8, const DST: u8> {}
 
 impl<const SRC: u8, const DST: u8> Default for Rgba8DefaultConverter<SRC, DST> {

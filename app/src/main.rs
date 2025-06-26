@@ -37,12 +37,13 @@ use std::time::Instant;
 use yuv::{
     i010_alpha_to_rgba10, i010_to_rgba10, i010_to_rgba10_bilinear, i210_to_rgba10,
     i210_to_rgba10_bilinear, icgc_re010_to_rgba, icgc_ro010_to_rgba, icgc_ro210_to_rgba,
-    icgc_ro410_to_rgba, rgba10_to_i010, rgba10_to_i210, rgba12_to_i412, rgba_to_icgc_re010,
-    rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444,
-    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16,
-    rgba_to_yuv_nv24, ycgco420_to_rgba, ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgba,
-    yuv420_to_rgba_bilinear, yuv422_to_rgb_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear,
-    yuv444_to_rgba, yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv24_to_rgba, YuvBiPlanarImageMut,
+    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_p010, rgba10_to_i010, rgba10_to_i210,
+    rgba10_to_p010, rgba12_to_i412, rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210,
+    rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444, rgba_to_yuv420, rgba_to_yuv422,
+    rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24, ycgco420_to_rgba,
+    ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgba, yuv420_to_rgba_bilinear,
+    yuv422_to_rgb_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_to_rgba,
+    yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv24_to_rgba, YuvBiPlanarImageMut,
     YuvChromaSubsampling, YuvConversionMode, YuvPlanarImage, YuvPlanarImageMut,
     YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
@@ -100,6 +101,13 @@ fn main() {
 
     let mut planar_image =
         YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+
+    let mut bi_planar_image = YuvBiPlanarImageMut::<u16>::alloc(
+        width as u32,
+        height as u32,
+        YuvChromaSubsampling::Yuv420,
+    );
+
     let mut bytes_16: Vec<u16> = src_bytes
         .iter()
         .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
@@ -107,8 +115,8 @@ fn main() {
 
     let start_time = Instant::now();
 
-    rgba10_to_i010(
-        &mut planar_image,
+    rgba10_to_p010(
+        &mut bi_planar_image,
         &bytes_16,
         rgba_stride as u32,
         YuvRange::Limited,
@@ -117,7 +125,7 @@ fn main() {
     .unwrap();
 
     println!("Forward time: {:?}", start_time.elapsed());
-    let fixed = planar_image.to_fixed();
+    let fixed = bi_planar_image.to_fixed();
     rgba.fill(255);
 
     // let a_plane = vec![1023; height as usize * width as usize];
@@ -135,7 +143,7 @@ fn main() {
     //     height,
     // };
     let start_time = Instant::now();
-    i010_to_rgba10_bilinear(
+    p010_to_rgba10(
         &fixed,
         &mut bytes_16,
         rgba_stride as u32,
