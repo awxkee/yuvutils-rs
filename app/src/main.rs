@@ -1,4 +1,3 @@
-#![feature(f16)]
 /*
  * Copyright (c) Radzivon Bartoshyk, 10/2024. All rights reserved.
  *
@@ -61,7 +60,6 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     // Return the buffer
     Ok(buffer)
 }
-use core::f16;
 
 fn main() {
     let mut img = ImageReader::open("./assets/bench.png")
