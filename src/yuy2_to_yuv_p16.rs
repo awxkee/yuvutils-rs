@@ -87,10 +87,10 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
-            let yuy2_src = &yuy2_src[0..yuy2_width];
-            let y_dst = &mut y_dst[0..planar_image.width as usize];
-            let u_dst = &mut u_dst[0..planar_image.width as usize];
-            let u_dst = &mut u_dst[0..planar_image.width as usize];
+            let yuy2_src = &yuy2_src[..yuy2_width];
+            let y_dst = &mut y_dst[..planar_image.width as usize];
+            let u_dst = &mut u_dst[..planar_image.width as usize];
+            let u_dst = &mut u_dst[..planar_image.width as usize];
 
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
                 .chunks_exact_mut(2)
@@ -115,7 +115,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let u_dst = u_dst.last_mut().unwrap();
                 let v_dst = v_dst.last_mut().unwrap();
                 let yuy2 = yuy2_src.chunks_exact(4).last().unwrap();
-                let yuy2 = &yuy2[0..4];
+                let yuy2 = &yuy2[..4];
                 *y_dst = yuy2[yuy2_target.get_first_y_position()];
                 *u_dst = yuy2[yuy2_target.get_u_position()];
                 *v_dst = yuy2[yuy2_target.get_v_position()];
@@ -148,10 +148,10 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
-            let yuy2_src = &yuy2_src[0..yuy2_width];
-            let y_dst = &mut y_dst[0..planar_image.width as usize];
-            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
-            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+            let yuy2_src = &yuy2_src[..yuy2_width];
+            let y_dst = &mut y_dst[..planar_image.width as usize];
+            let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
+            let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
 
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
                 .chunks_exact_mut(2)
@@ -174,7 +174,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let u_dst = u_dst.last_mut().unwrap();
                 let v_dst = v_dst.last_mut().unwrap();
                 let yuy2 = yuy2_src.chunks_exact(4).last().unwrap();
-                let yuy2 = &yuy2[0..4];
+                let yuy2 = &yuy2[..4];
                 *y_dst = yuy2[yuy2_target.get_first_y_position()];
                 *u_dst = yuy2[yuy2_target.get_u_position()];
                 *v_dst = yuy2[yuy2_target.get_v_position()];
@@ -212,35 +212,42 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(yuy2_src.chunks_exact(packed_image.yuy_stride as usize))
                 .enumerate()
             {
-                let yuy2 = &yuy2[0..yuy2_width];
-                let y_dst = &mut y_dst[0..planar_image.width as usize];
-                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
-                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+                let yuy2 = &yuy2[..yuy2_width];
+                let y_dst = &mut y_dst[..planar_image.width as usize];
+                let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
+                let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
 
                 let process_chroma = y & 1 == 0;
 
-                for (((y_dst, u_dst), v_dst), yuy2) in y_dst
-                    .chunks_exact_mut(2)
-                    .zip(u_dst.iter_mut())
-                    .zip(v_dst.iter_mut())
-                    .zip(yuy2.chunks_exact(4))
-                {
-                    let first_y_position = yuy2[yuy2_target.get_first_y_position()];
-                    let second_y_position = yuy2[yuy2_target.get_second_y_position()];
-                    y_dst[0] = first_y_position;
-                    y_dst[1] = second_y_position;
-                    if process_chroma {
+                if process_chroma {
+                    for (((y_dst, u_dst), v_dst), yuy2) in y_dst
+                        .chunks_exact_mut(2)
+                        .zip(u_dst.iter_mut())
+                        .zip(v_dst.iter_mut())
+                        .zip(yuy2.chunks_exact(4))
+                    {
+                        let first_y_position = yuy2[yuy2_target.get_first_y_position()];
+                        let second_y_position = yuy2[yuy2_target.get_second_y_position()];
+                        y_dst[0] = first_y_position;
+                        y_dst[1] = second_y_position;
                         let u_value = yuy2[yuy2_target.get_u_position()];
                         let v_value = yuy2[yuy2_target.get_v_position()];
                         *u_dst = u_value;
                         *v_dst = v_value;
                     }
+                } else {
+                    for (y_dst, yuy2) in y_dst.chunks_exact_mut(2).zip(yuy2.chunks_exact(4)) {
+                        let first_y_position = yuy2[yuy2_target.get_first_y_position()];
+                        let second_y_position = yuy2[yuy2_target.get_second_y_position()];
+                        y_dst[0] = first_y_position;
+                        y_dst[1] = second_y_position;
+                    }
                 }
 
                 if width & 1 != 0 {
                     let y_dst = y_dst.last_mut().unwrap();
-                    let yuy2 = yuy2_src.chunks_exact(4).last().unwrap();
-                    let yuy2 = &yuy2[0..4];
+                    let yuy2 = yuy2.chunks_exact(4).last().unwrap();
+                    let yuy2 = &yuy2[..4];
                     *y_dst = yuy2[yuy2_target.get_first_y_position()];
                     if process_chroma {
                         let u_dst = u_dst.last_mut().unwrap();

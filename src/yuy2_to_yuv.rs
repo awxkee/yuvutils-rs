@@ -143,10 +143,10 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
-            let yuy2_src = &yuy2_src[0..yuy2_width];
-            let y_dst = &mut y_dst[0..planar_image.width as usize];
-            let u_dst = &mut u_dst[0..planar_image.width as usize];
-            let u_dst = &mut u_dst[0..planar_image.width as usize];
+            let yuy2_src = &yuy2_src[..yuy2_width];
+            let y_dst = &mut y_dst[..planar_image.width as usize];
+            let u_dst = &mut u_dst[..planar_image.width as usize];
+            let u_dst = &mut u_dst[..planar_image.width as usize];
 
             let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2_src);
 
@@ -174,7 +174,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let u_dst = u_dst.last_mut().unwrap();
                 let v_dst = v_dst.last_mut().unwrap();
                 let yuy2 = yuy2_src.chunks_exact(4).last().unwrap();
-                let yuy2 = &yuy2[0..4];
+                let yuy2 = &yuy2[..4];
                 *y_dst = yuy2[yuy2_target.get_first_y_position()];
                 *u_dst = yuy2[yuy2_target.get_u_position()];
                 *v_dst = yuy2[yuy2_target.get_v_position()];
@@ -207,10 +207,10 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
-            let yuy2_src = &yuy2_src[0..yuy2_width];
-            let y_dst = &mut y_dst[0..planar_image.width as usize];
-            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
-            let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+            let yuy2_src = &yuy2_src[..yuy2_width];
+            let y_dst = &mut y_dst[..planar_image.width as usize];
+            let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
+            let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
 
             let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2_src);
 
@@ -236,7 +236,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let u_dst = u_dst.last_mut().unwrap();
                 let v_dst = v_dst.last_mut().unwrap();
                 let yuy2 = yuy2_src.chunks_exact(4).last().unwrap();
-                let yuy2 = &yuy2[0..4];
+                let yuy2 = &yuy2[..4];
                 *y_dst = yuy2[yuy2_target.get_first_y_position()];
                 *u_dst = yuy2[yuy2_target.get_u_position()];
                 *v_dst = yuy2[yuy2_target.get_v_position()];
@@ -274,38 +274,49 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(yuy2_src.chunks_exact(packed_image.yuy_stride as usize))
                 .enumerate()
             {
-                let yuy2 = &yuy2[0..yuy2_width];
-                let y_dst = &mut y_dst[0..planar_image.width as usize];
-                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
-                let u_dst = &mut u_dst[0..(planar_image.width as usize).div_ceil(2)];
+                let yuy2 = &yuy2[..yuy2_width];
+                let y_dst = &mut y_dst[..planar_image.width as usize];
+                let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
+                let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
 
                 let p_offset = process_wide_row(y_dst, u_dst, v_dst, yuy2);
 
                 let process_chroma = y & 1 == 0;
 
-                for (((y_dst, u_dst), v_dst), yuy2) in y_dst
-                    .chunks_exact_mut(2)
-                    .zip(u_dst.iter_mut())
-                    .zip(v_dst.iter_mut())
-                    .zip(yuy2.chunks_exact(4))
-                    .skip(p_offset.cx / 2)
-                {
-                    let first_y_position = yuy2[yuy2_target.get_first_y_position()];
-                    let second_y_position = yuy2[yuy2_target.get_second_y_position()];
-                    y_dst[0] = first_y_position;
-                    y_dst[1] = second_y_position;
-                    if process_chroma {
+                if process_chroma {
+                    for (((y_dst, u_dst), v_dst), yuy2) in y_dst
+                        .chunks_exact_mut(2)
+                        .zip(u_dst.iter_mut())
+                        .zip(v_dst.iter_mut())
+                        .zip(yuy2.chunks_exact(4))
+                        .skip(p_offset.cx / 2)
+                    {
+                        let first_y_position = yuy2[yuy2_target.get_first_y_position()];
+                        let second_y_position = yuy2[yuy2_target.get_second_y_position()];
+                        y_dst[0] = first_y_position;
+                        y_dst[1] = second_y_position;
                         let u_value = yuy2[yuy2_target.get_u_position()];
                         let v_value = yuy2[yuy2_target.get_v_position()];
                         *u_dst = u_value;
                         *v_dst = v_value;
                     }
+                } else {
+                    for (y_dst, yuy2) in y_dst
+                        .chunks_exact_mut(2)
+                        .zip(yuy2.chunks_exact(4))
+                        .skip(p_offset.cx / 2)
+                    {
+                        let first_y_position = yuy2[yuy2_target.get_first_y_position()];
+                        let second_y_position = yuy2[yuy2_target.get_second_y_position()];
+                        y_dst[0] = first_y_position;
+                        y_dst[1] = second_y_position;
+                    }
                 }
 
                 if width & 1 != 0 {
                     let y_dst = y_dst.last_mut().unwrap();
-                    let yuy2 = yuy2_src.chunks_exact(4).last().unwrap();
-                    let yuy2 = &yuy2[0..4];
+                    let yuy2 = yuy2.chunks_exact(4).last().unwrap();
+                    let yuy2 = &yuy2[..4];
                     *y_dst = yuy2[yuy2_target.get_first_y_position()];
                     if process_chroma {
                         let u_dst = u_dst.last_mut().unwrap();
@@ -620,4 +631,96 @@ pub fn uyvy422_to_yuv422(
         planar_image,
         packed_image,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_yuyv420() {
+        const W: u32 = 96;
+        const H: u32 = 4;
+
+        fn yuyv() -> Vec<u8> {
+            let min = 16;
+            let max = min + 2 * W as u8;
+            (0..H).flat_map(|_| min..max).collect()
+        }
+        let mut dst = YuvPlanarImageMut::alloc(W, H, YuvChromaSubsampling::Yuv420);
+        let src = YuvPackedImage {
+            yuy: &yuyv(),
+            yuy_stride: W * 2,
+            width: W,
+            height: H,
+        };
+        yuyv422_to_yuv420(&mut dst, &src).unwrap();
+        dst.y_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.u_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.v_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        })
+    }
+
+    #[test]
+    fn test_yuyv422() {
+        const W: u32 = 96;
+        const H: u32 = 4;
+
+        fn yuyv() -> Vec<u8> {
+            let min = 16;
+            let max = min + 2 * W as u8;
+            (0..H).flat_map(|_| min..max).collect()
+        }
+        let mut dst = YuvPlanarImageMut::alloc(W, H, YuvChromaSubsampling::Yuv422);
+        let src = YuvPackedImage {
+            yuy: &yuyv(),
+            yuy_stride: W * 2,
+            width: W,
+            height: H,
+        };
+        yuyv422_to_yuv422(&mut dst, &src).unwrap();
+        dst.y_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.u_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.v_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        })
+    }
+
+    #[test]
+    fn test_yuyv444() {
+        const W: u32 = 96;
+        const H: u32 = 4;
+
+        fn yuyv() -> Vec<u8> {
+            let min = 16;
+            let max = min + 2 * W as u8;
+            (0..H).flat_map(|_| min..max).collect()
+        }
+        let mut dst = YuvPlanarImageMut::alloc(W, H, YuvChromaSubsampling::Yuv444);
+        let src = YuvPackedImage {
+            yuy: &yuyv(),
+            yuy_stride: W * 2,
+            width: W,
+            height: H,
+        };
+        yuyv422_to_yuv444(&mut dst, &src).unwrap();
+        dst.y_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.u_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.v_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        })
+    }
 }
