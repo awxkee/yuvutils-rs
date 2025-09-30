@@ -304,7 +304,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                     for (y_dst, yuy2) in y_dst
                         .chunks_exact_mut(2)
                         .zip(yuy2.chunks_exact(4))
-                        .skip(p_offset.cx)
+                        .skip(p_offset.cx / 2)
                     {
                         let first_y_position = yuy2[yuy2_target.get_first_y_position()];
                         let second_y_position = yuy2[yuy2_target.get_second_y_position()];
@@ -631,4 +631,96 @@ pub fn uyvy422_to_yuv422(
         planar_image,
         packed_image,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_yuyv420() {
+        const W: u32 = 96;
+        const H: u32 = 4;
+
+        fn yuyv() -> Vec<u8> {
+            let min = 16;
+            let max = min + 2 * W as u8;
+            (0..H).flat_map(|_| min..max).collect()
+        }
+        let mut dst = YuvPlanarImageMut::alloc(W, H, YuvChromaSubsampling::Yuv420);
+        let src = YuvPackedImage {
+            yuy: &yuyv(),
+            yuy_stride: W * 2,
+            width: W,
+            height: H,
+        };
+        yuyv422_to_yuv420(&mut dst, &src).unwrap();
+        dst.y_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.u_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.v_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        })
+    }
+
+    #[test]
+    fn test_yuyv422() {
+        const W: u32 = 96;
+        const H: u32 = 4;
+
+        fn yuyv() -> Vec<u8> {
+            let min = 16;
+            let max = min + 2 * W as u8;
+            (0..H).flat_map(|_| min..max).collect()
+        }
+        let mut dst = YuvPlanarImageMut::alloc(W, H, YuvChromaSubsampling::Yuv422);
+        let src = YuvPackedImage {
+            yuy: &yuyv(),
+            yuy_stride: W * 2,
+            width: W,
+            height: H,
+        };
+        yuyv422_to_yuv422(&mut dst, &src).unwrap();
+        dst.y_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.u_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.v_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        })
+    }
+
+    #[test]
+    fn test_yuyv444() {
+        const W: u32 = 96;
+        const H: u32 = 4;
+
+        fn yuyv() -> Vec<u8> {
+            let min = 16;
+            let max = min + 2 * W as u8;
+            (0..H).flat_map(|_| min..max).collect()
+        }
+        let mut dst = YuvPlanarImageMut::alloc(W, H, YuvChromaSubsampling::Yuv444);
+        let src = YuvPackedImage {
+            yuy: &yuyv(),
+            yuy_stride: W * 2,
+            width: W,
+            height: H,
+        };
+        yuyv422_to_yuv444(&mut dst, &src).unwrap();
+        dst.y_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.u_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        });
+        dst.v_plane.borrow().iter().for_each(|&x| {
+            assert_ne!(x, 0);
+        })
+    }
 }

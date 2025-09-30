@@ -42,7 +42,7 @@ pub(crate) fn yuy2_to_yuv_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
-    let mut cx = nav.cx * 2;
+    let mut cx = nav.cx;
     let mut uv_x = nav.uv_x;
     let mut _yuy2_x = nav.x;
 
