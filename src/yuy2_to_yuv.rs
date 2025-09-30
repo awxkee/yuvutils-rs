@@ -155,7 +155,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_dst.chunks_exact_mut(2))
                 .zip(v_dst.chunks_exact_mut(2))
                 .zip(yuy2_src.chunks_exact(4))
-                .skip(p_offset.cx)
+                .skip(p_offset.cx / 2)
             {
                 let first_y_position = yuy2[yuy2_target.get_first_y_position()];
                 let second_y_position = yuy2[yuy2_target.get_second_y_position()];
@@ -219,7 +219,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 .zip(u_dst.iter_mut())
                 .zip(v_dst.iter_mut())
                 .zip(yuy2_src.chunks_exact(4))
-                .skip(p_offset.cx)
+                .skip(p_offset.cx / 2)
             {
                 let first_y_position = yuy2[yuy2_target.get_first_y_position()];
                 let second_y_position = yuy2[yuy2_target.get_second_y_position()];
@@ -288,7 +288,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                     .zip(u_dst.iter_mut())
                     .zip(v_dst.iter_mut())
                     .zip(yuy2.chunks_exact(4))
-                    .skip(p_offset.cx)
+                    .skip(p_offset.cx / 2)
                 {
                     let first_y_position = yuy2[yuy2_target.get_first_y_position()];
                     let second_y_position = yuy2[yuy2_target.get_second_y_position()];
