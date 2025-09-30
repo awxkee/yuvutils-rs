@@ -63,22 +63,22 @@ unsafe fn yuy2_to_yuv_avx_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
     let yuy2_source: Yuy2Description = YUY2_TARGET.into();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
-    let mut _cx = nav.cx;
-    let mut _uv_x = nav.uv_x;
+    let mut cx = nav.cx;
+    let mut uv_x = nav.uv_x;
     let mut _yuy2_x = nav.x;
 
-    while _cx + 64 < width as usize {
-        let dst_offset = _cx * 2;
-        let u_pos = _uv_x;
-        let v_pos = _uv_x;
-        let y_pos = _cx;
+    while cx + 64 < width as usize {
+        let dst_offset = cx * 2;
+        let u_pos = uv_x;
+        let v_pos = uv_x;
+        let y_pos = cx;
 
-        let yuy2_ptr = yuy2_store.as_ptr().add(dst_offset);
+        let yuy2_ptr = yuy2_store.get_unchecked(dst_offset..);
 
-        let j0 = _mm256_loadu_si256(yuy2_ptr as *const __m256i);
-        let j1 = _mm256_loadu_si256(yuy2_ptr.add(32) as *const __m256i);
-        let j2 = _mm256_loadu_si256(yuy2_ptr.add(64) as *const __m256i);
-        let j3 = _mm256_loadu_si256(yuy2_ptr.add(96) as *const __m256i);
+        let j0 = _mm256_loadu_si256(yuy2_ptr.as_ptr() as *const __m256i);
+        let j1 = _mm256_loadu_si256(yuy2_ptr.get_unchecked(32..).as_ptr() as *const __m256i);
+        let j2 = _mm256_loadu_si256(yuy2_ptr.get_unchecked(64..).as_ptr() as *const __m256i);
+        let j3 = _mm256_loadu_si256(yuy2_ptr.get_unchecked(96..).as_ptr() as *const __m256i);
 
         let pixel_set = _mm256_deinterleave_rgba_epi8(j0, j1, j2, j3);
         let mut y_first = match yuy2_source {
@@ -109,35 +109,50 @@ unsafe fn yuy2_to_yuv_avx_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let (low_u_value, high_u_value) = _mm256_interleave_x2_epi8(u_value, u_value);
             let (low_v_value, high_v_value) = _mm256_interleave_x2_epi8(v_value, v_value);
 
-            let u_plane_ptr = u_plane.as_mut_ptr().add(u_pos);
-            let v_plane_ptr = v_plane.as_mut_ptr().add(v_pos);
+            let u_plane_ptr = u_plane.get_unchecked_mut(u_pos..);
+            let v_plane_ptr = v_plane.get_unchecked_mut(v_pos..);
 
-            _mm256_storeu_si256(u_plane_ptr as *mut __m256i, low_u_value);
-            _mm256_storeu_si256(u_plane_ptr.add(32) as *mut __m256i, high_u_value);
-            _mm256_storeu_si256(v_plane_ptr as *mut __m256i, low_v_value);
-            _mm256_storeu_si256(v_plane_ptr.add(32) as *mut __m256i, high_v_value);
+            _mm256_storeu_si256(u_plane_ptr.as_mut_ptr() as *mut __m256i, low_u_value);
+            _mm256_storeu_si256(
+                u_plane_ptr.get_unchecked_mut(32..).as_mut_ptr() as *mut __m256i,
+                high_u_value,
+            );
+            _mm256_storeu_si256(v_plane_ptr.as_mut_ptr() as *mut __m256i, low_v_value);
+            _mm256_storeu_si256(
+                v_plane_ptr.get_unchecked_mut(32..).as_mut_ptr() as *mut __m256i,
+                high_v_value,
+            );
         } else {
-            _mm256_storeu_si256(u_plane.as_mut_ptr().add(u_pos) as *mut __m256i, u_value);
-            _mm256_storeu_si256(v_plane.as_mut_ptr().add(v_pos) as *mut __m256i, v_value);
+            _mm256_storeu_si256(
+                u_plane.get_unchecked_mut(u_pos..).as_mut_ptr() as *mut __m256i,
+                u_value,
+            );
+            _mm256_storeu_si256(
+                v_plane.get_unchecked_mut(v_pos..).as_mut_ptr() as *mut __m256i,
+                v_value,
+            );
         }
 
-        let y_plane_ptr = y_plane.as_mut_ptr().add(y_pos);
+        let y_plane_ptr = y_plane.get_unchecked_mut(y_pos..);
 
-        _mm256_storeu_si256(y_plane_ptr as *mut __m256i, y_first);
-        _mm256_storeu_si256(y_plane_ptr.add(32) as *mut __m256i, y_second);
+        _mm256_storeu_si256(y_plane_ptr.as_mut_ptr() as *mut __m256i, y_first);
+        _mm256_storeu_si256(
+            y_plane_ptr.get_unchecked_mut(32..).as_mut_ptr() as *mut __m256i,
+            y_second,
+        );
 
-        _uv_x += match chroma_subsampling {
+        uv_x += match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => 32,
             YuvChromaSubsampling::Yuv444 => 64,
         };
-        _cx += 64;
+        cx += 64;
     }
 
-    _yuy2_x = _cx;
+    _yuy2_x = cx;
 
     YuvToYuy2Navigation {
-        cx: _cx,
-        uv_x: _uv_x,
+        cx,
+        uv_x,
         x: _yuy2_x,
     }
 }
