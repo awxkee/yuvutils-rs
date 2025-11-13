@@ -132,7 +132,7 @@ pub(crate) fn check_rgba_destination<V>(
     check_overflow_v3(width as usize, height as usize, channels)?;
     if arr.len() < rgba_stride as usize * (height as usize - 1) + width as usize * channels {
         return Err(YuvError::DestinationSizeMismatch(MismatchedSize {
-            expected: rgba_stride as usize * height as usize,
+            expected: rgba_stride as usize * (height as usize - 1) + width as usize * channels,
             received: arr.len(),
         }));
     }
@@ -191,7 +191,7 @@ pub(crate) fn check_y8_channel<V>(
     }
     if data.len() < stride as usize * (height as usize - 1) + width as usize {
         return Err(YuvError::LumaPlaneSizeMismatch(MismatchedSize {
-            expected: stride as usize * height as usize,
+            expected: stride as usize * (height as usize - 1) + width as usize,
             received: data.len(),
         }));
     }
