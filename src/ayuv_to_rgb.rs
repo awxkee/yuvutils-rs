@@ -253,22 +253,22 @@ fn ayuv_to_rgb_launch<const DST: u8, const PACKED: u8>(
     {
         iter = image
             .yuy
-            .chunks_exact(image.yuy_stride as usize)
-            .zip(dst.chunks_exact_mut(dst_stride));
+            .chunks(image.yuy_stride as usize)
+            .zip(dst.chunks_mut(dst_stride));
     }
     #[cfg(feature = "rayon")]
     {
         iter = image
             .yuy
-            .par_chunks_exact(image.yuy_stride as usize)
-            .zip(dst.par_chunks_exact_mut(dst_stride));
+            .par_chunks(image.yuy_stride as usize)
+            .zip(dst.par_chunks_mut(dst_stride));
     }
 
     let mut _executor: RowExecutor = make_executor::<DST, PACKED, PRECISION>();
 
     iter.for_each(|(src, dst)| {
-        let src = &src[0..image.width as usize * 4];
-        let dst = &mut dst[0..image.width as usize * cn.get_channels_count()];
+        let src = &src[..image.width as usize * 4];
+        let dst = &mut dst[..image.width as usize * cn.get_channels_count()];
         unsafe {
             _executor(
                 src,

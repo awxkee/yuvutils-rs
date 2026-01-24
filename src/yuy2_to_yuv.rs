@@ -121,26 +121,22 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride as usize)
-                .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
-                .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
+                .par_chunks_mut(y_stride as usize)
+                .zip(u_plane.par_chunks_mut(u_stride as usize))
+                .zip(v_plane.par_chunks_mut(v_stride as usize))
                 .zip(
                     packed_image
                         .yuy
-                        .par_chunks_exact(packed_image.yuy_stride as usize),
+                        .par_chunks(packed_image.yuy_stride as usize),
                 );
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride as usize)
-                .zip(u_plane.chunks_exact_mut(u_stride as usize))
-                .zip(v_plane.chunks_exact_mut(v_stride as usize))
-                .zip(
-                    packed_image
-                        .yuy
-                        .chunks_exact(packed_image.yuy_stride as usize),
-                );
+                .chunks_mut(y_stride as usize)
+                .zip(u_plane.chunks_mut(u_stride as usize))
+                .zip(v_plane.chunks_mut(v_stride as usize))
+                .zip(packed_image.yuy.chunks(packed_image.yuy_stride as usize));
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
             let yuy2_src = &yuy2_src[..yuy2_width];
@@ -185,26 +181,22 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride as usize)
-                .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
-                .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
+                .par_chunks_mut(y_stride as usize)
+                .zip(u_plane.par_chunks_mut(u_stride as usize))
+                .zip(v_plane.par_chunks_mut(v_stride as usize))
                 .zip(
                     packed_image
                         .yuy
-                        .par_chunks_exact(packed_image.yuy_stride as usize),
+                        .par_chunks(packed_image.yuy_stride as usize),
                 );
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride as usize)
-                .zip(u_plane.chunks_exact_mut(u_stride as usize))
-                .zip(v_plane.chunks_exact_mut(v_stride as usize))
-                .zip(
-                    packed_image
-                        .yuy
-                        .chunks_exact(packed_image.yuy_stride as usize),
-                );
+                .chunks_mut(y_stride as usize)
+                .zip(u_plane.chunks_mut(u_stride as usize))
+                .zip(v_plane.chunks_mut(v_stride as usize))
+                .zip(packed_image.yuy.chunks(packed_image.yuy_stride as usize));
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
             let yuy2_src = &yuy2_src[..yuy2_width];
@@ -247,31 +239,31 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride as usize * 2)
-                .zip(u_plane.par_chunks_exact_mut(u_stride as usize))
-                .zip(v_plane.par_chunks_exact_mut(v_stride as usize))
+                .par_chunks_mut(y_stride as usize * 2)
+                .zip(u_plane.par_chunks_mut(u_stride as usize))
+                .zip(v_plane.par_chunks_mut(v_stride as usize))
                 .zip(
                     packed_image
                         .yuy
-                        .par_chunks_exact(packed_image.yuy_stride as usize * 2),
+                        .par_chunks(packed_image.yuy_stride as usize * 2),
                 );
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride as usize * 2)
-                .zip(u_plane.chunks_exact_mut(u_stride as usize))
-                .zip(v_plane.chunks_exact_mut(v_stride as usize))
+                .chunks_mut(y_stride as usize * 2)
+                .zip(u_plane.chunks_mut(u_stride as usize))
+                .zip(v_plane.chunks_mut(v_stride as usize))
                 .zip(
                     packed_image
                         .yuy
-                        .chunks_exact(packed_image.yuy_stride as usize * 2),
+                        .chunks(packed_image.yuy_stride as usize * 2),
                 );
         }
         iter.for_each(|(((y_dst, u_dst), v_dst), yuy2_src)| {
             for (y, (y_dst, yuy2)) in y_dst
-                .chunks_exact_mut(y_stride as usize)
-                .zip(yuy2_src.chunks_exact(packed_image.yuy_stride as usize))
+                .chunks_mut(y_stride as usize)
+                .zip(yuy2_src.chunks(packed_image.yuy_stride as usize))
                 .enumerate()
             {
                 let yuy2 = &yuy2[..yuy2_width];

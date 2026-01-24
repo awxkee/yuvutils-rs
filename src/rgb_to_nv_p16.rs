@@ -111,7 +111,7 @@ where
             .zip(rgba0.chunks_exact(channels * 2))
             .zip(rgba1.chunks_exact(channels * 2))
         {
-            let rgba00 = &rgba0[0..channels];
+            let rgba00 = &rgba0[..channels];
 
             let r00 = rgba00[src_chans.get_r_channel_offset()] as i32;
             let g00 = rgba00[src_chans.get_g_channel_offset()] as i32;
@@ -326,19 +326,19 @@ where
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride as usize)
-                .zip(uv_plane.par_chunks_exact_mut(uv_stride as usize))
-                .zip(rgba.par_chunks_exact(rgba_stride as usize));
+                .par_chunks_mut(y_stride as usize)
+                .zip(uv_plane.par_chunks_mut(uv_stride as usize))
+                .zip(rgba.par_chunks(rgba_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride as usize)
-                .zip(uv_plane.chunks_exact_mut(uv_stride as usize))
-                .zip(rgba.chunks_exact(rgba_stride as usize));
+                .chunks_mut(y_stride as usize)
+                .zip(uv_plane.chunks_mut(uv_stride as usize))
+                .zip(rgba.chunks(rgba_stride as usize));
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
-            let y_dst = &mut y_dst[0..image.width as usize];
+            let y_dst = &mut y_dst[..image.width as usize];
             for ((y_dst, uv_dst), rgba) in y_dst
                 .iter_mut()
                 .zip(uv_dst.chunks_exact_mut(2))
@@ -374,22 +374,22 @@ where
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride as usize)
-                .zip(uv_plane.par_chunks_exact_mut(uv_stride as usize))
-                .zip(rgba.par_chunks_exact(rgba_stride as usize));
+                .par_chunks_mut(y_stride as usize)
+                .zip(uv_plane.par_chunks_mut(uv_stride as usize))
+                .zip(rgba.par_chunks(rgba_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride as usize)
-                .zip(uv_plane.chunks_exact_mut(uv_stride as usize))
-                .zip(rgba.chunks_exact(rgba_stride as usize));
+                .chunks_mut(y_stride as usize)
+                .zip(uv_plane.chunks_mut(uv_stride as usize))
+                .zip(rgba.chunks(rgba_stride as usize));
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
             process_halved_row(
-                &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
-                &rgba[0..image.width as usize * channels],
+                &mut y_dst[..image.width as usize],
+                &mut uv_dst[..(image.width as usize).div_ceil(2) * 2],
+                &rgba[..image.width as usize * channels],
             );
         });
     } else {
@@ -397,42 +397,37 @@ where
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride as usize * 2)
-                .zip(uv_plane.par_chunks_exact_mut(uv_stride as usize))
-                .zip(rgba.par_chunks_exact(rgba_stride as usize * 2));
+                .par_chunks_mut(y_stride as usize * 2)
+                .zip(uv_plane.par_chunks_mut(uv_stride as usize))
+                .zip(rgba.par_chunks(rgba_stride as usize * 2));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride as usize * 2)
-                .zip(uv_plane.chunks_exact_mut(uv_stride as usize))
-                .zip(rgba.chunks_exact(rgba_stride as usize * 2));
+                .chunks_mut(y_stride as usize * 2)
+                .zip(uv_plane.chunks_mut(uv_stride as usize))
+                .zip(rgba.chunks(rgba_stride as usize * 2));
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
             let (y_dst0, y_dst1) = y_dst.split_at_mut(y_stride as usize);
             let (rgba0, rgba1) = rgba.split_at(rgba_stride as usize);
             process_double_row(
-                &mut y_dst0[0..image.width as usize],
-                &mut y_dst1[0..image.width as usize],
-                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
-                &rgba0[0..image.width as usize * channels],
-                &rgba1[0..image.width as usize * channels],
+                &mut y_dst0[..image.width as usize],
+                &mut y_dst1[..image.width as usize],
+                &mut uv_dst[..(image.width as usize).div_ceil(2) * 2],
+                &rgba0[..image.width as usize * channels],
+                &rgba1[..image.width as usize * channels],
             );
         });
 
         if image.height & 1 != 0 {
-            let y_dst = y_plane
-                .chunks_exact_mut(y_stride as usize * 2)
-                .into_remainder();
-            let uv_dst = uv_plane
-                .chunks_exact_mut(uv_stride as usize)
-                .last()
-                .unwrap();
-            let rgba = rgba.chunks_exact(rgba_stride as usize * 2).remainder();
+            let y_dst = y_plane.chunks_mut(y_stride as usize * 2).last().unwrap();
+            let uv_dst = uv_plane.chunks_mut(uv_stride as usize).last().unwrap();
+            let rgba = rgba.chunks(rgba_stride as usize * 2).last().unwrap();
             process_halved_row(
-                &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
-                &rgba[0..image.width as usize * channels],
+                &mut y_dst[..image.width as usize],
+                &mut uv_dst[..(image.width as usize).div_ceil(2) * 2],
+                &rgba[..image.width as usize * channels],
             );
         }
     }

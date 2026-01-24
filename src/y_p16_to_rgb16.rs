@@ -157,14 +157,14 @@ where
     #[cfg(feature = "rayon")]
     {
         iter = rgba16
-            .par_chunks_exact_mut(rgba_stride as usize)
-            .zip(image.y_plane.par_chunks_exact(image.y_stride as usize));
+            .par_chunks_mut(rgba_stride as usize)
+            .zip(image.y_plane.par_exact(image.y_stride as usize));
     }
     #[cfg(not(feature = "rayon"))]
     {
         iter = rgba16
-            .chunks_exact_mut(rgba_stride as usize)
-            .zip(image.y_plane.chunks_exact(image.y_stride as usize));
+            .chunks_mut(rgba_stride as usize)
+            .zip(image.y_plane.chunks(image.y_stride as usize));
     }
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     let neon_wide_handler = neon_y_p16_to_rgba16_row::<

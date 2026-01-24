@@ -235,20 +235,20 @@ fn y_to_rgbx<const CN: u8>(
     let y_iter;
     #[cfg(feature = "rayon")]
     {
-        iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
-        y_iter = y_plane.par_chunks_exact(y_stride as usize);
+        iter = rgba.par_chunks_mut(rgba_stride as usize);
+        y_iter = y_plane.par_chunks(y_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = rgba.chunks_exact_mut(rgba_stride as usize);
-        y_iter = y_plane.chunks_exact(y_stride as usize);
+        iter = rgba.chunks_mut(rgba_stride as usize);
+        y_iter = y_plane.chunks(y_stride as usize);
     }
 
     if range == YuvRange::Limited {
         let executor = make_limited_converter::<CN, PRECISION>();
 
         iter.zip(y_iter).for_each(|(rgba, y_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
+            let y_plane = &y_plane[..image.width as usize];
             let rgba = &mut rgba[..channels * image.width as usize];
 
             unsafe {

@@ -85,15 +85,15 @@ where
     let a_iter;
     #[cfg(feature = "rayon")]
     {
-        iter = rgba16.par_chunks_exact_mut(rgba_stride as usize);
-        y_iter = image.y_plane.par_chunks_exact(image.y_stride as usize);
-        a_iter = image.a_plane.par_chunks_exact(image.a_stride as usize);
+        iter = rgba16.par_chunks_mut(rgba_stride as usize);
+        y_iter = image.y_plane.par_exact(image.y_stride as usize);
+        a_iter = image.a_plane.par_exact(image.a_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
-        iter = rgba16.chunks_exact_mut(rgba_stride as usize);
-        y_iter = image.y_plane.chunks_exact(image.y_stride as usize);
-        a_iter = image.a_plane.chunks_exact(image.a_stride as usize);
+        iter = rgba16.chunks_mut(rgba_stride as usize);
+        y_iter = image.y_plane.chunks(image.y_stride as usize);
+        a_iter = image.a_plane.chunks(image.a_stride as usize);
     }
 
     match range {
@@ -101,7 +101,7 @@ where
             iter.zip(y_iter)
                 .zip(a_iter)
                 .for_each(|((rgba16, y_plane16), a_plane16)| {
-                    let y_plane16 = &y_plane16[0..image.width as usize];
+                    let y_plane16 = &y_plane16[..image.width as usize];
                     for ((&y_src, &a_src), rgba) in y_plane16
                         .iter()
                         .zip(a_plane16)

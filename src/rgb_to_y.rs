@@ -115,22 +115,22 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
         iter = gray_image
             .y_plane
             .borrow_mut()
-            .par_chunks_exact_mut(gray_image.y_stride as usize)
-            .zip(rgba.par_chunks_exact(rgba_stride as usize));
+            .par_chunks_mut(gray_image.y_stride as usize)
+            .zip(rgba.par_chunks(rgba_stride as usize));
     }
     #[cfg(not(feature = "rayon"))]
     {
         iter = gray_image
             .y_plane
             .borrow_mut()
-            .chunks_exact_mut(gray_image.y_stride as usize)
-            .zip(rgba.chunks_exact(rgba_stride as usize));
+            .chunks_mut(gray_image.y_stride as usize)
+            .zip(rgba.chunks(rgba_stride as usize));
     }
 
     iter.for_each(|(y_plane, rgba)| {
         let mut _cx = 0usize;
 
-        let y_plane = &mut y_plane[0..gray_image.width as usize];
+        let y_plane = &mut y_plane[..gray_image.width as usize];
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {

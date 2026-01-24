@@ -333,17 +333,17 @@ where
 
     #[cfg(feature = "rayon")]
     {
-        y_iter = y_plane.par_chunks_exact(y_stride);
-        rgb_iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
-        u_iter = u_plane.par_chunks_exact(u_stride);
-        v_iter = v_plane.par_chunks_exact(v_stride);
+        y_iter = y_plane.par_chunks(y_stride);
+        rgb_iter = rgba.par_chunks_mut(rgba_stride as usize);
+        u_iter = u_plane.par_chunks(u_stride);
+        v_iter = v_plane.par_chunks(v_stride);
     }
     #[cfg(not(feature = "rayon"))]
     {
-        y_iter = y_plane.chunks_exact(y_stride);
-        rgb_iter = rgba.chunks_exact_mut(rgba_stride as usize);
-        u_iter = u_plane.chunks_exact(u_stride);
-        v_iter = v_plane.chunks_exact(v_stride);
+        y_iter = y_plane.chunks(y_stride);
+        rgb_iter = rgba.chunks_mut(rgba_stride as usize);
+        u_iter = u_plane.chunks(u_stride);
+        v_iter = v_plane.chunks(v_stride);
     }
 
     match yuv_range {
@@ -362,7 +362,7 @@ where
             let wide_handler = WideRowGbrLimitedProcessor::<V, CHANNELS, BIT_DEPTH, 13>::default();
 
             iter.for_each(|(((y_src, u_src), v_src), rgb)| {
-                let y_src = &y_src[0..image.width as usize];
+                let y_src = &y_src[..image.width as usize];
 
                 let cx = wide_handler.handle_row(
                     y_src,

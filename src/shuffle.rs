@@ -156,11 +156,11 @@ fn shuffle_impl<
     let converter = V::make_converter::<SRC, DST>();
 
     for (dst, src) in dst
-        .chunks_exact_mut(dst_stride as usize)
-        .zip(src.chunks_exact(src_stride as usize))
+        .chunks_mut(dst_stride as usize)
+        .zip(src.chunks(src_stride as usize))
     {
-        let dst = &mut dst[0..dst_channels.get_channels_count() * width as usize];
-        let src = &src[0..src_channels.get_channels_count() * width as usize];
+        let dst = &mut dst[..dst_channels.get_channels_count() * width as usize];
+        let src = &src[..src_channels.get_channels_count() * width as usize];
         converter.convert(src, dst, dst_stride as usize);
     }
 
