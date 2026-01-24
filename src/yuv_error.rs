@@ -97,7 +97,7 @@ impl Display for YuvError {
 impl Error for YuvError {}
 
 #[inline]
-pub(crate) fn check_overflow_v2(v0: usize, v1: usize) -> Result<(), YuvError> {
+pub(crate) fn check_overflow_v2(v0: isize, v1: isize) -> Result<(), YuvError> {
     let (_, overflow) = v0.overflowing_mul(v1);
     if overflow {
         return Err(YuvError::PointerOverflow);
@@ -106,7 +106,7 @@ pub(crate) fn check_overflow_v2(v0: usize, v1: usize) -> Result<(), YuvError> {
 }
 
 #[inline]
-pub(crate) fn check_overflow_v3(v0: usize, v1: usize, v2: usize) -> Result<(), YuvError> {
+pub(crate) fn check_overflow_v3(v0: isize, v1: isize, v2: isize) -> Result<(), YuvError> {
     let (product0, overflow) = v0.overflowing_mul(v1);
     if overflow {
         return Err(YuvError::PointerOverflow);
@@ -129,7 +129,11 @@ pub(crate) fn check_rgba_destination<V>(
     if width == 0 || height == 0 {
         return Err(YuvError::ZeroBaseSize);
     }
-    check_overflow_v3(width as usize, height as usize, channels)?;
+    check_overflow_v3(
+        width.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        height.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        channels as isize,
+    )?;
     if arr.len() < rgba_stride as usize * (height as usize - 1) + width as usize * channels {
         return Err(YuvError::DestinationSizeMismatch(MismatchedSize {
             expected: rgba_stride as usize * (height as usize - 1) + width as usize * channels,
@@ -145,6 +149,20 @@ pub(crate) fn check_rgba_destination<V>(
     Ok(())
 }
 
+/// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
+/// We don't want to work with any tails, so we'll truncate it to valid data.
+#[inline]
+pub(crate) fn split_rgba_destination<V>(
+    arr: &mut [V],
+    rgba_stride: u32,
+    width: u32,
+    height: u32,
+    channels: usize,
+) -> &mut [V] {
+    arr.split_at_mut(rgba_stride as usize * (height as usize - 1) + width as usize * channels)
+        .0
+}
+
 #[inline]
 pub(crate) fn check_yuv_packed422<V>(
     data: &[V],
@@ -155,8 +173,14 @@ pub(crate) fn check_yuv_packed422<V>(
     if width == 0 || height == 0 {
         return Err(YuvError::ZeroBaseSize);
     }
-    check_overflow_v2(stride as usize, height as usize)?;
-    check_overflow_v2(width as usize, height as usize)?;
+    check_overflow_v2(
+        stride.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        height.try_into().map_err(|_| YuvError::PointerOverflow)?,
+    )?;
+    check_overflow_v2(
+        width.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        height.try_into().map_err(|_| YuvError::PointerOverflow)?,
+    )?;
     let full_size = if width % 2 == 0 {
         2 * width as usize * height as usize
     } else {
@@ -181,8 +205,14 @@ pub(crate) fn check_y8_channel<V>(
     if width == 0 || height == 0 {
         return Err(YuvError::ZeroBaseSize);
     }
-    check_overflow_v2(stride as usize, height as usize)?;
-    check_overflow_v2(width as usize, height as usize)?;
+    check_overflow_v2(
+        stride.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        height.try_into().map_err(|_| YuvError::PointerOverflow)?,
+    )?;
+    check_overflow_v2(
+        width.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        height.try_into().map_err(|_| YuvError::PointerOverflow)?,
+    )?;
     if (stride as usize * height as usize) < (width as usize * height as usize) {
         return Err(YuvError::LumaPlaneMinimumSizeMismatch(MismatchedSize {
             expected: width as usize * height as usize,
@@ -217,8 +247,20 @@ pub(crate) fn check_chroma_channel<V>(
         YuvChromaSubsampling::Yuv420 => image_height.div_ceil(2),
         YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => image_height,
     };
-    check_overflow_v2(stride as usize, chroma_height as usize)?;
-    check_overflow_v2(chroma_min_width as usize, chroma_height as usize)?;
+    check_overflow_v2(
+        stride.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        chroma_height
+            .try_into()
+            .map_err(|_| YuvError::PointerOverflow)?,
+    )?;
+    check_overflow_v2(
+        chroma_min_width
+            .try_into()
+            .map_err(|_| YuvError::PointerOverflow)?,
+        chroma_height
+            .try_into()
+            .map_err(|_| YuvError::PointerOverflow)?,
+    )?;
     if (stride as usize * chroma_height as usize)
         < (chroma_min_width as usize * chroma_height as usize)
     {
@@ -255,8 +297,20 @@ pub(crate) fn check_interleaved_chroma_channel<V>(
         YuvChromaSubsampling::Yuv420 => image_height.div_ceil(2),
         YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => image_height,
     };
-    check_overflow_v2(stride as usize, chroma_height as usize)?;
-    check_overflow_v2(chroma_min_width as usize, chroma_height as usize)?;
+    check_overflow_v2(
+        stride.try_into().map_err(|_| YuvError::PointerOverflow)?,
+        chroma_height
+            .try_into()
+            .map_err(|_| YuvError::PointerOverflow)?,
+    )?;
+    check_overflow_v2(
+        chroma_min_width
+            .try_into()
+            .map_err(|_| YuvError::PointerOverflow)?,
+        chroma_height
+            .try_into()
+            .map_err(|_| YuvError::PointerOverflow)?,
+    )?;
     if (stride as usize * chroma_height as usize)
         < (chroma_min_width as usize * chroma_height as usize)
     {

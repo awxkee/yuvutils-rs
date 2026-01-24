@@ -330,6 +330,45 @@ where
         )?;
         Ok(())
     }
+
+    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
+    /// We don't want to work with any tails, so we'll truncate to valid data.
+    pub(crate) fn projected_chroma_plane<'a>(
+        &self,
+        u: &'a [T],
+        stride: u32,
+        sampling: YuvChromaSubsampling,
+    ) -> &'a [T] {
+        let chroma_min_width = match sampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => self.width.div_ceil(2),
+            YuvChromaSubsampling::Yuv444 => self.width,
+        };
+        let chroma_height = match sampling {
+            YuvChromaSubsampling::Yuv420 => self.height.div_ceil(2),
+            YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => self.height,
+        };
+        let valid_size = stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
+        &u[..valid_size]
+    }
+
+    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
+    /// We don't want to work with any tails, so we'll truncate it to valid data.
+    pub(crate) fn projected_y_plane(&self) -> &[T] {
+        let valid_size = self.y_stride as usize * (self.height as usize - 1) + self.width as usize;
+        &self.y_plane[..valid_size]
+    }
+
+    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
+    /// We don't want to work with any tails, so we'll truncate it to valid data.
+    pub(crate) fn projected_u_plane(&self, sampling: YuvChromaSubsampling) -> &[T] {
+        self.projected_chroma_plane(self.u_plane, self.u_stride, sampling)
+    }
+
+    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
+    /// We don't want to work with any tails, so we'll truncate it to valid data.
+    pub(crate) fn projected_v_plane(&self, sampling: YuvChromaSubsampling) -> &[T] {
+        self.projected_chroma_plane(self.v_plane, self.v_stride, sampling)
+    }
 }
 
 #[derive(Debug)]
