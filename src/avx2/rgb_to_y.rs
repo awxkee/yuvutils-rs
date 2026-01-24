@@ -27,10 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{
-    _mm256_load_deinterleave_half_rgb_for_yuv, _mm256_load_deinterleave_rgb_for_yuv,
-    _mm256_sqrdmlah_dot,
-};
+use crate::avx2::avx2_utils::{_mm256_load_deinterleave_rgb_for_yuv, _mm256_sqrdmlah_dot};
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
@@ -54,7 +51,7 @@ pub(crate) fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISION: i32>
 }
 
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
+pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const CN: u8, const PRECISION: i32>(
     transform: &CbCrForwardTransform<i32>,
     range: &YuvChromaRange,
     y_plane: &mut [u8],
@@ -62,11 +59,10 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
     start_cx: usize,
     width: usize,
 ) -> usize {
-    let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
+    let source_channels: YuvSourceChannels = CN.into();
     let channels = source_channels.get_channels_count();
 
     let y_ptr = y_plane.as_mut_ptr();
-    let rgba_ptr = rgba.as_ptr();
 
     let mut cx = start_cx;
 
@@ -80,7 +76,7 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
     while cx + 32 < width {
         let px = cx * channels;
         let (r_values, g_values, b_values) =
-            _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(px));
+            _mm256_load_deinterleave_rgb_for_yuv::<CN>(rgba.get_unchecked(px..).as_ptr());
 
         let rl = _mm256_unpacklo_epi8(r_values, r_values);
         let rh = _mm256_unpackhi_epi8(r_values, r_values);
@@ -105,43 +101,11 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
         cx += 32;
     }
 
-    while cx + 16 < width {
-        let px = cx * channels;
-
-        let (r_values, g_values, b_values) = _mm256_load_deinterleave_half_rgb_for_yuv::<
-            ORIGIN_CHANNELS,
-        >(rgba.get_unchecked(px..).as_ptr());
-
-        let rl = _mm256_unpacklo_epi8(r_values, r_values);
-        let gl = _mm256_unpacklo_epi8(g_values, g_values);
-        let bl = _mm256_unpacklo_epi8(b_values, b_values);
-
-        let r_low = _mm256_srli_epi16::<V_S>(rl);
-        let g_low = _mm256_srli_epi16::<V_S>(gl);
-        let b_low = _mm256_srli_epi16::<V_S>(bl);
-
-        let rly = _mm256_mulhrs_epi16(r_low, v_yr);
-        let gly = _mm256_mulhrs_epi16(g_low, v_yg);
-        let bhy = _mm256_mulhrs_epi16(b_low, v_yb);
-
-        let yrgc = _mm256_add_epi16(rly, gly);
-
-        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(y_bias, _mm256_add_epi16(yrgc, bhy)));
-
-        let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
-        _mm_storeu_si128(
-            y_plane.get_unchecked_mut(cx..).as_mut_ptr() as *mut __m128i,
-            _mm256_castsi256_si128(y_yuv),
-        );
-
-        cx += 16;
-    }
-
     if cx < width {
         let diff = width - cx;
-        assert!(diff <= 16);
-        let mut src_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        assert!(diff <= 32);
+        let mut src_buffer: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
+        let mut y_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
@@ -149,31 +113,28 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const ORIGIN_CHANNELS: u8, const PRE
             diff * channels,
         );
 
-        let (r_values, g_values, b_values) = _mm256_load_deinterleave_half_rgb_for_yuv::<
-            ORIGIN_CHANNELS,
-        >(src_buffer.as_ptr().cast());
+        let (r_values, g_values, b_values) =
+            _mm256_load_deinterleave_rgb_for_yuv::<CN>(src_buffer.as_ptr().cast());
 
         let rl = _mm256_unpacklo_epi8(r_values, r_values);
+        let rh = _mm256_unpackhi_epi8(r_values, r_values);
         let gl = _mm256_unpacklo_epi8(g_values, g_values);
+        let gh = _mm256_unpackhi_epi8(g_values, g_values);
         let bl = _mm256_unpacklo_epi8(b_values, b_values);
+        let bh = _mm256_unpackhi_epi8(b_values, b_values);
 
         let r_low = _mm256_srli_epi16::<V_S>(rl);
+        let r_high = _mm256_srli_epi16::<V_S>(rh);
         let g_low = _mm256_srli_epi16::<V_S>(gl);
+        let g_high = _mm256_srli_epi16::<V_S>(gh);
         let b_low = _mm256_srli_epi16::<V_S>(bl);
+        let b_high = _mm256_srli_epi16::<V_S>(bh);
 
-        let rly = _mm256_mulhrs_epi16(r_low, v_yr);
-        let gly = _mm256_mulhrs_epi16(g_low, v_yg);
-        let bhy = _mm256_mulhrs_epi16(b_low, v_yb);
-
-        let yrgc = _mm256_add_epi16(rly, gly);
-
-        let y_l = _mm256_srli_epi16::<A_E>(_mm256_add_epi16(y_bias, _mm256_add_epi16(yrgc, bhy)));
-
-        let y_yuv = _mm256_packus_epi16(y_l, _mm256_setzero_si256());
-        _mm_storeu_si128(
-            y_buffer.as_mut_ptr() as *mut __m128i,
-            _mm256_castsi256_si128(y_yuv),
+        let y0_yuv = _mm256_sqrdmlah_dot::<A_E>(
+            r_low, r_high, g_low, g_high, b_low, b_high, y_bias, v_yr, v_yg, v_yb,
         );
+
+        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y0_yuv);
 
         std::ptr::copy_nonoverlapping(
             y_buffer.as_ptr().cast(),
