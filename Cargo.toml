@@ -1,8 +1,8 @@
-workspace = { members = ["app", "fuzz", "coeffs"] }
+workspace = { members = ["app"], exclude = ["fuzz", "coeffs"]}
 
 [package]
 name = "yuv"
-version = "0.8.9"
+version = "0.8.10"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"
