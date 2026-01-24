@@ -93,19 +93,19 @@ where
 
     #[cfg(feature = "rayon")]
     {
-        y_iter = y_plane.par_chunks(y_stride);
-        rgb_iter = rgba.par_chunks_mut(rgba_stride as usize);
-        u_iter = u_plane.par_chunks(u_stride);
-        v_iter = v_plane.par_chunks(v_stride);
-        a_iter = image.a_plane.par_chunks(image.a_stride as usize);
+        y_iter = y_plane.par_chunks_exact(y_stride);
+        rgb_iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
+        u_iter = u_plane.par_chunks_exact(u_stride);
+        v_iter = v_plane.par_chunks_exact(v_stride);
+        a_iter = image.a_plane.par_chunks_exact(image.a_stride as usize);
     }
     #[cfg(not(feature = "rayon"))]
     {
-        y_iter = y_plane.chunks(y_stride);
-        rgb_iter = rgba.chunks_mut(rgba_stride as usize);
-        u_iter = u_plane.chunks(u_stride);
-        v_iter = v_plane.chunks(v_stride);
-        a_iter = image.a_plane.chunks(image.a_stride as usize);
+        y_iter = y_plane.chunks_exact(y_stride);
+        rgb_iter = rgba.chunks_exact_mut(rgba_stride as usize);
+        u_iter = u_plane.chunks_exact(u_stride);
+        v_iter = v_plane.chunks_exact(v_stride);
+        a_iter = image.a_plane.chunks_exact(image.a_stride as usize);
     }
 
     let max_value_u32: u32 = ((1u32 << BIT_DEPTH) - 1).as_();
@@ -122,7 +122,7 @@ where
 
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter).zip(a_iter);
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
-                let y_src = &y_src[..image.width as usize];
+                let y_src = &y_src[0..image.width as usize];
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
                 for ((((&y_src, &u_src), &v_src), rgb_dst), &a_src) in y_src
@@ -148,7 +148,7 @@ where
         YuvRange::Full => {
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter).zip(a_iter);
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
-                let y_src = &y_src[..image.width as usize];
+                let y_src = &y_src[0..image.width as usize];
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
                 if size_of::<V>() == 1 {

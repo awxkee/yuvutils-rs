@@ -36,15 +36,15 @@ use std::time::Instant;
 use yuv::{
     i010_alpha_to_rgba10, i010_to_rgba10, i010_to_rgba10_bilinear, i210_to_rgba10,
     i210_to_rgba10_bilinear, icgc_re010_to_rgba, icgc_ro010_to_rgba, icgc_ro210_to_rgba,
-    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_p010, rgb_to_rgba, rgba10_to_i010, rgba10_to_i210,
+    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_p010, rgba10_to_i010, rgba10_to_i210,
     rgba10_to_p010, rgba12_to_i412, rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210,
     rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444, rgba_to_yuv420, rgba_to_yuv422,
     rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24, ycgco420_to_rgba,
     ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgba, yuv420_to_rgba_bilinear,
     yuv422_to_rgb_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_to_rgba,
-    yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv21_to_rgba, yuv_nv24_to_rgba, YuvBiPlanarImage,
-    YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvPlanarImage,
-    YuvPlanarImageMut, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
+    yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv24_to_rgba, YuvBiPlanarImageMut,
+    YuvChromaSubsampling, YuvConversionMode, YuvPlanarImage, YuvPlanarImageMut,
+    YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -61,40 +61,7 @@ fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
     Ok(buffer)
 }
 
-fn test() {
-    // de-facto to conversion it doesn't matter how bigger the outer image is,
-    // only valid strides is important
-    let width = 3340;
-    let height = 2160;
-    let y_stride_with_padding = width + 4;
-    let uv_stride_with_padding = 1696;
-    let y_plane = vec![0u8; y_stride_with_padding as usize * height as usize];
-    let u_plane = vec![0u8; uv_stride_with_padding * (height as usize).div_ceil(2)];
-    let v_plane = vec![0u8; uv_stride_with_padding * (height as usize).div_ceil(2)];
-    let yuv = YuvPlanarImage {
-        y_plane: &y_plane,
-        y_stride: y_stride_with_padding,
-        u_plane: &u_plane,
-        u_stride: uv_stride_with_padding as u32,
-        v_plane: &v_plane,
-        v_stride: uv_stride_with_padding as u32,
-        width,
-        height,
-    };
-    let rgba_stride = width as usize * 4;
-    let mut rgba = vec![0u8; rgba_stride * height as usize];
-    yuv420_to_rgba(
-        &yuv,
-        &mut rgba,
-        rgba_stride as u32,
-        YuvRange::Limited,
-        YuvStandardMatrix::Bt709,
-    )
-    .unwrap();
-}
-
 fn main() {
-    test();
     let mut img = ImageReader::open("./assets/bench.png")
         .unwrap()
         .decode()
