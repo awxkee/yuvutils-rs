@@ -104,7 +104,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl_prof<
     } else {
         _mm256_set1_epi32((((g_trn1 as u32) << 16) | (g_trn2 as u32)) as i32)
     };
-    let base_y = _mm256_set1_epi32((1 << (PRECISION - 1)) - 1);
+    let base_y = _mm256_set1_epi32(1 << (PRECISION - 1));
 
     while cx + 32 < width {
         let y_vl = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);

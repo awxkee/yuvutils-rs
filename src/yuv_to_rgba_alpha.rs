@@ -239,7 +239,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                         b0 = div_by_255(b0 as u16 * a0 as u16) as i32;
                     }
 
-                    let rgba0 = &mut rgba[0..channels];
+                    let rgba0 = &mut rgba[..channels];
 
                     rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
                     rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;

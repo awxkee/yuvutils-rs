@@ -76,7 +76,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
 
     let v_alpha = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1u32) as u16);
 
-    let base_val = vdupq_n_u32((1 << (PRECISION - 1)) - 1);
+    let base_val = vdupq_n_u32(1 << (PRECISION - 1));
 
     let mut cx = start_cx;
     let mut ux = start_ux;

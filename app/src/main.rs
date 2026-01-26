@@ -36,15 +36,15 @@ use std::time::Instant;
 use yuv::{
     i010_alpha_to_rgba10, i010_to_rgba10, i010_to_rgba10_bilinear, i210_to_rgba10,
     i210_to_rgba10_bilinear, icgc_re010_to_rgba, icgc_ro010_to_rgba, icgc_ro210_to_rgba,
-    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_p010, rgba10_to_i010, rgba10_to_i210,
-    rgba10_to_p010, rgba12_to_i412, rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210,
-    rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444, rgba_to_yuv420, rgba_to_yuv422,
-    rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24, ycgco420_to_rgba,
-    ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgba, yuv420_to_rgba_bilinear,
-    yuv422_to_rgb_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_to_rgba,
-    yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv24_to_rgba, YuvBiPlanarImageMut,
-    YuvChromaSubsampling, YuvConversionMode, YuvPlanarImage, YuvPlanarImageMut,
-    YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
+    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_p010, rgb_to_yuv420, rgb_to_yuv422,
+    rgba10_to_i010, rgba10_to_i210, rgba10_to_p010, rgba12_to_i412, rgba_to_icgc_re010,
+    rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444,
+    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16,
+    rgba_to_yuv_nv24, ycgco420_to_rgba, ycgco444_to_rgba, yuv420_alpha_to_rgba,
+    yuv420_to_rgb_bilinear, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgb_bilinear,
+    yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_to_rgba, yuv_nv12_to_rgba, yuv_nv16_to_rgba,
+    yuv_nv24_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvPlanarImage,
+    YuvPlanarImageMut, YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
 
 fn read_file_bytes(file_path: &str) -> Result<Vec<u8>, String> {
@@ -66,7 +66,7 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
-    let img = DynamicImage::ImageRgba8(img.to_rgba8());
+    let img = DynamicImage::ImageRgb8(img.to_rgb8());
 
     let dimensions = img.dimensions();
 
@@ -98,52 +98,39 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
-    let mut bi_planar_image = YuvBiPlanarImageMut::<u16>::alloc(
-        width as u32,
-        height as u32,
-        YuvChromaSubsampling::Yuv420,
-    );
+    // let mut bi_planar_image = YuvBiPlanarImageMut::<u16>::alloc(
+    //     width as u32,
+    //     height as u32,
+    //     YuvChromaSubsampling::Yuv420,
+    // );
 
-    let mut bytes_16: Vec<u16> = src_bytes
-        .iter()
-        .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
-        .collect();
+    // let mut bytes_16: Vec<u16> = src_bytes
+    //     .iter()
+    //     .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
+    //     .collect();
 
     let start_time = Instant::now();
 
-    rgba10_to_p010(
-        &mut bi_planar_image,
-        &bytes_16,
+    rgb_to_yuv422(
+        &mut planar_image,
+        &src_bytes,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
+        YuvConversionMode::Balanced,
     )
     .unwrap();
 
     println!("Forward time: {:?}", start_time.elapsed());
-    let fixed = bi_planar_image.to_fixed();
+    let fixed = planar_image.to_fixed();
     rgba.fill(255);
 
-    // let a_plane = vec![1023; height as usize * width as usize];
-    //
-    // let alpha = YuvPlanarImageWithAlpha {
-    //     y_plane: planar_image.y_plane.borrow(),
-    //     y_stride: planar_image.y_stride,
-    //     u_plane: planar_image.u_plane.borrow(),
-    //     u_stride: planar_image.u_stride,
-    //     v_plane: planar_image.v_plane.borrow(),
-    //     v_stride: planar_image.v_stride,
-    //     a_plane: &a_plane,
-    //     a_stride: width as u32,
-    //     width,
-    //     height,
-    // };
     let start_time = Instant::now();
-    p010_to_rgba10(
+    yuv422_to_rgb_bilinear(
         &fixed,
-        &mut bytes_16,
+        &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
@@ -174,12 +161,36 @@ fn main() {
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
 
-    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
+    // rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 
+    let mut img = ImageReader::open("./converted_sharp151_x86o.png")
+        .unwrap()
+        .decode()
+        .unwrap();
+    let img0 = DynamicImage::ImageRgb8(img.to_rgb8());
+    for (y, (row_src, row_ref)) in rgba
+        .chunks_exact(dimensions.0 as usize)
+        .zip(img0.as_bytes().chunks_exact(dimensions.0 as usize))
+        .enumerate()
+    {
+        for (x, (src, src_ref)) in row_src
+            .chunks_exact(3)
+            .zip(row_ref.chunks_exact(3))
+            .enumerate()
+        {
+            if src[0] != src_ref[0] {
+                println!(
+                    "disconvergence r on ({x}, {y}) vals {} vs {}",
+                    src[0], src_ref[0]
+                );
+            }
+        }
+    }
+
     image::save_buffer(
-        "converted_sharp151.png",
+        "converted_sharp151_x86.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,

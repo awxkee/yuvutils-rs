@@ -75,7 +75,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row420_prof<
 
     const PRECISION: i32 = 15;
 
-    let b_y = vdupq_n_s32((1 << (PRECISION - 1)) - 1);
+    let b_y = vdupq_n_s32(1 << (PRECISION - 1));
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
