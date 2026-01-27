@@ -240,6 +240,12 @@ unsafe fn sse_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             uu01 = _mm_srli_epi16::<2>(uu01);
             vv01 = _mm_srli_epi16::<2>(vv01);
 
+            uu10 = _mm_add_epi16(uu10, inter_rnd);
+            vv10 = _mm_add_epi16(vv10, inter_rnd);
+
+            uu10 = _mm_srli_epi16::<2>(uu10);
+            vv10 = _mm_srli_epi16::<2>(vv10);
+
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
             uu10 = _mm_sub_epi16(uu10, uv_corr);
@@ -524,7 +530,7 @@ unsafe fn sse_bilinear_interpolate_2_rows_rgba_impl<
 
         let inter_row01 = _mm_set1_epi16(i16::from_ne_bytes([9, 3]));
         let inter_row23 = _mm_set1_epi16(i16::from_ne_bytes([3, 1]));
-        let inter_row32 = _mm_set1_epi16(i16::from_ne_bytes([3, 1]));
+        let inter_row32 = _mm_set1_epi16(i16::from_ne_bytes([1, 3]));
         let inter_row_far = _mm_set1_epi16(i16::from_ne_bytes([3, 9]));
         let inter_rnd = _mm_set1_epi16(1 << 3);
         let rnd = _mm_set1_epi32(1 << (Q - 1));
@@ -544,40 +550,28 @@ unsafe fn sse_bilinear_interpolate_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu8(y_value, y_corr);
 
-            let mut uu01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0), inter_row01);
-            let mut vv01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0), inter_row01);
+            let packed_u0_y0 = _mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0);
+            let packed_v0_y0 = _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0);
+            let packed_u0_y1 = _mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1);
+            let packed_v0_y1 = _mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1);
 
-            let mut uu10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
+            let mut uu01 = _mm_maddubs_epi16(packed_u0_y0, inter_row01);
+            let mut vv01 = _mm_maddubs_epi16(packed_v0_y0, inter_row01);
+
+            let mut uu10 = _mm_maddubs_epi16(packed_u0_y0, inter_row_far);
             let mut vv10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0),
                 inter_row_far,
             );
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
             let y_hi = _mm_unpackhi_epi8(y_value, _mm_setzero_si128());
 
-            uu01 = _mm_add_epi16(
-                uu01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row23),
-            );
-            vv01 = _mm_add_epi16(
-                vv01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row23),
-            );
+            uu01 = _mm_add_epi16(uu01, _mm_maddubs_epi16(packed_u0_y1, inter_row23));
+            vv01 = _mm_add_epi16(vv01, _mm_maddubs_epi16(packed_v0_y1, inter_row23));
 
-            uu10 = _mm_add_epi16(
-                uu10,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row32),
-            );
-            vv10 = _mm_add_epi16(
-                vv10,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row32),
-            );
+            uu10 = _mm_add_epi16(uu10, _mm_maddubs_epi16(packed_u0_y1, inter_row32));
+            vv10 = _mm_add_epi16(vv10, _mm_maddubs_epi16(packed_v0_y1, inter_row32));
 
             uu01 = _mm_add_epi16(uu01, inter_rnd);
             vv01 = _mm_add_epi16(vv01, inter_rnd);
@@ -695,35 +689,27 @@ unsafe fn sse_bilinear_interpolate_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu8(y_value, y_corr);
 
-            let mut uu01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0), inter_row01);
-            let mut vv01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0), inter_row01);
+            let packed_u0_y0 = _mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0);
+            let packed_v0_y0 = _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0);
+            let packed_u0_y1 = _mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1);
+            let packed_v0_y1 = _mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1);
 
-            let mut uu10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
+            let mut uu01 = _mm_maddubs_epi16(packed_u0_y0, inter_row01);
+            let mut vv01 = _mm_maddubs_epi16(packed_v0_y0, inter_row01);
+
+            let mut uu10 = _mm_maddubs_epi16(packed_u0_y0, inter_row_far);
             let mut vv10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0),
                 inter_row_far,
             );
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
 
-            uu01 = _mm_add_epi16(
-                uu01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row23),
-            );
-            vv01 = _mm_add_epi16(
-                vv01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row23),
-            );
+            uu01 = _mm_add_epi16(uu01, _mm_maddubs_epi16(packed_u0_y1, inter_row23));
+            vv01 = _mm_add_epi16(vv01, _mm_maddubs_epi16(packed_v0_y1, inter_row23));
 
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x1_y1, _mm_setzero_si128()));
+            uu10 = _mm_add_epi16(uu10, _mm_maddubs_epi16(packed_u0_y1, inter_row32));
+            vv10 = _mm_add_epi16(vv10, _mm_maddubs_epi16(packed_v0_y1, inter_row32));
 
             uu01 = _mm_add_epi16(uu01, inter_rnd);
             vv01 = _mm_add_epi16(vv01, inter_rnd);
@@ -862,40 +848,28 @@ unsafe fn sse_bilinear_interpolate_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu8(y_value, y_corr);
 
-            let mut uu01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0), inter_row01);
-            let mut vv01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0), inter_row01);
+            let packed_u0_y0 = _mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0);
+            let packed_v0_y0 = _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0);
+            let packed_u0_y1 = _mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1);
+            let packed_v0_y1 = _mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1);
 
-            let mut uu10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
+            let mut uu01 = _mm_maddubs_epi16(packed_u0_y0, inter_row01);
+            let mut vv01 = _mm_maddubs_epi16(packed_v0_y0, inter_row01);
+
+            let mut uu10 = _mm_maddubs_epi16(packed_u0_y0, inter_row_far);
             let mut vv10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0),
                 inter_row_far,
             );
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
             let y_hi = _mm_unpackhi_epi8(y_value, _mm_setzero_si128());
 
-            uu01 = _mm_add_epi16(
-                uu01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row23),
-            );
-            vv01 = _mm_add_epi16(
-                vv01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row23),
-            );
+            uu01 = _mm_add_epi16(uu01, _mm_maddubs_epi16(packed_u0_y1, inter_row23));
+            vv01 = _mm_add_epi16(vv01, _mm_maddubs_epi16(packed_v0_y1, inter_row23));
 
-            uu10 = _mm_add_epi16(
-                uu10,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row32),
-            );
-            vv10 = _mm_add_epi16(
-                vv10,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row32),
-            );
+            uu10 = _mm_add_epi16(uu10, _mm_maddubs_epi16(packed_u0_y1, inter_row32));
+            vv10 = _mm_add_epi16(vv10, _mm_maddubs_epi16(packed_v0_y1, inter_row32));
 
             uu01 = _mm_add_epi16(uu01, inter_rnd);
             vv01 = _mm_add_epi16(vv01, inter_rnd);

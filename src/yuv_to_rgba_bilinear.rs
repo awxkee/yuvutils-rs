@@ -211,13 +211,13 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32>(
         let cb_1 = (u_src[0] as u16 * 3
             + u_src[1] as u16 * 9
             + u_src_next[0] as u16
-            + u_src_next[1] as u16
+            + u_src_next[1] as u16 * 3
             + (1 << 3))
             >> 4;
         let cr_1 = (v_src[0] as u16 * 3
             + v_src[1] as u16 * 9
             + v_src_next[0] as u16
-            + v_src_next[1] as u16
+            + v_src_next[1] as u16 * 3
             + (1 << 3))
             >> 4;
 

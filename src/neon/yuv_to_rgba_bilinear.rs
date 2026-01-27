@@ -62,7 +62,7 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
         let uv_corr = vdupq_n_s16(range.bias_uv as i16);
         let v_alpha = vdupq_n_u8(255u8);
 
-        let rnd = vdupq_n_s32(1 << (Q - 1));
+        let rnd = vdupq_n_s32(1i32 << (Q - 1));
 
         let v_weights = vld1q_s16(weights_arr.as_ptr());
 
@@ -181,8 +181,8 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
             let uuz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(uu1)), uv_corr);
             let vvz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(vv1)), uv_corr);
 
-            let y0_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_lo), v_weights);
-            let y1_value = vmull_high_laneq_s16::<0>(y_value_lo, v_weights);
+            let y0_value = vmlal_laneq_s16::<0>(rnd, vget_low_s16(y_value_lo), v_weights);
+            let y1_value = vmlal_high_laneq_s16::<0>(rnd, y_value_lo, v_weights);
 
             let uu0 = vzip1q_s16(uuz0, uuz1);
             let vv0 = vzip1q_s16(vvz0, vvz1);
@@ -196,13 +196,13 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
             let mut g0 = vmlal_laneq_s16::<3>(y0_value, vget_low_s16(vv0), v_weights);
             let mut g1 = vmlal_high_laneq_s16::<3>(y1_value, vv0, v_weights);
 
-            let r01 = vcombine_u16(vqrshrun_n_s32::<Q>(r0), vqrshrun_n_s32::<Q>(r1));
-            let b01 = vcombine_u16(vqrshrun_n_s32::<Q>(b0), vqrshrun_n_s32::<Q>(b1));
+            let r01 = vcombine_u16(vqshrun_n_s32::<Q>(r0), vqshrun_n_s32::<Q>(r1));
+            let b01 = vcombine_u16(vqshrun_n_s32::<Q>(b0), vqshrun_n_s32::<Q>(b1));
 
             g0 = vmlal_laneq_s16::<4>(g0, vget_low_s16(uu0), v_weights);
             g1 = vmlal_high_laneq_s16::<4>(g1, uu0, v_weights);
 
-            let g01 = vcombine_u16(vqrshrun_n_s32::<Q>(g0), vqrshrun_n_s32::<Q>(g1));
+            let g01 = vcombine_u16(vqshrun_n_s32::<Q>(g0), vqshrun_n_s32::<Q>(g1));
 
             let r_values = vqmovn_u16(r01);
             let b_values = vqmovn_u16(b01);
