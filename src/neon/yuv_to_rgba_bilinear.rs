@@ -62,6 +62,8 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
         let uv_corr = vdupq_n_s16(range.bias_uv as i16);
         let v_alpha = vdupq_n_u8(255u8);
 
+        let rnd = vdupq_n_s32(1i32 << (Q - 1));
+
         let v_weights = vld1q_s16(weights_arr.as_ptr());
 
         while x + 17 < width as usize {
@@ -73,32 +75,30 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
 
             y_value = vqsubq_u8(y_value, y_corr);
 
-            let uu0x3 = vaddw_u8(vshll_n_u8::<1>(u_value0), u_value0);
-            let vv0x3 = vaddw_u8(vshll_n_u8::<1>(v_value0), v_value0);
-            let uu0 = vaddq_u16(uu0x3, vmovl_u8(u_value1));
-            let vv0 = vaddq_u16(vv0x3, vmovl_u8(v_value1));
+            let uu0 = vmlal_u8(vmovl_u8(u_value1), u_value0, vdup_n_u8(3));
+            let vv0 = vmlal_u8(vmovl_u8(v_value1), v_value0, vdup_n_u8(3));
 
             let y_value_lo = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_value)));
             let y_value_hi = vreinterpretq_s16_u16(vmovl_high_u8(y_value));
 
-            let uu1 = vrhadd_u8(u_value0, u_value1);
-            let vv1 = vrhadd_u8(v_value0, v_value1);
+            let uu1 = vmlal_u8(vmovl_u8(u_value0), u_value1, vdup_n_u8(3));
+            let vv1 = vmlal_u8(vmovl_u8(v_value0), v_value1, vdup_n_u8(3));
 
             let uuz0 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(uu0)), uv_corr);
             let vvz0 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(vv0)), uv_corr);
-            let uuz1 = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(uu1)), uv_corr);
-            let vvz1 = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vv1)), uv_corr);
+            let uuz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(uu1)), uv_corr);
+            let vvz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(vv1)), uv_corr);
 
-            let y0_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_lo), v_weights);
-            let y1_value = vmull_high_laneq_s16::<0>(y_value_lo, v_weights);
+            let y0_value = vmlal_laneq_s16::<0>(rnd, vget_low_s16(y_value_lo), v_weights);
+            let y1_value = vmlal_high_laneq_s16::<0>(rnd, y_value_lo, v_weights);
 
             let uu0 = vzip1q_s16(uuz0, uuz1);
             let vv0 = vzip1q_s16(vvz0, vvz1);
             let uu1 = vzip2q_s16(uuz0, uuz1);
             let vv1 = vzip2q_s16(vvz0, vvz1);
 
-            let y2_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_hi), v_weights);
-            let y3_value = vmull_high_laneq_s16::<0>(y_value_hi, v_weights);
+            let y2_value = vmlal_laneq_s16::<0>(rnd, vget_low_s16(y_value_hi), v_weights);
+            let y3_value = vmlal_high_laneq_s16::<0>(rnd, y_value_hi, v_weights);
 
             let r0 = vmlal_laneq_s16::<1>(y0_value, vget_low_s16(vv0), v_weights);
             let r1 = vmlal_high_laneq_s16::<1>(y1_value, vv0, v_weights);
@@ -115,19 +115,19 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
             let mut g2 = vmlal_laneq_s16::<3>(y2_value, vget_low_s16(vv1), v_weights);
             let mut g3 = vmlal_high_laneq_s16::<3>(y3_value, vv1, v_weights);
 
-            let r01 = vcombine_u16(vqrshrun_n_s32::<Q>(r0), vqrshrun_n_s32::<Q>(r1));
-            let r23 = vcombine_u16(vqrshrun_n_s32::<Q>(r2), vqrshrun_n_s32::<Q>(r3));
+            let r01 = vcombine_u16(vqshrun_n_s32::<Q>(r0), vqshrun_n_s32::<Q>(r1));
+            let r23 = vcombine_u16(vqshrun_n_s32::<Q>(r2), vqshrun_n_s32::<Q>(r3));
 
-            let b01 = vcombine_u16(vqrshrun_n_s32::<Q>(b0), vqrshrun_n_s32::<Q>(b1));
-            let b23 = vcombine_u16(vqrshrun_n_s32::<Q>(b2), vqrshrun_n_s32::<Q>(b3));
+            let b01 = vcombine_u16(vqshrun_n_s32::<Q>(b0), vqshrun_n_s32::<Q>(b1));
+            let b23 = vcombine_u16(vqshrun_n_s32::<Q>(b2), vqshrun_n_s32::<Q>(b3));
 
             g0 = vmlal_laneq_s16::<4>(g0, vget_low_s16(uu0), v_weights);
             g1 = vmlal_high_laneq_s16::<4>(g1, uu0, v_weights);
             g2 = vmlal_laneq_s16::<4>(g2, vget_low_s16(uu1), v_weights);
             g3 = vmlal_high_laneq_s16::<4>(g3, uu1, v_weights);
 
-            let g01 = vcombine_u16(vqrshrun_n_s32::<Q>(g0), vqrshrun_n_s32::<Q>(g1));
-            let g23 = vcombine_u16(vqrshrun_n_s32::<Q>(g2), vqrshrun_n_s32::<Q>(g3));
+            let g01 = vcombine_u16(vqshrun_n_s32::<Q>(g0), vqshrun_n_s32::<Q>(g1));
+            let g23 = vcombine_u16(vqshrun_n_s32::<Q>(g2), vqshrun_n_s32::<Q>(g3));
 
             let r_values = vcombine_u8(vqmovn_u16(r01), vqmovn_u16(r23));
             let b_values = vcombine_u8(vqmovn_u16(b01), vqmovn_u16(b23));
@@ -168,23 +168,21 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
 
             y_value = vqsub_u8(y_value, vget_low_u8(y_corr));
 
-            let uu0x3 = vaddw_u8(vshll_n_u8::<1>(u_value0), u_value0);
-            let vv0x3 = vaddw_u8(vshll_n_u8::<1>(v_value0), v_value0);
-            let uu0 = vaddq_u16(uu0x3, vmovl_u8(u_value1));
-            let vv0 = vaddq_u16(vv0x3, vmovl_u8(v_value1));
+            let uu0 = vmlal_u8(vmovl_u8(u_value1), u_value0, vdup_n_u8(3));
+            let vv0 = vmlal_u8(vmovl_u8(v_value1), v_value0, vdup_n_u8(3));
 
             let y_value_lo = vreinterpretq_s16_u16(vmovl_u8(y_value));
 
-            let uu1 = vrhadd_u8(u_value0, u_value1);
-            let vv1 = vrhadd_u8(v_value0, v_value1);
+            let uu1 = vmlal_u8(vmovl_u8(u_value0), u_value1, vdup_n_u8(3));
+            let vv1 = vmlal_u8(vmovl_u8(v_value0), v_value1, vdup_n_u8(3));
 
             let uuz0 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(uu0)), uv_corr);
             let vvz0 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(vv0)), uv_corr);
-            let uuz1 = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(uu1)), uv_corr);
-            let vvz1 = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vv1)), uv_corr);
+            let uuz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(uu1)), uv_corr);
+            let vvz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(vv1)), uv_corr);
 
-            let y0_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_lo), v_weights);
-            let y1_value = vmull_high_laneq_s16::<0>(y_value_lo, v_weights);
+            let y0_value = vmlal_laneq_s16::<0>(rnd, vget_low_s16(y_value_lo), v_weights);
+            let y1_value = vmlal_high_laneq_s16::<0>(rnd, y_value_lo, v_weights);
 
             let uu0 = vzip1q_s16(uuz0, uuz1);
             let vv0 = vzip1q_s16(vvz0, vvz1);
@@ -198,13 +196,13 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
             let mut g0 = vmlal_laneq_s16::<3>(y0_value, vget_low_s16(vv0), v_weights);
             let mut g1 = vmlal_high_laneq_s16::<3>(y1_value, vv0, v_weights);
 
-            let r01 = vcombine_u16(vqrshrun_n_s32::<Q>(r0), vqrshrun_n_s32::<Q>(r1));
-            let b01 = vcombine_u16(vqrshrun_n_s32::<Q>(b0), vqrshrun_n_s32::<Q>(b1));
+            let r01 = vcombine_u16(vqshrun_n_s32::<Q>(r0), vqshrun_n_s32::<Q>(r1));
+            let b01 = vcombine_u16(vqshrun_n_s32::<Q>(b0), vqshrun_n_s32::<Q>(b1));
 
             g0 = vmlal_laneq_s16::<4>(g0, vget_low_s16(uu0), v_weights);
             g1 = vmlal_high_laneq_s16::<4>(g1, uu0, v_weights);
 
-            let g01 = vcombine_u16(vqrshrun_n_s32::<Q>(g0), vqrshrun_n_s32::<Q>(g1));
+            let g01 = vcombine_u16(vqshrun_n_s32::<Q>(g0), vqshrun_n_s32::<Q>(g1));
 
             let r_values = vqmovn_u16(r01);
             let b_values = vqmovn_u16(b01);
@@ -264,32 +262,30 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
 
             y_value = vqsubq_u8(y_value, y_corr);
 
-            let uu0x3 = vaddw_u8(vshll_n_u8::<1>(u_value0), u_value0);
-            let vv0x3 = vaddw_u8(vshll_n_u8::<1>(v_value0), v_value0);
-            let uu0 = vaddq_u16(uu0x3, vmovl_u8(u_value1));
-            let vv0 = vaddq_u16(vv0x3, vmovl_u8(v_value1));
+            let uu0 = vmlal_u8(vmovl_u8(u_value1), u_value0, vdup_n_u8(3));
+            let vv0 = vmlal_u8(vmovl_u8(v_value1), v_value0, vdup_n_u8(3));
 
             let y_value_lo = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_value)));
             let y_value_hi = vreinterpretq_s16_u16(vmovl_high_u8(y_value));
 
-            let uu1 = vrhadd_u8(u_value0, u_value1);
-            let vv1 = vrhadd_u8(v_value0, v_value1);
+            let uu1 = vmlal_u8(vmovl_u8(u_value0), u_value1, vdup_n_u8(3));
+            let vv1 = vmlal_u8(vmovl_u8(v_value0), v_value1, vdup_n_u8(3));
 
             let uuz0 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(uu0)), uv_corr);
             let vvz0 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(vv0)), uv_corr);
-            let uuz1 = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(uu1)), uv_corr);
-            let vvz1 = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vv1)), uv_corr);
+            let uuz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(uu1)), uv_corr);
+            let vvz1 = vsubq_s16(vreinterpretq_s16_u16(vrshrq_n_u16::<2>(vv1)), uv_corr);
 
-            let y0_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_lo), v_weights);
-            let y1_value = vmull_high_laneq_s16::<0>(y_value_lo, v_weights);
+            let y0_value = vmlal_laneq_s16::<0>(rnd, vget_low_s16(y_value_lo), v_weights);
+            let y1_value = vmlal_high_laneq_s16::<0>(rnd, y_value_lo, v_weights);
 
             let uu0 = vzip1q_s16(uuz0, uuz1);
             let vv0 = vzip1q_s16(vvz0, vvz1);
             let uu1 = vzip2q_s16(uuz0, uuz1);
             let vv1 = vzip2q_s16(vvz0, vvz1);
 
-            let y2_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_hi), v_weights);
-            let y3_value = vmull_high_laneq_s16::<0>(y_value_hi, v_weights);
+            let y2_value = vmlal_laneq_s16::<0>(rnd, vget_low_s16(y_value_hi), v_weights);
+            let y3_value = vmlal_high_laneq_s16::<0>(rnd, y_value_hi, v_weights);
 
             let r0 = vmlal_laneq_s16::<1>(y0_value, vget_low_s16(vv0), v_weights);
             let r1 = vmlal_high_laneq_s16::<1>(y1_value, vv0, v_weights);
@@ -306,19 +302,19 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
             let mut g2 = vmlal_laneq_s16::<3>(y2_value, vget_low_s16(vv1), v_weights);
             let mut g3 = vmlal_high_laneq_s16::<3>(y3_value, vv1, v_weights);
 
-            let r01 = vcombine_u16(vqrshrun_n_s32::<Q>(r0), vqrshrun_n_s32::<Q>(r1));
-            let r23 = vcombine_u16(vqrshrun_n_s32::<Q>(r2), vqrshrun_n_s32::<Q>(r3));
+            let r01 = vcombine_u16(vqshrun_n_s32::<Q>(r0), vqshrun_n_s32::<Q>(r1));
+            let r23 = vcombine_u16(vqshrun_n_s32::<Q>(r2), vqshrun_n_s32::<Q>(r3));
 
-            let b01 = vcombine_u16(vqrshrun_n_s32::<Q>(b0), vqrshrun_n_s32::<Q>(b1));
-            let b23 = vcombine_u16(vqrshrun_n_s32::<Q>(b2), vqrshrun_n_s32::<Q>(b3));
+            let b01 = vcombine_u16(vqshrun_n_s32::<Q>(b0), vqshrun_n_s32::<Q>(b1));
+            let b23 = vcombine_u16(vqshrun_n_s32::<Q>(b2), vqshrun_n_s32::<Q>(b3));
 
             g0 = vmlal_laneq_s16::<4>(g0, vget_low_s16(uu0), v_weights);
             g1 = vmlal_high_laneq_s16::<4>(g1, uu0, v_weights);
             g2 = vmlal_laneq_s16::<4>(g2, vget_low_s16(uu1), v_weights);
             g3 = vmlal_high_laneq_s16::<4>(g3, uu1, v_weights);
 
-            let g01 = vcombine_u16(vqrshrun_n_s32::<Q>(g0), vqrshrun_n_s32::<Q>(g1));
-            let g23 = vcombine_u16(vqrshrun_n_s32::<Q>(g2), vqrshrun_n_s32::<Q>(g3));
+            let g01 = vcombine_u16(vqshrun_n_s32::<Q>(g0), vqshrun_n_s32::<Q>(g1));
+            let g23 = vcombine_u16(vqshrun_n_s32::<Q>(g2), vqshrun_n_s32::<Q>(g3));
 
             let r_values = vcombine_u8(vqmovn_u16(r01), vqmovn_u16(r23));
             let b_values = vcombine_u8(vqmovn_u16(b01), vqmovn_u16(b23));
@@ -356,19 +352,19 @@ struct InterRow1 {
     v_value_x1_y1: uint8x8_t,
 }
 
-#[inline]
+#[inline(always)]
 fn inter4(row0: InterRow0, row1: InterRow1) -> (int16x8_t, int16x8_t) {
     unsafe {
-        let t9 = vdupq_n_u8(9);
-        let t3 = vdupq_n_u8(3);
-        let mut uu0 = vmull_u8(row0.u_value_x0_y0, vget_low_u8(t9));
-        let mut vv0 = vmull_u8(row0.v_value_x0_y0, vget_low_u8(t9));
+        let t_left = vdupq_n_u8(9);
+        let t_right = vdupq_n_u8(3);
+        let mut uu0 = vmull_u8(row0.u_value_x0_y0, vget_low_u8(t_left));
+        let mut vv0 = vmull_u8(row0.v_value_x0_y0, vget_low_u8(t_left));
 
-        uu0 = vmlal_u8(uu0, row0.u_value_x1_y0, vget_low_u8(t3));
-        vv0 = vmlal_u8(vv0, row0.v_value_x1_y0, vget_low_u8(t3));
+        uu0 = vmlal_u8(uu0, row0.u_value_x1_y0, vget_low_u8(t_right));
+        vv0 = vmlal_u8(vv0, row0.v_value_x1_y0, vget_low_u8(t_right));
 
-        uu0 = vmlal_u8(uu0, row1.u_value_x0_y1, vget_low_u8(t3));
-        vv0 = vmlal_u8(vv0, row1.v_value_x0_y1, vget_low_u8(t3));
+        uu0 = vmlal_u8(uu0, row1.u_value_x0_y1, vget_low_u8(t_right));
+        vv0 = vmlal_u8(vv0, row1.v_value_x0_y1, vget_low_u8(t_right));
 
         uu0 = vaddw_u8(uu0, row1.u_value_x1_y1);
         vv0 = vaddw_u8(vv0, row1.v_value_x1_y1);
@@ -379,18 +375,19 @@ fn inter4(row0: InterRow0, row1: InterRow1) -> (int16x8_t, int16x8_t) {
     }
 }
 
-#[inline]
+#[inline(always)]
 fn inter4_far(row0: InterRow0, row1: InterRow1) -> (int16x8_t, int16x8_t) {
     unsafe {
-        let t7 = vdupq_n_u8(7);
-        let mut uu0 = vmull_u8(row0.u_value_x0_y0, vget_low_u8(t7));
-        let mut vv0 = vmull_u8(row0.v_value_x0_y0, vget_low_u8(t7));
+        let t_left = vdupq_n_u8(9);
+        let t_right = vdupq_n_u8(3);
+        let mut uu0 = vmull_u8(row0.u_value_x0_y0, vget_low_u8(t_left));
+        let mut vv0 = vmull_u8(row0.v_value_x0_y0, vget_low_u8(t_left));
 
-        uu0 = vmlal_u8(uu0, row0.u_value_x1_y0, vget_low_u8(t7));
-        vv0 = vmlal_u8(vv0, row0.v_value_x1_y0, vget_low_u8(t7));
+        uu0 = vmlal_u8(uu0, row0.u_value_x1_y0, vget_low_u8(t_right));
+        vv0 = vmlal_u8(vv0, row0.v_value_x1_y0, vget_low_u8(t_right));
 
-        uu0 = vaddw_u8(uu0, row1.u_value_x0_y1);
-        vv0 = vaddw_u8(vv0, row1.v_value_x0_y1);
+        uu0 = vmlal_u8(uu0, row1.u_value_x0_y1, vget_low_u8(t_right));
+        vv0 = vmlal_u8(vv0, row1.v_value_x0_y1, vget_low_u8(t_right));
 
         uu0 = vaddw_u8(uu0, row1.u_value_x1_y1);
         vv0 = vaddw_u8(vv0, row1.v_value_x1_y1);

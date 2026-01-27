@@ -102,7 +102,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
         let n1 = 1i16.to_ne_bytes();
 
         let inter_row01 = _mm256_set1_epi32(i32::from_ne_bytes([n3[0], n3[1], n1[0], n1[1]]));
+        let inter_row10 = _mm256_set1_epi32(i32::from_ne_bytes([n1[0], n1[1], n3[0], n3[1]]));
         let inter_rnd = _mm256_set1_epi32(2);
+        let rnd = _mm256_set1_epi32(1i32 << (Q - 1));
 
         while x + 17 < width as usize {
             let mut y_value = _mm256_loadu_si256(y_plane.get_unchecked(x..).as_ptr().cast());
@@ -129,14 +131,20 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut uu01 = _mm256_madd_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm256_madd_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm256_cvtepu16_epi32(_mm_avg_epu16(u_value0, u_value1));
-            let mut vv10 = _mm256_cvtepu16_epi32(_mm_avg_epu16(v_value0, v_value1));
+            let mut uu10 = _mm256_madd_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm256_madd_epi16(packed_vv01, inter_row10);
 
             uu01 = _mm256_add_epi32(uu01, inter_rnd);
             vv01 = _mm256_add_epi32(vv01, inter_rnd);
 
             uu01 = _mm256_srli_epi32::<2>(uu01);
             vv01 = _mm256_srli_epi32::<2>(vv01);
+
+            uu10 = _mm256_add_epi32(uu10, inter_rnd);
+            vv10 = _mm256_add_epi32(vv10, inter_rnd);
+
+            uu10 = _mm256_srli_epi32::<2>(uu10);
+            vv10 = _mm256_srli_epi32::<2>(vv10);
 
             uu01 = _mm256_packus_epi32(uu01, _mm256_setzero_si256());
             vv01 = _mm256_packus_epi32(vv01, _mm256_setzero_si256());
@@ -155,6 +163,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
             let mut r0 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
             let mut r1 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm256_add_epi32(r0, rnd);
+            r1 = _mm256_add_epi32(r1, rnd);
+
             r0 = _mm256_srai_epi32::<Q>(r0);
             r1 = _mm256_srai_epi32::<Q>(r1);
 
@@ -162,6 +173,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut b0 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
             let mut b1 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_value, intl_uu_lo), b_coef);
+
+            b0 = _mm256_add_epi32(b0, rnd);
+            b1 = _mm256_add_epi32(b1, rnd);
 
             b0 = _mm256_srai_epi32::<Q>(b0);
             b1 = _mm256_srai_epi32::<Q>(b1);
@@ -176,6 +190,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             g0 = _mm256_add_epi32(g0, _mm256_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm256_add_epi32(g1, _mm256_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
+
+            g0 = _mm256_add_epi32(g0, rnd);
+            g1 = _mm256_add_epi32(g1, rnd);
 
             g0 = _mm256_srai_epi32::<Q>(g0);
             g1 = _mm256_srai_epi32::<Q>(g1);
@@ -209,7 +226,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
         let y_coef = _mm256_castsi256_si128(y_coef);
 
         let inter_row01 = _mm256_castsi256_si128(inter_row01);
+        let inter_row10 = _mm256_castsi256_si128(inter_row10);
         let inter_rnd = _mm256_castsi256_si128(inter_rnd);
+        let rnd = _mm256_castsi256_si128(rnd);
 
         while x + 9 < width as usize {
             let mut y_value = _mm_loadu_si128(y_plane.get_unchecked(x..).as_ptr().cast());
@@ -225,8 +244,8 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut uu01 = _mm_madd_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm_madd_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm_avg_epu16(u_value0, u_value1);
-            let mut vv10 = _mm_avg_epu16(v_value0, v_value1);
+            let mut uu10 = _mm_madd_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm_madd_epi16(packed_vv01, inter_row10);
 
             uu01 = _mm_add_epi32(uu01, inter_rnd);
             vv01 = _mm_add_epi32(vv01, inter_rnd);
@@ -234,8 +253,17 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
             uu01 = _mm_srli_epi32::<2>(uu01);
             vv01 = _mm_srli_epi32::<2>(vv01);
 
+            uu10 = _mm_add_epi32(uu10, inter_rnd);
+            vv10 = _mm_add_epi32(vv10, inter_rnd);
+
+            uu10 = _mm_srli_epi32::<2>(uu10);
+            vv10 = _mm_srli_epi32::<2>(vv10);
+
             uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
             vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -248,6 +276,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
             let mut r1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
 
@@ -255,6 +286,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_uu_lo), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -269,6 +303,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -307,8 +344,8 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut uu01 = _mm_madd_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm_madd_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm_avg_epu16(u_value0, u_value1);
-            let mut vv10 = _mm_avg_epu16(v_value0, v_value1);
+            let mut uu10 = _mm_madd_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm_madd_epi16(packed_vv01, inter_row10);
 
             uu01 = _mm_add_epi32(uu01, inter_rnd);
             vv01 = _mm_add_epi32(vv01, inter_rnd);
@@ -316,8 +353,17 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
             uu01 = _mm_srli_epi32::<2>(uu01);
             vv01 = _mm_srli_epi32::<2>(vv01);
 
+            uu10 = _mm_add_epi32(uu10, inter_rnd);
+            vv10 = _mm_add_epi32(vv10, inter_rnd);
+
+            uu10 = _mm_srli_epi32::<2>(uu10);
+            vv10 = _mm_srli_epi32::<2>(vv10);
+
             uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
             vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -329,12 +375,14 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
             r0 = _mm_srai_epi32::<Q>(r0);
 
             let mut r01 = _mm_packus_epi32(r0, _mm_setzero_si128());
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
 
+            b0 = _mm_add_epi32(b0, rnd);
             b0 = _mm_srai_epi32::<Q>(b0);
 
             let mut b01 = _mm_packus_epi32(b0, _mm_setzero_si128());
@@ -346,6 +394,7 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
 
+            g0 = _mm_add_epi32(g0, rnd);
             g0 = _mm_srai_epi32::<Q>(g0);
 
             let mut g01 = _mm_packus_epi32(g0, _mm_setzero_si128());
@@ -413,8 +462,8 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut uu01 = _mm_madd_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm_madd_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm_avg_epu16(u_value0, u_value1);
-            let mut vv10 = _mm_avg_epu16(v_value0, v_value1);
+            let mut uu10 = _mm_madd_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm_madd_epi16(packed_vv01, inter_row10);
 
             uu01 = _mm_add_epi32(uu01, inter_rnd);
             vv01 = _mm_add_epi32(vv01, inter_rnd);
@@ -422,8 +471,17 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
             uu01 = _mm_srli_epi32::<2>(uu01);
             vv01 = _mm_srli_epi32::<2>(vv01);
 
+            uu10 = _mm_add_epi32(uu10, inter_rnd);
+            vv10 = _mm_add_epi32(vv10, inter_rnd);
+
+            uu10 = _mm_srli_epi32::<2>(uu10);
+            vv10 = _mm_srli_epi32::<2>(vv10);
+
             uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
             vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -436,6 +494,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
             let mut r1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
 
@@ -443,6 +504,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_uu_lo), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -457,6 +521,9 @@ unsafe fn avx_planar16_bilinear_1_row_rgba_impl<
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -556,8 +623,10 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
         let inter_row01 = _mm256_set1_epi32(i32::from_ne_bytes([n9[0], n9[1], n3[0], n3[1]]));
         let inter_row23 = _mm256_set1_epi32(i32::from_ne_bytes([n3[0], n3[1], n1[0], n1[1]]));
-        let inter_row_far = _mm256_set1_epi16(7);
+        let inter_row32 = _mm256_set1_epi32(i32::from_ne_bytes([n1[0], n1[1], n3[0], n3[1]]));
+        let inter_row10 = _mm256_set1_epi32(i32::from_ne_bytes([n3[0], n3[1], n9[0], n9[1]]));
         let inter_rnd = _mm256_set1_epi32(1i32 << 3);
+        let rnd = _mm256_set1_epi32(1 << (Q - 1));
 
         while x + 17 < width as usize {
             let mut y_value = _mm256_loadu_si256(y_plane.get_unchecked(x..).as_ptr().cast());
@@ -605,16 +674,14 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
             let mut uu01 = _mm256_madd_epi16(packed_ux0_y0, inter_row01);
             let mut vv01 = _mm256_madd_epi16(packed_vx0_y0, inter_row01);
 
-            let mut uu10 = _mm256_madd_epi16(packed_ux0_y0, inter_row_far);
-            let mut vv10 = _mm256_madd_epi16(packed_vx0_y0, inter_row_far);
+            let mut uu10 = _mm256_madd_epi16(packed_ux0_y0, inter_row10);
+            let mut vv10 = _mm256_madd_epi16(packed_vx0_y0, inter_row10);
 
             uu01 = _mm256_add_epi32(uu01, _mm256_madd_epi16(packed_ux0_y1, inter_row23));
             vv01 = _mm256_add_epi32(vv01, _mm256_madd_epi16(packed_vx0_y1, inter_row23));
 
-            uu10 = _mm256_add_epi32(uu10, _mm256_cvtepu16_epi32(u_value_x0_y1));
-            uu10 = _mm256_add_epi32(uu10, _mm256_cvtepu16_epi32(u_value_x1_y1));
-            vv10 = _mm256_add_epi32(vv10, _mm256_cvtepu16_epi32(v_value_x0_y1));
-            vv10 = _mm256_add_epi32(vv10, _mm256_cvtepu16_epi32(v_value_x1_y1));
+            uu10 = _mm256_add_epi32(uu10, _mm256_madd_epi16(packed_ux0_y1, inter_row32));
+            vv10 = _mm256_add_epi32(vv10, _mm256_madd_epi16(packed_vx0_y1, inter_row32));
 
             uu01 = _mm256_add_epi32(uu01, inter_rnd);
             vv01 = _mm256_add_epi32(vv01, inter_rnd);
@@ -637,6 +704,9 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
             let mut r0 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
             let mut r1 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm256_add_epi32(r0, rnd);
+            r1 = _mm256_add_epi32(r1, rnd);
+
             r0 = _mm256_srai_epi32::<Q>(r0);
             r1 = _mm256_srai_epi32::<Q>(r1);
 
@@ -644,6 +714,9 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             let mut b0 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
             let mut b1 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_value, intl_uu_lo), b_coef);
+
+            b0 = _mm256_add_epi32(b0, rnd);
+            b1 = _mm256_add_epi32(b1, rnd);
 
             b0 = _mm256_srai_epi32::<Q>(b0);
             b1 = _mm256_srai_epi32::<Q>(b1);
@@ -658,6 +731,9 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             g0 = _mm256_add_epi32(g0, _mm256_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm256_add_epi32(g1, _mm256_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
+
+            g0 = _mm256_add_epi32(g0, rnd);
+            g1 = _mm256_add_epi32(g1, rnd);
 
             g0 = _mm256_srai_epi32::<Q>(g0);
             g1 = _mm256_srai_epi32::<Q>(g1);
@@ -691,9 +767,11 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
         let y_coef = _mm256_castsi256_si128(y_coef);
 
         let inter_row01 = _mm256_castsi256_si128(inter_row01);
+        let inter_row10 = _mm256_castsi256_si128(inter_row10);
         let inter_row23 = _mm256_castsi256_si128(inter_row23);
-        let inter_row_far = _mm256_castsi256_si128(inter_row_far);
+        let inter_row32 = _mm256_castsi256_si128(inter_row32);
         let inter_rnd = _mm256_castsi256_si128(inter_rnd);
+        let rnd = _mm256_castsi256_si128(rnd);
 
         while x + 9 < width as usize {
             let mut y_value = _mm_loadu_si128(y_plane.get_unchecked(x..).as_ptr().cast());
@@ -710,43 +788,23 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu16(y_value, y_corr);
 
-            let mut uu01 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0),
-                inter_row01,
-            );
-            let mut vv01 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0),
-                inter_row01,
-            );
+            let packed_u_y0 = _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0);
+            let packed_u_y1 = _mm_unpacklo_epi16(u_value_x0_y1, u_value_x1_y1);
 
-            let mut uu10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
-            let mut vv10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x1_y0, v_value_x0_y0),
-                inter_row_far,
-            );
+            let packed_v_y0 = _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0);
+            let packed_v_y1 = _mm_unpacklo_epi16(v_value_x0_y1, v_value_x1_y1);
 
-            uu01 = _mm_add_epi32(
-                uu01,
-                _mm_madd_epi16(
-                    _mm_unpacklo_epi16(u_value_x0_y1, u_value_x1_y1),
-                    inter_row23,
-                ),
-            );
-            vv01 = _mm_add_epi32(
-                vv01,
-                _mm_madd_epi16(
-                    _mm_unpacklo_epi16(v_value_x0_y1, v_value_x1_y1),
-                    inter_row23,
-                ),
-            );
+            let mut uu01 = _mm_madd_epi16(packed_u_y0, inter_row01);
+            let mut vv01 = _mm_madd_epi16(packed_v_y0, inter_row01);
 
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x1_y1, _mm_setzero_si128()));
+            let mut uu10 = _mm_madd_epi16(packed_u_y0, inter_row10);
+            let mut vv10 = _mm_madd_epi16(packed_v_y0, inter_row10);
+
+            uu01 = _mm_add_epi32(uu01, _mm_madd_epi16(packed_u_y1, inter_row23));
+            vv01 = _mm_add_epi32(vv01, _mm_madd_epi16(packed_v_y1, inter_row23));
+
+            uu10 = _mm_add_epi32(uu10, _mm_madd_epi16(packed_u_y1, inter_row32));
+            vv10 = _mm_add_epi32(vv10, _mm_madd_epi16(packed_v_y1, inter_row32));
 
             uu01 = _mm_add_epi32(uu01, inter_rnd);
             vv01 = _mm_add_epi32(vv01, inter_rnd);
@@ -769,6 +827,9 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
             let mut r1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
 
@@ -776,6 +837,9 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_uu_lo), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -790,6 +854,9 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -829,43 +896,23 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu16(y_value, y_corr);
 
-            let mut uu01 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0),
-                inter_row01,
-            );
-            let mut vv01 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0),
-                inter_row01,
-            );
+            let packed_u_y0 = _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0);
+            let packed_u_y1 = _mm_unpacklo_epi16(u_value_x0_y1, u_value_x1_y1);
 
-            let mut uu10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
-            let mut vv10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x1_y0, v_value_x0_y0),
-                inter_row_far,
-            );
+            let packed_v_y0 = _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0);
+            let packed_v_y1 = _mm_unpacklo_epi16(v_value_x0_y1, v_value_x1_y1);
 
-            uu01 = _mm_add_epi32(
-                uu01,
-                _mm_madd_epi16(
-                    _mm_unpacklo_epi16(u_value_x0_y1, u_value_x1_y1),
-                    inter_row23,
-                ),
-            );
-            vv01 = _mm_add_epi32(
-                vv01,
-                _mm_madd_epi16(
-                    _mm_unpacklo_epi16(v_value_x0_y1, v_value_x1_y1),
-                    inter_row23,
-                ),
-            );
+            let mut uu01 = _mm_madd_epi16(packed_u_y0, inter_row01);
+            let mut vv01 = _mm_madd_epi16(packed_v_y0, inter_row01);
 
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x1_y1, _mm_setzero_si128()));
+            let mut uu10 = _mm_madd_epi16(packed_u_y0, inter_row10);
+            let mut vv10 = _mm_madd_epi16(packed_v_y0, inter_row10);
+
+            uu01 = _mm_add_epi32(uu01, _mm_madd_epi16(packed_u_y1, inter_row23));
+            vv01 = _mm_add_epi32(vv01, _mm_madd_epi16(packed_v_y1, inter_row23));
+
+            uu10 = _mm_add_epi32(uu10, _mm_madd_epi16(packed_u_y1, inter_row32));
+            vv10 = _mm_add_epi32(vv10, _mm_madd_epi16(packed_v_y1, inter_row32));
 
             uu01 = _mm_add_epi32(uu01, inter_rnd);
             vv01 = _mm_add_epi32(vv01, inter_rnd);
@@ -887,12 +934,14 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
             r0 = _mm_srai_epi32::<Q>(r0);
 
             let mut r01 = _mm_packus_epi32(r0, _mm_setzero_si128());
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
 
+            b0 = _mm_add_epi32(b0, rnd);
             b0 = _mm_srai_epi32::<Q>(b0);
 
             let mut b01 = _mm_packus_epi32(b0, _mm_setzero_si128());
@@ -904,6 +953,7 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
 
+            g0 = _mm_add_epi32(g0, rnd);
             g0 = _mm_srai_epi32::<Q>(g0);
 
             let mut g01 = _mm_packus_epi32(g0, _mm_setzero_si128());
@@ -989,43 +1039,23 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu16(y_value, y_corr);
 
-            let mut uu01 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0),
-                inter_row01,
-            );
-            let mut vv01 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0),
-                inter_row01,
-            );
+            let packed_u_y0 = _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0);
+            let packed_u_y1 = _mm_unpacklo_epi16(u_value_x0_y1, u_value_x1_y1);
 
-            let mut uu10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
-            let mut vv10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x1_y0, v_value_x0_y0),
-                inter_row_far,
-            );
+            let packed_v_y0 = _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0);
+            let packed_v_y1 = _mm_unpacklo_epi16(v_value_x0_y1, v_value_x1_y1);
 
-            uu01 = _mm_add_epi32(
-                uu01,
-                _mm_madd_epi16(
-                    _mm_unpacklo_epi16(u_value_x0_y1, u_value_x1_y1),
-                    inter_row23,
-                ),
-            );
-            vv01 = _mm_add_epi32(
-                vv01,
-                _mm_madd_epi16(
-                    _mm_unpacklo_epi16(v_value_x0_y1, v_value_x1_y1),
-                    inter_row23,
-                ),
-            );
+            let mut uu01 = _mm_madd_epi16(packed_u_y0, inter_row01);
+            let mut vv01 = _mm_madd_epi16(packed_v_y0, inter_row01);
 
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x1_y1, _mm_setzero_si128()));
+            let mut uu10 = _mm_madd_epi16(packed_u_y0, inter_row10);
+            let mut vv10 = _mm_madd_epi16(packed_v_y0, inter_row10);
+
+            uu01 = _mm_add_epi32(uu01, _mm_madd_epi16(packed_u_y1, inter_row23));
+            vv01 = _mm_add_epi32(vv01, _mm_madd_epi16(packed_v_y1, inter_row23));
+
+            uu10 = _mm_add_epi32(uu10, _mm_madd_epi16(packed_u_y1, inter_row32));
+            vv10 = _mm_add_epi32(vv10, _mm_madd_epi16(packed_v_y1, inter_row32));
 
             uu01 = _mm_add_epi32(uu01, inter_rnd);
             vv01 = _mm_add_epi32(vv01, inter_rnd);
@@ -1046,34 +1076,30 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
             let intl_vv_lo = _mm_sub_epi16(_mm_unpacklo_epi16(vv01, vv10), uv_corr);
 
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_vv_lo), r_coef);
-            let mut r1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
             r0 = _mm_srai_epi32::<Q>(r0);
-            r1 = _mm_srai_epi32::<Q>(r1);
 
-            let mut r01 = _mm_packus_epi32(r0, r1);
+            let mut r01 = _mm_packus_epi32(r0, _mm_setzero_si128());
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_value, intl_uu_lo), b_coef);
-            let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_value, intl_uu_lo), b_coef);
 
+            b0 = _mm_add_epi32(b0, rnd);
             b0 = _mm_srai_epi32::<Q>(b0);
-            b1 = _mm_srai_epi32::<Q>(b1);
 
-            let mut b01 = _mm_packus_epi32(b0, b1);
+            let mut b01 = _mm_packus_epi32(b0, _mm_setzero_si128());
 
             let y_lo0_mul = _mm_mullo_epi16(y_value, y_coef);
             let y_lo1_mul = _mm_mulhi_epi16(y_value, y_coef);
 
             let mut g0 = _mm_madd_epi16(_mm_unpacklo_epi16(intl_vv_lo, intl_uu_lo), g_coef);
-            let mut g1 = _mm_madd_epi16(_mm_unpackhi_epi16(intl_vv_lo, intl_uu_lo), g_coef);
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
-            g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
 
+            g0 = _mm_add_epi32(g0, rnd);
             g0 = _mm_srai_epi32::<Q>(g0);
-            g1 = _mm_srai_epi32::<Q>(g1);
 
-            let mut g01 = _mm_packus_epi32(g0, g1);
+            let mut g01 = _mm_packus_epi32(g0, _mm_setzero_si128());
 
             r01 = _mm_min_epu16(r01, v_alpha);
             g01 = _mm_min_epu16(g01, v_alpha);

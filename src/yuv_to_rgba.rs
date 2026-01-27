@@ -714,9 +714,9 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
         {
             iter = rgba
                 .par_chunks_exact_mut(rgba_stride as usize * 2)
-                .zip(y_plane.par_chunks_exact(image.y_stride as usize * 2))
-                .zip(u_plane.par_chunks_exact(image.u_stride as usize))
-                .zip(v_plane.par_chunks_exact(image.v_stride as usize));
+                .zip(y_plane.par_chunks(image.y_stride as usize * 2))
+                .zip(u_plane.par_chunks(image.u_stride as usize))
+                .zip(v_plane.par_chunks(image.v_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
@@ -740,7 +740,7 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
         });
 
         if image.height & 1 != 0 {
-            let rgba = rgba.chunks_exact_mut(rgba_stride as usize).last().unwrap();
+            let rgba = rgba.chunks_mut(rgba_stride as usize).last().unwrap();
             let u_plane = u_plane.chunks(image.u_stride as usize).last().unwrap();
             let v_plane = v_plane.chunks(image.v_stride as usize).last().unwrap();
             let y_plane = y_plane.chunks(image.y_stride as usize).last().unwrap();
@@ -1661,10 +1661,12 @@ mod tests {
 
     #[test]
     fn test_yuv420_round_trip_full_range() {
-        fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
-            let image_width = 256usize;
-            let image_height = 256usize;
-
+        fn matrix(
+            image_width: usize,
+            image_height: usize,
+            yuv_accuracy: YuvConversionMode,
+            max_diff: i32,
+        ) {
             let random_point_x = rand::rng().random_range(0..image_width);
             let random_point_y = rand::rng().random_range(0..image_height);
 
@@ -1807,11 +1809,20 @@ mod tests {
                 );
             }
         }
-        matrix(YuvConversionMode::Balanced, 80);
+
+        let random_width = rand::rng().random_range(1..256);
+        let random_height = rand::rng().random_range(1..256);
+
+        matrix(random_width, random_height, YuvConversionMode::Balanced, 80);
         #[cfg(feature = "fast_mode")]
-        matrix(YuvConversionMode::Fast, 80);
+        matrix(random_width, random_height, YuvConversionMode::Fast, 80);
         #[cfg(feature = "professional_mode")]
-        matrix(YuvConversionMode::Professional, 72);
+        matrix(
+            random_width,
+            random_height,
+            YuvConversionMode::Professional,
+            72,
+        );
     }
 
     #[test]

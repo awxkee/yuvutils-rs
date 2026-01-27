@@ -92,8 +92,8 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
         let cb_0 = ((u_src[0] as u32 * 3 + u_src[1] as u32 + 2) >> 2) as u16;
         let cr_0 = ((v_src[0] as u32 * 3 + v_src[1] as u32 + 2) >> 2) as u16;
 
-        let cb_1 = ((u_src[0] as u32 + u_src[1] as u32 + 1) >> 1) as u16;
-        let cr_1 = ((v_src[0] as u32 + v_src[1] as u32 + 1) >> 1) as u16;
+        let cb_1 = ((u_src[0] as u32 + (u_src[1] as u32) * 3 + 2) >> 2) as u16;
+        let cr_1 = ((v_src[0] as u32 + (v_src[1] as u32) * 3 + 2) >> 2) as u16;
 
         let y_value0 = (y_src[0] as i32 - bias_y as i32) * y_coef as i32;
         let cb_value0 = cb_0 as i16 - bias_uv;
@@ -208,16 +208,16 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
             + (1 << 3))
             >> 4;
 
-        let cb_1 = (u_src[0] as u32 * 7
-            + u_src[1] as u32 * 7
+        let cb_1 = (u_src[0] as u32 * 3
+            + u_src[1] as u32 * 9
             + u_src_next[0] as u32
-            + u_src_next[1] as u32
+            + u_src_next[1] as u32 * 3
             + (1 << 3))
             >> 4;
-        let cr_1 = (v_src[0] as u32 * 7
-            + v_src[1] as u32 * 7
+        let cr_1 = (v_src[0] as u32 * 3
+            + v_src[1] as u32 * 9
             + v_src_next[0] as u32
-            + v_src_next[1] as u32
+            + v_src_next[1] as u32 * 3
             + (1 << 3))
             >> 4;
 
@@ -268,12 +268,10 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
     if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
         let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
 
-        let cb_0 = (*u_plane0.last().unwrap() as u32 * 3
-            + *u_plane1.last().unwrap() as u32
-            + (1 << 1)) as u16
-            >> 2;
-        let cr_0 = ((*v_plane0.last().unwrap() as u32 + (*v_plane1.last().unwrap()) as u32 + 1)
-            >> 1) as u16;
+        let cb_0 =
+            (*u_plane0.last().unwrap() as u32 * 3 + *u_plane1.last().unwrap() as u32 + 2) >> 2;
+        let cr_0 =
+            (*v_plane0.last().unwrap() as u32 + (*v_plane1.last().unwrap()) as u32 * 3 + 2) >> 2;
 
         let cb_value = cb_0 as i32 - bias_uv as i32;
         let cr_value = cr_0 as i32 - bias_uv as i32;

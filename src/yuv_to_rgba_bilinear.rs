@@ -92,8 +92,8 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32>(
         let cb_0 = (u_src[0] as u16 * 3 + u_src[1] as u16 + 2) >> 2;
         let cr_0 = (v_src[0] as u16 * 3 + v_src[1] as u16 + 2) >> 2;
 
-        let cb_1 = (u_src[0] as u16 + u_src[1] as u16 + 1) >> 1;
-        let cr_1 = (v_src[0] as u16 + v_src[1] as u16 + 1) >> 1;
+        let cb_1 = (u_src[0] as u16 + u_src[1] as u16 * 3 + 2) >> 2;
+        let cr_1 = (v_src[0] as u16 + v_src[1] as u16 * 3 + 2) >> 2;
 
         let y_value0 = (y_src[0] as i32 - bias_y as i32) * y_coef as i32;
         let cb_value0 = cb_0 as i16 - bias_uv;
@@ -208,16 +208,16 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32>(
             + (1 << 3))
             >> 4;
 
-        let cb_1 = (u_src[0] as u16 * 7
-            + u_src[1] as u16 * 7
+        let cb_1 = (u_src[0] as u16 * 3
+            + u_src[1] as u16 * 9
             + u_src_next[0] as u16
-            + u_src_next[1] as u16
+            + u_src_next[1] as u16 * 3
             + (1 << 3))
             >> 4;
-        let cr_1 = (v_src[0] as u16 * 7
-            + v_src[1] as u16 * 7
+        let cr_1 = (v_src[0] as u16 * 3
+            + v_src[1] as u16 * 9
             + v_src_next[0] as u16
-            + v_src_next[1] as u16
+            + v_src_next[1] as u16 * 3
             + (1 << 3))
             >> 4;
 
@@ -271,9 +271,9 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32>(
         let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
 
         let cb_0 =
-            (*u_plane0.last().unwrap() as u16 * 3 + *u_plane1.last().unwrap() as u16 + (1 << 1))
-                >> 2;
-        let cr_0 = (*v_plane0.last().unwrap() as u16 + (*v_plane1.last().unwrap()) as u16 + 1) >> 1;
+            (*u_plane0.last().unwrap() as u16 * 3 + *u_plane1.last().unwrap() as u16 + 2) >> 2;
+        let cr_0 =
+            (*v_plane0.last().unwrap() as u16 + (*v_plane1.last().unwrap()) as u16 * 3 + 2) >> 2;
 
         let cb_value = cb_0 as i16 - bias_uv;
         let cr_value = cr_0 as i16 - bias_uv;

@@ -79,15 +79,22 @@ pub(crate) fn neon_planar16_bilinear_1_row_rgba16<
 
             let uu0x3 = vaddw_u16(vshll_n_u16::<1>(u_value0), u_value0);
             let vv0x3 = vaddw_u16(vshll_n_u16::<1>(v_value0), v_value0);
+
+            let uu1x3 = vaddw_u16(vshll_n_u16::<1>(u_value1), u_value1);
+            let vv1x3 = vaddw_u16(vshll_n_u16::<1>(v_value1), v_value1);
+
             let uu0 = vaddq_u32(uu0x3, vmovl_u16(u_value1));
             let vv0 = vaddq_u32(vv0x3, vmovl_u16(v_value1));
+
+            let uu1 = vaddq_u32(uu1x3, vmovl_u16(u_value0));
+            let vv1 = vaddq_u32(vv1x3, vmovl_u16(v_value0));
 
             let y_value_lo = vreinterpretq_s16_u16(y_value);
 
             let uuz0 = vqrshrn_n_u32::<2>(uu0);
             let vvz0 = vqrshrn_n_u32::<2>(vv0);
-            let uuz1 = vrhadd_u16(u_value0, u_value1);
-            let vvz1 = vrhadd_u16(v_value0, v_value1);
+            let uuz1 = vqrshrn_n_u32::<2>(uu1);
+            let vvz1 = vqrshrn_n_u32::<2>(vv1);
 
             let y0_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_lo), v_weights);
             let y1_value = vmull_high_laneq_s16::<0>(y_value_lo, v_weights);
@@ -147,15 +154,22 @@ pub(crate) fn neon_planar16_bilinear_1_row_rgba16<
 
             let uu0x3 = vaddw_u16(vshll_n_u16::<1>(u_value0), u_value0);
             let vv0x3 = vaddw_u16(vshll_n_u16::<1>(v_value0), v_value0);
+
+            let uu1x3 = vaddw_u16(vshll_n_u16::<1>(u_value1), u_value1);
+            let vv1x3 = vaddw_u16(vshll_n_u16::<1>(v_value1), v_value1);
+
             let uu0 = vaddq_u32(uu0x3, vmovl_u16(u_value1));
             let vv0 = vaddq_u32(vv0x3, vmovl_u16(v_value1));
+
+            let uu1 = vaddq_u32(uu1x3, vmovl_u16(u_value0));
+            let vv1 = vaddq_u32(vv1x3, vmovl_u16(v_value0));
 
             let y_value_lo = vreinterpret_s16_u16(y_value);
 
             let uuz0 = vqrshrn_n_u32::<2>(uu0);
             let vvz0 = vqrshrn_n_u32::<2>(vv0);
-            let uuz1 = vrhadd_u16(u_value0, u_value1);
-            let vvz1 = vrhadd_u16(v_value0, v_value1);
+            let uuz1 = vqrshrn_n_u32::<2>(uu1);
+            let vvz1 = vqrshrn_n_u32::<2>(vv1);
 
             let y0_value = vmull_laneq_s16::<0>(y_value_lo, v_weights);
 
@@ -241,15 +255,22 @@ pub(crate) fn neon_planar16_bilinear_1_row_rgba16<
 
             let uu0x3 = vaddw_u16(vshll_n_u16::<1>(u_value0), u_value0);
             let vv0x3 = vaddw_u16(vshll_n_u16::<1>(v_value0), v_value0);
+
+            let uu1x3 = vaddw_u16(vshll_n_u16::<1>(u_value1), u_value1);
+            let vv1x3 = vaddw_u16(vshll_n_u16::<1>(v_value1), v_value1);
+
             let uu0 = vaddq_u32(uu0x3, vmovl_u16(u_value1));
             let vv0 = vaddq_u32(vv0x3, vmovl_u16(v_value1));
+
+            let uu1 = vaddq_u32(uu1x3, vmovl_u16(u_value0));
+            let vv1 = vaddq_u32(vv1x3, vmovl_u16(v_value0));
 
             let y_value_lo = vreinterpretq_s16_u16(y_value);
 
             let uuz0 = vqrshrn_n_u32::<2>(uu0);
             let vvz0 = vqrshrn_n_u32::<2>(vv0);
-            let uuz1 = vrhadd_u16(u_value0, u_value1);
-            let vvz1 = vrhadd_u16(v_value0, v_value1);
+            let uuz1 = vqrshrn_n_u32::<2>(uu1);
+            let vvz1 = vqrshrn_n_u32::<2>(vv1);
 
             let y0_value = vmull_laneq_s16::<0>(vget_low_s16(y_value_lo), v_weights);
             let y1_value = vmull_high_laneq_s16::<0>(y_value_lo, v_weights);
@@ -319,16 +340,16 @@ struct InterRow1 {
 #[inline]
 fn inter4(row0: InterRow0, row1: InterRow1) -> (int16x4_t, int16x4_t) {
     unsafe {
-        let t9 = vdup_n_u16(9);
-        let t3 = vdup_n_u16(3);
-        let mut uu0 = vmull_u16(row0.u_value_x0_y0, t9);
-        let mut vv0 = vmull_u16(row0.v_value_x0_y0, t9);
+        let t_left = vdup_n_u16(9);
+        let t_right = vdup_n_u16(3);
+        let mut uu0 = vmull_u16(row0.u_value_x0_y0, t_left);
+        let mut vv0 = vmull_u16(row0.v_value_x0_y0, t_left);
 
-        uu0 = vmlal_u16(uu0, row0.u_value_x1_y0, t3);
-        vv0 = vmlal_u16(vv0, row0.v_value_x1_y0, t3);
+        uu0 = vmlal_u16(uu0, row0.u_value_x1_y0, t_right);
+        vv0 = vmlal_u16(vv0, row0.v_value_x1_y0, t_right);
 
-        uu0 = vmlal_u16(uu0, row1.u_value_x0_y1, t3);
-        vv0 = vmlal_u16(vv0, row1.v_value_x0_y1, t3);
+        uu0 = vmlal_u16(uu0, row1.u_value_x0_y1, t_right);
+        vv0 = vmlal_u16(vv0, row1.v_value_x0_y1, t_right);
 
         uu0 = vaddw_u16(uu0, row1.u_value_x1_y1);
         vv0 = vaddw_u16(vv0, row1.v_value_x1_y1);
@@ -342,15 +363,16 @@ fn inter4(row0: InterRow0, row1: InterRow1) -> (int16x4_t, int16x4_t) {
 #[inline]
 fn inter4_far(row0: InterRow0, row1: InterRow1) -> (int16x4_t, int16x4_t) {
     unsafe {
-        let t7 = vdup_n_u16(7);
-        let mut uu0 = vmull_u16(row0.u_value_x0_y0, t7);
-        let mut vv0 = vmull_u16(row0.v_value_x0_y0, t7);
+        let t_left = vdup_n_u16(3);
+        let t_right = vdup_n_u16(9);
+        let mut uu0 = vmull_u16(row0.u_value_x0_y0, t_left);
+        let mut vv0 = vmull_u16(row0.v_value_x0_y0, t_left);
 
-        uu0 = vmlal_u16(uu0, row0.u_value_x1_y0, t7);
-        vv0 = vmlal_u16(vv0, row0.v_value_x1_y0, t7);
+        uu0 = vmlal_u16(uu0, row0.u_value_x1_y0, t_right);
+        vv0 = vmlal_u16(vv0, row0.v_value_x1_y0, t_right);
 
-        uu0 = vaddw_u16(uu0, row1.u_value_x0_y1);
-        vv0 = vaddw_u16(vv0, row1.v_value_x0_y1);
+        uu0 = vmlal_u16(uu0, row1.u_value_x0_y1, t_right);
+        vv0 = vmlal_u16(vv0, row1.v_value_x0_y1, t_right);
 
         uu0 = vaddw_u16(uu0, row1.u_value_x1_y1);
         vv0 = vaddw_u16(vv0, row1.v_value_x1_y1);

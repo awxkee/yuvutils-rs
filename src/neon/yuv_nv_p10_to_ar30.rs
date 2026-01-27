@@ -81,7 +81,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-    let base_val = vdupq_n_s32((1 << PRECISION) - 1);
+    let base_val = vdupq_n_s32(1 << (PRECISION - 1));
 
     let mut cx = start_cx;
     let mut ux = start_ux;

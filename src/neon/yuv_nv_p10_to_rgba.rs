@@ -164,7 +164,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
     let v_alpha = vdup_n_u8(255u8);
 
-    let base_val = vdupq_n_s32((1 << (PRECISION - 1)) - 1);
+    let base_val = vdupq_n_s32(1 << (PRECISION - 1));
 
     let mut cx = start_cx;
     let mut ux = start_ux;

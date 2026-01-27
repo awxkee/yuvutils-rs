@@ -102,7 +102,7 @@ unsafe fn sse_yuv_nv_to_rgba_row_impl_prof<
     } else {
         _mm_set1_epi32((((g_trn1 as u32) << 16) | (g_trn2 as u32)) as i32)
     };
-    let base_y = _mm_set1_epi32((1 << (PRECISION - 1)) - 1);
+    let base_y = _mm_set1_epi32(1 << (PRECISION - 1));
 
     while cx + 16 < width {
         let y_vl = _mm_loadu_si128(y_ptr.add(cx) as *const _);

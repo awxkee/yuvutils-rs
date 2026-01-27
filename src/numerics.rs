@@ -33,7 +33,7 @@ use std::ops::Shr;
 #[inline(always)]
 /// Saturating rounding shift right against bit depth
 pub(crate) fn qrshr<const PRECISION: i32, const BIT_DEPTH: usize>(val: i32) -> i32 {
-    let rounding: i32 = (1 << (PRECISION - 1)) - 1;
+    let rounding: i32 = 1 << (PRECISION - 1);
     let max_value: i32 = (1 << BIT_DEPTH) - 1;
     ((val + rounding) >> PRECISION).min(max_value).max(0)
 }

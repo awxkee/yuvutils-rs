@@ -26,9 +26,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::avx2::avx2_utils::_mm256_store_interleave_rgb_for_yuv;
+use crate::avx2::avx2_utils::_mm_store_interleave_rgb_for_yuv;
 use crate::avx2::avx2_utils::{
-    _mm_store_interleave_half_rgb_for_yuv, _mm_store_interleave_rgb_for_yuv,
+    _mm256_store_interleave_rgb_for_yuv, _mm_store_interleave_half_rgb_for_yuv,
 };
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -89,8 +89,10 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             g_coef1[0], g_coef1[1], g_coef2[0], g_coef2[1],
         ]));
         let y_coef = _mm256_set1_epi16(transform.y_coef);
+        let rnd = _mm256_set1_epi32(1 << (Q - 1));
 
         let inter_row01 = _mm256_set1_epi16(i16::from_ne_bytes([3, 1]));
+        let inter_row10 = _mm256_set1_epi16(i16::from_ne_bytes([1, 3]));
         let inter_rnd = _mm256_set1_epi16(2);
 
         while x + 33 < width as usize {
@@ -118,8 +120,8 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             let mut uu01 = _mm256_maddubs_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm256_maddubs_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm256_cvtepu8_epi16(_mm_avg_epu8(u_value0, u_value1));
-            let mut vv10 = _mm256_cvtepu8_epi16(_mm_avg_epu8(v_value0, v_value1));
+            let mut uu10 = _mm256_maddubs_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm256_maddubs_epi16(packed_vv01, inter_row10);
 
             let y_lo = _mm256_unpacklo_epi8(y_value, _mm256_setzero_si256());
             let y_hi = _mm256_unpackhi_epi8(y_value, _mm256_setzero_si256());
@@ -129,6 +131,12 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             uu01 = _mm256_srli_epi16::<2>(uu01);
             vv01 = _mm256_srli_epi16::<2>(vv01);
+
+            uu10 = _mm256_add_epi16(uu10, inter_rnd);
+            vv10 = _mm256_add_epi16(vv10, inter_rnd);
+
+            uu10 = _mm256_srli_epi16::<2>(uu10);
+            vv10 = _mm256_srli_epi16::<2>(vv10);
 
             uu01 = _mm256_sub_epi16(uu01, uv_corr);
             vv01 = _mm256_sub_epi16(vv01, uv_corr);
@@ -145,6 +153,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             let mut r2 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_hi, intl_vv_hi), r_coef);
             let mut r3 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_hi, intl_vv_hi), r_coef);
 
+            r0 = _mm256_add_epi32(r0, rnd);
+            r1 = _mm256_add_epi32(r1, rnd);
+            r2 = _mm256_add_epi32(r2, rnd);
+            r3 = _mm256_add_epi32(r3, rnd);
+
             r0 = _mm256_srai_epi32::<Q>(r0);
             r1 = _mm256_srai_epi32::<Q>(r1);
             r2 = _mm256_srai_epi32::<Q>(r2);
@@ -158,6 +171,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             let mut b1 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b2 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_hi, intl_uu_hi), b_coef);
             let mut b3 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_hi, intl_uu_hi), b_coef);
+
+            b0 = _mm256_add_epi32(b0, rnd);
+            b1 = _mm256_add_epi32(b1, rnd);
+            b2 = _mm256_add_epi32(b2, rnd);
+            b3 = _mm256_add_epi32(b3, rnd);
 
             b0 = _mm256_srai_epi32::<Q>(b0);
             b1 = _mm256_srai_epi32::<Q>(b1);
@@ -192,6 +210,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             g2 = _mm256_add_epi32(g2, y_hi0_mul);
             g3 = _mm256_add_epi32(g3, y_hi1_mul);
 
+            g0 = _mm256_add_epi32(g0, rnd);
+            g1 = _mm256_add_epi32(g1, rnd);
+            g2 = _mm256_add_epi32(g2, rnd);
+            g3 = _mm256_add_epi32(g3, rnd);
+
             g0 = _mm256_srai_epi32::<Q>(g0);
             g1 = _mm256_srai_epi32::<Q>(g1);
             g2 = _mm256_srai_epi32::<Q>(g2);
@@ -224,7 +247,9 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
         let y_coef = _mm256_castsi256_si128(y_coef);
 
         let inter_row01 = _mm256_castsi256_si128(inter_row01);
+        let inter_row10 = _mm256_castsi256_si128(inter_row10);
         let inter_rnd = _mm256_castsi256_si128(inter_rnd);
+        let rnd = _mm256_castsi256_si128(rnd);
 
         while x + 17 < width as usize {
             let mut y_value = _mm_loadu_si128(y_plane.get_unchecked(x..).as_ptr().cast());
@@ -240,8 +265,8 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             let mut uu01 = _mm_maddubs_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm_maddubs_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm_unpacklo_epi8(_mm_avg_epu8(u_value0, u_value1), _mm_setzero_si128());
-            let mut vv10 = _mm_unpacklo_epi8(_mm_avg_epu8(v_value0, v_value1), _mm_setzero_si128());
+            let mut uu10 = _mm_maddubs_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm_maddubs_epi16(packed_vv01, inter_row10);
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
             let y_hi = _mm_unpackhi_epi8(y_value, _mm_setzero_si128());
@@ -251,6 +276,12 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             uu01 = _mm_srli_epi16::<2>(uu01);
             vv01 = _mm_srli_epi16::<2>(vv01);
+
+            uu10 = _mm_add_epi16(uu10, inter_rnd);
+            vv10 = _mm_add_epi16(vv10, inter_rnd);
+
+            uu10 = _mm_srli_epi16::<2>(uu10);
+            vv10 = _mm_srli_epi16::<2>(vv10);
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -267,6 +298,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             let mut r2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_vv_hi), r_coef);
             let mut r3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_vv_hi), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+            r2 = _mm_add_epi32(r2, rnd);
+            r3 = _mm_add_epi32(r3, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
             r2 = _mm_srai_epi32::<Q>(r2);
@@ -280,6 +316,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_uu_hi), b_coef);
             let mut b3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_uu_hi), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
+            b2 = _mm_add_epi32(b2, rnd);
+            b3 = _mm_add_epi32(b3, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -304,6 +345,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
             g2 = _mm_add_epi32(g2, _mm_unpacklo_epi16(y_hi0_mul, y_hi1_mul));
             g3 = _mm_add_epi32(g3, _mm_unpackhi_epi16(y_hi0_mul, y_hi1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
+            g2 = _mm_add_epi32(g2, rnd);
+            g3 = _mm_add_epi32(g3, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -342,8 +388,8 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             let mut uu01 = _mm_maddubs_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm_maddubs_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm_unpacklo_epi8(_mm_avg_epu8(u_value0, u_value1), _mm_setzero_si128());
-            let mut vv10 = _mm_unpacklo_epi8(_mm_avg_epu8(v_value0, v_value1), _mm_setzero_si128());
+            let mut uu10 = _mm_maddubs_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm_maddubs_epi16(packed_vv01, inter_row10);
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
 
@@ -352,6 +398,12 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             uu01 = _mm_srli_epi16::<2>(uu01);
             vv01 = _mm_srli_epi16::<2>(vv01);
+
+            uu10 = _mm_add_epi16(uu10, inter_rnd);
+            vv10 = _mm_add_epi16(vv10, inter_rnd);
+
+            uu10 = _mm_srli_epi16::<2>(uu10);
+            vv10 = _mm_srli_epi16::<2>(vv10);
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -364,6 +416,9 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_lo, intl_vv_lo), r_coef);
             let mut r1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
 
@@ -372,6 +427,9 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -387,6 +445,9 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -453,8 +514,8 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             let mut uu01 = _mm_maddubs_epi16(packed_uu01, inter_row01);
             let mut vv01 = _mm_maddubs_epi16(packed_vv01, inter_row01);
-            let mut uu10 = _mm_unpacklo_epi8(_mm_avg_epu8(u_value0, u_value1), _mm_setzero_si128());
-            let mut vv10 = _mm_unpacklo_epi8(_mm_avg_epu8(v_value0, v_value1), _mm_setzero_si128());
+            let mut uu10 = _mm_maddubs_epi16(packed_uu01, inter_row10);
+            let mut vv10 = _mm_maddubs_epi16(packed_vv01, inter_row10);
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
             let y_hi = _mm_unpackhi_epi8(y_value, _mm_setzero_si128());
@@ -464,6 +525,12 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
 
             uu01 = _mm_srli_epi16::<2>(uu01);
             vv01 = _mm_srli_epi16::<2>(vv01);
+
+            uu10 = _mm_add_epi16(uu10, inter_rnd);
+            vv10 = _mm_add_epi16(vv10, inter_rnd);
+
+            uu10 = _mm_srli_epi16::<2>(uu10);
+            vv10 = _mm_srli_epi16::<2>(vv10);
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -480,6 +547,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             let mut r2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_vv_hi), r_coef);
             let mut r3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_vv_hi), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+            r2 = _mm_add_epi32(r2, rnd);
+            r3 = _mm_add_epi32(r3, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
             r2 = _mm_srai_epi32::<Q>(r2);
@@ -493,6 +565,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_uu_hi), b_coef);
             let mut b3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_uu_hi), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
+            b2 = _mm_add_epi32(b2, rnd);
+            b3 = _mm_add_epi32(b3, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -517,6 +594,11 @@ unsafe fn avx_bilinear_interpolate_1_row_rgba_impl<const DESTINATION_CHANNELS: u
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
             g2 = _mm_add_epi32(g2, _mm_unpacklo_epi16(y_hi0_mul, y_hi1_mul));
             g3 = _mm_add_epi32(g3, _mm_unpackhi_epi16(y_hi0_mul, y_hi1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
+            g2 = _mm_add_epi32(g2, rnd);
+            g3 = _mm_add_epi32(g3, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -607,8 +689,10 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
 
         let inter_row01 = _mm256_set1_epi16(i16::from_ne_bytes([9, 3]));
         let inter_row23 = _mm256_set1_epi16(i16::from_ne_bytes([3, 1]));
-        let inter_row_far = _mm256_set1_epi8(7);
+        let inter_row32 = _mm256_set1_epi16(i16::from_ne_bytes([1, 3]));
+        let inter_row_far = _mm256_set1_epi16(i16::from_ne_bytes([3, 9]));
         let inter_rnd = _mm256_set1_epi16(1 << 3);
+        let rnd = _mm256_set1_epi32(1 << (Q - 1));
 
         while x + 33 < width as usize {
             let mut y_value = _mm256_loadu_si256(y_plane.get_unchecked(x..).as_ptr().cast());
@@ -665,10 +749,8 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             uu01 = _mm256_add_epi16(uu01, _mm256_maddubs_epi16(packed_ux0_y1, inter_row23));
             vv01 = _mm256_add_epi16(vv01, _mm256_maddubs_epi16(packed_vx0_y1, inter_row23));
 
-            uu10 = _mm256_add_epi16(uu10, _mm256_cvtepu8_epi16(u_value_x0_y1));
-            uu10 = _mm256_add_epi16(uu10, _mm256_cvtepu8_epi16(u_value_x1_y1));
-            vv10 = _mm256_add_epi16(vv10, _mm256_cvtepu8_epi16(v_value_x0_y1));
-            vv10 = _mm256_add_epi16(vv10, _mm256_cvtepu8_epi16(v_value_x1_y1));
+            uu10 = _mm256_add_epi16(uu10, _mm256_maddubs_epi16(packed_ux0_y1, inter_row32));
+            vv10 = _mm256_add_epi16(vv10, _mm256_maddubs_epi16(packed_vx0_y1, inter_row32));
 
             uu01 = _mm256_add_epi16(uu01, inter_rnd);
             vv01 = _mm256_add_epi16(vv01, inter_rnd);
@@ -695,6 +777,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut r2 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_hi, intl_vv_hi), r_coef);
             let mut r3 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_hi, intl_vv_hi), r_coef);
 
+            r0 = _mm256_add_epi32(r0, rnd);
+            r1 = _mm256_add_epi32(r1, rnd);
+            r2 = _mm256_add_epi32(r2, rnd);
+            r3 = _mm256_add_epi32(r3, rnd);
+
             r0 = _mm256_srai_epi32::<Q>(r0);
             r1 = _mm256_srai_epi32::<Q>(r1);
             r2 = _mm256_srai_epi32::<Q>(r2);
@@ -708,6 +795,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut b1 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b2 = _mm256_madd_epi16(_mm256_unpacklo_epi16(y_hi, intl_uu_hi), b_coef);
             let mut b3 = _mm256_madd_epi16(_mm256_unpackhi_epi16(y_hi, intl_uu_hi), b_coef);
+
+            b0 = _mm256_add_epi32(b0, rnd);
+            b1 = _mm256_add_epi32(b1, rnd);
+            b2 = _mm256_add_epi32(b2, rnd);
+            b3 = _mm256_add_epi32(b3, rnd);
 
             b0 = _mm256_srai_epi32::<Q>(b0);
             b1 = _mm256_srai_epi32::<Q>(b1);
@@ -736,6 +828,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut g1 = _mm256_madd_epi16(_mm256_unpackhi_epi16(intl_vv_lo, intl_uu_lo), g_coef);
             let mut g2 = _mm256_madd_epi16(_mm256_unpacklo_epi16(intl_vv_hi, intl_uu_hi), g_coef);
             let mut g3 = _mm256_madd_epi16(_mm256_unpackhi_epi16(intl_vv_hi, intl_uu_hi), g_coef);
+
+            g0 = _mm256_add_epi32(g0, rnd);
+            g1 = _mm256_add_epi32(g1, rnd);
+            g2 = _mm256_add_epi32(g2, rnd);
+            g3 = _mm256_add_epi32(g3, rnd);
 
             g0 = _mm256_add_epi32(g0, y_lo0_mul);
             g1 = _mm256_add_epi32(g1, y_lo1_mul);
@@ -775,8 +872,10 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
 
         let inter_row01 = _mm256_castsi256_si128(inter_row01);
         let inter_row23 = _mm256_castsi256_si128(inter_row23);
+        let inter_row32 = _mm256_castsi256_si128(inter_row32);
         let inter_row_far = _mm256_castsi256_si128(inter_row_far);
         let inter_rnd = _mm256_castsi256_si128(inter_rnd);
+        let rnd = _mm256_castsi256_si128(rnd);
 
         while x + 17 < width as usize {
             let mut y_value = _mm_loadu_si128(y_plane.get_unchecked(x..).as_ptr().cast());
@@ -793,36 +892,28 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu8(y_value, y_corr);
 
-            let mut uu01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0), inter_row01);
-            let mut vv01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0), inter_row01);
+            let packed_u0_y0 = _mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0);
+            let packed_v0_y0 = _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0);
+            let packed_u0_y1 = _mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1);
+            let packed_v0_y1 = _mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1);
 
-            let mut uu10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
+            let mut uu01 = _mm_maddubs_epi16(packed_u0_y0, inter_row01);
+            let mut vv01 = _mm_maddubs_epi16(packed_v0_y0, inter_row01);
+
+            let mut uu10 = _mm_maddubs_epi16(packed_u0_y0, inter_row_far);
             let mut vv10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0),
                 inter_row_far,
             );
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
             let y_hi = _mm_unpackhi_epi8(y_value, _mm_setzero_si128());
 
-            uu01 = _mm_add_epi16(
-                uu01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row23),
-            );
-            vv01 = _mm_add_epi16(
-                vv01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row23),
-            );
+            uu01 = _mm_add_epi16(uu01, _mm_maddubs_epi16(packed_u0_y1, inter_row23));
+            vv01 = _mm_add_epi16(vv01, _mm_maddubs_epi16(packed_v0_y1, inter_row23));
 
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x1_y1, _mm_setzero_si128()));
+            uu10 = _mm_add_epi16(uu10, _mm_maddubs_epi16(packed_u0_y1, inter_row32));
+            vv10 = _mm_add_epi16(vv10, _mm_maddubs_epi16(packed_v0_y1, inter_row32));
 
             uu01 = _mm_add_epi16(uu01, inter_rnd);
             vv01 = _mm_add_epi16(vv01, inter_rnd);
@@ -849,6 +940,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut r2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_vv_hi), r_coef);
             let mut r3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_vv_hi), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+            r2 = _mm_add_epi32(r2, rnd);
+            r3 = _mm_add_epi32(r3, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
             r2 = _mm_srai_epi32::<Q>(r2);
@@ -862,6 +958,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_uu_hi), b_coef);
             let mut b3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_uu_hi), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
+            b2 = _mm_add_epi32(b2, rnd);
+            b3 = _mm_add_epi32(b3, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -886,6 +987,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
             g2 = _mm_add_epi32(g2, _mm_unpacklo_epi16(y_hi0_mul, y_hi1_mul));
             g3 = _mm_add_epi32(g3, _mm_unpackhi_epi16(y_hi0_mul, y_hi1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
+            g2 = _mm_add_epi32(g2, rnd);
+            g3 = _mm_add_epi32(g3, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -925,35 +1031,27 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu8(y_value, y_corr);
 
-            let mut uu01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0), inter_row01);
-            let mut vv01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0), inter_row01);
+            let packed_u0_y0 = _mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0);
+            let packed_v0_y0 = _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0);
+            let packed_u0_y1 = _mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1);
+            let packed_v0_y1 = _mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1);
 
-            let mut uu10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
+            let mut uu01 = _mm_maddubs_epi16(packed_u0_y0, inter_row01);
+            let mut vv01 = _mm_maddubs_epi16(packed_v0_y0, inter_row01);
+
+            let mut uu10 = _mm_maddubs_epi16(packed_u0_y0, inter_row_far);
             let mut vv10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0),
                 inter_row_far,
             );
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
 
-            uu01 = _mm_add_epi16(
-                uu01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row23),
-            );
-            vv01 = _mm_add_epi16(
-                vv01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row23),
-            );
+            uu01 = _mm_add_epi16(uu01, _mm_maddubs_epi16(packed_u0_y1, inter_row23));
+            vv01 = _mm_add_epi16(vv01, _mm_maddubs_epi16(packed_v0_y1, inter_row23));
 
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x1_y1, _mm_setzero_si128()));
+            uu10 = _mm_add_epi16(uu10, _mm_maddubs_epi16(packed_u0_y1, inter_row32));
+            vv10 = _mm_add_epi16(vv10, _mm_maddubs_epi16(packed_v0_y1, inter_row32));
 
             uu01 = _mm_add_epi16(uu01, inter_rnd);
             vv01 = _mm_add_epi16(vv01, inter_rnd);
@@ -976,6 +1074,9 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut r0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_lo, intl_vv_lo), r_coef);
             let mut r1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_vv_lo), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
 
@@ -984,6 +1085,9 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
 
             let mut b0 = _mm_madd_epi16(_mm_unpacklo_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -999,6 +1103,9 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
 
             g0 = _mm_srai_epi32::<Q>(g0);
             g1 = _mm_srai_epi32::<Q>(g1);
@@ -1083,36 +1190,28 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
 
             y_value = _mm_subs_epu8(y_value, y_corr);
 
-            let mut uu01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0), inter_row01);
-            let mut vv01 =
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0), inter_row01);
+            let packed_u0_y0 = _mm_unpacklo_epi8(u_value_x0_y0, u_value_x1_y0);
+            let packed_v0_y0 = _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0);
+            let packed_u0_y1 = _mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1);
+            let packed_v0_y1 = _mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1);
 
-            let mut uu10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(u_value_x1_y0, u_value_x0_y0),
-                inter_row_far,
-            );
+            let mut uu01 = _mm_maddubs_epi16(packed_u0_y0, inter_row01);
+            let mut vv01 = _mm_maddubs_epi16(packed_v0_y0, inter_row01);
+
+            let mut uu10 = _mm_maddubs_epi16(packed_u0_y0, inter_row_far);
             let mut vv10 = _mm_maddubs_epi16(
-                _mm_unpacklo_epi8(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi8(v_value_x0_y0, v_value_x1_y0),
                 inter_row_far,
             );
 
             let y_lo = _mm_unpacklo_epi8(y_value, _mm_setzero_si128());
             let y_hi = _mm_unpackhi_epi8(y_value, _mm_setzero_si128());
 
-            uu01 = _mm_add_epi16(
-                uu01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(u_value_x0_y1, u_value_x1_y1), inter_row23),
-            );
-            vv01 = _mm_add_epi16(
-                vv01,
-                _mm_maddubs_epi16(_mm_unpacklo_epi8(v_value_x0_y1, v_value_x1_y1), inter_row23),
-            );
+            uu01 = _mm_add_epi16(uu01, _mm_maddubs_epi16(packed_u0_y1, inter_row23));
+            vv01 = _mm_add_epi16(vv01, _mm_maddubs_epi16(packed_v0_y1, inter_row23));
 
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi16(uu10, _mm_unpacklo_epi8(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi16(vv10, _mm_unpacklo_epi8(v_value_x1_y1, _mm_setzero_si128()));
+            uu10 = _mm_add_epi16(uu10, _mm_maddubs_epi16(packed_u0_y1, inter_row32));
+            vv10 = _mm_add_epi16(vv10, _mm_maddubs_epi16(packed_v0_y1, inter_row32));
 
             uu01 = _mm_add_epi16(uu01, inter_rnd);
             vv01 = _mm_add_epi16(vv01, inter_rnd);
@@ -1139,6 +1238,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut r2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_vv_hi), r_coef);
             let mut r3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_vv_hi), r_coef);
 
+            r0 = _mm_add_epi32(r0, rnd);
+            r1 = _mm_add_epi32(r1, rnd);
+            r2 = _mm_add_epi32(r2, rnd);
+            r3 = _mm_add_epi32(r3, rnd);
+
             r0 = _mm_srai_epi32::<Q>(r0);
             r1 = _mm_srai_epi32::<Q>(r1);
             r2 = _mm_srai_epi32::<Q>(r2);
@@ -1152,6 +1256,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut b1 = _mm_madd_epi16(_mm_unpackhi_epi16(y_lo, intl_uu_lo), b_coef);
             let mut b2 = _mm_madd_epi16(_mm_unpacklo_epi16(y_hi, intl_uu_hi), b_coef);
             let mut b3 = _mm_madd_epi16(_mm_unpackhi_epi16(y_hi, intl_uu_hi), b_coef);
+
+            b0 = _mm_add_epi32(b0, rnd);
+            b1 = _mm_add_epi32(b1, rnd);
+            b2 = _mm_add_epi32(b2, rnd);
+            b3 = _mm_add_epi32(b3, rnd);
 
             b0 = _mm_srai_epi32::<Q>(b0);
             b1 = _mm_srai_epi32::<Q>(b1);
@@ -1171,6 +1280,11 @@ unsafe fn avx_bilinear_interpolate_2_rows_rgba_impl<
             let mut g1 = _mm_madd_epi16(_mm_unpackhi_epi16(intl_vv_lo, intl_uu_lo), g_coef);
             let mut g2 = _mm_madd_epi16(_mm_unpacklo_epi16(intl_vv_hi, intl_uu_hi), g_coef);
             let mut g3 = _mm_madd_epi16(_mm_unpackhi_epi16(intl_vv_hi, intl_uu_hi), g_coef);
+
+            g0 = _mm_add_epi32(g0, rnd);
+            g1 = _mm_add_epi32(g1, rnd);
+            g2 = _mm_add_epi32(g2, rnd);
+            g3 = _mm_add_epi32(g3, rnd);
 
             g0 = _mm_add_epi32(g0, _mm_unpacklo_epi16(y_lo0_mul, y_lo1_mul));
             g1 = _mm_add_epi32(g1, _mm_unpackhi_epi16(y_lo0_mul, y_lo1_mul));

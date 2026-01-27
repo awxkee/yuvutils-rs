@@ -55,7 +55,7 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     let v_luma_coeff = vdupq_n_u16(transform.y_coef as u16);
     let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
     let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
-    let rnd_base = vdupq_n_u32((1 << (PRECISION - 1)) - 1);
+    let rnd_base = vdupq_n_u32(1 << (PRECISION - 1));
 
     let mut cx = start_cx;
 
