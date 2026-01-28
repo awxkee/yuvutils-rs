@@ -495,10 +495,10 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     };
                     sharpen_row420::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                         y,
-                        &rgba[0..planar_image.width as usize * src_chans.get_channels_count()],
-                        &mut y_plane[0..planar_image.width as usize],
-                        &mut u_plane[0..(planar_image.width as usize).div_ceil(2)],
-                        &mut v_plane[0..(planar_image.width as usize).div_ceil(2)],
+                        &rgba[..planar_image.width as usize * src_chans.get_channels_count()],
+                        &mut y_plane[..planar_image.width as usize],
+                        &mut u_plane[..(planar_image.width as usize).div_ceil(2)],
+                        &mut v_plane[..(planar_image.width as usize).div_ceil(2)],
                         rgb_layout_lane,
                         rgb_layout_next_lane,
                         &gamma_map_table,
@@ -513,10 +513,10 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 let rgb_layout_lane = &rgb_layout
                     [rgb_layout_start..((planar_image.width as usize) * 3 + rgb_layout_start)];
                 sharpen_row422::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
-                    &rgba[0..planar_image.width as usize * src_chans.get_channels_count()],
-                    &mut y_plane[0..planar_image.width as usize],
-                    &mut u_plane[0..(planar_image.width as usize).div_ceil(2)],
-                    &mut v_plane[0..(planar_image.width as usize).div_ceil(2)],
+                    &rgba[..planar_image.width as usize * src_chans.get_channels_count()],
+                    &mut y_plane[..planar_image.width as usize],
+                    &mut u_plane[..(planar_image.width as usize).div_ceil(2)],
+                    &mut v_plane[..(planar_image.width as usize).div_ceil(2)],
                     rgb_layout_lane,
                     &gamma_map_table,
                     &chroma_range,
@@ -564,10 +564,10 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             let rgb_layout_next_lane: &[u16] = rgb_layout;
             sharpen_row420::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
                 y,
-                &rgba[0..planar_image.width as usize * src_chans.get_channels_count()],
-                &mut y_plane[0..planar_image.width as usize],
-                &mut u_plane[0..(planar_image.width as usize).div_ceil(2)],
-                &mut v_plane[0..(planar_image.width as usize).div_ceil(2)],
+                &rgba[..planar_image.width as usize * src_chans.get_channels_count()],
+                &mut y_plane[..planar_image.width as usize],
+                &mut u_plane[..(planar_image.width as usize).div_ceil(2)],
+                &mut v_plane[..(planar_image.width as usize).div_ceil(2)],
                 rgb_layout_lane,
                 rgb_layout_next_lane,
                 &gamma_map_table,
