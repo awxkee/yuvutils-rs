@@ -178,7 +178,7 @@ where
     match range {
         YuvRange::Limited => {
             iter.for_each(|(rgba16, y_plane)| {
-                let y_plane = &y_plane[0..image.width as usize];
+                let y_plane = &y_plane[..image.width as usize];
                 let mut _cx = 0usize;
 
                 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -215,7 +215,7 @@ where
         YuvRange::Full => {
             let mut _executor = make_full_converter::<DESTINATION_CHANNELS, BIT_DEPTH>();
             iter.for_each(|(rgba16, y_plane)| {
-                let y_plane = &y_plane[0..image.width as usize];
+                let y_plane = &y_plane[..image.width as usize];
                 unsafe {
                     _executor(rgba16, y_plane);
                 }

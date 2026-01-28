@@ -415,7 +415,7 @@ where
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter).zip(a_iter);
 
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
-                let y_src = &y_src[0..image.width as usize];
+                let y_src = &y_src[..image.width as usize];
                 let mut _row_processor: Box<dyn LimitedRowHandle<V, J> + Send + Sync> =
                     Box::new(DefaultLimitedRowHandle::<
                         V,
@@ -479,7 +479,7 @@ where
             }
 
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
-                let y_src = &y_src[0..image.width as usize];
+                let y_src = &y_src[..image.width as usize];
                 unsafe {
                     _row_processor.process_row(rgb, y_src, u_src, v_src, a_src);
                 }

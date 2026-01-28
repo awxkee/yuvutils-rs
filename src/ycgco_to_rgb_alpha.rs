@@ -130,7 +130,7 @@ where
                 let cb_value = (u_plane.last().unwrap().as_() - bias_uv).as_();
                 let cr_value = (v_plane.last().unwrap().as_() - bias_uv).as_();
                 let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
-                let rgba0 = &mut rgba[0..channels];
+                let rgba0 = &mut rgba[..channels];
 
                 let t0 = y_value0 - cb_value;
 
@@ -174,7 +174,7 @@ where
             let g0 =
                 qrshr::<PRECISION, BIT_DEPTH>((y_value0 + cb_value) * range_reduction_y as i32);
 
-            let rgba00 = &mut rgba0[0..channels];
+            let rgba00 = &mut rgba0[..channels];
 
             rgba00[dst_chans.get_r_channel_offset()] = r0.as_();
             rgba00[dst_chans.get_g_channel_offset()] = g0.as_();
@@ -206,7 +206,7 @@ where
             let g10 =
                 qrshr::<PRECISION, BIT_DEPTH>((y_value10 + cb_value) * range_reduction_y as i32);
 
-            let rgba10 = &mut rgba1[0..channels];
+            let rgba10 = &mut rgba1[..channels];
 
             rgba10[dst_chans.get_r_channel_offset()] = r10.as_();
             rgba10[dst_chans.get_g_channel_offset()] = g10.as_();
@@ -238,7 +238,7 @@ where
             let cb_value = (u_plane.last().unwrap().as_() - bias_uv).as_();
             let cr_value = (v_plane.last().unwrap().as_() - bias_uv).as_();
             let rgba = rgba0.chunks_exact_mut(channels).last().unwrap();
-            let rgba0 = &mut rgba[0..channels];
+            let rgba0 = &mut rgba[..channels];
 
             let t0 = y_value0 - cb_value;
 
@@ -260,7 +260,7 @@ where
                 qrshr::<PRECISION, BIT_DEPTH>((y_value1 + cb_value) * range_reduction_y as i32);
 
             let rgba = rgba1.chunks_exact_mut(channels).last().unwrap();
-            let rgba1 = &mut rgba[0..channels];
+            let rgba1 = &mut rgba[..channels];
             rgba1[dst_chans.get_r_channel_offset()] = r1.as_();
             rgba1[dst_chans.get_g_channel_offset()] = g1.as_();
             rgba1[dst_chans.get_b_channel_offset()] = b1.as_();
@@ -337,11 +337,11 @@ where
         }
         iter.for_each(|((((rgba, y_plane), u_plane), v_plane), a_plane)| {
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &a_plane[0..image.width as usize],
-                &mut rgba[0..image.width as usize * channels],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &a_plane[..image.width as usize],
+                &mut rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -369,14 +369,14 @@ where
             let (y_plane0, y_plane1) = y_plane.split_at(image.y_stride as usize);
             let (a_plane0, a_plane1) = a_plane.split_at(image.a_stride as usize);
             process_doubled_chroma_row(
-                &y_plane0[0..image.width as usize],
-                &y_plane1[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &a_plane0[0..image.width as usize],
-                &a_plane1[0..image.width as usize],
-                &mut rgba0[0..image.width as usize * channels],
-                &mut rgba1[0..image.width as usize * channels],
+                &y_plane0[..image.width as usize],
+                &y_plane1[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &a_plane0[..image.width as usize],
+                &a_plane1[..image.width as usize],
+                &mut rgba0[..image.width as usize * channels],
+                &mut rgba1[..image.width as usize * channels],
             );
         });
 
@@ -403,11 +403,11 @@ where
                 .last()
                 .unwrap();
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &a_plane[0..image.width as usize],
-                &mut rgba[0..image.width as usize * channels],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &a_plane[..image.width as usize],
+                &mut rgba[..image.width as usize * channels],
             );
         }
     } else {

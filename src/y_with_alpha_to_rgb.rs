@@ -208,7 +208,7 @@ where
         iter.zip(y_iter)
             .zip(a_iter)
             .for_each(|((rgba, y_plane), a_plane)| {
-                let y_plane = &y_plane[0..image.width as usize];
+                let y_plane = &y_plane[..image.width as usize];
                 let mut _cx = 0usize;
 
                 let offset = handler.handle_row::<PRECISION, DESTINATION_CHANNELS>(
@@ -241,7 +241,7 @@ where
         iter.zip(y_iter)
             .zip(a_iter)
             .for_each(|((rgba, y_plane), a_plane)| {
-                let y_plane = &y_plane[0..image.width as usize];
+                let y_plane = &y_plane[..image.width as usize];
                 for ((y_src, a_src), rgba) in y_plane
                     .iter()
                     .zip(a_plane)

@@ -226,10 +226,10 @@ pub(crate) fn yuv_to_yuy2_impl<
         }
 
         iter.for_each(|(((yuy2, y_src), u_src), v_src)| {
-            let yuy2 = &mut yuy2[0..yuy2_width];
-            let y_src = &y_src[0..image.width as usize];
-            let u_src = &u_src[0..image.width as usize];
-            let v_src = &v_src[0..image.width as usize];
+            let yuy2 = &mut yuy2[..yuy2_width];
+            let y_src = &y_src[..image.width as usize];
+            let u_src = &u_src[..image.width as usize];
+            let v_src = &v_src[..image.width as usize];
             let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
                 yuy2,
                 y_src,
@@ -253,7 +253,7 @@ pub(crate) fn yuv_to_yuy2_impl<
 
             if width & 1 != 0 {
                 let yuy2 = yuy2.chunks_exact_mut(4).last().unwrap();
-                let yuy2 = &mut yuy2[0..4];
+                let yuy2 = &mut yuy2[..4];
                 let last_y = y_src.last().unwrap();
                 let last_u = u_src.last().unwrap();
                 let last_v = v_src.last().unwrap();
@@ -339,7 +339,7 @@ pub(crate) fn yuv_to_yuy2_impl<
 
             if width & 1 != 0 {
                 let yuy2 = yuy2.chunks_exact_mut(4).last().unwrap();
-                let yuy2 = &mut yuy2[0..4];
+                let yuy2 = &mut yuy2[..4];
                 let last_y = y_src.last().unwrap();
                 let last_u = u_src.last().unwrap();
                 let last_v = v_src.last().unwrap();
@@ -401,10 +401,10 @@ pub(crate) fn yuv_to_yuy2_impl<
                 .chunks_exact_mut(image.yuy_stride as usize)
                 .zip(y_src.chunks_exact(planar_image.y_stride as usize))
             {
-                let yuy2 = &mut yuy2[0..yuy2_width];
-                let y_src = &y_src[0..image.width as usize];
-                let u_src = &u_src[0..(image.width as usize).div_ceil(2)];
-                let v_src = &v_src[0..(image.width as usize).div_ceil(2)];
+                let yuy2 = &mut yuy2[..yuy2_width];
+                let y_src = &y_src[..image.width as usize];
+                let u_src = &u_src[..(image.width as usize).div_ceil(2)];
+                let v_src = &v_src[..(image.width as usize).div_ceil(2)];
 
                 let processed = V::process_wide_row::<SAMPLING, YUY2_TARGET>(
                     yuy2,
@@ -429,7 +429,7 @@ pub(crate) fn yuv_to_yuy2_impl<
 
                 if width & 1 != 0 {
                     let yuy2 = yuy2.chunks_exact_mut(4).last().unwrap();
-                    let yuy2 = &mut yuy2[0..4];
+                    let yuy2 = &mut yuy2[..4];
                     let last_y = y_src.last().unwrap();
                     let last_u = u_src.last().unwrap();
                     let last_v = v_src.last().unwrap();
@@ -470,10 +470,10 @@ pub(crate) fn yuv_to_yuy2_impl<
                 width as usize,
             );
 
-            let rem_yuy = &mut rem_yuy[0..yuy2_width];
-            let rem_y = &rem_y[0..image.width as usize];
-            let last_u = &last_u[0..(image.width as usize).div_ceil(2)];
-            let last_v = &last_v[0..(image.width as usize).div_ceil(2)];
+            let rem_yuy = &mut rem_yuy[..yuy2_width];
+            let rem_y = &rem_y[..image.width as usize];
+            let last_u = &last_u[..(image.width as usize).div_ceil(2)];
+            let last_v = &last_v[..(image.width as usize).div_ceil(2)];
 
             for (((yuy2, y_src), u_src), v_src) in rem_yuy
                 .chunks_exact_mut(4)
@@ -490,7 +490,7 @@ pub(crate) fn yuv_to_yuy2_impl<
 
             if width & 1 != 0 {
                 let yuy2 = rem_yuy.chunks_exact_mut(4).last().unwrap();
-                let yuy2 = &mut yuy2[0..4];
+                let yuy2 = &mut yuy2[..4];
                 let last_y = rem_y.last().unwrap();
                 let last_u = last_u.last().unwrap();
                 let last_v = last_v.last().unwrap();

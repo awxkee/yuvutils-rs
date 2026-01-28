@@ -267,8 +267,8 @@ fn ayuv_to_rgb_launch<const DST: u8, const PACKED: u8>(
     let mut _executor: RowExecutor = make_executor::<DST, PACKED, PRECISION>();
 
     iter.for_each(|(src, dst)| {
-        let src = &src[0..image.width as usize * 4];
-        let dst = &mut dst[0..image.width as usize * cn.get_channels_count()];
+        let src = &src[..image.width as usize * 4];
+        let dst = &mut dst[..image.width as usize * cn.get_channels_count()];
         unsafe {
             _executor(
                 src,

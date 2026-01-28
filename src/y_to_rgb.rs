@@ -248,7 +248,7 @@ fn y_to_rgbx<const CN: u8>(
         let executor = make_limited_converter::<CN, PRECISION>();
 
         iter.zip(y_iter).for_each(|(rgba, y_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
+            let y_plane = &y_plane[..image.width as usize];
             let rgba = &mut rgba[..channels * image.width as usize];
 
             unsafe {
@@ -265,7 +265,7 @@ fn y_to_rgbx<const CN: u8>(
     } else {
         let executor = make_full_converter::<CN>();
         iter.zip(y_iter).for_each(|(rgba, y_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
+            let y_plane = &y_plane[..image.width as usize];
             unsafe {
                 executor(rgba, y_plane, image.width as usize);
             }

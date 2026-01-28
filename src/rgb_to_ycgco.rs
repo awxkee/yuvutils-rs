@@ -254,7 +254,7 @@ where
                 .zip(rgba.chunks_exact(rgba_stride as usize));
         }
         iter.for_each(|(((y_dst, u_plane), v_plane), rgba)| {
-            let y_dst = &mut y_dst[0..image.width as usize];
+            let y_dst = &mut y_dst[..image.width as usize];
             for (((y_dst, u_dst), v_dst), rgba) in y_dst
                 .iter_mut()
                 .zip(u_plane.iter_mut())
@@ -295,10 +295,10 @@ where
 
         iter.for_each(|(((y_plane, u_plane), v_plane), rgba)| {
             process_halved_chroma_row(
-                &mut y_plane[0..image.width as usize],
-                &mut u_plane[0..(image.width as usize).div_ceil(2)],
-                &mut v_plane[0..(image.width as usize).div_ceil(2)],
-                &rgba[0..image.width as usize * channels],
+                &mut y_plane[..image.width as usize],
+                &mut u_plane[..(image.width as usize).div_ceil(2)],
+                &mut v_plane[..(image.width as usize).div_ceil(2)],
+                &rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -323,12 +323,12 @@ where
             let (rgba0, rgba1) = rgba.split_at(rgba_stride as usize);
             let (y_plane0, y_plane1) = y_plane.split_at_mut(y_stride);
             process_doubled_row(
-                &mut y_plane0[0..image.width as usize],
-                &mut y_plane1[0..image.width as usize],
-                &mut u_plane[0..(image.width as usize).div_ceil(2)],
-                &mut v_plane[0..(image.width as usize).div_ceil(2)],
-                &rgba0[0..image.width as usize * channels],
-                &rgba1[0..image.width as usize * channels],
+                &mut y_plane0[..image.width as usize],
+                &mut y_plane1[..image.width as usize],
+                &mut u_plane[..(image.width as usize).div_ceil(2)],
+                &mut v_plane[..(image.width as usize).div_ceil(2)],
+                &rgba0[..image.width as usize * channels],
+                &rgba1[..image.width as usize * channels],
             );
         });
 
@@ -339,9 +339,9 @@ where
             let v_plane = v_plane.chunks_exact_mut(v_stride).last().unwrap();
             process_halved_chroma_row(
                 &mut remainder_y_plane[0..image.width as usize],
-                &mut u_plane[0..(image.width as usize).div_ceil(2)],
-                &mut v_plane[0..(image.width as usize).div_ceil(2)],
-                &remainder_rgba[0..image.width as usize * channels],
+                &mut u_plane[..(image.width as usize).div_ceil(2)],
+                &mut v_plane[..(image.width as usize).div_ceil(2)],
+                &remainder_rgba[..image.width as usize * channels],
             );
         }
     } else {

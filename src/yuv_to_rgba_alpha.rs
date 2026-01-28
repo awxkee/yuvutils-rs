@@ -275,7 +275,7 @@ fn yuv_with_alpha_to_rgbx<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>(
                     let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
                     let a_value = *a_plane.last().unwrap();
                     let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
-                    let rgba0 = &mut rgba[0..channels];
+                    let rgba0 = &mut rgba[..channels];
 
                     let mut r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
                     let mut b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);

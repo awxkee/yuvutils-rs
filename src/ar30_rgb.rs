@@ -58,8 +58,8 @@ fn ar30_to_rgb8_impl<
         .chunks_exact_mut(rgba_stride as usize)
         .zip(ar30.chunks_exact(ar30_stride as usize))
     {
-        let src = &src[0..width as usize * 4];
-        let dst = &mut dst[0..width as usize * rgba_layout.get_channels_count()];
+        let src = &src[..width as usize * 4];
+        let dst = &mut dst[..width as usize * rgba_layout.get_channels_count()];
         for (dst, src) in dst
             .chunks_exact_mut(rgba_layout.get_channels_count())
             .zip(src.chunks_exact(4))

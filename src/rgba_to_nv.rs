@@ -706,7 +706,7 @@ fn rgbx_to_nv_impl<
                 .zip(rgba1.chunks_exact(channels * 2))
                 .skip(offset.cx / 2)
             {
-                let rgba00 = &rgba0[0..channels];
+                let rgba00 = &rgba0[..channels];
                 let r00 = rgba00[src_chans.get_r_channel_offset()] as i32;
                 let g00 = rgba00[src_chans.get_g_channel_offset()] as i32;
                 let b00 = rgba00[src_chans.get_b_channel_offset()] as i32;
@@ -724,7 +724,7 @@ fn rgbx_to_nv_impl<
                     >> PRECISION;
                 y_dst0[1] = y_1 as u8;
 
-                let rgba10 = &rgba1[0..channels];
+                let rgba10 = &rgba1[..channels];
                 let r10 = rgba10[src_chans.get_r_channel_offset()] as i32;
                 let g10 = rgba10[src_chans.get_g_channel_offset()] as i32;
                 let b10 = rgba10[src_chans.get_b_channel_offset()] as i32;
@@ -754,9 +754,9 @@ fn rgbx_to_nv_impl<
 
             if width & 1 != 0 {
                 let rgba0 = rgba0.chunks_exact(channels * 2).remainder();
-                let rgba0 = &rgba0[0..channels];
+                let rgba0 = &rgba0[..channels];
                 let rgba1 = rgba1.chunks_exact(channels * 2).remainder();
-                let rgba1 = &rgba1[0..channels];
+                let rgba1 = &rgba1[..channels];
                 let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
                 let y_dst0 = y_dst0.chunks_exact_mut(2).into_remainder();
                 let y_dst1 = y_dst1.chunks_exact_mut(2).into_remainder();
@@ -811,7 +811,7 @@ fn rgbx_to_nv_impl<
                 .zip(rgba.chunks_exact(rgba_stride as usize));
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
-            let y_dst = &mut y_dst[0..image.width as usize];
+            let y_dst = &mut y_dst[..image.width as usize];
             let offset = semi_planar_handler.handle_row(
                 rgba,
                 y_dst,
@@ -863,9 +863,9 @@ fn rgbx_to_nv_impl<
         }
         iter.for_each(|((y_dst, uv_dst), rgba)| {
             process_halved_row(
-                &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
-                &rgba[0..image.width as usize * channels],
+                &mut y_dst[..image.width as usize],
+                &mut uv_dst[..(image.width as usize).div_ceil(2) * 2],
+                &rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -889,11 +889,11 @@ fn rgbx_to_nv_impl<
             let (y_dst0, y_dst1) = y_dst.split_at_mut(image.y_stride as usize);
             let (rgba0, rgba1) = rgba.split_at(rgba_stride as usize);
             process_double_row(
-                &mut y_dst0[0..image.width as usize],
-                &mut y_dst1[0..image.width as usize],
-                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
-                &rgba0[0..image.width as usize * channels],
-                &rgba1[0..image.width as usize * channels],
+                &mut y_dst0[..image.width as usize],
+                &mut y_dst1[..image.width as usize],
+                &mut uv_dst[..(image.width as usize).div_ceil(2) * 2],
+                &rgba0[..image.width as usize * channels],
+                &rgba1[..image.width as usize * channels],
             );
         });
 
@@ -907,9 +907,9 @@ fn rgbx_to_nv_impl<
                 .unwrap();
             let rgba = rgba.chunks_exact(rgba_stride as usize * 2).remainder();
             process_halved_row(
-                &mut y_dst[0..image.width as usize],
-                &mut uv_dst[0..(image.width as usize).div_ceil(2) * 2],
-                &rgba[0..image.width as usize * channels],
+                &mut y_dst[..image.width as usize],
+                &mut uv_dst[..(image.width as usize).div_ceil(2) * 2],
+                &rgba[..image.width as usize * channels],
             );
         }
     }

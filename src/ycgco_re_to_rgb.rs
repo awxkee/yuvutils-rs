@@ -246,10 +246,10 @@ where
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba[0..image.width as usize * channels],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &mut rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -275,17 +275,17 @@ where
             let (y_plane0, y_plane1) = y_plane.split_at(image.y_stride as usize);
 
             process_halved_chroma_row(
-                &y_plane0[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba0[0..image.width as usize * channels],
+                &y_plane0[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &mut rgba0[..image.width as usize * channels],
             );
 
             process_halved_chroma_row(
-                &y_plane1[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba1[0..image.width as usize * channels],
+                &y_plane1[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &mut rgba1[..image.width as usize * channels],
             );
         });
 
@@ -307,10 +307,10 @@ where
                 .last()
                 .unwrap();
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba[0..image.width as usize * channels],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &mut rgba[..image.width as usize * channels],
             );
         }
     } else {

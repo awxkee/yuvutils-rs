@@ -913,7 +913,7 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
                 .zip(rgba.chunks_exact(rgba_stride as usize));
         }
         iter.for_each(|(((y_dst, u_plane), v_plane), rgba)| {
-            let y_dst = &mut y_dst[0..image.width as usize];
+            let y_dst = &mut y_dst[..image.width as usize];
             let processed_offset = row_handler.handle_row(
                 y_dst,
                 u_plane,
@@ -971,10 +971,10 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
 
         iter.for_each(|(((y_plane, u_plane), v_plane), rgba)| {
             process_halved_chroma_row(
-                &mut y_plane[0..image.width as usize],
-                &mut u_plane[0..(image.width as usize).div_ceil(2)],
-                &mut v_plane[0..(image.width as usize).div_ceil(2)],
-                &rgba[0..image.width as usize * channels],
+                &mut y_plane[..image.width as usize],
+                &mut u_plane[..(image.width as usize).div_ceil(2)],
+                &mut v_plane[..(image.width as usize).div_ceil(2)],
+                &rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -999,12 +999,12 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
             let (rgba0, rgba1) = rgba.split_at(rgba_stride as usize);
             let (y_plane0, y_plane1) = y_plane.split_at_mut(y_stride);
             process_doubled_row(
-                &mut y_plane0[0..image.width as usize],
-                &mut y_plane1[0..image.width as usize],
-                &mut u_plane[0..(image.width as usize).div_ceil(2)],
-                &mut v_plane[0..(image.width as usize).div_ceil(2)],
-                &rgba0[0..image.width as usize * channels],
-                &rgba1[0..image.width as usize * channels],
+                &mut y_plane0[..image.width as usize],
+                &mut y_plane1[..image.width as usize],
+                &mut u_plane[..(image.width as usize).div_ceil(2)],
+                &mut v_plane[..(image.width as usize).div_ceil(2)],
+                &rgba0[..image.width as usize * channels],
+                &rgba1[..image.width as usize * channels],
             );
         });
 
@@ -1014,10 +1014,10 @@ fn rgbx_to_yuv8_impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECIS
             let u_plane = u_plane.chunks_exact_mut(u_stride).last().unwrap();
             let v_plane = v_plane.chunks_exact_mut(v_stride).last().unwrap();
             process_halved_chroma_row(
-                &mut remainder_y_plane[0..image.width as usize],
-                &mut u_plane[0..(image.width as usize).div_ceil(2)],
-                &mut v_plane[0..(image.width as usize).div_ceil(2)],
-                &remainder_rgba[0..image.width as usize * channels],
+                &mut remainder_y_plane[..image.width as usize],
+                &mut u_plane[..(image.width as usize).div_ceil(2)],
+                &mut v_plane[..(image.width as usize).div_ceil(2)],
+                &remainder_rgba[..image.width as usize * channels],
             );
         }
     } else {
