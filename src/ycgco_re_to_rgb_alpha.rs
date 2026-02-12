@@ -217,7 +217,7 @@ where
                 .zip(image.a_plane.chunks_exact(image.a_stride as usize));
         }
         iter.for_each(|((((rgba, y_plane), u_plane), v_plane), a_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
+            let y_plane = &y_plane[..image.width as usize];
             for ((((rgba, &y_src), &u_src), &v_src), &a_src) in rgba
                 .chunks_exact_mut(channels)
                 .zip(y_plane.iter())

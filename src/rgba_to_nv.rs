@@ -659,7 +659,7 @@ fn rgbx_to_nv_impl<
 
             if width & 1 != 0 {
                 let rgba = rgba.chunks_exact(channels * 2).remainder();
-                let rgba = &rgba[0..channels];
+                let rgba = &rgba[..channels];
                 let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
                 let y_dst = y_dst.chunks_exact_mut(2).into_remainder();
 

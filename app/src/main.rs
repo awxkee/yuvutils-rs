@@ -180,10 +180,10 @@ fn main() {
             .enumerate()
         {
             if src[0] != src_ref[0] {
-                // panic!(
-                //     "disconvergence r on ({x}, {y}) vals {} vs {}",
-                //     src[0], src_ref[0]
-                // );
+                panic!(
+                    "disconvergence r on ({x}, {y}) vals {} vs {}",
+                    src[0], src_ref[0]
+                );
             }
         }
     }
