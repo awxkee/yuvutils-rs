@@ -41,9 +41,9 @@ use yuv::{
     rgba12_to_i412, rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410,
     rgba_to_ycgco420, rgba_to_ycgco444, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
     rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24, ycgco420_to_rgba, ycgco444_to_rgba,
-    yuv420_alpha_to_rgba, yuv420_to_rgb_bilinear, yuv420_to_rgba, yuv420_to_rgba_bilinear,
-    yuv422_to_rgb_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_to_rgba,
-    yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv24_to_rgba, YuvBiPlanarImageMut,
+    yuv420_alpha_to_rgba, yuv420_to_rgb, yuv420_to_rgb_bilinear, yuv420_to_rgba,
+    yuv420_to_rgba_bilinear, yuv422_to_rgb_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear,
+    yuv444_to_rgba, yuv_nv12_to_rgba, yuv_nv16_to_rgba, yuv_nv24_to_rgba, YuvBiPlanarImageMut,
     YuvChromaSubsampling, YuvConversionMode, YuvPlanarImage, YuvPlanarImageMut,
     YuvPlanarImageWithAlpha, YuvRange, YuvStandardMatrix,
 };
@@ -99,7 +99,7 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
 
     // let mut bi_planar_image = YuvBiPlanarImageMut::<u16>::alloc(
     //     width as u32,
@@ -107,19 +107,20 @@ fn main() {
     //     YuvChromaSubsampling::Yuv420,
     // );
 
-    let mut bytes_16: Vec<u16> = src_bytes
-        .iter()
-        .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
-        .collect();
+    // let mut bytes_16: Vec<u16> = src_bytes
+    //     .iter()
+    //     .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
+    //     .collect();
 
     let start_time = Instant::now();
 
-    rgb10_to_i010(
+    rgb_to_yuv420(
         &mut planar_image,
-        &bytes_16,
+        &src_bytes,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
+        YuvConversionMode::Balanced,
     )
     .unwrap();
 
@@ -128,9 +129,9 @@ fn main() {
     rgba.fill(255);
 
     let start_time = Instant::now();
-    i010_to_rgb10_bilinear(
+    yuv420_to_rgb(
         &fixed,
-        &mut bytes_16,
+        &mut rgba,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
@@ -160,8 +161,6 @@ fn main() {
     //
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
-
-    rgba = bytes_16.iter().map(|&x| (x >> 2) as u8).collect();
 
     // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
 

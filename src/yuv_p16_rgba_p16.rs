@@ -349,7 +349,7 @@ fn yuv_p16_to_image_p16_ant<
                     y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
                 );
 
-                let rgba0 = &mut rgba[0..channels];
+                let rgba0 = &mut rgba[..channels];
 
                 rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
                 rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
@@ -427,7 +427,7 @@ fn yuv_p16_to_image_p16_ant<
                 .zip(image.v_plane.chunks_exact(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
+            let y_plane = &y_plane[..image.width as usize];
             let cx = wide_row_handler
                 .handle_row(
                     y_plane,

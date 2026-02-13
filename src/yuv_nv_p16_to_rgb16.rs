@@ -206,7 +206,7 @@ fn yuv_nv_p16_to_image_impl<
                 max_range,
             );
 
-            let rgba0 = &mut rgba[0..channels];
+            let rgba0 = &mut rgba[..channels];
 
             rgba0[dst_chans.get_b_channel_offset()] = b_p0 as u16;
             rgba0[dst_chans.get_g_channel_offset()] = g_p0 as u16;
@@ -295,7 +295,7 @@ fn yuv_nv_p16_to_image_impl<
                 .zip(bgra.chunks_exact_mut(bgra_stride as usize));
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
-            let y_src = &y_src[0..image.width as usize];
+            let y_src = &y_src[..image.width as usize];
             let processed = process_wide_row(rgba, y_src, uv_src);
 
             for ((rgba, &y_src), uv_src) in rgba
@@ -326,7 +326,7 @@ fn yuv_nv_p16_to_image_impl<
                     max_range,
                 );
 
-                let rgba0 = &mut rgba[0..channels];
+                let rgba0 = &mut rgba[..channels];
 
                 rgba0[dst_chans.get_b_channel_offset()] = b_p16 as u16;
                 rgba0[dst_chans.get_g_channel_offset()] = g_p16 as u16;
@@ -355,9 +355,9 @@ fn yuv_nv_p16_to_image_impl<
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
             process_halved_chroma_row(
-                &y_src[0..image.width as usize],
-                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                &mut rgba[0..image.width as usize * channels],
+                &y_src[..image.width as usize],
+                &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                &mut rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -382,9 +382,9 @@ fn yuv_nv_p16_to_image_impl<
                 .zip(rgba.chunks_exact_mut(bgra_stride as usize))
             {
                 process_halved_chroma_row(
-                    &y_src[0..image.width as usize],
-                    &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                    &mut rgba[0..image.width as usize * channels],
+                    &y_src[..image.width as usize],
+                    &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                    &mut rgba[..image.width as usize * channels],
                 );
             }
         });
@@ -395,9 +395,9 @@ fn yuv_nv_p16_to_image_impl<
                 .chunks_exact_mut(bgra_stride as usize * 2)
                 .into_remainder();
             process_halved_chroma_row(
-                &y_src[0..image.width as usize],
-                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                &mut rgba[0..image.width as usize * channels],
+                &y_src[..image.width as usize],
+                &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                &mut rgba[..image.width as usize * channels],
             );
         }
     } else {

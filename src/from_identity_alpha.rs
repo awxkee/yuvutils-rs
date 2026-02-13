@@ -122,7 +122,7 @@ where
 
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter).zip(a_iter);
             iter.for_each(|((((y_src, u_src), v_src), rgb), a_src)| {
-                let y_src = &y_src[0..image.width as usize];
+                let y_src = &y_src[..image.width as usize];
                 let rgb_chunks = rgb.chunks_exact_mut(channels);
 
                 for ((((&y_src, &u_src), &v_src), rgb_dst), &a_src) in y_src

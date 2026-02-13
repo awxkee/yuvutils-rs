@@ -399,7 +399,7 @@ where
             let wide_handler = WideRowGbrProcessor::<V, CHANNELS, BIT_DEPTH>::default();
             let iter = y_iter.zip(u_iter).zip(v_iter).zip(rgb_iter);
             iter.for_each(|(((y_src, u_src), v_src), rgb)| {
-                let y_src = &y_src[0..image.width as usize];
+                let y_src = &y_src[..image.width as usize];
 
                 let cx = wide_handler.handle_row(y_src, u_src, v_src, rgb, 0, image.width as usize);
 

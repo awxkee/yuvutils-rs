@@ -103,7 +103,7 @@ fn yuv_p16_to_image_ar30<
                 y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
             );
 
-            let rgba_2 = &mut rgba[0..8];
+            let rgba_2 = &mut rgba[..8];
 
             let pixel0 = ar30_layout.pack::<AR30_STORE>(r0, g0, b0).to_ne_bytes();
             rgba_2[0] = pixel0[0];
@@ -217,10 +217,10 @@ fn yuv_p16_to_image_ar30<
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba[0..image.width as usize * 4],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &mut rgba[..image.width as usize * 4],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -247,10 +247,10 @@ fn yuv_p16_to_image_ar30<
                 .zip(y_plane.chunks_exact(image.y_stride as usize))
             {
                 process_halved_chroma_row(
-                    &y_plane[0..image.width as usize],
-                    &u_plane[0..(image.width as usize).div_ceil(2)],
-                    &v_plane[0..(image.width as usize).div_ceil(2)],
-                    &mut rgba[0..image.width as usize * 4],
+                    &y_plane[..image.width as usize],
+                    &u_plane[..(image.width as usize).div_ceil(2)],
+                    &v_plane[..(image.width as usize).div_ceil(2)],
+                    &mut rgba[..image.width as usize * 4],
                 );
             }
         });
@@ -273,10 +273,10 @@ fn yuv_p16_to_image_ar30<
                 .last()
                 .unwrap();
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba[0..image.width as usize * 4],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &mut rgba[..image.width as usize * 4],
             );
         }
     } else {

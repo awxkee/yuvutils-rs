@@ -184,9 +184,9 @@ where
 
         if width & 1 != 0 {
             let rgba0 = rgba0.chunks_exact(channels * 2).remainder();
-            let rgba0 = &rgba0[0..channels];
+            let rgba0 = &rgba0[..channels];
             let rgba1 = rgba1.chunks_exact(channels * 2).remainder();
-            let rgba1 = &rgba1[0..channels];
+            let rgba1 = &rgba1[..channels];
             let uv_dst = uv_dst.chunks_exact_mut(2).last().unwrap();
             let y_dst0 = y_dst0.chunks_exact_mut(2).into_remainder();
 
@@ -239,7 +239,7 @@ where
             .zip(uv_dst.chunks_exact_mut(2))
             .zip(rgba.chunks_exact(channels * 2))
         {
-            let rgba0 = &rgba[0..channels];
+            let rgba0 = &rgba[..channels];
             let r0 = rgba0[src_chans.get_r_channel_offset()] as i32;
             let g0 = rgba0[src_chans.get_g_channel_offset()] as i32;
             let b0 = rgba0[src_chans.get_b_channel_offset()] as i32;

@@ -130,7 +130,7 @@ fn rgbx_to_y<const ORIGIN_CHANNELS: u8>(
     iter.for_each(|(y_plane, rgba)| {
         let mut _cx = 0usize;
 
-        let y_plane = &mut y_plane[0..gray_image.width as usize];
+        let y_plane = &mut y_plane[..gray_image.width as usize];
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {

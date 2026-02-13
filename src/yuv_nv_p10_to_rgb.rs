@@ -431,9 +431,9 @@ fn yuv_nv_p10_to_image_impl_d<
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
             process_halved_chroma_row(
-                &y_src[0..image.width as usize],
-                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                &mut rgba[0..image.width as usize * channels],
+                &y_src[..image.width as usize],
+                &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                &mut rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -458,9 +458,9 @@ fn yuv_nv_p10_to_image_impl_d<
                 .zip(rgba.chunks_exact_mut(bgra_stride as usize))
             {
                 process_halved_chroma_row(
-                    &y_src[0..image.width as usize],
-                    &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                    &mut rgba[0..image.width as usize * channels],
+                    &y_src[..image.width as usize],
+                    &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                    &mut rgba[..image.width as usize * channels],
                 );
             }
         });
@@ -471,9 +471,9 @@ fn yuv_nv_p10_to_image_impl_d<
                 .chunks_exact_mut(bgra_stride as usize * 2)
                 .into_remainder();
             process_halved_chroma_row(
-                &y_src[0..image.width as usize],
-                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                &mut rgba[0..image.width as usize * channels],
+                &y_src[..image.width as usize],
+                &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                &mut rgba[..image.width as usize * channels],
             );
         }
     } else {

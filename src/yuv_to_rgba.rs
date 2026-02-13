@@ -436,7 +436,7 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
                         y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value,
                     );
 
-                    let rgba0 = &mut rgba[0..channels];
+                    let rgba0 = &mut rgba[..channels];
 
                     rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
                     rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
@@ -468,7 +468,7 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
                     let cb_value = *u_plane.last().unwrap() as i32 - bias_uv;
                     let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
                     let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
-                    let rgba0 = &mut rgba[0..channels];
+                    let rgba0 = &mut rgba[..channels];
 
                     let r0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cr_coef * cr_value);
                     let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
@@ -525,7 +525,7 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
                 let b0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + cb_coef * cb_value);
                 let g0 = qrshr::<PRECISION, BIT_DEPTH>(y_value0 + g_built_coeff);
 
-                let rgba00 = &mut rgba0[0..channels];
+                let rgba00 = &mut rgba0[..channels];
 
                 rgba00[dst_chans.get_r_channel_offset()] = r0 as u8;
                 rgba00[dst_chans.get_g_channel_offset()] = g0 as u8;
@@ -555,7 +555,7 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
                 let b10 = qrshr::<PRECISION, BIT_DEPTH>(y_value10 + cb_coef * cb_value);
                 let g10 = qrshr::<PRECISION, BIT_DEPTH>(y_value10 + g_built_coeff);
 
-                let rgba10 = &mut rgba1[0..channels];
+                let rgba10 = &mut rgba1[..channels];
 
                 rgba10[dst_chans.get_r_channel_offset()] = r10 as u8;
                 rgba10[dst_chans.get_g_channel_offset()] = g10 as u8;
@@ -586,7 +586,7 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
                 let cb_value = *u_plane.last().unwrap() as i32 - bias_uv;
                 let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
                 let rgba = rgba0.chunks_exact_mut(channels).last().unwrap();
-                let rgba0 = &mut rgba[0..channels];
+                let rgba0 = &mut rgba[..channels];
 
                 let g_built_coeff = -g_coef_1 * cr_value - g_coef_2 * cb_value;
 
@@ -606,7 +606,7 @@ fn yuv_to_rgbx_impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8, const PR
                 let g1 = qrshr::<PRECISION, BIT_DEPTH>(y_value1 + g_built_coeff);
 
                 let rgba = rgba1.chunks_exact_mut(channels).last().unwrap();
-                let rgba1 = &mut rgba[0..channels];
+                let rgba1 = &mut rgba[..channels];
                 rgba1[dst_chans.get_r_channel_offset()] = r1 as u8;
                 rgba1[dst_chans.get_g_channel_offset()] = g1 as u8;
                 rgba1[dst_chans.get_b_channel_offset()] = b1 as u8;

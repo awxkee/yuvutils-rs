@@ -152,8 +152,8 @@ fn rgb_to_ar30_impl<
         .chunks_exact(rgba_stride as usize)
         .zip(ar30.chunks_exact_mut(ar30_stride as usize))
     {
-        let src = &src[0..width as usize * rgba_layout.get_channels_count()];
-        let dst = &mut dst[0..width as usize * 4];
+        let src = &src[..width as usize * rgba_layout.get_channels_count()];
+        let dst = &mut dst[..width as usize * 4];
         unsafe {
             row_handler(src, dst);
         }

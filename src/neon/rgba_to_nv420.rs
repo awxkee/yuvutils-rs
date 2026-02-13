@@ -33,7 +33,8 @@ use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSo
 use std::arch::aarch64::*;
 use std::mem::MaybeUninit;
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "rdm")]
 #[cfg(feature = "rdm")]
 unsafe fn encode_16_part_rdm<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8>(
     src0: &[u8],

@@ -322,7 +322,7 @@ where
                 .zip(rgba.chunks_exact(rgba_stride as usize));
         }
         iter.for_each(|(((y_dst, u_plane), v_plane), rgba)| {
-            let y_dst = &mut y_dst[0..image.width as usize];
+            let y_dst = &mut y_dst[..image.width as usize];
             for (((y_dst, u_dst), v_dst), rgba) in y_dst
                 .iter_mut()
                 .zip(u_plane.iter_mut())
@@ -371,7 +371,7 @@ where
                 &mut y_plane[..image.width as usize],
                 &mut u_plane[..(image.width as usize).div_ceil(2)],
                 &mut v_plane[..(image.width as usize).div_ceil(2)],
-                &rgba[0..image.width as usize * channels],
+                &rgba[..image.width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {

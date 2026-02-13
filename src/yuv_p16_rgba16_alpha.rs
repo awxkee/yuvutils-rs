@@ -242,7 +242,7 @@ fn yuv_p16_to_image_alpha_ant<
             let g0 =
                 qrshr::<PRECISION, BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
 
-            let rgba0 = &mut rgba[0..channels];
+            let rgba0 = &mut rgba[..channels];
 
             rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
             rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;

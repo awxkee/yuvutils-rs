@@ -752,7 +752,8 @@ pub(crate) unsafe fn vexpandu_high_bp_by_2<const BIT_DEPTH: usize>(v: uint16x8_t
     }
 }
 
-#[inline(always)]
+#[inline]
+#[target_feature(enable = "rdm")]
 pub(crate) unsafe fn xqdmlahq_laneq_s16<const LANE: i32, const R: bool>(
     a: int16x8_t,
     b: int16x8_t,

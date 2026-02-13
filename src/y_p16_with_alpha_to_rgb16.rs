@@ -101,7 +101,7 @@ where
             iter.zip(y_iter)
                 .zip(a_iter)
                 .for_each(|((rgba16, y_plane16), a_plane16)| {
-                    let y_plane16 = &y_plane16[0..image.width as usize];
+                    let y_plane16 = &y_plane16[..image.width as usize];
                     for ((&y_src, &a_src), rgba) in y_plane16
                         .iter()
                         .zip(a_plane16)
@@ -122,7 +122,7 @@ where
             iter.zip(y_iter)
                 .zip(a_iter)
                 .for_each(|((rgba16, y_plane16), a_plane16)| {
-                    let y_plane16 = &y_plane16[0..image.width as usize];
+                    let y_plane16 = &y_plane16[..image.width as usize];
                     for ((&y_src, &a_src), rgba) in y_plane16
                         .iter()
                         .zip(a_plane16)

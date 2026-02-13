@@ -842,7 +842,7 @@ fn yuv_nv12_to_rgbx_impl<
                     let b10 = qrshr::<PRECISION, 8>(y_value00 + cb_coef * cb_value);
                     let g10 = qrshr::<PRECISION, 8>(y_value00 + g_built_coeff);
 
-                    let rgba10 = &mut rgba1[0..channels];
+                    let rgba10 = &mut rgba1[..channels];
 
                     rgba10[dst_chans.get_b_channel_offset()] = b10 as u8;
                     rgba10[dst_chans.get_g_channel_offset()] = g10 as u8;
@@ -1016,7 +1016,7 @@ fn yuv_nv12_to_rgbx_impl<
                 .zip(bgra.chunks_exact_mut(bgra_stride as usize));
         }
         iter.for_each(|((y_src, uv_src), rgba)| {
-            let y_src = &y_src[0..image.width as usize];
+            let y_src = &y_src[..image.width as usize];
             let processed = row_handler.handle_row(
                 y_src,
                 uv_src,
@@ -1097,11 +1097,11 @@ fn yuv_nv12_to_rgbx_impl<
             let (y_src0, y_src1) = y_src.split_at(y_stride as usize);
             let (rgba0, rgba1) = rgba.split_at_mut(bgra_stride as usize);
             process_double_chroma_row(
-                &y_src0[0..image.width as usize],
-                &y_src1[0..image.width as usize],
-                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                &mut rgba0[0..image.width as usize * channels],
-                &mut rgba1[0..image.width as usize * channels],
+                &y_src0[..image.width as usize],
+                &y_src1[..image.width as usize],
+                &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                &mut rgba0[..image.width as usize * channels],
+                &mut rgba1[..image.width as usize * channels],
             );
         });
         if image.height & 1 != 0 {
@@ -1111,9 +1111,9 @@ fn yuv_nv12_to_rgbx_impl<
                 .chunks_exact_mut(bgra_stride as usize * 2)
                 .into_remainder();
             process_halved_chroma_row(
-                &y_src[0..image.width as usize],
-                &uv_src[0..(image.width as usize).div_ceil(2) * 2],
-                &mut rgba[0..image.width as usize * channels],
+                &y_src[..image.width as usize],
+                &uv_src[..(image.width as usize).div_ceil(2) * 2],
+                &mut rgba[..image.width as usize * channels],
             );
         }
     } else {
