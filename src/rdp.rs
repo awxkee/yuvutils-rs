@@ -252,10 +252,10 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
     let handler = RgbEncoder::<ORIGIN_CHANNELS, 10>::default();
 
     let iter = y_plane
-        .chunks_exact_mut(planar_image.y_stride as usize)
-        .zip(u_plane.chunks_exact_mut(planar_image.u_stride as usize))
-        .zip(v_plane.chunks_exact_mut(planar_image.v_stride as usize))
-        .zip(rgba.chunks_exact(rgba_stride as usize));
+        .chunks_mut(planar_image.y_stride as usize)
+        .zip(u_plane.chunks_mut(planar_image.u_stride as usize))
+        .zip(v_plane.chunks_mut(planar_image.v_stride as usize))
+        .zip(rgba.chunks(rgba_stride as usize));
 
     iter.for_each(|(((y_dst, u_dst), v_dst), rgba)| {
         let offset = handler.handle_row(
@@ -363,10 +363,10 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
     };
 
     let iter = y_plane
-        .chunks_exact(planar_image.y_stride as usize)
-        .zip(u_plane.chunks_exact(planar_image.u_stride as usize))
-        .zip(v_plane.chunks_exact(planar_image.v_stride as usize))
-        .zip(rgba.chunks_exact_mut(rgba_stride as usize));
+        .chunks(planar_image.y_stride as usize)
+        .zip(u_plane.chunks(planar_image.u_stride as usize))
+        .zip(v_plane.chunks(planar_image.v_stride as usize))
+        .zip(rgba.chunks_mut(rgba_stride as usize));
 
     iter.for_each(|(((y_dst, u_dst), v_dst), rgba)| {
         let mut _cx = 0;
