@@ -29,7 +29,8 @@
 #![allow(
     clippy::too_many_arguments,
     clippy::type_complexity,
-    clippy::missing_transmute_annotations
+    clippy::missing_transmute_annotations,
+    unused_features
 )]
 #![allow(clippy::manual_clamp)]
 #![cfg_attr(

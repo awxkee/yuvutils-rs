@@ -715,7 +715,7 @@ pub fn yuv444_alpha_to_bgra(
 mod tests {
     use super::*;
     use crate::{rgba_to_yuv444, YuvPlanarImageMut};
-    use rand::Rng;
+    use rand::RngExt;
 
     #[test]
     fn test_yuv444_round_trip_full_range_with_alpha() {

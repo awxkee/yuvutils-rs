@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use core::f16;
-use rand::Rng;
+use rand::RngExt;
 use yuv::{
     i410_to_rgb_f16, rgb10_to_i410, YuvChromaSubsampling, YuvConversionMode, YuvPlanarImageMut,
     YuvRange, YuvStandardMatrix,
