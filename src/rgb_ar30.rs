@@ -537,7 +537,7 @@ rgb102_cnv!(
 mod tests {
     use super::*;
     use crate::ar30_to_rgb8;
-    use rand::Rng;
+    use rand::RngExt;
 
     #[test]
     fn ar30_rgb_round_trip_host() {

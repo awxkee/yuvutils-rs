@@ -727,7 +727,7 @@ build_cnv!(
 mod tests {
     use super::*;
     use crate::{rgb10_to_i210, rgb10_to_i410, YuvPlanarImageMut};
-    use rand::Rng;
+    use rand::RngExt;
 
     #[test]
     fn test_yuv444_f16_round_trip_full_range() {

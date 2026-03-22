@@ -2,7 +2,7 @@ workspace = { members = ["app"], exclude = ["fuzz", "coeffs", "wasm"]}
 
 [package]
 name = "yuv"
-version = "0.8.11"
+version = "0.8.12"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"
@@ -22,7 +22,7 @@ rayon = { version = "1.10", optional = true }
 fast_transpose = {  version = "0.2", optional = true }
 
 [dev-dependencies]
-rand = "0.9"
+rand = "0.10.0"
 
 [features]
 default = ["avx", "sse", "rdm"]
