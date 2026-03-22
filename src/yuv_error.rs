@@ -181,17 +181,28 @@ pub(crate) fn check_yuv_packed422<V>(
         width.try_into().map_err(|_| YuvError::PointerOverflow)?,
         height.try_into().map_err(|_| YuvError::PointerOverflow)?,
     )?;
-    let full_size = if width % 2 == 0 {
-        2 * width as usize * height as usize
+
+    let min_stride = if width % 2 == 0 {
+        2 * width as usize
     } else {
-        2 * (width as usize + 1) * height as usize
+        2 * (width as usize + 1)
     };
-    if data.len() != full_size {
+
+    if (stride as usize) < min_stride {
+        return Err(YuvError::MinimumStrideSizeMismatch(MismatchedSize {
+            expected: min_stride,
+            received: stride as usize,
+        }));
+    }
+
+    let expected_size = stride as usize * height as usize;
+    if data.len() != expected_size {
         return Err(YuvError::PackedFrameSizeMismatch(MismatchedSize {
-            expected: stride as usize * height as usize,
+            expected: expected_size,
             received: data.len(),
         }));
     }
+
     Ok(())
 }
 
@@ -221,7 +232,7 @@ pub(crate) fn check_y8_channel<V>(
     }
     if data.len() < stride as usize * (height as usize - 1) + width as usize {
         return Err(YuvError::LumaPlaneSizeMismatch(MismatchedSize {
-            expected: stride as usize * height as usize,
+            expected: stride as usize * (height as usize - 1) + width as usize,
             received: data.len(),
         }));
     }
