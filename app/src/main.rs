@@ -37,12 +37,12 @@ use yuv::{
     i010_alpha_to_rgba10, i010_to_rgb10_bilinear, i010_to_rgba10, i010_to_rgba10_bilinear,
     i210_to_rgba10, i210_to_rgba10_bilinear, icgc_re010_to_rgba, icgc_ro010_to_rgba,
     icgc_ro210_to_rgba, icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_i010, rgb10_to_i410,
-    rgb10_to_p010, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv16,
-    rgb_to_yuv_nv24, rgba10_to_i010, rgba10_to_i210, rgba10_to_p010, rgba12_to_i412,
-    rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410,
+    rgb10_to_p010, rgb_to_ycgco444, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12,
+    rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba10_to_i010, rgba10_to_i210, rgba10_to_p010,
+    rgba12_to_i412, rgba_to_icgc_re010, rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410,
     rgba_to_ycgco420, rgba_to_ycgco444, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
-    rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24, ycgco420_to_rgba, ycgco444_to_rgba,
-    yuv420_alpha_to_rgba, yuv420_to_rgb, yuv420_to_rgb_bilinear, yuv420_to_rgba,
+    rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24, ycgco420_to_rgba, ycgco444_to_rgb,
+    ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgb, yuv420_to_rgb_bilinear, yuv420_to_rgba,
     yuv420_to_rgba_bilinear, yuv422_to_rgb, yuv422_to_rgb_bilinear, yuv422_to_rgba,
     yuv422_to_rgba_bilinear, yuv444_to_rgb, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgba,
     yuv_nv16_to_rgb, yuv_nv16_to_rgba, yuv_nv24_to_rgb, yuv_nv24_to_rgba, YuvBiPlanarImageMut,
@@ -113,13 +113,11 @@ fn main() {
 
     let start_time = Instant::now();
 
-    rgb_to_yuv444(
+    rgb_to_ycgco444(
         &mut planar_image,
         &src_bytes,
         rgba_stride as u32,
-        YuvRange::Limited,
-        YuvStandardMatrix::Bt709,
-        YuvConversionMode::Fast,
+        YuvRange::Full,
     )
     .unwrap();
 
@@ -128,14 +126,7 @@ fn main() {
     rgba.fill(0);
 
     let start_time = Instant::now();
-    yuv444_to_rgb(
-        &fixed,
-        &mut rgba,
-        rgba_stride as u32,
-        YuvRange::Limited,
-        YuvStandardMatrix::Bt709,
-    )
-    .unwrap();
+    ycgco444_to_rgb(&fixed, &mut rgba, rgba_stride as u32, YuvRange::Full).unwrap();
     println!("Backward time: {:?}", start_time.elapsed());
 
     // let fixed_biplanar = bi_planar_image.to_fixed();
@@ -168,24 +159,24 @@ fn main() {
         .decode()
         .unwrap();
     let img0 = DynamicImage::ImageRgb8(img.to_rgb8());
-    // for (y, (row_src, row_ref)) in rgba
-    //     .chunks_exact(dimensions.0 as usize)
-    //     .zip(img0.as_bytes().chunks_exact(dimensions.0 as usize))
-    //     .enumerate()
-    // {
-    //     for (x, (src, src_ref)) in row_src
-    //         .chunks_exact(3)
-    //         .zip(row_ref.chunks_exact(3))
-    //         .enumerate()
-    //     {
-    //         if src[0] != src_ref[0] {
-    //             panic!(
-    //                 "disconvergence r on ({x}, {y}) vals {} vs {}",
-    //                 src[0], src_ref[0]
-    //             );
-    //         }
-    //     }
-    // }
+    for (y, (row_src, row_ref)) in rgba
+        .chunks_exact(dimensions.0 as usize)
+        .zip(img0.as_bytes().chunks_exact(dimensions.0 as usize))
+        .enumerate()
+    {
+        for (x, (src, src_ref)) in row_src
+            .chunks_exact(3)
+            .zip(row_ref.chunks_exact(3))
+            .enumerate()
+        {
+            if src[0] != src_ref[0] {
+                panic!(
+                    "disconvergence r on ({x}, {y}) vals {} vs {}",
+                    src[0], src_ref[0]
+                );
+            }
+        }
+    }
 
     image::save_buffer(
         "converted_sharp151_x86.png",
