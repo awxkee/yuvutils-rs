@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_expand_rgb_to_rgba, _mm256_interleave_epi8, _mm256_set4r_epi8, avx2_pack_u16, shuffle,
+    _mm256_expand_rgb_to_rgba, _mm256_interleave_epi8, _mm256_set4r_epi8, avx2_pack_u16,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
@@ -269,10 +269,8 @@ unsafe fn avx2_rgba_to_yuv_fast_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8, cons
         let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
         let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
-        cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
-        cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
+        cr00 = _mm256_permutevar8x32_epi32(cr00, combined_fixup);
+        cb00 = _mm256_permutevar8x32_epi32(cb00, combined_fixup);
 
         let mut cb_vl = avx2_pack_u16(cb00, cb00);
         let mut cr_vl = avx2_pack_u16(cr00, cr00);
@@ -443,10 +441,8 @@ unsafe fn avx2_rgba_to_yuv_fast_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8, cons
         let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
         let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
-        cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
-        cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
+        cr00 = _mm256_permutevar8x32_epi32(cr00, combined_fixup);
+        cb00 = _mm256_permutevar8x32_epi32(cb00, combined_fixup);
 
         let mut cb_vl = avx2_pack_u16(cb00, cb00);
         let mut cr_vl = avx2_pack_u16(cr00, cr00);

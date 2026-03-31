@@ -143,6 +143,7 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
         )
     };
 
+    let combined_fixup = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
     let v422_shuffle = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
 
     let mut cx = start_cx;
@@ -212,15 +213,12 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
         let y2_32 = _mm256_srai_epi32::<A_E>(y2_32);
         let y3_32 = _mm256_srai_epi32::<A_E>(y3_32);
 
-        let mut y0m = _mm256_packs_epi32(y0_32, y1_32);
-        let mut y1m = _mm256_packs_epi32(y2_32, y3_32);
+        let y0m = _mm256_packs_epi32(y0_32, y1_32);
+        let y1m = _mm256_packs_epi32(y2_32, y3_32);
 
-        y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
-        y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
+        let y_vl0 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y0m, y1m), combined_fixup);
 
-        let y_vl = avx2_pack_u16(y0m, y1m);
-
-        _mm256_storeu_si256(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
+        _mm256_storeu_si256(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl0);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb0 = _mm256_maddubs_epi16(v0, cb_weights);
@@ -316,8 +314,10 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
             let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
             let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
+            const MASK: i32 = shuffle(3, 1, 2, 0);
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
+
             let cb_vl = avx2_pack_u16(cb00, cb00);
             let cr_vl = avx2_pack_u16(cr00, cr00);
 
@@ -423,15 +423,12 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
         let y2_32 = _mm256_srai_epi32::<A_E>(y2_32);
         let y3_32 = _mm256_srai_epi32::<A_E>(y3_32);
 
-        let mut y0m = _mm256_packs_epi32(y0_32, y1_32);
-        let mut y1m = _mm256_packs_epi32(y2_32, y3_32);
+        let y0m = _mm256_packs_epi32(y0_32, y1_32);
+        let y1m = _mm256_packs_epi32(y2_32, y3_32);
 
-        y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
-        y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
+        let y_vl0 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y0m, y1m), combined_fixup);
 
-        let y_vl = avx2_pack_u16(y0m, y1m);
-
-        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y_vl);
+        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y_vl0);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb0 = _mm256_maddubs_epi16(v0, cb_weights);
@@ -525,6 +522,7 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const SA
             let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
             let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
+            const MASK: i32 = shuffle(3, 1, 2, 0);
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
 
