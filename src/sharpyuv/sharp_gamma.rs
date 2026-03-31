@@ -130,6 +130,8 @@ pub enum SharpYuvGammaTransfer {
     Gamma2p2,
     /// Pure gamma 2.8 Transfer function
     Gamma2p8,
+    /// Pure gamma 0.80 Transfer function (used by libwebp SharpYUV)
+    Gamma0p80,
 }
 
 impl From<u8> for SharpYuvGammaTransfer {
@@ -139,6 +141,7 @@ impl From<u8> for SharpYuvGammaTransfer {
             1 => SharpYuvGammaTransfer::Rec709,
             2 => SharpYuvGammaTransfer::Gamma2p2,
             3 => SharpYuvGammaTransfer::Gamma2p8,
+            4 => SharpYuvGammaTransfer::Gamma0p80,
             _ => SharpYuvGammaTransfer::Srgb,
         }
     }
@@ -152,6 +155,7 @@ impl SharpYuvGammaTransfer {
             SharpYuvGammaTransfer::Rec709 => rec709_to_linear(value),
             SharpYuvGammaTransfer::Gamma2p2 => gamma2p2_to_linear(value),
             SharpYuvGammaTransfer::Gamma2p8 => gamma2p8_to_linear(value),
+            SharpYuvGammaTransfer::Gamma0p80 => pure_gamma_function(value, 0.80f32),
         }
     }
 
@@ -162,6 +166,7 @@ impl SharpYuvGammaTransfer {
             SharpYuvGammaTransfer::Rec709 => rec709_from_linear(value),
             SharpYuvGammaTransfer::Gamma2p2 => gamma2p2_from_linear(value),
             SharpYuvGammaTransfer::Gamma2p8 => gamma2p8_from_linear(value),
+            SharpYuvGammaTransfer::Gamma0p80 => pure_gamma_function(value, 1.0f32 / 0.80f32),
         }
     }
 }
