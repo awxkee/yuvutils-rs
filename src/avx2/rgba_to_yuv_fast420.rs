@@ -27,9 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{
-    _mm256_expand_rgb_to_rgba, _mm256_set4r_epi8, avx2_pack_u16, shuffle,
-};
+use crate::avx2::avx2_utils::{_mm256_expand_rgb_to_rgba, _mm256_set4r_epi8, avx2_pack_u16};
+
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -90,8 +89,6 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
     let v_ptr = v_plane;
 
     const A_E: i32 = 7;
-    let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
-    let uv_bias = _mm256_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let y_weights = if source_channels == YuvSourceChannels::Rgba
         || source_channels == YuvSourceChannels::Rgb
@@ -145,12 +142,20 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         )
     };
 
-    let v422_shuffle = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
+    let combined_fixup = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
+    #[rustfmt::skip]
+    let uv_byte_fixup = _mm256_setr_epi8(
+        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
+        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
+    );
+    let ones_16 = _mm256_set1_epi16(1);
+    let y_bias32 = _mm256_set1_epi32(range.bias_y as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
+    let uv_bias32 = _mm256_set1_epi32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 
@@ -200,35 +205,32 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         let y6s = _mm256_maddubs_epi16(v6, y_weights);
         let y7s = _mm256_maddubs_epi16(v7, y_weights);
 
-        let v0_s = _mm256_permutevar8x32_epi32(uh0, v422_shuffle);
-        let v1_s = _mm256_permutevar8x32_epi32(uh1, v422_shuffle);
-        let v2_s = _mm256_permutevar8x32_epi32(uh2, v422_shuffle);
-        let v3_s = _mm256_permutevar8x32_epi32(uh3, v422_shuffle);
+        // Y channel: vpmaddwd path (i32 accumulation avoids i16 overflow)
+        let y0m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y0s, ones_16), y_bias32));
+        let y1m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y1s, ones_16), y_bias32));
+        let y2m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y2s, ones_16), y_bias32));
+        let y3m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y3s, ones_16), y_bias32));
+        let y4m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y4s, ones_16), y_bias32));
+        let y5m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y5s, ones_16), y_bias32));
+        let y6m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y6s, ones_16), y_bias32));
+        let y7m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y7s, ones_16), y_bias32));
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
+        // Pack i32 -> i16 -> u8 with combined lane fixup
+        let y01 = _mm256_packus_epi32(y0m, y1m);
+        let y23 = _mm256_packus_epi32(y2m, y3m);
+        let y45 = _mm256_packus_epi32(y4m, y5m);
+        let y67 = _mm256_packus_epi32(y6m, y7m);
 
-        let mut y0m = _mm256_hadd_epi16(y0s, y1s);
-        let mut y1m = _mm256_hadd_epi16(y2s, y3s);
-        let mut y2m = _mm256_hadd_epi16(y4s, y5s);
-        let mut y3m = _mm256_hadd_epi16(y6s, y7s);
-
-        y0m = _mm256_add_epi16(y0m, y_bias);
-        y1m = _mm256_add_epi16(y1m, y_bias);
-        y2m = _mm256_add_epi16(y2m, y_bias);
-        y3m = _mm256_add_epi16(y3m, y_bias);
-
-        y0m = _mm256_srai_epi16::<A_E>(y0m);
-        y1m = _mm256_srai_epi16::<A_E>(y1m);
-        y2m = _mm256_srai_epi16::<A_E>(y2m);
-        y3m = _mm256_srai_epi16::<A_E>(y3m);
-
-        y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
-        y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
-        y2m = _mm256_permute4x64_epi64::<MASK>(y2m);
-        y3m = _mm256_permute4x64_epi64::<MASK>(y3m);
-
-        let y_vl0 = avx2_pack_u16(y0m, y1m);
-        let y_vl1 = avx2_pack_u16(y2m, y3m);
+        let y_vl0 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y01, y23), combined_fixup);
+        let y_vl1 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y45, y67), combined_fixup);
 
         _mm256_storeu_si256(
             y_plane0.get_unchecked_mut(cx..).as_mut_ptr() as *mut _,
@@ -239,48 +241,62 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             y_vl1,
         );
 
-        let h0 = _mm256_extracti128_si256::<1>(v0_s);
-        let h1 = _mm256_extracti128_si256::<1>(v1_s);
-        let h2 = _mm256_extracti128_si256::<1>(v2_s);
-        let h3 = _mm256_extracti128_si256::<1>(v3_s);
+        // UV horizontal subsampling: separate even/odd pixel dwords, then avg
+        let even_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh0),
+            _mm256_castsi256_ps(uh1),
+            0x88,
+        ));
+        let odd_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh0),
+            _mm256_castsi256_ps(uh1),
+            0xDD,
+        ));
+        let even_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh2),
+            _mm256_castsi256_ps(uh3),
+            0x88,
+        ));
 
-        let vh0 = _mm_avg_epu8(_mm256_castsi256_si128(v0_s), h0);
-        let vh1 = _mm_avg_epu8(_mm256_castsi256_si128(v1_s), h1);
-        let vh2 = _mm_avg_epu8(_mm256_castsi256_si128(v2_s), h2);
-        let vh3 = _mm_avg_epu8(_mm256_castsi256_si128(v3_s), h3);
+        let odd_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh2),
+            _mm256_castsi256_ps(uh3),
+            0xDD,
+        ));
 
-        let v0_f = _mm256_set_m128i(vh1, vh0);
-        let v1_f = _mm256_set_m128i(vh3, vh2);
+        let v0_f = _mm256_avg_epu8(even_01, odd_01);
+        let v1_f = _mm256_avg_epu8(even_23, odd_23);
 
         let cb0 = _mm256_maddubs_epi16(v0_f, cb_weights);
         let cb1 = _mm256_maddubs_epi16(v1_f, cb_weights);
 
         let cr0 = _mm256_maddubs_epi16(v0_f, cr_weights);
         let cr1 = _mm256_maddubs_epi16(v1_f, cr_weights);
+        let cb0_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cb0, ones_16), uv_bias32));
+        let cb1_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cb1, ones_16), uv_bias32));
+        let cr0_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cr0, ones_16), uv_bias32));
+        let cr1_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cr1, ones_16), uv_bias32));
 
-        let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
-        let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
+        let cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
+        let cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
-        cb00 = _mm256_add_epi16(cb00, uv_bias);
-        cr00 = _mm256_add_epi16(cr00, uv_bias);
-
-        cb00 = _mm256_srai_epi16::<A_E>(cb00);
-        cr00 = _mm256_srai_epi16::<A_E>(cr00);
-
-        cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
-        cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
-
-        let cb_vl = avx2_pack_u16(cb00, cb00);
-        let cr_vl = avx2_pack_u16(cr00, cr00);
+        // Pack U (lower 128) and V (upper 128), then apply dword + byte fixup
+        let mut uv_packed = _mm256_packus_epi16(cb00, cr00);
+        uv_packed = _mm256_permutevar8x32_epi32(uv_packed, combined_fixup);
+        uv_packed = _mm256_shuffle_epi8(uv_packed, uv_byte_fixup);
 
         _mm_storeu_si128(
             u_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
-            _mm256_castsi256_si128(cb_vl),
+            _mm256_castsi256_si128(uv_packed),
         );
 
         _mm_storeu_si128(
             v_ptr.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
-            _mm256_castsi256_si128(cr_vl),
+            _mm256_extracti128_si256::<1>(uv_packed),
         );
 
         ux += 16;
@@ -371,51 +387,59 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         let y6s = _mm256_maddubs_epi16(v6, y_weights);
         let y7s = _mm256_maddubs_epi16(v7, y_weights);
 
-        let v0_s = _mm256_permutevar8x32_epi32(uh0, v422_shuffle);
-        let v1_s = _mm256_permutevar8x32_epi32(uh1, v422_shuffle);
-        let v2_s = _mm256_permutevar8x32_epi32(uh2, v422_shuffle);
-        let v3_s = _mm256_permutevar8x32_epi32(uh3, v422_shuffle);
+        // Y channel: vpmaddwd path (i32 accumulation avoids i16 overflow)
+        let y0m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y0s, ones_16), y_bias32));
+        let y1m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y1s, ones_16), y_bias32));
+        let y2m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y2s, ones_16), y_bias32));
+        let y3m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y3s, ones_16), y_bias32));
+        let y4m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y4s, ones_16), y_bias32));
+        let y5m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y5s, ones_16), y_bias32));
+        let y6m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y6s, ones_16), y_bias32));
+        let y7m =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(y7s, ones_16), y_bias32));
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
+        let y01 = _mm256_packus_epi32(y0m, y1m);
+        let y23 = _mm256_packus_epi32(y2m, y3m);
+        let y45 = _mm256_packus_epi32(y4m, y5m);
+        let y67 = _mm256_packus_epi32(y6m, y7m);
 
-        let mut y0m = _mm256_hadd_epi16(y0s, y1s);
-        let mut y1m = _mm256_hadd_epi16(y2s, y3s);
-        let mut y2m = _mm256_hadd_epi16(y4s, y5s);
-        let mut y3m = _mm256_hadd_epi16(y6s, y7s);
-
-        y0m = _mm256_add_epi16(y0m, y_bias);
-        y1m = _mm256_add_epi16(y1m, y_bias);
-        y2m = _mm256_add_epi16(y2m, y_bias);
-        y3m = _mm256_add_epi16(y3m, y_bias);
-
-        y0m = _mm256_srai_epi16::<A_E>(y0m);
-        y1m = _mm256_srai_epi16::<A_E>(y1m);
-        y2m = _mm256_srai_epi16::<A_E>(y2m);
-        y3m = _mm256_srai_epi16::<A_E>(y3m);
-
-        y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
-        y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
-        y2m = _mm256_permute4x64_epi64::<MASK>(y2m);
-        y3m = _mm256_permute4x64_epi64::<MASK>(y3m);
-
-        let y_vl0 = avx2_pack_u16(y0m, y1m);
-        let y_vl1 = avx2_pack_u16(y2m, y3m);
+        let y_vl0 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y01, y23), combined_fixup);
+        let y_vl1 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y45, y67), combined_fixup);
 
         _mm256_storeu_si256(y_buffer0.as_mut_ptr() as *mut _, y_vl0);
         _mm256_storeu_si256(y_buffer1.as_mut_ptr() as *mut _, y_vl1);
 
-        let h0 = _mm256_extracti128_si256::<1>(v0_s);
-        let h1 = _mm256_extracti128_si256::<1>(v1_s);
-        let h2 = _mm256_extracti128_si256::<1>(v2_s);
-        let h3 = _mm256_extracti128_si256::<1>(v3_s);
+        // UV horizontal subsampling: separate even/odd pixel dwords, then avg
+        let even_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh0),
+            _mm256_castsi256_ps(uh1),
+            0x88,
+        ));
+        let odd_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh0),
+            _mm256_castsi256_ps(uh1),
+            0xDD,
+        ));
+        let even_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh2),
+            _mm256_castsi256_ps(uh3),
+            0x88,
+        ));
+        let odd_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+            _mm256_castsi256_ps(uh2),
+            _mm256_castsi256_ps(uh3),
+            0xDD,
+        ));
 
-        let vh0 = _mm_avg_epu8(_mm256_castsi256_si128(v0_s), h0);
-        let vh1 = _mm_avg_epu8(_mm256_castsi256_si128(v1_s), h1);
-        let vh2 = _mm_avg_epu8(_mm256_castsi256_si128(v2_s), h2);
-        let vh3 = _mm_avg_epu8(_mm256_castsi256_si128(v3_s), h3);
-
-        let v0_f = _mm256_set_m128i(vh1, vh0);
-        let v1_f = _mm256_set_m128i(vh3, vh2);
+        let v0_f = _mm256_avg_epu8(even_01, odd_01);
+        let v1_f = _mm256_avg_epu8(even_23, odd_23);
 
         let cb0 = _mm256_maddubs_epi16(v0_f, cb_weights);
         let cb1 = _mm256_maddubs_epi16(v1_f, cb_weights);
@@ -423,28 +447,29 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         let cr0 = _mm256_maddubs_epi16(v0_f, cr_weights);
         let cr1 = _mm256_maddubs_epi16(v1_f, cr_weights);
 
-        let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
-        let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
+        let cb0_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cb0, ones_16), uv_bias32));
+        let cb1_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cb1, ones_16), uv_bias32));
+        let cr0_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cr0, ones_16), uv_bias32));
+        let cr1_32 =
+            _mm256_srai_epi32::<A_E>(_mm256_add_epi32(_mm256_madd_epi16(cr1, ones_16), uv_bias32));
 
-        cb00 = _mm256_add_epi16(cb00, uv_bias);
-        cr00 = _mm256_add_epi16(cr00, uv_bias);
+        let cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
+        let cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
-        cb00 = _mm256_srai_epi16::<A_E>(cb00);
-        cr00 = _mm256_srai_epi16::<A_E>(cr00);
-
-        cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
-        cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
-
-        let cb_vl = avx2_pack_u16(cb00, cb00);
-        let cr_vl = avx2_pack_u16(cr00, cr00);
+        let mut uv_packed = _mm256_packus_epi16(cb00, cr00);
+        uv_packed = _mm256_permutevar8x32_epi32(uv_packed, combined_fixup);
+        uv_packed = _mm256_shuffle_epi8(uv_packed, uv_byte_fixup);
 
         _mm_storeu_si128(
             u_buffer.as_mut_ptr() as *mut _,
-            _mm256_castsi256_si128(cb_vl),
+            _mm256_castsi256_si128(uv_packed),
         );
         _mm_storeu_si128(
             v_buffer.as_mut_ptr() as *mut _,
-            _mm256_castsi256_si128(cr_vl),
+            _mm256_extracti128_si256::<1>(uv_packed),
         );
 
         std::ptr::copy_nonoverlapping(
@@ -562,7 +587,7 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 
