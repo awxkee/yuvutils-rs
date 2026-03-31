@@ -120,6 +120,7 @@ mod rgb_to_ycgco;
 mod rgb_to_ycgco_r;
 mod rgba_to_nv;
 mod rgba_to_yuv;
+mod rgba_to_yuv_with_transform;
 mod sharpyuv;
 mod shuffle;
 #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
@@ -646,10 +647,4 @@ pub use yuv_p16_to_rgba16_bilinear::{
     i216_to_rgba16_bilinear, i414_to_rgb14_bilinear, i414_to_rgba14_bilinear,
 };
 
-pub use yuv_to_rgba_with_transform::{
-    yuv420_row_pair_to_bgr_with_transform, yuv420_row_pair_to_bgra_with_transform,
-    yuv420_row_pair_to_rgb_with_transform, yuv420_row_pair_to_rgba_with_transform,
-    yuv420_single_row_to_bgr_with_transform, yuv420_single_row_to_bgra_with_transform,
-    yuv420_single_row_to_rgb_with_transform, yuv420_single_row_to_rgba_with_transform,
-    yuv420_to_rgb_with_transform, yuv420_to_rgba_with_transform,
-};
+pub use rgba_to_yuv_with_transform::{rgb_to_yuv420_with_transform, rgba_to_yuv420_with_transform};

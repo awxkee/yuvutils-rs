@@ -196,3 +196,5 @@ impl CbCrForwardTransform<i32> {
         Self::avx_pack_rgba(self.cr_r as i16, self.cr_g as i16, self.cr_b as i16, cn)
     }
 }
+mod rgba_to_yuv420_p16;
+pub(crate) use rgba_to_yuv420_p16::avx2_rgba_to_yuv420_p16;
