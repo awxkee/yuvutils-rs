@@ -33,7 +33,6 @@ use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) fn avx2_rgb_to_y_row<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     transform: &CbCrForwardTransform<i32>,
@@ -104,8 +103,8 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const CN: u8, const PRECISION: i32>(
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 32);
-        let mut src_buffer: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
+        let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
+        let mut y_buffer: [u8; 32] = [0; 32];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),

@@ -32,7 +32,6 @@ use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvNVOrder, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_prof<
     const UV_ORDER: u8,
@@ -222,9 +221,9 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_prof<
 
         assert!(diff <= 16);
 
-        let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut uv_buffer: [MaybeUninit<u8>; 16 * 2] = [MaybeUninit::uninit(); 16 * 2];
+        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer: [u8; 16] = [0; 16];
+        let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),

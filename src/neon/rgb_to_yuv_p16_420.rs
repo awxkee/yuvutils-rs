@@ -31,7 +31,6 @@ use crate::neon::utils::*;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
     const ORIGIN_CHANNELS: u8,
@@ -166,12 +165,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 8);
-        let mut src_buffer0: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
-        let mut src_buffer1: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
-        let mut y_buffer0: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut y_buffer1: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut u_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut v_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut src_buffer0: [u16; 8 * 4] = [0; 8 * 4];
+        let mut src_buffer1: [u16; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer0: [u16; 8] = [0; 8];
+        let mut y_buffer1: [u16; 8] = [0; 8];
+        let mut u_buffer: [u16; 8] = [0; 8];
+        let mut v_buffer: [u16; 8] = [0; 8];
 
         // Replicate last item to one more position for subsampling
         if diff % 2 != 0 {
@@ -182,10 +181,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
             let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
             let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst0.iter_mut().zip(last_items0) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
             for (dst, src) in dst1.iter_mut().zip(last_items1) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 
@@ -440,12 +439,12 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 8);
-        let mut src_buffer0: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
-        let mut src_buffer1: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
-        let mut y_buffer0: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut y_buffer1: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut u_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut v_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut src_buffer0: [u16; 8 * 4] = [0; 8 * 4];
+        let mut src_buffer1: [u16; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer0: [u16; 8] = [0; 8];
+        let mut y_buffer1: [u16; 8] = [0; 8];
+        let mut u_buffer: [u16; 8] = [0; 8];
+        let mut v_buffer: [u16; 8] = [0; 8];
 
         // Replicate last item to one more position for subsampling
         if diff % 2 != 0 {
@@ -456,10 +455,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
             let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
             let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst0.iter_mut().zip(last_items0) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
             for (dst, src) in dst1.iter_mut().zip(last_items1) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 

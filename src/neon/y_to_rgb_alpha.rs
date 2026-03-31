@@ -30,7 +30,6 @@
 use crate::neon::utils::*;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 #[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
@@ -193,9 +192,9 @@ unsafe fn neon_y_to_rgb_row_alpha_impl<const DESTINATION_CHANNELS: u8, const R: 
         let diff = width - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
-        let mut a_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
-        let mut dst_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut a_buffer: [u8; 8] = [0; 8];
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
             y_buffer.as_mut_ptr().cast(),

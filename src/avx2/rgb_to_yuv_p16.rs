@@ -39,7 +39,6 @@ use crate::{YuvBytesPacking, YuvEndianness};
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) fn avx_rgba_to_yuv_p16<
     const ORIGIN_CHANNELS: u8,
@@ -304,10 +303,10 @@ unsafe fn avx_rgba_to_yuv_impl<
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 16);
-        let mut src_buffer: [MaybeUninit<u16>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut y_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
-        let mut u_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
-        let mut v_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
+        let mut src_buffer: [u16; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer: [u16; 16] = [0; 16];
+        let mut u_buffer: [u16; 16] = [0; 16];
+        let mut v_buffer: [u16; 16] = [0; 16];
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
@@ -316,7 +315,7 @@ unsafe fn avx_rgba_to_yuv_impl<
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 

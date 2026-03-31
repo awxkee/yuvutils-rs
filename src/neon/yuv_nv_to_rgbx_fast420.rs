@@ -31,7 +31,6 @@ use crate::internals::ProcessedOffset;
 use crate::neon::utils::*;
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 // PRECISION is always expected to be 6 bits
 pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row420<
@@ -146,11 +145,11 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_fast_row420<
 
         assert!(diff <= 16);
 
-        let mut dst_buffer0: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut dst_buffer1: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut y_buffer0: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut y_buffer1: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut uv_buffer: [MaybeUninit<u8>; 16 * 2] = [MaybeUninit::uninit(); 16 * 2];
+        let mut dst_buffer0: [u8; 16 * 4] = [0; 16 * 4];
+        let mut dst_buffer1: [u8; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer0: [u8; 16] = [0; 16];
+        let mut y_buffer1: [u8; 16] = [0; 16];
+        let mut uv_buffer: [u8; 16 * 2] = [0; 16 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane0.get_unchecked(cx..).as_ptr(),

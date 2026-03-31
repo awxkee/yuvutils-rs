@@ -39,7 +39,6 @@ use crate::yuv_support::{
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::mem::MaybeUninit;
 
 /// This is common NV row conversion to RGBx, supports any subsampling
 pub(crate) fn sse_yuv_nv_to_rgba<
@@ -310,9 +309,9 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
 
         assert!(diff <= 8);
 
-        let mut dst_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
-        let mut uv_buffer: [MaybeUninit<u8>; 8 * 2] = [MaybeUninit::uninit(); 8 * 2];
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut uv_buffer: [u8; 8 * 2] = [0; 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),

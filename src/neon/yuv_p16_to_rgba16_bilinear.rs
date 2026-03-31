@@ -29,7 +29,6 @@
 use crate::neon::utils::{neon_store_half_rgb16, neon_store_rgb16, xvld1_2u16};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) fn neon_planar16_bilinear_1_row_rgba16<
     const DESTINATION_CHANNELS: u8,
@@ -214,10 +213,10 @@ pub(crate) fn neon_planar16_bilinear_1_row_rgba16<
         }
 
         if x < width as usize {
-            let mut y_store: [MaybeUninit<u16>; 9] = [MaybeUninit::uninit(); 9];
-            let mut u_store: [MaybeUninit<u16>; 9] = [MaybeUninit::uninit(); 9];
-            let mut v_store: [MaybeUninit<u16>; 9] = [MaybeUninit::uninit(); 9];
-            let mut rgba_store: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+            let mut y_store: [u16; 9] = [0; 9];
+            let mut u_store: [u16; 9] = [0; 9];
+            let mut v_store: [u16; 9] = [0; 9];
+            let mut rgba_store: [u16; 8 * 4] = [0; 8 * 4];
 
             let diff = width as usize - x;
             assert!(diff <= 8);
@@ -236,8 +235,8 @@ pub(crate) fn neon_planar16_bilinear_1_row_rgba16<
                 ux_diff,
             );
 
-            u_store[ux_diff] = MaybeUninit::new(*u_plane.last().unwrap());
-            v_store[ux_diff] = MaybeUninit::new(*v_plane.last().unwrap());
+            u_store[ux_diff] = *u_plane.last().unwrap();
+            v_store[ux_diff] = *v_plane.last().unwrap();
 
             std::ptr::copy_nonoverlapping(
                 v_plane.get_unchecked(cx..).as_ptr(),
@@ -602,12 +601,12 @@ pub(crate) fn neon_planar16_bilinear_2_rows_rgba<
         }
 
         if x < width as usize {
-            let mut y_store: [MaybeUninit<u16>; 17] = [MaybeUninit::uninit(); 17];
-            let mut u0_store: [MaybeUninit<u16>; 17] = [MaybeUninit::uninit(); 17];
-            let mut u1_store: [MaybeUninit<u16>; 17] = [MaybeUninit::uninit(); 17];
-            let mut v0_store: [MaybeUninit<u16>; 17] = [MaybeUninit::uninit(); 17];
-            let mut v1_store: [MaybeUninit<u16>; 17] = [MaybeUninit::uninit(); 17];
-            let mut rgba_store: [MaybeUninit<u16>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+            let mut y_store: [u16; 17] = [0; 17];
+            let mut u0_store: [u16; 17] = [0; 17];
+            let mut u1_store: [u16; 17] = [0; 17];
+            let mut v0_store: [u16; 17] = [0; 17];
+            let mut v1_store: [u16; 17] = [0; 17];
+            let mut rgba_store: [u16; 16 * 4] = [0; 16 * 4];
 
             let diff = width as usize - x;
             assert!(diff <= 8);
@@ -632,8 +631,8 @@ pub(crate) fn neon_planar16_bilinear_2_rows_rgba<
                 ux_diff,
             );
 
-            u0_store[ux_diff] = MaybeUninit::new(*u0_plane.last().unwrap());
-            u1_store[ux_diff] = MaybeUninit::new(*u1_plane.last().unwrap());
+            u0_store[ux_diff] = *u0_plane.last().unwrap();
+            u1_store[ux_diff] = *u1_plane.last().unwrap();
 
             std::ptr::copy_nonoverlapping(
                 v0_plane.get_unchecked(cx..).as_ptr(),
@@ -647,8 +646,8 @@ pub(crate) fn neon_planar16_bilinear_2_rows_rgba<
                 ux_diff,
             );
 
-            v0_store[ux_diff] = MaybeUninit::new(*v0_plane.last().unwrap());
-            v1_store[ux_diff] = MaybeUninit::new(*v1_plane.last().unwrap());
+            v0_store[ux_diff] = *v0_plane.last().unwrap();
+            v1_store[ux_diff] = *v1_plane.last().unwrap();
 
             let mut y_value = vld1q_u16(y_store.as_ptr().cast());
 

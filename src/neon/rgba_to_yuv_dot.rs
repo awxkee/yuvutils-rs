@@ -32,7 +32,6 @@ use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 #[target_feature(enable = "i8mm")]
 pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
@@ -231,10 +230,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
         let diff = width - cx;
         assert!(diff <= 16);
 
-        let mut src_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut u_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut v_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer: [u8; 16] = [0; 16];
+        let mut u_buffer: [u8; 16] = [0; 16];
+        let mut v_buffer: [u8; 16] = [0; 16];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
@@ -249,7 +248,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba<const ORIGIN_CHANNELS: u8, const 
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 

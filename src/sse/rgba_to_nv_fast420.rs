@@ -34,7 +34,6 @@ use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSo
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) fn sse_rgba_to_nv_fast_rgba420<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8>(
     y_plane0: &mut [u8],
@@ -279,11 +278,11 @@ unsafe fn sse41_rgba_to_nv_fast_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8, cons
         let diff = width as usize - cx;
         assert!(diff <= 16);
 
-        let mut src_buffer0: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut src_buffer1: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut y_buffer0: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut y_buffer1: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut uv_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut src_buffer0: [u8; 16 * 4] = [0; 16 * 4];
+        let mut src_buffer1: [u8; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer0: [u8; 16] = [0; 16];
+        let mut y_buffer1: [u8; 16] = [0; 16];
+        let mut uv_buffer: [u8; 16] = [0; 16];
 
         std::ptr::copy_nonoverlapping(
             rgba0.get_unchecked(cx * channels..).as_ptr(),
@@ -305,10 +304,10 @@ unsafe fn sse41_rgba_to_nv_fast_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8, cons
             let dst0 = src_buffer0.get_unchecked_mut(dvb..(dvb + channels));
             let dst1 = src_buffer1.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst0.iter_mut().zip(last_items0) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
             for (dst, src) in dst1.iter_mut().zip(last_items1) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 

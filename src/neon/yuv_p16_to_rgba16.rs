@@ -33,7 +33,6 @@ use crate::yuv_support::{
     CbCrInverseTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
     const DESTINATION_CHANNELS: u8,
@@ -396,9 +395,9 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
         let diff = width as usize - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut u_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut v_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut y_buffer: [u16; 8] = [0; 8];
+        let mut u_buffer: [u16; 8] = [0; 8];
+        let mut v_buffer: [u16; 8] = [0; 8];
 
         std::ptr::copy_nonoverlapping(
             y_ld_ptr.get_unchecked(cx..).as_ptr(),
@@ -519,7 +518,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row<
             vminq_u16(vcombine_u16(b_low, b_high), v_alpha)
         };
 
-        let mut buffer: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut buffer: [u16; 8 * 4] = [0; 8 * 4];
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
             buffer.as_mut_ptr().cast(),
@@ -798,9 +797,9 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         let diff = width as usize - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut u_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut v_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
+        let mut y_buffer: [u16; 8] = [0; 8];
+        let mut u_buffer: [u16; 8] = [0; 8];
+        let mut v_buffer: [u16; 8] = [0; 8];
 
         std::ptr::copy_nonoverlapping(
             y_ld_ptr.get_unchecked(cx..).as_ptr(),
@@ -888,7 +887,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_row_rdm<
         let g_values = vminq_u16(vreinterpretq_u16_s16(glv), v_alpha);
         let b_values = vminq_u16(vreinterpretq_u16_s16(blv), v_alpha);
 
-        let mut buffer: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut buffer: [u16; 8 * 4] = [0; 8 * 4];
 
         neon_store_rgb16::<DESTINATION_CHANNELS>(
             buffer.as_mut_ptr().cast(),

@@ -36,7 +36,6 @@ use crate::yuv_support::{
     YuvNVOrder, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 #[inline(always)]
 pub(crate) unsafe fn deinterleave_10_bit_uv<
@@ -232,9 +231,9 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         assert!(diff <= 8);
 
-        let mut dst_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
-        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut uv_buffer: [MaybeUninit<u16>; 8 * 2] = [MaybeUninit::uninit(); 8 * 2];
+        let mut dst_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u16; 8] = [0; 8];
+        let mut uv_buffer: [u16; 8 * 2] = [0; 8 * 2];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),
@@ -259,7 +258,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_rgba_row<
 
         let (u_low, v_low, u_high, v_high) =
             deinterleave_10_bit_uv::<NV_ORDER, SAMPLING, ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
-                std::mem::transmute::<&[std::mem::MaybeUninit<u16>], &[u16]>(uv_buffer.as_slice()),
+                uv_buffer.as_slice(),
                 uv_corr_q,
             );
 
