@@ -29,18 +29,6 @@
 
 use crate::avx2::avx2_utils::{_mm256_expand_rgb_to_rgba, _mm256_set4r_epi8, avx2_pack_u16};
 
-/// Combined lane-fixup permutation that corrects both `vphaddw` and
-/// `vpackuswb` lane-crossing in a single `vpermutevar8x32` instruction.
-/// Pattern: `{0,4,1,5,2,6,3,7}` - interleaves lane-0 and lane-1 dwords.
-const COMBINED_FIXUP: [i32; 8] = [0, 4, 1, 5, 2, 6, 3, 7];
-
-/// Byte-level fixup for UV values after `vshufps`-based horizontal
-/// subsampling + `vpmaddwd` + `vpackuswb` + dword-level `COMBINED_FIXUP`.
-#[rustfmt::skip]
-const UV_BYTE_FIXUP: [i8; 32] = [
-    0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
-    0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
-];
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
 #[cfg(target_arch = "x86")]
@@ -154,17 +142,12 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         )
     };
 
-    let combined_fixup = _mm256_setr_epi32(
-        COMBINED_FIXUP[0],
-        COMBINED_FIXUP[1],
-        COMBINED_FIXUP[2],
-        COMBINED_FIXUP[3],
-        COMBINED_FIXUP[4],
-        COMBINED_FIXUP[5],
-        COMBINED_FIXUP[6],
-        COMBINED_FIXUP[7],
+    let combined_fixup = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
+    #[rustfmt::skip]
+    let uv_byte_fixup = _mm256_setr_epi8(
+        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
+        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
     );
-    let uv_byte_fixup = _mm256_loadu_si256(UV_BYTE_FIXUP.as_ptr() as *const __m256i);
     let ones_16 = _mm256_set1_epi16(1);
     let y_bias32 = _mm256_set1_epi32(range.bias_y as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
     let uv_bias32 = _mm256_set1_epi32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
@@ -274,6 +257,7 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             _mm256_castsi256_ps(uh3),
             0x88,
         ));
+
         let odd_23 = _mm256_castps_si256(_mm256_shuffle_ps(
             _mm256_castsi256_ps(uh2),
             _mm256_castsi256_ps(uh3),
