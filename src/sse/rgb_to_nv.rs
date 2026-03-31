@@ -283,9 +283,9 @@ unsafe fn sse_rgba_to_nv_row_impl<
         }
 
         encode_16_part::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION>(
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer.as_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer0.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(uv_buffer.as_mut_slice()),
+            src_buffer.as_slice(),
+            y_buffer0.as_mut_slice(),
+            uv_buffer.as_mut_slice(),
             range,
             transform,
         );

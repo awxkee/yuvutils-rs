@@ -67,7 +67,7 @@ pub(crate) fn neon_planar16_bilinear_1_row_rgba16<
 
         let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-        while x + 9 < width as usize {
+        while x + 9 <= width as usize {
             let mut y_value = vld1q_u16(y_plane.get_unchecked(x..).as_ptr().cast());
             let u_value0 = vld1_u16(u_plane.get_unchecked(cx..).as_ptr().cast());
             let u_value1 = vld1_u16(u_plane.get_unchecked(cx + 1..).as_ptr().cast());
@@ -421,7 +421,7 @@ pub(crate) fn neon_planar16_bilinear_2_rows_rgba<
 
         let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-        while x + 9 < width as usize {
+        while x + 9 <= width as usize {
             let mut y_value = vld1q_u16(y_plane.get_unchecked(x..).as_ptr().cast());
 
             let u_value_x0_y0 = vld1_u16(u0_plane.get_unchecked(cx..).as_ptr().cast());

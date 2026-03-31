@@ -120,7 +120,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_dot_rgba420<const ORIGIN_CHANNELS: u8>(
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 

@@ -83,7 +83,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         let (r_values0, g_values0, b_values0) =
             neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
 
@@ -177,7 +177,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm<
         cx += 16;
     }
 
-    while cx + 8 < width as usize {
+    while cx + 8 <= width as usize {
         let src = rgba.get_unchecked(cx * channels..);
         let y_dst = y_plane.get_unchecked_mut(cx..);
         let uv_dst = uv_plane.get_unchecked_mut(ux..);
@@ -561,7 +561,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row<
         vst1q_u8(y_dst.as_mut_ptr(), y);
     };
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         encode_16_part(
             rgba.get_unchecked(cx * channels..),
             y_plane.get_unchecked_mut(cx..),

@@ -111,7 +111,7 @@ unsafe fn avx_yuv_nv_to_rgba_fast_impl<
 
     let is_444 = YuvChromaSubsampling::Yuv444 == chroma_subsampling;
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let y_vl0 = _mm256_loadu_si256(y_ptr.add(cx) as *const _);
 
         let (g_c_hi, g_c_lo, b_c_hi, b_c_lo, r_c_hi, r_c_lo);

@@ -92,8 +92,9 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
     let y_ptr = y_plane;
 
     const A_E: i32 = 7;
-    let y_bias = _mm256_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
-    let uv_bias = _mm256_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
+    let ones = _mm256_set1_epi16(1);
+    let y_bias32 = _mm256_set1_epi32(range.bias_y as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
+    let uv_bias32 = _mm256_set1_epi32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let y_weights = if source_channels == YuvSourceChannels::Rgba
         || source_channels == YuvSourceChannels::Rgb
@@ -152,7 +153,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 32 < width as usize {
+    while cx + 32 <= width as usize {
         let src = rgba.get_unchecked(cx * channels..).as_ptr();
 
         let (v0, v1, v2, v3);
@@ -201,14 +202,23 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
 
         const MASK: i32 = shuffle(3, 1, 2, 0);
 
-        let mut y0m = _mm256_hadd_epi16(y0s, y1s);
-        let mut y1m = _mm256_hadd_epi16(y2s, y3s);
+        let y0_32 = _mm256_madd_epi16(y0s, ones);
+        let y1_32 = _mm256_madd_epi16(y1s, ones);
+        let y2_32 = _mm256_madd_epi16(y2s, ones);
+        let y3_32 = _mm256_madd_epi16(y3s, ones);
 
-        y0m = _mm256_add_epi16(y0m, y_bias);
-        y1m = _mm256_add_epi16(y1m, y_bias);
+        let y0_32 = _mm256_add_epi32(y0_32, y_bias32);
+        let y1_32 = _mm256_add_epi32(y1_32, y_bias32);
+        let y2_32 = _mm256_add_epi32(y2_32, y_bias32);
+        let y3_32 = _mm256_add_epi32(y3_32, y_bias32);
 
-        y0m = _mm256_srai_epi16::<A_E>(y0m);
-        y1m = _mm256_srai_epi16::<A_E>(y1m);
+        let y0_32 = _mm256_srai_epi32::<A_E>(y0_32);
+        let y1_32 = _mm256_srai_epi32::<A_E>(y1_32);
+        let y2_32 = _mm256_srai_epi32::<A_E>(y2_32);
+        let y3_32 = _mm256_srai_epi32::<A_E>(y3_32);
+
+        let mut y0m = _mm256_packs_epi32(y0_32, y1_32);
+        let mut y1m = _mm256_packs_epi32(y2_32, y3_32);
 
         y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
         y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
@@ -228,21 +238,41 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let cr2 = _mm256_maddubs_epi16(v2, cr_weights);
             let cr3 = _mm256_maddubs_epi16(v3, cr_weights);
 
-            let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
-            let mut cb01 = _mm256_hadd_epi16(cb2, cb3);
+            let cb0_32 = _mm256_madd_epi16(cb0, ones);
+            let cb1_32 = _mm256_madd_epi16(cb1, ones);
+            let cb2_32 = _mm256_madd_epi16(cb2, ones);
+            let cb3_32 = _mm256_madd_epi16(cb3, ones);
 
-            let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
-            let mut cr01 = _mm256_hadd_epi16(cr2, cr3);
+            let cr0_32 = _mm256_madd_epi16(cr0, ones);
+            let cr1_32 = _mm256_madd_epi16(cr1, ones);
+            let cr2_32 = _mm256_madd_epi16(cr2, ones);
+            let cr3_32 = _mm256_madd_epi16(cr3, ones);
 
-            cb00 = _mm256_add_epi16(cb00, uv_bias);
-            cb01 = _mm256_add_epi16(cb01, uv_bias);
-            cr00 = _mm256_add_epi16(cr00, uv_bias);
-            cr01 = _mm256_add_epi16(cr01, uv_bias);
+            let cb0_32 = _mm256_add_epi32(cb0_32, uv_bias32);
+            let cb1_32 = _mm256_add_epi32(cb1_32, uv_bias32);
+            let cb2_32 = _mm256_add_epi32(cb2_32, uv_bias32);
+            let cb3_32 = _mm256_add_epi32(cb3_32, uv_bias32);
 
-            cb00 = _mm256_srai_epi16::<A_E>(cb00);
-            cb01 = _mm256_srai_epi16::<A_E>(cb01);
-            cr00 = _mm256_srai_epi16::<A_E>(cr00);
-            cr01 = _mm256_srai_epi16::<A_E>(cr01);
+            let cr0_32 = _mm256_add_epi32(cr0_32, uv_bias32);
+            let cr1_32 = _mm256_add_epi32(cr1_32, uv_bias32);
+            let cr2_32 = _mm256_add_epi32(cr2_32, uv_bias32);
+            let cr3_32 = _mm256_add_epi32(cr3_32, uv_bias32);
+
+            let cb0_32 = _mm256_srai_epi32::<A_E>(cb0_32);
+            let cb1_32 = _mm256_srai_epi32::<A_E>(cb1_32);
+            let cb2_32 = _mm256_srai_epi32::<A_E>(cb2_32);
+            let cb3_32 = _mm256_srai_epi32::<A_E>(cb3_32);
+
+            let cr0_32 = _mm256_srai_epi32::<A_E>(cr0_32);
+            let cr1_32 = _mm256_srai_epi32::<A_E>(cr1_32);
+            let cr2_32 = _mm256_srai_epi32::<A_E>(cr2_32);
+            let cr3_32 = _mm256_srai_epi32::<A_E>(cr3_32);
+
+            let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
+            let mut cb01 = _mm256_packs_epi32(cb2_32, cb3_32);
+
+            let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
+            let mut cr01 = _mm256_packs_epi32(cr2_32, cr3_32);
 
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cb01 = _mm256_permute4x64_epi64::<MASK>(cb01);
@@ -276,13 +306,8 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let h2 = _mm256_extracti128_si256::<1>(v2_s);
             let h3 = _mm256_extracti128_si256::<1>(v3_s);
 
-            let vh0 = _mm_avg_epu8(_mm256_castsi256_si128(v0_s), h0);
-            let vh1 = _mm_avg_epu8(_mm256_castsi256_si128(v1_s), h1);
-            let vh2 = _mm_avg_epu8(_mm256_castsi256_si128(v2_s), h2);
-            let vh3 = _mm_avg_epu8(_mm256_castsi256_si128(v3_s), h3);
-
-            let v0_f = _mm256_set_m128i(vh1, vh0);
-            let v1_f = _mm256_set_m128i(vh3, vh2);
+            let v0_f = _mm256_set_m128i(h1, h0);
+            let v1_f = _mm256_set_m128i(h3, h2);
 
             let cb0 = _mm256_maddubs_epi16(v0_f, cb_weights);
             let cb1 = _mm256_maddubs_epi16(v1_f, cb_weights);
@@ -290,14 +315,23 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let cr0 = _mm256_maddubs_epi16(v0_f, cr_weights);
             let cr1 = _mm256_maddubs_epi16(v1_f, cr_weights);
 
-            let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
-            let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
+            let cb0_32 = _mm256_madd_epi16(cb0, ones);
+            let cb1_32 = _mm256_madd_epi16(cb1, ones);
+            let cr0_32 = _mm256_madd_epi16(cr0, ones);
+            let cr1_32 = _mm256_madd_epi16(cr1, ones);
 
-            cb00 = _mm256_add_epi16(cb00, uv_bias);
-            cr00 = _mm256_add_epi16(cr00, uv_bias);
+            let cb0_32 = _mm256_add_epi32(cb0_32, uv_bias32);
+            let cb1_32 = _mm256_add_epi32(cb1_32, uv_bias32);
+            let cr0_32 = _mm256_add_epi32(cr0_32, uv_bias32);
+            let cr1_32 = _mm256_add_epi32(cr1_32, uv_bias32);
 
-            cb00 = _mm256_srai_epi16::<A_E>(cb00);
-            cr00 = _mm256_srai_epi16::<A_E>(cr00);
+            let cb0_32 = _mm256_srai_epi32::<A_E>(cb0_32);
+            let cb1_32 = _mm256_srai_epi32::<A_E>(cb1_32);
+            let cr0_32 = _mm256_srai_epi32::<A_E>(cr0_32);
+            let cr1_32 = _mm256_srai_epi32::<A_E>(cr1_32);
+
+            let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
+            let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
@@ -393,17 +427,23 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
 
         const MASK: i32 = shuffle(3, 1, 2, 0);
 
-        let mut y0m = _mm256_hadd_epi16(y0s, y1s);
-        let mut y1m = _mm256_hadd_epi16(y2s, y3s);
+        let y0_32 = _mm256_madd_epi16(y0s, ones);
+        let y1_32 = _mm256_madd_epi16(y1s, ones);
+        let y2_32 = _mm256_madd_epi16(y2s, ones);
+        let y3_32 = _mm256_madd_epi16(y3s, ones);
 
-        y0m = _mm256_add_epi16(y0m, y_bias);
-        y1m = _mm256_add_epi16(y1m, y_bias);
+        let y0_32 = _mm256_add_epi32(y0_32, y_bias32);
+        let y1_32 = _mm256_add_epi32(y1_32, y_bias32);
+        let y2_32 = _mm256_add_epi32(y2_32, y_bias32);
+        let y3_32 = _mm256_add_epi32(y3_32, y_bias32);
 
-        y0m = _mm256_srai_epi16::<A_E>(y0m);
-        y1m = _mm256_srai_epi16::<A_E>(y1m);
+        let y0_32 = _mm256_srai_epi32::<A_E>(y0_32);
+        let y1_32 = _mm256_srai_epi32::<A_E>(y1_32);
+        let y2_32 = _mm256_srai_epi32::<A_E>(y2_32);
+        let y3_32 = _mm256_srai_epi32::<A_E>(y3_32);
 
-        y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
-        y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
+        let y0m = _mm256_packs_epi32(y0_32, y1_32);
+        let y1m = _mm256_packs_epi32(y2_32, y3_32);
 
         let y_vl = avx2_pack_u16(y0m, y1m);
 
@@ -420,21 +460,41 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let cr2 = _mm256_maddubs_epi16(v2, cr_weights);
             let cr3 = _mm256_maddubs_epi16(v3, cr_weights);
 
-            let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
-            let mut cb01 = _mm256_hadd_epi16(cb2, cb3);
+            let cb0_32 = _mm256_madd_epi16(cb0, ones);
+            let cb1_32 = _mm256_madd_epi16(cb1, ones);
+            let cb2_32 = _mm256_madd_epi16(cb2, ones);
+            let cb3_32 = _mm256_madd_epi16(cb3, ones);
 
-            let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
-            let mut cr01 = _mm256_hadd_epi16(cr2, cr3);
+            let cr0_32 = _mm256_madd_epi16(cr0, ones);
+            let cr1_32 = _mm256_madd_epi16(cr1, ones);
+            let cr2_32 = _mm256_madd_epi16(cr2, ones);
+            let cr3_32 = _mm256_madd_epi16(cr3, ones);
 
-            cb00 = _mm256_add_epi16(cb00, uv_bias);
-            cb01 = _mm256_add_epi16(cb01, uv_bias);
-            cr00 = _mm256_add_epi16(cr00, uv_bias);
-            cr01 = _mm256_add_epi16(cr01, uv_bias);
+            let cb0_32 = _mm256_add_epi32(cb0_32, uv_bias32);
+            let cb1_32 = _mm256_add_epi32(cb1_32, uv_bias32);
+            let cb2_32 = _mm256_add_epi32(cb2_32, uv_bias32);
+            let cb3_32 = _mm256_add_epi32(cb3_32, uv_bias32);
 
-            cb00 = _mm256_srai_epi16::<A_E>(cb00);
-            cb01 = _mm256_srai_epi16::<A_E>(cb01);
-            cr00 = _mm256_srai_epi16::<A_E>(cr00);
-            cr01 = _mm256_srai_epi16::<A_E>(cr01);
+            let cr0_32 = _mm256_add_epi32(cr0_32, uv_bias32);
+            let cr1_32 = _mm256_add_epi32(cr1_32, uv_bias32);
+            let cr2_32 = _mm256_add_epi32(cr2_32, uv_bias32);
+            let cr3_32 = _mm256_add_epi32(cr3_32, uv_bias32);
+
+            let cb0_32 = _mm256_srai_epi32::<A_E>(cb0_32);
+            let cb1_32 = _mm256_srai_epi32::<A_E>(cb1_32);
+            let cb2_32 = _mm256_srai_epi32::<A_E>(cb2_32);
+            let cb3_32 = _mm256_srai_epi32::<A_E>(cb3_32);
+
+            let cr0_32 = _mm256_srai_epi32::<A_E>(cr0_32);
+            let cr1_32 = _mm256_srai_epi32::<A_E>(cr1_32);
+            let cr2_32 = _mm256_srai_epi32::<A_E>(cr2_32);
+            let cr3_32 = _mm256_srai_epi32::<A_E>(cr3_32);
+
+            let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
+            let mut cb01 = _mm256_packs_epi32(cb2_32, cb3_32);
+
+            let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
+            let mut cr01 = _mm256_packs_epi32(cr2_32, cr3_32);
 
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cb01 = _mm256_permute4x64_epi64::<MASK>(cb01);
@@ -463,13 +523,8 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let h2 = _mm256_extracti128_si256::<1>(v2_s);
             let h3 = _mm256_extracti128_si256::<1>(v3_s);
 
-            let vh0 = _mm_avg_epu8(_mm256_castsi256_si128(v0_s), h0);
-            let vh1 = _mm_avg_epu8(_mm256_castsi256_si128(v1_s), h1);
-            let vh2 = _mm_avg_epu8(_mm256_castsi256_si128(v2_s), h2);
-            let vh3 = _mm_avg_epu8(_mm256_castsi256_si128(v3_s), h3);
-
-            let v0_f = _mm256_set_m128i(vh1, vh0);
-            let v1_f = _mm256_set_m128i(vh3, vh2);
+            let v0_f = _mm256_set_m128i(h1, h0);
+            let v1_f = _mm256_set_m128i(h3, h2);
 
             let cb0 = _mm256_maddubs_epi16(v0_f, cb_weights);
             let cb1 = _mm256_maddubs_epi16(v1_f, cb_weights);
@@ -477,14 +532,23 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let cr0 = _mm256_maddubs_epi16(v0_f, cr_weights);
             let cr1 = _mm256_maddubs_epi16(v1_f, cr_weights);
 
-            let mut cb00 = _mm256_hadd_epi16(cb0, cb1);
-            let mut cr00 = _mm256_hadd_epi16(cr0, cr1);
+            let cb0_32 = _mm256_madd_epi16(cb0, ones);
+            let cb1_32 = _mm256_madd_epi16(cb1, ones);
+            let cr0_32 = _mm256_madd_epi16(cr0, ones);
+            let cr1_32 = _mm256_madd_epi16(cr1, ones);
 
-            cb00 = _mm256_add_epi16(cb00, uv_bias);
-            cr00 = _mm256_add_epi16(cr00, uv_bias);
+            let cb0_32 = _mm256_add_epi32(cb0_32, uv_bias32);
+            let cb1_32 = _mm256_add_epi32(cb1_32, uv_bias32);
+            let cr0_32 = _mm256_add_epi32(cr0_32, uv_bias32);
+            let cr1_32 = _mm256_add_epi32(cr1_32, uv_bias32);
 
-            cb00 = _mm256_srai_epi16::<A_E>(cb00);
-            cr00 = _mm256_srai_epi16::<A_E>(cr00);
+            let cb0_32 = _mm256_srai_epi32::<A_E>(cb0_32);
+            let cb1_32 = _mm256_srai_epi32::<A_E>(cb1_32);
+            let cr0_32 = _mm256_srai_epi32::<A_E>(cr0_32);
+            let cr1_32 = _mm256_srai_epi32::<A_E>(cr1_32);
+
+            let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
+            let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);

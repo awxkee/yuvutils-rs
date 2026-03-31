@@ -139,7 +139,7 @@ unsafe fn avx_yuv_p16_to_rgba8_row_alpha_impl<
     let big_endian_shuffle_flag_sse =
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
-    while cx + 32 < width as usize {
+    while cx + 32 <= width as usize {
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
         let mut y_vl0 = _mm256_loadu_si256(y_plane.get_unchecked(cx..).as_ptr() as *const __m256i);

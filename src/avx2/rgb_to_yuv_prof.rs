@@ -246,7 +246,7 @@ unsafe fn avx2_rgba_to_yuv_impl_prof<
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let px = cx * channels;
 
         encode_32_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION, HAS_DOT>(
@@ -296,10 +296,10 @@ unsafe fn avx2_rgba_to_yuv_impl_prof<
         }
 
         encode_32_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION, HAS_DOT>(
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer.as_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer0.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(u_buffer.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(v_buffer.as_mut_slice()),
+            src_buffer.as_slice(),
+            y_buffer0.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
             range,
             transform,
         );
@@ -378,7 +378,7 @@ unsafe fn avx2_rgba_to_yuv_impl_prof_4chan<
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let src_ptr0 = rgba.get_unchecked(cx * channels..);
 
         let row_z0_0 = _mm256_loadu_si256(src_ptr0.as_ptr() as *const _);

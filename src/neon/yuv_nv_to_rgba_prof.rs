@@ -86,7 +86,7 @@ pub(crate) unsafe fn neon_yuv_nv_to_rgba_row_prof<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let y_vl = vld1q_u8(y_ptr.add(cx));
 
         let u_high_s8: int8x8_t;

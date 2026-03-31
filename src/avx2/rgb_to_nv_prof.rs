@@ -256,7 +256,7 @@ unsafe fn avx2_rgba_to_nv_impl<
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    while cx + 32 < width as usize {
+    while cx + 32 <= width as usize {
         let px = cx * channels;
 
         encode_32_part::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION, HAS_DOT>(
@@ -304,9 +304,9 @@ unsafe fn avx2_rgba_to_nv_impl<
         }
 
         encode_32_part::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, PRECISION, HAS_DOT>(
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer.as_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer0.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(uv_buffer.as_mut_slice()),
+            src_buffer.as_slice(),
+            y_buffer0.as_mut_slice(),
+            uv_buffer.as_mut_slice(),
             range,
             transform,
         );
@@ -382,7 +382,7 @@ unsafe fn avx2_rgba_to_nv_4chan<
 
     let order: YuvNVOrder = UV_ORDER.into();
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         let src_ptr0 = rgba.get_unchecked(cx * channels..);
 
         let row_z0_0 = _mm256_loadu_si256(src_ptr0.as_ptr() as *const _);

@@ -100,7 +100,7 @@ unsafe fn avx_yuv_nv_to_rgba_impl_fast420<const UV_ORDER: u8, const DESTINATION_
         )
     };
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let y_vl0 = _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const _);
         let y_vl1 = _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const _);
         let mut uv_values_ = _mm256_loadu_si256(uv_ptr.add(uv_x) as *const _);

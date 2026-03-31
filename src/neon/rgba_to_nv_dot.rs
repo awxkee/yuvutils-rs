@@ -124,7 +124,7 @@ pub(crate) unsafe fn neon_rgba_to_nv_dot_rgba<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         let src = rgba.get_unchecked(cx * channels..);
 
         let v0 = vld1q_u8(src.as_ptr());

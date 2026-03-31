@@ -215,7 +215,7 @@ pub(crate) unsafe fn neon_rgba_to_nv_prof<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         encode_16_part_prof::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
             rgba.get_unchecked(cx * channels..),
             y_plane.get_unchecked_mut(cx..),
@@ -262,9 +262,9 @@ pub(crate) unsafe fn neon_rgba_to_nv_prof<
         );
 
         encode_16_part_prof::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING>(
-            std::mem::transmute(src_buffer.as_slice()),
-            std::mem::transmute(y_buffer.as_mut_slice()),
-            std::mem::transmute(uv_buffer.as_mut_slice()),
+            src_buffer.as_slice(),
+            y_buffer.as_mut_slice(),
+            uv_buffer.as_mut_slice(),
             y_bias,
             uv_bias,
             v_weights,

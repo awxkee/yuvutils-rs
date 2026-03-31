@@ -85,7 +85,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 8 < width as usize {
+    while cx + 8 <= width as usize {
         let dst_ptr = bgra.get_unchecked_mut(cx * channels..).as_mut_ptr();
 
         let mut y_vl = vld1q_u16(y_ld_ptr.get_unchecked(cx..).as_ptr());

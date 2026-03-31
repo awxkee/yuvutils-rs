@@ -379,10 +379,10 @@ unsafe fn sse_rgba_to_yuv_row_impl<
         }
 
         encode_8_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer.as_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(u_buffer.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(v_buffer.as_mut_slice()),
+            src_buffer.as_slice(),
+            y_buffer.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
             transform,
             range,
         );

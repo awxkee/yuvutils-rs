@@ -98,7 +98,7 @@ unsafe fn avx2_ayuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const PACKED: u
     let v_g_coeff_1 = _mm256_set1_epi16(transform.g_coeff_1);
     let v_g_coeff_2 = _mm256_set1_epi16(transform.g_coeff_2);
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let (a, mut y_vals, u, v) = _mm256_load_deintl_ayuv::<PACKED>(ayuv.get_unchecked(cx * 4..));
 
         y_vals = _mm256_subs_epu8(y_vals, y_corr);
@@ -196,10 +196,7 @@ unsafe fn avx2_ayuv_to_rgba_impl<const DESTINATION_CHANNELS: u8, const PACKED: u
             diff * 4,
         );
 
-        let (a, mut y_vals, u, v) =
-            _mm256_load_deintl_ayuv::<PACKED>(std::mem::transmute::<&[u8], &[u8]>(
-                src_buffer.as_slice(),
-            ));
+        let (a, mut y_vals, u, v) = _mm256_load_deintl_ayuv::<PACKED>(src_buffer.as_slice());
 
         y_vals = _mm256_subs_epu8(y_vals, y_corr);
 

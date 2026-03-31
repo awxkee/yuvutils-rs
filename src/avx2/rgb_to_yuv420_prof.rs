@@ -242,7 +242,7 @@ unsafe fn avx2_rgba_to_yuv420_prof_impl<
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let px = cx * channels;
 
         encode_32_part::<ORIGIN_CHANNELS, PRECISION, HAS_DOT>(
@@ -300,12 +300,12 @@ unsafe fn avx2_rgba_to_yuv420_prof_impl<
         }
 
         encode_32_part::<ORIGIN_CHANNELS, PRECISION, HAS_DOT>(
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer0.as_slice()),
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer1.as_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer0.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer1.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(u_buffer.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(v_buffer.as_mut_slice()),
+            src_buffer0.as_slice(),
+            src_buffer1.as_slice(),
+            y_buffer0.as_mut_slice(),
+            y_buffer1.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
             range,
             transform,
         );
@@ -381,7 +381,7 @@ unsafe fn avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let src_ptr0 = rgba0.get_unchecked(cx * channels..);
         let src_ptr1 = rgba1.get_unchecked(cx * channels..);
 

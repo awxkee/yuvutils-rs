@@ -73,7 +73,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         let src = rgba.get_unchecked(cx * channels..).as_ptr();
 
         let (r_values0, g_values0, b_values0) = neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(src);

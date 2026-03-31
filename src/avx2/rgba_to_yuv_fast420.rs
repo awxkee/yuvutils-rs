@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::avx2::avx2_utils::{_mm256_expand_rgb_to_rgba, _mm256_set4r_epi8, avx2_pack_u16};
+use crate::avx2::avx2_utils::{_mm256_expand_rgb_to_rgba, _mm256_set4r_epi8};
 
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvSourceChannels};
@@ -241,26 +241,22 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         );
 
         // UV horizontal subsampling: separate even/odd pixel dwords, then avg
-        let even_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let even_01 = _mm256_castps_si256(_mm256_shuffle_ps::<0x88>(
             _mm256_castsi256_ps(uh0),
             _mm256_castsi256_ps(uh1),
-            0x88,
         ));
-        let odd_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let odd_01 = _mm256_castps_si256(_mm256_shuffle_ps::<0xDD>(
             _mm256_castsi256_ps(uh0),
             _mm256_castsi256_ps(uh1),
-            0xDD,
         ));
-        let even_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let even_23 = _mm256_castps_si256(_mm256_shuffle_ps::<0x88>(
             _mm256_castsi256_ps(uh2),
             _mm256_castsi256_ps(uh3),
-            0x88,
         ));
 
-        let odd_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let odd_23 = _mm256_castps_si256(_mm256_shuffle_ps::<0xDD>(
             _mm256_castsi256_ps(uh2),
             _mm256_castsi256_ps(uh3),
-            0xDD,
         ));
 
         let v0_f = _mm256_avg_epu8(even_01, odd_01);
@@ -416,25 +412,21 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
         _mm256_storeu_si256(y_buffer1.as_mut_ptr() as *mut _, y_vl1);
 
         // UV horizontal subsampling: separate even/odd pixel dwords, then avg
-        let even_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let even_01 = _mm256_castps_si256(_mm256_shuffle_ps::<0x88>(
             _mm256_castsi256_ps(uh0),
             _mm256_castsi256_ps(uh1),
-            0x88,
         ));
-        let odd_01 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let odd_01 = _mm256_castps_si256(_mm256_shuffle_ps::<0xDD>(
             _mm256_castsi256_ps(uh0),
             _mm256_castsi256_ps(uh1),
-            0xDD,
         ));
-        let even_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let even_23 = _mm256_castps_si256(_mm256_shuffle_ps::<0x88>(
             _mm256_castsi256_ps(uh2),
             _mm256_castsi256_ps(uh3),
-            0x88,
         ));
-        let odd_23 = _mm256_castps_si256(_mm256_shuffle_ps(
+        let odd_23 = _mm256_castps_si256(_mm256_shuffle_ps::<0xDD>(
             _mm256_castsi256_ps(uh2),
             _mm256_castsi256_ps(uh3),
-            0xDD,
         ));
 
         let v0_f = _mm256_avg_epu8(even_01, odd_01);
@@ -519,6 +511,8 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
 ) -> ProcessedOffset {
     let source_channels: YuvSourceChannels = ORIGIN_CHANNELS.into();
     let channels = source_channels.get_channels_count();
+
+    use crate::avx2::avx2_utils::avx2_pack_u16;
 
     let u_ptr = u_plane;
     let v_ptr = v_plane;

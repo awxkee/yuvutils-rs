@@ -65,7 +65,7 @@ unsafe fn avx_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
 
     let v_alpha = _mm256_set1_epi8(255u8 as i8);
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let g_values = _mm256_loadu_si256(g_plane.get_unchecked(cx..).as_ptr() as *const _);
         let b_values = _mm256_loadu_si256(b_plane.get_unchecked(cx..).as_ptr() as *const _);
         let r_values = _mm256_loadu_si256(r_plane.get_unchecked(cx..).as_ptr() as *const _);
@@ -174,7 +174,7 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
     let vy_coeff = _mm256_set1_epi16(y_coeff as i16);
     let vy_bias = _mm256_set1_epi8(y_bias as i8);
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let g0 = _mm256_loadu_si256(g_plane.get_unchecked(cx..).as_ptr() as *const _);
         let b0 = _mm256_loadu_si256(b_plane.get_unchecked(cx..).as_ptr() as *const _);
         let r0 = _mm256_loadu_si256(r_plane.get_unchecked(cx..).as_ptr() as *const _);
