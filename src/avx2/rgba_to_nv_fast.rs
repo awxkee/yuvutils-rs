@@ -148,6 +148,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
         )
     };
 
+    let combined_fixup = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
     let v422_shuffle = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
 
     let mut cx = start_cx;
@@ -200,8 +201,6 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             _mm256_setzero_si256()
         };
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
         let y0_32 = _mm256_madd_epi16(y0s, ones);
         let y1_32 = _mm256_madd_epi16(y1s, ones);
         let y2_32 = _mm256_madd_epi16(y2s, ones);
@@ -217,15 +216,12 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
         let y2_32 = _mm256_srai_epi32::<A_E>(y2_32);
         let y3_32 = _mm256_srai_epi32::<A_E>(y3_32);
 
-        let mut y0m = _mm256_packs_epi32(y0_32, y1_32);
-        let mut y1m = _mm256_packs_epi32(y2_32, y3_32);
+        let y0m = _mm256_packs_epi32(y0_32, y1_32);
+        let y1m = _mm256_packs_epi32(y2_32, y3_32);
 
-        y0m = _mm256_permute4x64_epi64::<MASK>(y0m);
-        y1m = _mm256_permute4x64_epi64::<MASK>(y1m);
+        let y_vl0 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y0m, y1m), combined_fixup);
 
-        let y_vl = avx2_pack_u16(y0m, y1m);
-
-        _mm256_storeu_si256(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl);
+        _mm256_storeu_si256(y_ptr.get_unchecked_mut(cx..).as_mut_ptr() as *mut _, y_vl0);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb0 = _mm256_maddubs_epi16(v0, cb_weights);
@@ -274,6 +270,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
             let mut cr01 = _mm256_packs_epi32(cr2_32, cr3_32);
 
+            const MASK: i32 = shuffle(3, 1, 2, 0);
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cb01 = _mm256_permute4x64_epi64::<MASK>(cb01);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
@@ -306,8 +303,13 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let h2 = _mm256_extracti128_si256::<1>(v2_s);
             let h3 = _mm256_extracti128_si256::<1>(v3_s);
 
-            let v0_f = _mm256_set_m128i(h1, h0);
-            let v1_f = _mm256_set_m128i(h3, h2);
+            let vh0 = _mm_avg_epu8(_mm256_castsi256_si128(v0_s), h0);
+            let vh1 = _mm_avg_epu8(_mm256_castsi256_si128(v1_s), h1);
+            let vh2 = _mm_avg_epu8(_mm256_castsi256_si128(v2_s), h2);
+            let vh3 = _mm_avg_epu8(_mm256_castsi256_si128(v3_s), h3);
+
+            let v0_f = _mm256_set_m128i(vh1, vh0);
+            let v1_f = _mm256_set_m128i(vh3, vh2);
 
             let cb0 = _mm256_maddubs_epi16(v0_f, cb_weights);
             let cb1 = _mm256_maddubs_epi16(v1_f, cb_weights);
@@ -333,6 +335,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
             let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
+            const MASK: i32 = shuffle(3, 1, 2, 0);
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
 
@@ -425,8 +428,6 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             _mm256_setzero_si256()
         };
 
-        const MASK: i32 = shuffle(3, 1, 2, 0);
-
         let y0_32 = _mm256_madd_epi16(y0s, ones);
         let y1_32 = _mm256_madd_epi16(y1s, ones);
         let y2_32 = _mm256_madd_epi16(y2s, ones);
@@ -445,9 +446,9 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
         let y0m = _mm256_packs_epi32(y0_32, y1_32);
         let y1m = _mm256_packs_epi32(y2_32, y3_32);
 
-        let y_vl = avx2_pack_u16(y0m, y1m);
+        let y_vl0 = _mm256_permutevar8x32_epi32(_mm256_packus_epi16(y0m, y1m), combined_fixup);
 
-        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y_vl);
+        _mm256_storeu_si256(y_buffer.as_mut_ptr() as *mut _, y_vl0);
 
         if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
             let cb0 = _mm256_maddubs_epi16(v0, cb_weights);
@@ -496,6 +497,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
             let mut cr01 = _mm256_packs_epi32(cr2_32, cr3_32);
 
+            const MASK: i32 = shuffle(3, 1, 2, 0);
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cb01 = _mm256_permute4x64_epi64::<MASK>(cb01);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
@@ -550,6 +552,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_ubs<
             let mut cb00 = _mm256_packs_epi32(cb0_32, cb1_32);
             let mut cr00 = _mm256_packs_epi32(cr0_32, cr1_32);
 
+            const MASK: i32 = shuffle(3, 1, 2, 0);
             cb00 = _mm256_permute4x64_epi64::<MASK>(cb00);
             cr00 = _mm256_permute4x64_epi64::<MASK>(cr00);
 
