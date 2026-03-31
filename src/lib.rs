@@ -171,9 +171,12 @@ mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
 
 pub use yuv_support::{
-    Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness,
-    YuvRange, YuvStandardMatrix,
+    CbCrForwardTransform, CbCrInverseTransform, Rgb30ByteOrder, ToIntegerTransform,
+    YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvRange,
+    YuvStandardMatrix,
 };
+
+pub use yuv_support::{get_forward_transform, get_yuv_range, YuvChromaRange};
 
 pub use yuv_nv_p10_to_rgb::{
     p010_to_bgr, p010_to_bgra, p010_to_rgb, p010_to_rgba, p210_to_bgr, p210_to_bgra, p210_to_rgb,
@@ -428,13 +431,21 @@ pub use yuy2_to_rgb_p16::yvyu422_to_rgb_p16;
 pub use yuy2_to_rgb_p16::yvyu422_to_rgba_p16;
 
 pub use sharpyuv::bgr_to_sharp_yuv420;
+pub use sharpyuv::bgr_to_sharp_yuv420_with_transform;
 pub use sharpyuv::bgr_to_sharp_yuv422;
+pub use sharpyuv::bgr_to_sharp_yuv422_with_transform;
 pub use sharpyuv::bgra_to_sharp_yuv420;
+pub use sharpyuv::bgra_to_sharp_yuv420_with_transform;
 pub use sharpyuv::bgra_to_sharp_yuv422;
+pub use sharpyuv::bgra_to_sharp_yuv422_with_transform;
 pub use sharpyuv::rgb_to_sharp_yuv420;
+pub use sharpyuv::rgb_to_sharp_yuv420_with_transform;
 pub use sharpyuv::rgb_to_sharp_yuv422;
+pub use sharpyuv::rgb_to_sharp_yuv422_with_transform;
 pub use sharpyuv::rgba_to_sharp_yuv420;
+pub use sharpyuv::rgba_to_sharp_yuv420_with_transform;
 pub use sharpyuv::rgba_to_sharp_yuv422;
+pub use sharpyuv::rgba_to_sharp_yuv422_with_transform;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
 pub use from_identity::{

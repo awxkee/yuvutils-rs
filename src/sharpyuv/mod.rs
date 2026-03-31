@@ -33,10 +33,18 @@ mod sharp_rgba_to_yuv;
 
 pub use sharp_gamma::SharpYuvGammaTransfer;
 pub use sharp_rgba_to_yuv::bgr_to_sharp_yuv420;
+pub use sharp_rgba_to_yuv::bgr_to_sharp_yuv420_with_transform;
 pub use sharp_rgba_to_yuv::bgr_to_sharp_yuv422;
+pub use sharp_rgba_to_yuv::bgr_to_sharp_yuv422_with_transform;
 pub use sharp_rgba_to_yuv::bgra_to_sharp_yuv420;
+pub use sharp_rgba_to_yuv::bgra_to_sharp_yuv420_with_transform;
 pub use sharp_rgba_to_yuv::bgra_to_sharp_yuv422;
+pub use sharp_rgba_to_yuv::bgra_to_sharp_yuv422_with_transform;
 pub use sharp_rgba_to_yuv::rgb_to_sharp_yuv420;
+pub use sharp_rgba_to_yuv::rgb_to_sharp_yuv420_with_transform;
 pub use sharp_rgba_to_yuv::rgb_to_sharp_yuv422;
+pub use sharp_rgba_to_yuv::rgb_to_sharp_yuv422_with_transform;
 pub use sharp_rgba_to_yuv::rgba_to_sharp_yuv420;
+pub use sharp_rgba_to_yuv::rgba_to_sharp_yuv420_with_transform;
 pub use sharp_rgba_to_yuv::rgba_to_sharp_yuv422;
+pub use sharp_rgba_to_yuv::rgba_to_sharp_yuv422_with_transform;
