@@ -44,14 +44,14 @@ unsafe fn encode_32_part_p16<const ORIGIN_CHANNELS: u8>(
     const PRECISION: i32 = 16;
     let zero = _mm256_setzero_si256();
 
-    // --- Load and deinterleave 32 RGBA pixels from each of the two rows ---
+    // Load and deinterleave 32 RGBA pixels from each of the two rows
     let (r_values0, g_values0, b_values0) =
         _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src0.as_ptr());
     let (r_values1, g_values1, b_values1) =
         _mm256_load_deinterleave_rgb_for_yuv::<ORIGIN_CHANNELS>(src1.as_ptr());
 
-    // --- Row 0, low 16 pixels: compute Y = (yr*R + yg*G + yb*B + bias) >> 16 ---
-    // Widen u8→u16 for the low 16 pixels of each channel
+    // Row 0, low 16 pixels: compute Y = (yr*R + yg*G + yb*B + bias) >> 16
+    // Widen u8 to u16 for the low 16 pixels of each channel
     let r_low0 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values0));
     let gl0 = _mm256_unpacklo_epi8(g_values0, zero);
     let bl0 = _mm256_unpacklo_epi8(b_values0, zero);
@@ -78,13 +78,13 @@ unsafe fn encode_32_part_p16<const ORIGIN_CHANNELS: u8>(
         _mm256_add_epi32(rg_a_lo1, rg_b_lo1),
         _mm256_add_epi32(b_w_lo1, y_bias),
     );
-    // Pack i32→u16 after shifting
+    // Pack i32 to u16 after shifting
     let y00_vl = avx2_pack_u32(
         _mm256_srli_epi32::<PRECISION>(sum_lo0),
         _mm256_srli_epi32::<PRECISION>(sum_lo1),
     );
 
-    // --- Row 0, high 16 pixels: same Y computation for pixels 16-31 ---
+    // Row 0, high 16 pixels: same Y computation for pixels 16-31
     let r_high0 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(r_values0));
     let gh0 = _mm256_unpackhi_epi8(g_values0, zero);
     let bh0 = _mm256_unpackhi_epi8(b_values0, zero);
@@ -112,11 +112,11 @@ unsafe fn encode_32_part_p16<const ORIGIN_CHANNELS: u8>(
         _mm256_srli_epi32::<PRECISION>(sum_hi1),
     );
 
-    // Pack u16→u8 and store all 32 Y values for row 0
+    // Pack u16 to u8 and store all 32 Y values for row 0
     let y0 = _mm256_packus_epi16(y00_vl, y01_vl);
     _mm256_storeu_si256(y_dst0.as_mut_ptr().cast::<__m256i>(), y0);
 
-    // --- Row 1: same Y computation for the second row ---
+    // Row 1: same Y computation for the second row
     let r_low1 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(r_values1));
     let gl1 = _mm256_unpacklo_epi8(g_values1, zero);
     let bl1 = _mm256_unpacklo_epi8(b_values1, zero);
@@ -171,11 +171,11 @@ unsafe fn encode_32_part_p16<const ORIGIN_CHANNELS: u8>(
         _mm256_srli_epi32::<PRECISION>(sum_hi11),
     );
 
-    // Pack u16→u8 and store all 32 Y values for row 1
+    // Pack u16 to u8 and store all 32 Y values for row 1
     let y1 = _mm256_packus_epi16(y10_vl, y11_vl);
     _mm256_storeu_si256(y_dst1.as_mut_ptr().cast::<__m256i>(), y1);
 
-    // --- Chroma (Cb/Cr): 4:2:0 subsampling by averaging 2x2 pixel blocks ---
+    // Chroma (Cb/Cr): 4:2:0 subsampling by averaging 2x2 pixel blocks
     // Vertical average of the two rows
     let r_avg = _mm256_avg_epu8(r_values0, r_values1);
     let g_avg = _mm256_avg_epu8(g_values0, g_values1);
@@ -194,7 +194,7 @@ unsafe fn encode_32_part_p16<const ORIGIN_CHANNELS: u8>(
     let cb_s = _mm256_affine_dot::<17, false>(uv_bias, rhv0, rhv1, bhv0, bhv1, v_cb_r_g, v_cb_b);
     let cr_s = _mm256_affine_dot::<17, false>(uv_bias, rhv0, rhv1, bhv0, bhv1, v_cr_r_g, v_cr_b);
 
-    // Pack to u8 and store 16 Cb/Cr values (32 luma pixels → 16 chroma)
+    // Pack to u8 and store 16 Cb/Cr values (32 luma pixels to 16 chroma)
     let cb = avx2_pack_u16(cb_s, cb_s);
     let cr = avx2_pack_u16(cr_s, cr_s);
 
@@ -232,8 +232,8 @@ unsafe fn avx2_rgba_to_yuv420_p16_impl<const ORIGIN_CHANNELS: u8>(
     let y_bias = _mm256_set1_epi32(range.bias_y as i32 * (1 << PRECISION) + rounding_const_y);
 
     // Broadcast coefficient pairs for PMADDWD:
-    // v_yr_yga = [yr, yg_a] repeated — first half of split green
-    // v_0_ygb  = [0,  yg_b] repeated — second half of split green
+    // v_yr_yga = [yr, yg_a] repeated - first half of split green
+    // v_0_ygb  = [0,  yg_b] repeated - second half of split green
     let v_yr_yga = _mm256_set1_epi32(interleave_i16_pair(yr, yg_a));
     let v_0_ygb = _mm256_set1_epi32(interleave_i16_pair(0, yg_b));
     let v_yb = _mm256_set1_epi32(transform.yb);

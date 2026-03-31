@@ -27,12 +27,12 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
 ) {
     const PRECISION: i32 = 16;
 
-    // --- Load and deinterleave 16 RGBA pixels from each of the two rows ---
+    // Load and deinterleave 16 RGBA pixels from each of the two rows
     let (r_values0, g_values0, b_values0) = neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba0.as_ptr());
     let (r_values1, g_values1, b_values1) = neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba1.as_ptr());
 
-    // --- Row 0, high 8 pixels (8-15): compute Y = (yr*R + yg*G + yb*B + bias) >> 16 ---
-    // Widen u8→i16 for the upper 8 pixels
+    // Row 0, high 8 pixels (8-15): compute Y = (yr*R + yg*G + yb*B + bias) >> 16
+    // Widen u8 to i16 for the upper 8 pixels
     let r_high0 = vreinterpretq_s16_u16(vmovl_high_u8(r_values0));
     let g_high0 = vreinterpretq_s16_u16(vmovl_high_u8(g_values0));
     let b_high0 = vreinterpretq_s16_u16(vmovl_high_u8(b_values0));
@@ -56,12 +56,12 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
     y0_h_low = vmlal_laneq_s16::<1>(y0_h_low, g_h_low0, v_weights_b);
     y0_h_low = vmlal_laneq_s16::<2>(y0_h_low, b_h_low0, v_weights_a);
 
-    // Narrow i32→i16 with saturating shift, then combine into one u16x8
+    // Narrow i32 to i16 with saturating shift, then combine into one u16x8
     let y0_h_low = vqshrn_n_s32::<PRECISION>(y0_h_low);
     let y0_h_high = vqshrn_n_s32::<PRECISION>(y0_h_high);
     let y0_high = vreinterpretq_u16_s16(vcombine_s16(y0_h_low, y0_h_high));
 
-    // --- Row 1, high 8 pixels: same Y computation ---
+    // Row 1, high 8 pixels: same Y computation
 
     let r_high1 = vreinterpretq_s16_u16(vmovl_high_u8(r_values1));
     let g_high1 = vreinterpretq_s16_u16(vmovl_high_u8(g_values1));
@@ -85,7 +85,7 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
     let y1_h_high = vqshrn_n_s32::<PRECISION>(y1_h_high);
     let y1_high = vreinterpretq_u16_s16(vcombine_s16(y1_h_low, y1_h_high));
 
-    // --- Row 0, low 8 pixels (0-7): same Y computation ---
+    // Row 0, low 8 pixels (0-7): same Y computation
     let r_low0 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values0)));
     let g_low0 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values0)));
     let b_low0 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values0)));
@@ -108,7 +108,7 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
     let y0_l_high = vqshrn_n_s32::<PRECISION>(y0_l_high);
     let y0_low = vreinterpretq_u16_s16(vcombine_s16(y0_l_low, y0_l_high));
 
-    // --- Row 1, low 8 pixels: same Y computation ---
+    // Row 1, low 8 pixels: same Y computation
     let r_low1 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(r_values1)));
     let g_low1 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(g_values1)));
     let b_low1 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b_values1)));
@@ -131,7 +131,7 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
     let y1_l_high = vqshrn_n_s32::<PRECISION>(y1_l_high);
     let y1_low = vreinterpretq_u16_s16(vcombine_s16(y1_l_low, y1_l_high));
 
-    // Narrow u16→u8 and store 16 Y values for each row
+    // Narrow u16 to u8 and store 16 Y values for each row
     vst1q_u8(
         y_plane0.as_mut_ptr(),
         vqmovn_high_u16(vqmovn_u16(y0_low), y0_high),
@@ -139,13 +139,13 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
     let y1 = vcombine_u8(vmovn_u16(y1_low), vmovn_u16(y1_high));
     vst1q_u8(y_plane1.as_mut_ptr(), y1);
 
-    // --- Chroma (Cb/Cr): 4:2:0 subsampling by averaging 2x2 pixel blocks ---
+    // Chroma (Cb/Cr): 4:2:0 subsampling by averaging 2x2 pixel blocks
     // Vertical average of the two rows (halving add for R, rounding for G/B)
     let rhv = vhaddq_u8(r_values0, r_values1);
     let ghv = vrhaddq_u8(g_values0, g_values1);
     let bhv = vrhaddq_u8(b_values0, b_values1);
 
-    // Horizontal pairwise sum u8→u16 (adds adjacent pairs), then
+    // Horizontal pairwise sum u8 to u16 (adds adjacent pairs), then
     // rounding right-shift by 1 to get averaged u16 values as i16
     let r1hv = vpaddlq_u8(rhv);
     let g1hv = vpaddlq_u8(ghv);
@@ -155,7 +155,7 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
     let g1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(g1hv));
     let b1 = vreinterpretq_s16_u16(vrshrq_n_u16::<1>(b1hv));
 
-    // UV: all coefficients fit i16, no split needed — three MACs per channel.
+    // UV: all coefficients fit i16, no split needed - three MACs per channel.
     // v_weights_a packs all coefficients: [yr, yg_a, yb, cb_r, cb_g, cb_b, cr_r, cr_g]
     // v_cr_b holds cr_b separately (no room in v_weights_a)
     let mut cb_h = vmlal_high_laneq_s16::<5>(uv_bias, b1, v_weights_a);
@@ -173,7 +173,7 @@ unsafe fn encode_16_part_p16_420<const ORIGIN_CHANNELS: u8>(
     cr_h = vmlal_high_laneq_s16::<0>(cr_h, b1, v_cr_b);
     cr_l = vmlal_laneq_s16::<0>(cr_l, vget_low_s16(b1), v_cr_b);
 
-    // Narrow i32→i16 with saturating shift, then u16→u8 and store 8 Cb/Cr values
+    // Narrow i32 to i16 with saturating shift, then u16 to u8 and store 8 Cb/Cr values
     let cb_l = vqshrn_n_s32::<PRECISION>(cb_l);
     let cb_h = vqshrn_n_s32::<PRECISION>(cb_h);
     let cr_l = vqshrn_n_s32::<PRECISION>(cr_l);
@@ -219,8 +219,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv420_p16<const ORIGIN_CHANNELS: u8>(
     let uv_bias = vdupq_n_s32(bias_uv);
 
     // Pack all coefficients into two NEON vectors for lane-indexed MAC:
-    // v_weights_a: [yr, yg_a, yb, cb_r, cb_g, cb_b, cr_r, cr_g] — 8 lanes
-    // v_weights_b: [0,  yg_b, 0, ...] — only lane 1 used (second half of split yg)
+    // v_weights_a: [yr, yg_a, yb, cb_r, cb_g, cb_b, cr_r, cr_g] - 8 lanes
+    // v_weights_b: [0,  yg_b, 0, ...] - only lane 1 used (second half of split yg)
     let weights_a_arr: [i16; 8] = [
         transform.yr as i16,
         yg_a,

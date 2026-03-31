@@ -33,13 +33,13 @@ use yuv::{
     bgr_to_sharp_yuv420, gbr_to_rgba, get_forward_transform, get_yuv_range, rgb_to_gbr,
     rgb_to_sharp_yuv420, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
     rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_sharp_yuv420, rgba_to_sharp_yuv420_with_transform,
-    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, vyua_to_rgba,
-    ycgco420_to_rgba, ycgco444_to_rgba, yuv400_to_rgba, yuv420_to_rgb, yuv420_to_rgba,
-    yuv420_to_rgba_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_to_rgba,
-    yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb, CbCrForwardTransform,
-    SharpYuvGammaTransfer, ToIntegerTransform, YuvBiPlanarImageMut, YuvChromaSubsampling,
-    YuvConversionMode, YuvGrayImageMut, YuvPackedImage, YuvPlanarImageMut, YuvRange,
-    YuvStandardMatrix,
+    rgba_to_yuv420, rgba_to_yuv420_with_transform, rgba_to_yuv422, rgba_to_yuv444,
+    rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgba, ycgco444_to_rgba, yuv400_to_rgba,
+    yuv420_to_rgb, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgba,
+    yuv422_to_rgba_bilinear, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb,
+    CbCrForwardTransform, SharpYuvGammaTransfer, ToIntegerTransform, YuvBiPlanarImageMut,
+    YuvChromaSubsampling, YuvConversionMode, YuvGrayImageMut, YuvPackedImage, YuvPlanarImageMut,
+    YuvRange, YuvStandardMatrix,
 };
 use yuv_sys::{
     rs_ABGRToI420, rs_ABGRToJ422, rs_ABGRToNV21, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24,
@@ -285,6 +285,36 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 YuvRange::Limited,
                 YuvStandardMatrix::Bt601,
                 YuvConversionMode::Professional,
+            )
+            .unwrap();
+        })
+    });
+
+    let p16_range = get_yuv_range(8, YuvRange::Limited);
+    let p16_kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
+    let p16_transform = get_forward_transform(
+        255,
+        p16_range.range_y,
+        p16_range.range_uv,
+        p16_kr_kb.kr,
+        p16_kr_kb.kb,
+    )
+    .to_integers(16);
+
+    c.bench_function("yuvutils RGBA -> YUV 4:2:0 P16 (with_transform)", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_yuv420_with_transform(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                &p16_transform,
+                &p16_range,
+                YuvConversionMode::Professional16,
             )
             .unwrap();
         })
