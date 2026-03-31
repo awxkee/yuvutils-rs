@@ -31,7 +31,6 @@ use crate::internals::ProcessedOffset;
 use crate::neon::utils::{neon_store_rgb16, vldq_s16_endian};
 use crate::yuv_support::{CbCrInverseTransform, YuvChromaRange, YuvSourceChannels};
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
     const DESTINATION_CHANNELS: u8,
@@ -94,8 +93,8 @@ pub(crate) unsafe fn neon_y_p16_to_rgba16_row<
         let diff = width as usize - cx;
         assert!(diff <= 8);
 
-        let mut y_buffer: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-        let mut dst_buffer: [MaybeUninit<u16>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
+        let mut y_buffer: [u16; 8] = [0; 8];
+        let mut dst_buffer: [u16; 8 * 4] = [0; 8 * 4];
 
         std::ptr::copy_nonoverlapping(
             y_ld_ptr.get_unchecked(cx..).as_ptr(),

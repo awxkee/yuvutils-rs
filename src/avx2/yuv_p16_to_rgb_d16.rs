@@ -40,7 +40,6 @@ use crate::yuv_support::{
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) unsafe fn avx_yuv_p16_to_rgba_d16_row<
     const DESTINATION_CHANNELS: u8,
@@ -288,10 +287,10 @@ unsafe fn avx_yuv_p16_to_rgba_row_d16_impl<
         let diff = width as usize - cx;
         assert!(diff <= 16);
 
-        let mut y_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
-        let mut u_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
-        let mut v_buffer: [MaybeUninit<u16>; 16] = [MaybeUninit::uninit(); 16];
-        let mut buffer: [MaybeUninit<u16>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut y_buffer: [u16; 16] = [0; 16];
+        let mut u_buffer: [u16; 16] = [0; 16];
+        let mut v_buffer: [u16; 16] = [0; 16];
+        let mut buffer: [u16; 16 * 4] = [0; 16 * 4];
 
         std::ptr::copy_nonoverlapping(
             y_plane.get_unchecked(cx..).as_ptr(),

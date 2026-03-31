@@ -29,7 +29,6 @@
 use crate::neon::utils::{neon_store_rgb8, vmullnq_s16};
 use crate::yuv_support::YuvSourceChannels;
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 #[cfg(feature = "rdm")]
 pub(crate) fn yuv_to_rgba_row_limited_rdm<const DESTINATION_CHANNELS: u8>(
@@ -116,10 +115,10 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
         let diff = width - cx;
         assert!(diff <= 16);
 
-        let mut g_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut b_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut r_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+        let mut g_buffer: [u8; 16] = [0; 16];
+        let mut b_buffer: [u8; 16] = [0; 16];
+        let mut r_buffer: [u8; 16] = [0; 16];
+        let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
 
         std::ptr::copy_nonoverlapping(
             g_plane.get_unchecked(cx..).as_ptr(),
@@ -253,10 +252,10 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
             let diff = width - cx;
             assert!(diff <= 16);
 
-            let mut g_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-            let mut b_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-            let mut r_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-            let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+            let mut g_buffer: [u8; 16] = [0; 16];
+            let mut b_buffer: [u8; 16] = [0; 16];
+            let mut r_buffer: [u8; 16] = [0; 16];
+            let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
 
             std::ptr::copy_nonoverlapping(
                 g_plane.get_unchecked(cx..).as_ptr(),
@@ -363,10 +362,10 @@ pub(crate) fn yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
             let diff = width - cx;
             assert!(diff <= 16);
 
-            let mut g_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-            let mut b_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-            let mut r_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-            let mut dst_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
+            let mut g_buffer: [u8; 16] = [0; 16];
+            let mut b_buffer: [u8; 16] = [0; 16];
+            let mut r_buffer: [u8; 16] = [0; 16];
+            let mut dst_buffer: [u8; 16 * 4] = [0; 16 * 4];
 
             std::ptr::copy_nonoverlapping(
                 g_plane.get_unchecked(cx..).as_ptr(),

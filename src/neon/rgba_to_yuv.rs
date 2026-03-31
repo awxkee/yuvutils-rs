@@ -33,7 +33,6 @@ use crate::yuv_support::{
     CbCrForwardTransform, YuvChromaRange, YuvChromaSubsampling, YuvSourceChannels,
 };
 use std::arch::aarch64::*;
-use std::mem::MaybeUninit;
 
 #[cfg(feature = "rdm")]
 #[target_feature(enable = "rdm")]
@@ -242,10 +241,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<const ORIGIN_CHANNELS: u8, const SAMPL
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 8);
-        let mut src_buffer: [MaybeUninit<u8>; 8 * 4] = [MaybeUninit::uninit(); 8 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
-        let mut u_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
-        let mut v_buffer: [MaybeUninit<u8>; 8] = [MaybeUninit::uninit(); 8];
+        let mut src_buffer: [u8; 8 * 4] = [0; 8 * 4];
+        let mut y_buffer: [u8; 8] = [0; 8];
+        let mut u_buffer: [u8; 8] = [0; 8];
+        let mut v_buffer: [u8; 8] = [0; 8];
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
@@ -254,7 +253,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_rdm<const ORIGIN_CHANNELS: u8, const SAMPL
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 
@@ -560,10 +559,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING:
     if cx < width {
         let diff = width - cx;
         assert!(diff <= 16);
-        let mut src_buffer: [MaybeUninit<u8>; 16 * 4] = [MaybeUninit::uninit(); 16 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut u_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
-        let mut v_buffer: [MaybeUninit<u8>; 16] = [MaybeUninit::uninit(); 16];
+        let mut src_buffer: [u8; 16 * 4] = [0; 16 * 4];
+        let mut y_buffer: [u8; 16] = [0; 16];
+        let mut u_buffer: [u8; 16] = [0; 16];
+        let mut v_buffer: [u8; 16] = [0; 16];
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
@@ -572,7 +571,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING:
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 
@@ -583,16 +582,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING:
         );
 
         encode_16_part(
-            std::mem::transmute::<&[std::mem::MaybeUninit<u8>], &[u8]>(src_buffer.as_slice()),
-            std::mem::transmute::<&mut [std::mem::MaybeUninit<u8>], &mut [u8]>(
-                y_buffer.as_mut_slice(),
-            ),
-            std::mem::transmute::<&mut [std::mem::MaybeUninit<u8>], &mut [u8]>(
-                u_buffer.as_mut_slice(),
-            ),
-            std::mem::transmute::<&mut [std::mem::MaybeUninit<u8>], &mut [u8]>(
-                v_buffer.as_mut_slice(),
-            ),
+            src_buffer.as_slice(),
+            y_buffer.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
         );
 
         std::ptr::copy_nonoverlapping(

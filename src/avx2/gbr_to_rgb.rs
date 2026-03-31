@@ -34,7 +34,6 @@ use crate::yuv_support::YuvSourceChannels;
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) fn avx_yuv_to_rgba_row_full<const DESTINATION_CHANNELS: u8>(
     g_plane: &[u8],
@@ -89,10 +88,10 @@ unsafe fn avx_yuv_to_rgba_row_full_impl<const DESTINATION_CHANNELS: u8>(
         let diff = width - cx;
         assert!(diff <= 32);
 
-        let mut g_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut b_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut r_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut dst_buffer: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
+        let mut g_buffer: [u8; 32] = [0; 32];
+        let mut b_buffer: [u8; 32] = [0; 32];
+        let mut r_buffer: [u8; 32] = [0; 32];
+        let mut dst_buffer: [u8; 32 * 4] = [0; 32 * 4];
 
         std::ptr::copy_nonoverlapping(
             g_plane.get_unchecked(cx..).as_ptr(),
@@ -218,10 +217,10 @@ unsafe fn avx_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         let diff = width - cx;
         assert!(diff <= 32);
 
-        let mut g_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut b_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut r_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut dst_buffer: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
+        let mut g_buffer: [u8; 32] = [0; 32];
+        let mut b_buffer: [u8; 32] = [0; 32];
+        let mut r_buffer: [u8; 32] = [0; 32];
+        let mut dst_buffer: [u8; 32 * 4] = [0; 32 * 4];
 
         std::ptr::copy_nonoverlapping(
             g_plane.get_unchecked(cx..).as_ptr(),

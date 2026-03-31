@@ -39,7 +39,6 @@ use crate::yuv_support::{
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use std::mem::MaybeUninit;
 
 pub(crate) fn avx2_rgba_to_yuv<
     const ORIGIN_CHANNELS: u8,
@@ -213,10 +212,10 @@ unsafe fn avx2_rgba_to_yuv_impl<
         let diff = width - cx;
         assert!(diff <= 32);
 
-        let mut src_buffer: [MaybeUninit<u8>; 32 * 4] = [MaybeUninit::uninit(); 32 * 4];
-        let mut y_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut u_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
-        let mut v_buffer: [MaybeUninit<u8>; 32] = [MaybeUninit::uninit(); 32];
+        let mut src_buffer: [u8; 32 * 4] = [0; 32 * 4];
+        let mut y_buffer: [u8; 32] = [0; 32];
+        let mut u_buffer: [u8; 32] = [0; 32];
+        let mut v_buffer: [u8; 32] = [0; 32];
 
         std::ptr::copy_nonoverlapping(
             rgba.get_unchecked(cx * channels..).as_ptr(),
@@ -231,15 +230,15 @@ unsafe fn avx2_rgba_to_yuv_impl<
             let dvb = diff * channels;
             let dst = src_buffer.get_unchecked_mut(dvb..(dvb + channels));
             for (dst, src) in dst.iter_mut().zip(last_items) {
-                *dst = MaybeUninit::new(*src);
+                *dst = *src;
             }
         }
 
         encode_32_part::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
-            std::mem::transmute::<&[MaybeUninit<u8>], &[u8]>(src_buffer.as_slice()),
-            std::mem::transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(y_buffer.as_mut_slice()),
-            std::mem::transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(u_buffer.as_mut_slice()),
-            std::mem::transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(v_buffer.as_mut_slice()),
+            std::mem::transmute::<&[u8], &[u8]>(src_buffer.as_slice()),
+            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer.as_mut_slice()),
+            std::mem::transmute::<&mut [u8], &mut [u8]>(u_buffer.as_mut_slice()),
+            std::mem::transmute::<&mut [u8], &mut [u8]>(v_buffer.as_mut_slice()),
             transform,
             range,
         );
