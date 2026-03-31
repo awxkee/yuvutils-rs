@@ -83,7 +83,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
 
     let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         let y_values0: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),

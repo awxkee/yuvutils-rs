@@ -120,7 +120,7 @@ unsafe fn neon_yuv_nv_to_rgba_row_h_impl<
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let y_values_0 = xvld1q_u8_x2(y_plane0.get_unchecked(cx..).as_ptr());
         let y_values_1 = xvld1q_u8_x2(y_plane1.get_unchecked(cx..).as_ptr());
         let mut uv_values = vld2q_u8(uv_ptr.add(ux));
@@ -318,7 +318,7 @@ unsafe fn neon_yuv_nv_to_rgba_row_h_impl<
         ux += 32;
     }
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
         let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
         let mut uv_values = vld2_u8(uv_ptr.add(ux));

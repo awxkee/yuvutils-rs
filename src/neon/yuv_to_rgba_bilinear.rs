@@ -65,7 +65,7 @@ pub(crate) fn neon_bilinear_interpolate_1_row_rgba<const DESTINATION_CHANNELS: u
 
         let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-        while x + 17 < width as usize {
+        while x + 17 <= width as usize {
             let mut y_value = vld1q_u8(y_plane.get_unchecked(x..).as_ptr().cast());
             let u_value0 = vld1_u8(u_plane.get_unchecked(cx..).as_ptr().cast());
             let u_value1 = vld1_u8(u_plane.get_unchecked(cx + 1..).as_ptr().cast());
@@ -435,7 +435,7 @@ pub(crate) fn neon_bilinear_interpolate_2_rows_rgba<
 
         let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-        while x + 17 < width as usize {
+        while x + 17 <= width as usize {
             let mut y_value = vld1q_u8(y_plane.get_unchecked(x..).as_ptr().cast());
 
             let u_value_x0_y0 = vld1_u8(u0_plane.get_unchecked(cx..).as_ptr().cast());

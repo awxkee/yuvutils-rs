@@ -79,7 +79,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_row<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 8 < width as usize {
+    while cx + 8 <= width as usize {
         let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),

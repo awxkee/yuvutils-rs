@@ -66,7 +66,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_fast420<const ORIGIN_CHANNELS: u8, const UV
     let v_cr_g = vdup_n_u8(transform.cr_g.abs() as u8);
     let v_cr_b = vdup_n_u8(transform.cr_b.abs() as u8);
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 

@@ -104,7 +104,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl420<
     };
     let base_y = _mm256_set1_epi32(1 << (PRECISION - 1));
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let yvl0 = _mm256_loadu_si256(y_plane0.get_unchecked(cx..).as_ptr() as *const __m256i);
         let yvl1 = _mm256_loadu_si256(y_plane1.get_unchecked(cx..).as_ptr() as *const __m256i);
 

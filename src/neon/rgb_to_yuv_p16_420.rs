@@ -85,7 +85,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_420<
     let i_bias_y = vdup_n_u16(range.bias_y as u16);
     let i_cap_uv = vdup_n_u16(range.bias_y as u16 + range.range_uv as u16);
 
-    while cx + 8 < width {
+    while cx + 8 <= width {
         let src_ptr0 = rgba0.get_unchecked(cx * channels..);
         let (r_values0, g_values0, b_values0) =
             neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr0.as_ptr());
@@ -347,7 +347,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm_420<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 8 < width {
+    while cx + 8 <= width {
         let src_ptr0 = rgba0.get_unchecked(cx * channels..);
         let (mut r_values0, mut g_values0, mut b_values0) =
             neon_vld_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr0.as_ptr());

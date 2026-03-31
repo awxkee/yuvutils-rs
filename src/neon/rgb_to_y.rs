@@ -62,7 +62,7 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
 
     let mut cx = start_cx;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let (r_values_u8, g_values_u8, b_values_u8) =
             neon_vld_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
 
@@ -90,7 +90,7 @@ pub(crate) unsafe fn neon_rgb_to_y_rdm<const ORIGIN_CHANNELS: u8>(
         cx += 16;
     }
 
-    while cx + 8 < width {
+    while cx + 8 <= width {
         let (r_values_u8, g_values_u8, b_values_u8) =
             neon_vld_h_rgb_for_yuv::<ORIGIN_CHANNELS>(rgba_ptr.add(cx * channels));
 

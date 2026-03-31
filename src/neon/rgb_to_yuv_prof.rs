@@ -206,7 +206,7 @@ pub(crate) unsafe fn neon_rgba_to_yuv_prof<const ORIGIN_CHANNELS: u8, const SAMP
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         encode_16_part_prof::<ORIGIN_CHANNELS, SAMPLING>(
             rgba.get_unchecked(cx * channels..),
             y_plane.get_unchecked_mut(cx..),
@@ -255,10 +255,10 @@ pub(crate) unsafe fn neon_rgba_to_yuv_prof<const ORIGIN_CHANNELS: u8, const SAMP
         );
 
         encode_16_part_prof::<ORIGIN_CHANNELS, SAMPLING>(
-            std::mem::transmute(src_buffer.as_slice()),
-            std::mem::transmute(y_buffer.as_mut_slice()),
-            std::mem::transmute(u_buffer.as_mut_slice()),
-            std::mem::transmute(v_buffer.as_mut_slice()),
+            src_buffer.as_slice(),
+            y_buffer.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
             y_bias,
             uv_bias,
             v_weights,

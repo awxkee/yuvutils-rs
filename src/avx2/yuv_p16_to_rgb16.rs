@@ -135,7 +135,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_impl<
 
     const SCALE: i32 = 2;
 
-    while cx + 32 < width as usize {
+    while cx + 32 <= width as usize {
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
         let mut y_vl0 = _mm256_loadu_si256(y_plane.get_unchecked(cx..).as_ptr() as *const __m256i);

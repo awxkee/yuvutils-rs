@@ -169,7 +169,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row_rdm420<const ORIGIN_CHANNELS: u8, const
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         encode_16_part_rdm::<ORIGIN_CHANNELS, UV_ORDER>(
             rgba0.get_unchecked(cx * channels..),
             rgba1.get_unchecked(cx * channels..),
@@ -429,7 +429,7 @@ pub(crate) unsafe fn neon_rgbx_to_nv_row420<const ORIGIN_CHANNELS: u8, const UV_
             }
         };
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         encode_16_part(
             rgba0.get_unchecked(cx * channels..),
             rgba1.get_unchecked(cx * channels..),

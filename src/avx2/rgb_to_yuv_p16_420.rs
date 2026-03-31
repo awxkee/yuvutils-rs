@@ -181,7 +181,7 @@ unsafe fn avx_rgba_to_yuv_impl<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let src_ptr0 = rgba0.get_unchecked(cx * channels..);
         let (r_values0, g_values0, b_values0) =
             _mm256_load_deinterleave_rgb16_for_yuv::<ORIGIN_CHANNELS>(src_ptr0.as_ptr());

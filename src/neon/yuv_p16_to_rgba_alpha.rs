@@ -88,7 +88,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba_alpha_row<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 8 < width as usize {
+    while cx + 8 <= width as usize {
         let mut a_values_l = vld1q_u16(a_ld_ptr.get_unchecked(cx..).as_ptr());
 
         #[cfg(all(feature = "big_endian", target_endian = "little"))]

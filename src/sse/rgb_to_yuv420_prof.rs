@@ -234,12 +234,12 @@ unsafe fn sse_rgba_to_yuv420_prof_impl<const ORIGIN_CHANNELS: u8, const PRECISIO
         }
 
         encode_16_part::<ORIGIN_CHANNELS, PRECISION>(
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer0.as_slice()),
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer1.as_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer0.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer1.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(u_buffer.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(v_buffer.as_mut_slice()),
+            src_buffer0.as_slice(),
+            src_buffer1.as_slice(),
+            y_buffer0.as_mut_slice(),
+            y_buffer1.as_mut_slice(),
+            u_buffer.as_mut_slice(),
+            v_buffer.as_mut_slice(),
             range,
             transform,
         );

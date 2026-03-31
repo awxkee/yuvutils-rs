@@ -120,7 +120,7 @@ unsafe fn neon_yuv_nv_to_rgba_row_impl<
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let y_vals = xvld1q_u8_x2(y_ptr.add(cx));
 
         let u_high_u8: int8x16_t;
@@ -259,7 +259,7 @@ unsafe fn neon_yuv_nv_to_rgba_row_impl<
         }
     }
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let u_high_u8: int8x8_t;

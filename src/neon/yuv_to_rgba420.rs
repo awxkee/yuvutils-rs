@@ -115,7 +115,7 @@ unsafe fn neon_yuv_to_rgba_row420_impl<const DESTINATION_CHANNELS: u8, const R: 
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
         let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
 
@@ -222,7 +222,7 @@ unsafe fn neon_yuv_to_rgba_row420_impl<const DESTINATION_CHANNELS: u8, const R: 
         uv_x += 8;
     }
 
-    while cx + 8 < width {
+    while cx + 8 <= width {
         let vl0 = vld1_u8(y_plane0.get_unchecked(cx..).as_ptr());
         let vl1 = vld1_u8(y_plane1.get_unchecked(cx..).as_ptr());
 

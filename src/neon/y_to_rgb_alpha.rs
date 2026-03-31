@@ -85,7 +85,7 @@ unsafe fn neon_y_to_rgb_row_alpha_impl<const DESTINATION_CHANNELS: u8, const R: 
 
     let mut cx = start_cx;
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let y_vals = xvld1q_u8_x2(y_ptr.add(cx));
         let y_values0 = vqsubq_u8(y_vals.0, y_corr);
         let y_values1 = vqsubq_u8(y_vals.1, y_corr);
@@ -132,7 +132,7 @@ unsafe fn neon_y_to_rgb_row_alpha_impl<const DESTINATION_CHANNELS: u8, const R: 
         cx += 32;
     }
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let y_values = vqsubq_u8(vld1q_u8(y_ptr.add(cx)), y_corr);
 
         let yhh = vexpand_high_8_to_10(y_values);
@@ -163,7 +163,7 @@ unsafe fn neon_y_to_rgb_row_alpha_impl<const DESTINATION_CHANNELS: u8, const R: 
         cx += 16;
     }
 
-    while cx + 8 < width {
+    while cx + 8 <= width {
         let y_values = vqsub_u8(vld1_u8(y_ptr.add(cx)), vget_low_u8(y_corr));
 
         let a_vals = vld1_u8(a_plane.get_unchecked(cx..).as_ptr());

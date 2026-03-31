@@ -194,7 +194,7 @@ unsafe fn avx2_rgba_to_nv_impl<
     let mut cx = start_cx;
     let mut uv_x = start_ux;
 
-    while cx + 32 < width as usize {
+    while cx + 32 <= width as usize {
         let px = cx * channels;
 
         encode_32_part::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
@@ -250,11 +250,11 @@ unsafe fn avx2_rgba_to_nv_impl<
         }
 
         encode_32_part::<ORIGIN_CHANNELS, UV_ORDER, PRECISION>(
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer0.as_slice()),
-            std::mem::transmute::<&[u8], &[u8]>(src_buffer1.as_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer0.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(y_buffer1.as_mut_slice()),
-            std::mem::transmute::<&mut [u8], &mut [u8]>(uv_buffer.as_mut_slice()),
+            src_buffer0.as_slice(),
+            src_buffer1.as_slice(),
+            y_buffer0.as_mut_slice(),
+            y_buffer1.as_mut_slice(),
+            uv_buffer.as_mut_slice(),
             range,
             transform,
         );

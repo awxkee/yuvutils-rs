@@ -148,7 +148,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     let mut cx = 0;
     let mut ux = 0;
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
 
         let (r_values, g_values, b_values) =
@@ -399,7 +399,7 @@ unsafe fn rdp_avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     let mut cx = 0;
     let mut ux = 0;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
 
         let row_z0 = _mm256_loadu_si256(src_ptr.as_ptr() as *const _);
@@ -459,7 +459,7 @@ unsafe fn rdp_avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
         cx += 16;
     }
 
-    while cx + 8 < width {
+    while cx + 8 <= width {
         let src_ptr = src_ptr.get_unchecked(cx * channels..);
 
         let row = _mm256_loadu_si256(src_ptr.as_ptr() as *const _);

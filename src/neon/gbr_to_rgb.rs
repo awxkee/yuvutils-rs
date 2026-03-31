@@ -71,7 +71,7 @@ unsafe fn yuv_to_rgba_row_limited_impl_rdm<const DESTINATION_CHANNELS: u8>(
     let vy_coeff = vdupq_n_s16(y_coeff as i16);
     let vy_bias = vdupq_n_u8(y_bias as u8);
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let g0 = vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _);
         let b0 = vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _);
         let r0 = vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _);
@@ -207,7 +207,7 @@ pub(crate) fn yuv_to_rgba_row_limited<const DESTINATION_CHANNELS: u8, const PREC
         let vy_coeff = vdupq_n_u16(y_coeff as u16);
         let vy_bias = vdupq_n_u8(y_bias as u8);
 
-        while cx + 16 < width {
+        while cx + 16 <= width {
             let g0 = vld1q_u8(g_plane.get_unchecked(cx..).as_ptr() as *const _);
             let b0 = vld1q_u8(b_plane.get_unchecked(cx..).as_ptr() as *const _);
             let r0 = vld1q_u8(r_plane.get_unchecked(cx..).as_ptr() as *const _);

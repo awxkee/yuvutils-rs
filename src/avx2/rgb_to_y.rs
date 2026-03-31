@@ -72,7 +72,7 @@ pub(crate) unsafe fn avx2_rgb_to_y_row_impl<const CN: u8, const PRECISION: i32>(
     let v_yg = _mm256_set1_epi16(transform.yg as i16);
     let v_yb = _mm256_set1_epi16(transform.yb as i16);
 
-    while cx + 32 < width {
+    while cx + 32 <= width {
         let px = cx * channels;
         let (r_values, g_values, b_values) =
             _mm256_load_deinterleave_rgb_for_yuv::<CN>(rgba.get_unchecked(px..).as_ptr());
