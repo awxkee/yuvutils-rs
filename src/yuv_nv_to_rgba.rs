@@ -1179,6 +1179,23 @@ fn yuv_nv12_to_rgbx<
                 >::default(),
             )
         }
+        #[cfg(feature = "professional_mode")]
+        YuvConversionMode::Professional16 => {
+            yuv_nv12_to_rgbx_impl::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 16>(
+                image,
+                bgra,
+                bgra_stride,
+                range,
+                matrix,
+                NVRowHandlerProfessional::<UV_ORDER, DESTINATION_CHANNELS, YUV_CHROMA_SAMPLING, 16>::default(),
+                NVRow420HandlerProfessional::<
+                    UV_ORDER,
+                    DESTINATION_CHANNELS,
+                    YUV_CHROMA_SAMPLING,
+                    16,
+                >::default(),
+            )
+        }
     }
 }
 

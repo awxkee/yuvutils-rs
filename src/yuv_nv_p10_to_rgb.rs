@@ -573,6 +573,31 @@ fn yuv_nv_p10_to_image_impl<
                 10,
             >::default(),
         ),
+        #[cfg(feature = "professional_mode")]
+        YuvConversionMode::Professional16 => yuv_nv_p10_to_image_impl_d::<
+            DESTINATION_CHANNELS,
+            NV_ORDER,
+            SAMPLING,
+            ENDIANNESS,
+            BYTES_POSITION,
+            16,
+            18,
+        >(
+            image,
+            bgra,
+            bgra_stride,
+            range,
+            matrix,
+            RowHandlerProfessional::<
+                DESTINATION_CHANNELS,
+                NV_ORDER,
+                SAMPLING,
+                ENDIANNESS,
+                BYTES_POSITION,
+                16,
+                10,
+            >::default(),
+        ),
     }
 }
 

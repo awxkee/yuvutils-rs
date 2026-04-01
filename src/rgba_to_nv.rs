@@ -964,6 +964,18 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
                     SemiPlanar420EncoderProfessional::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 15>::default(),
                 )
             }
+            #[cfg(feature = "professional_mode")]
+            YuvConversionMode::Professional16 => {
+                rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>(
+                    image,
+                    rgba,
+                    rgba_stride,
+                    range,
+                    matrix,
+                    SemiPlanarEncoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>::default(),
+                    SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>::default(),
+                )
+            }
         }
     }
     #[cfg(not(any(
@@ -971,6 +983,18 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
         all(target_arch = "aarch64", target_feature = "neon",),
     )))]
     {
+        #[cfg(feature = "professional_mode")]
+        if _mode == YuvConversionMode::Professional16 {
+            return rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+                SemiPlanarEncoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>::default(),
+                SemiPlanar420Encoder::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>::default(),
+            );
+        }
         rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 13>(
             image,
             rgba,

@@ -1070,6 +1070,18 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 RgbEncoderProfessional::<ORIGIN_CHANNELS, SAMPLING, 15>::default(),
                 RgbEncoder420Professional::<ORIGIN_CHANNELS, SAMPLING, 15>::default(),
             ),
+            #[cfg(feature = "professional_mode")]
+            YuvConversionMode::Professional16 => {
+                rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 16>(
+                    image,
+                    rgba,
+                    rgba_stride,
+                    range,
+                    matrix,
+                    RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                    RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                )
+            }
         }
     }
     #[cfg(not(any(
@@ -1077,6 +1089,18 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         all(target_arch = "aarch64", target_feature = "neon",),
     )))]
     {
+        #[cfg(feature = "professional_mode")]
+        if _mode == YuvConversionMode::Professional16 {
+            return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 16>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+                RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+            );
+        }
         rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
             image,
             rgba,

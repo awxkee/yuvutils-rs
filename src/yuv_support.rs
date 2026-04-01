@@ -842,6 +842,12 @@ pub enum YuvConversionMode {
     #[cfg(feature = "professional_mode")]
     #[cfg_attr(docsrs, doc(cfg(feature = "professional_mode")))]
     Professional,
+    /// 16-bit fixed-point precision for exact coefficient control.
+    /// Use when supplying external codec constants (e.g., libwebp VP8) that may exceed i16::MAX.
+    /// SIMD-accelerated via split-coefficient technique on AVX2 and NEON.
+    #[cfg(feature = "professional_mode")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "professional_mode")))]
+    Professional16,
 }
 
 impl Display for YuvConversionMode {
@@ -852,6 +858,8 @@ impl Display for YuvConversionMode {
             YuvConversionMode::Balanced => f.write_str("YuvAccuracy::Balanced"),
             #[cfg(feature = "professional_mode")]
             YuvConversionMode::Professional => f.write_str("YuvAccuracy::Professional"),
+            #[cfg(feature = "professional_mode")]
+            YuvConversionMode::Professional16 => f.write_str("YuvAccuracy::Professional16"),
         }
     }
 }
