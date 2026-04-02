@@ -59,7 +59,7 @@ pub(crate) unsafe fn neon_ycgco_full_range_to_rgb<
     let bias_y = vdupq_n_u8(chroma_range.bias_y as u8);
     let bias_uv = vdupq_n_u8(chroma_range.bias_uv as u8);
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let mut y_values = vld1q_u8(y_ptr.add(cx));
 
         let u_high_u8: uint8x8_t;
@@ -276,7 +276,7 @@ pub(crate) unsafe fn neon_ycgco420_to_rgba_row<const DESTINATION_CHANNELS: u8>(
     let bias_y = vdupq_n_u8(chroma_range.bias_y as u8);
     let bias_uv = vdupq_n_u8(chroma_range.bias_uv as u8);
 
-    while cx + 16 < width as usize {
+    while cx + 16 <= width as usize {
         let vl0 = vld1q_u8(y_plane0.get_unchecked(cx..).as_ptr());
         let vl1 = vld1q_u8(y_plane1.get_unchecked(cx..).as_ptr());
 

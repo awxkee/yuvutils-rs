@@ -98,6 +98,17 @@ impl<const DESTINATION_CHANNELS: u8, const SAMPLING: u8>
 {
     fn new(range: YuvRange) -> Self {
         if range == YuvRange::Full {
+            #[cfg(all(target_arch = "x86_64", feature = "avx"))]
+            {
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    use crate::avx2::avx2_ycgco_full_range_to_rgb;
+                    return Rgb8Converter {
+                        handler: Some(
+                            avx2_ycgco_full_range_to_rgb::<DESTINATION_CHANNELS, SAMPLING>,
+                        ),
+                    };
+                }
+            }
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 use crate::neon::neon_ycgco_full_range_to_rgb;
