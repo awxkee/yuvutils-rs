@@ -1156,50 +1156,13 @@ pub fn bgra_to_sharp_yuv420_with_transform(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sharpyuv::sharp_gamma::{pure_gamma_function, SharpYuvGammaTransfer};
+    use crate::sharpyuv::sharp_gamma::SharpYuvGammaTransfer;
     use crate::yuv_support::{
         get_forward_transform, get_inverse_transform, get_yuv_range, ToIntegerTransform,
     };
     #[cfg(feature = "professional_mode")]
     use crate::yuv_to_rgba_with_transform::yuv420_to_rgba_with_transform;
     use rand::RngExt;
-
-    #[test]
-    fn test_gamma0p80_round_trip() {
-        let transfer = SharpYuvGammaTransfer::Gamma0p80;
-        for i in 0..=255 {
-            let x = i as f32 / 255.0;
-            let linear = transfer.linearize(x);
-            let back = transfer.gamma(linear);
-            let diff = (back - x).abs();
-            assert!(
-                diff < 1e-5,
-                "Gamma0p80 round-trip failed at {}: {} vs {}, diff {}",
-                x,
-                back,
-                x,
-                diff
-            );
-        }
-    }
-
-    #[test]
-    fn test_gamma0p80_values() {
-        let transfer = SharpYuvGammaTransfer::Gamma0p80;
-        assert_eq!(transfer.linearize(0.0), 0.0);
-        assert_eq!(transfer.linearize(1.0), 1.0);
-        assert_eq!(transfer.gamma(0.0), 0.0);
-        assert_eq!(transfer.gamma(1.0), 1.0);
-
-        let mid = transfer.linearize(0.5);
-        let expected = pure_gamma_function(0.5, 0.80);
-        assert!(
-            (mid - expected).abs() < 1e-6,
-            "Gamma0p80 linearize(0.5) = {}, expected {}",
-            mid,
-            expected
-        );
-    }
 
     #[test]
     fn test_sharp_yuv420_with_transform_matches_original() {
@@ -1345,7 +1308,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "professional_mode")]
-    fn test_sharp_yuv420_webp_coefficients_gamma0p80() {
+    fn test_sharp_yuv420_webp_coefficients() {
         const W: usize = 64;
         const H: usize = 64;
         const CH: usize = 4;
@@ -1393,7 +1356,7 @@ mod tests {
                 W as u32 * CH as u32,
                 &webp_transform,
                 &range,
-                SharpYuvGammaTransfer::Gamma0p80,
+                SharpYuvGammaTransfer::Srgb,
                 YuvConversionMode::Professional16,
             )
             .unwrap();
@@ -1420,7 +1383,7 @@ mod tests {
         let max_diff = 2;
         assert!(
             worst_r <= max_diff && worst_g <= max_diff && worst_b <= max_diff,
-            "SharpYUV WebP+Gamma0p80 round-trip: worst per-channel diffs ({},{},{}) exceed {}",
+            "SharpYUV WebP round-trip: worst per-channel diffs ({},{},{}) exceed {}",
             worst_r,
             worst_g,
             worst_b,

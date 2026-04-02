@@ -1110,7 +1110,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     };
 
     c.bench_function(
-        "yuvutils SharpYUV RGBA -> YUV 4:2:0 WebP P16 Gamma0p80",
+        "yuvutils SharpYUV RGBA -> YUV 4:2:0 WebP P16",
         |b| {
             let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
                 dimensions.0,
@@ -1124,7 +1124,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     dimensions.0 * 4,
                     &webp_transform,
                     &sharp_range,
-                    SharpYuvGammaTransfer::Gamma0p80,
+                    SharpYuvGammaTransfer::Srgb,
                     YuvConversionMode::Professional16,
                 )
                 .unwrap();
