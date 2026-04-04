@@ -20,7 +20,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: rustup target add aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu i686-unknown-linux-gnu powerpc-unknown-linux-gnu wasm32-unknown-unknown
       - run: RUSTFLAGS="-C target-feature=+avx2" cargo build --lib --target i686-unknown-linux-gnu
@@ -33,7 +33,7 @@ jobs:
     name: Build ARM
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: rustup target add aarch64-unknown-linux-gnu
       - run: RUSTFLAGS="-C target-feature=+neon" cargo build --lib --target aarch64-unknown-linux-gnu
@@ -43,7 +43,7 @@ jobs:
     name: Clippy x86 Stable
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - run: rustup component add clippy
       - run: cargo clippy --all-features -- -D warnings
@@ -52,7 +52,7 @@ jobs:
     name: Clippy x86 Nightly
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
       - run: rustup component add clippy
       - run: cargo clippy --all-features -- -D warnings
@@ -61,7 +61,7 @@ jobs:
     name: Clippy ARM
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - run: rustup component add clippy
       - run: cargo clippy -- -D warnings
@@ -70,7 +70,7 @@ jobs:
     name: Testing ARM
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo test --features rdp
       - run: cargo test --no-default-features --features nightly_f16,rdp
@@ -81,7 +81,7 @@ jobs:
     name: Testing x86
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo test --features rdp
       - run: cargo test --features fast_mode,professional_mode,nightly_f16,rdp
@@ -148,7 +148,7 @@ jobs:
     name: Fuzzing ARM
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: cargo install cargo-fuzz
       - run: cargo fuzz run rgb_to_yuv --no-default-features -- -max_total_time=6
       - run: cargo fuzz run rgb_to_nv --no-default-features -- -max_total_time=6
@@ -173,7 +173,7 @@ jobs:
     name: Fuzzing ARM I8MM
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: cargo install cargo-fuzz
       - run: cargo fuzz run rgb_to_yuv --no-default-features --features nightly_i8mm -- -max_total_time=6
       - run: cargo fuzz run rgb_to_nv --no-default-features --features nightly_i8mm -- -max_total_time=6
@@ -182,7 +182,7 @@ jobs:
     name: Fuzzing ARM RDM
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
       - run: cargo fuzz run rgb_to_yuv --no-default-features --features rdm -- -max_total_time=6
@@ -211,7 +211,7 @@ jobs:
       matrix:
         feature: [ sse, avx ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz
       - run: cargo fuzz run rgb_to_yuv --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
