@@ -220,5 +220,3 @@ pub(crate) use yuv_to_yuy2::yuv_to_yuy2_neon_impl;
 pub(crate) use yuva_p16_to_rgba_f16::neon_yuva_p16_to_rgba_f16_row;
 pub(crate) use yuy2_to_rgb::yuy2_to_rgb_neon;
 pub(crate) use yuy2_to_yuv::yuy2_to_yuv_neon_impl;
-mod rgba_to_yuv420_p16;
-pub(crate) use rgba_to_yuv420_p16::neon_rgba_to_yuv420_p16;

@@ -314,7 +314,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 * 4,
                 &p16_transform,
                 &p16_range,
-                YuvConversionMode::Professional16,
+                YuvConversionMode::Professional,
             )
             .unwrap();
         })
@@ -1090,7 +1090,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     &sharp_transform_p16,
                     &sharp_range,
                     SharpYuvGammaTransfer::Srgb,
-                    YuvConversionMode::Professional16,
+                    YuvConversionMode::Professional,
                 )
                 .unwrap();
             })
@@ -1109,28 +1109,25 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         cr_b: -4684,
     };
 
-    c.bench_function(
-        "yuvutils SharpYUV RGBA -> YUV 4:2:0 WebP P16",
-        |b| {
-            let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
-                dimensions.0,
-                dimensions.1,
-                YuvChromaSubsampling::Yuv420,
-            );
-            b.iter(|| {
-                rgba_to_sharp_yuv420_with_transform(
-                    &mut test_planar,
-                    &rgba_image,
-                    dimensions.0 * 4,
-                    &webp_transform,
-                    &sharp_range,
-                    SharpYuvGammaTransfer::Srgb,
-                    YuvConversionMode::Professional16,
-                )
-                .unwrap();
-            })
-        },
-    );
+    c.bench_function("yuvutils SharpYUV RGBA -> YUV 4:2:0 WebP P16", |b| {
+        let mut test_planar = YuvPlanarImageMut::<u8>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv420,
+        );
+        b.iter(|| {
+            rgba_to_sharp_yuv420_with_transform(
+                &mut test_planar,
+                &rgba_image,
+                dimensions.0 * 4,
+                &webp_transform,
+                &sharp_range,
+                SharpYuvGammaTransfer::Srgb,
+                YuvConversionMode::Professional,
+            )
+            .unwrap();
+        })
+    });
 
     c.bench_function("yuvutils SharpYUV BGR -> YUV 4:2:0 Balanced", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(

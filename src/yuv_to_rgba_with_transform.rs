@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) Meta Platforms, Inc., 4/2026. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1.  Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3.  Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 //! YUV420 to RGBA/RGB conversion with pre-computed inverse transform coefficients.
 //!
 //! These functions bypass the runtime `search_inverse_transform()` lookup,
@@ -660,307 +688,135 @@ fn yuv420_single_row_to_rgbx_with_transform_impl<const DESTINATION_CHANNELS: u8>
     }
 }
 
-/// Convert a pair of I420 rows to RGBA using pre-computed inverse transform.
-///
-/// Processes two Y rows sharing one chroma row (I420 4:2:0 subsampling).
-/// `y0`/`y1` must have `width` bytes each. `u`/`v` must have `ceil(width/2)` bytes.
-/// `dst0`/`dst1` must have `width * 4` bytes each.
-///
-/// This avoids the frame-level `YuvPlanarImage` overhead, making it suitable
-/// for streaming decoders that process one macroblock row at a time.
-pub fn yuv420_row_pair_to_rgba_with_transform(
-    y0: &[u8],
-    y1: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst0: &mut [u8],
-    dst1: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_row_pair_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgba as u8 }>(
-        y0,
-        y1,
-        u,
-        v,
-        dst0,
-        dst1,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert a pair of I420 rows to RGB using pre-computed inverse transform.
-pub fn yuv420_row_pair_to_rgb_with_transform(
-    y0: &[u8],
-    y1: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst0: &mut [u8],
-    dst1: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_row_pair_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgb as u8 }>(
-        y0,
-        y1,
-        u,
-        v,
-        dst0,
-        dst1,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert a pair of I420 rows to BGRA using pre-computed inverse transform.
-pub fn yuv420_row_pair_to_bgra_with_transform(
-    y0: &[u8],
-    y1: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst0: &mut [u8],
-    dst1: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_row_pair_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Bgra as u8 }>(
-        y0,
-        y1,
-        u,
-        v,
-        dst0,
-        dst1,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert a pair of I420 rows to BGR using pre-computed inverse transform.
-pub fn yuv420_row_pair_to_bgr_with_transform(
-    y0: &[u8],
-    y1: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst0: &mut [u8],
-    dst1: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_row_pair_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Bgr as u8 }>(
-        y0,
-        y1,
-        u,
-        v,
-        dst0,
-        dst1,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert a single I420 row to RGBA using pre-computed inverse transform.
-///
-/// For the odd last row of an image with odd height, or for non-paired rows.
-/// `y` must have `width` bytes. `u`/`v` must have `ceil(width/2)` bytes.
-/// `dst` must have `width * 4` bytes.
-pub fn yuv420_single_row_to_rgba_with_transform(
-    y: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_single_row_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgba as u8 }>(
-        y,
-        u,
-        v,
-        dst,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert a single I420 row to RGB using pre-computed inverse transform.
-pub fn yuv420_single_row_to_rgb_with_transform(
-    y: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_single_row_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgb as u8 }>(
-        y,
-        u,
-        v,
-        dst,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert a single I420 row to BGRA using pre-computed inverse transform.
-pub fn yuv420_single_row_to_bgra_with_transform(
-    y: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_single_row_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Bgra as u8 }>(
-        y,
-        u,
-        v,
-        dst,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert a single I420 row to BGR using pre-computed inverse transform.
-pub fn yuv420_single_row_to_bgr_with_transform(
-    y: &[u8],
-    u: &[u8],
-    v: &[u8],
-    dst: &mut [u8],
-    width: usize,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-) {
-    yuv420_single_row_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Bgr as u8 }>(
-        y,
-        u,
-        v,
-        dst,
-        width,
-        inverse_transform,
-        chroma_range,
-    );
-}
-
-/// Convert YUV 420 to RGBA using pre-computed inverse transform coefficients.
-///
-/// The `mode` controls the fixed-point precision and must match the precision
-/// used to compute `inverse_transform`.
-pub fn yuv420_to_rgba_with_transform(
-    planar_image: &YuvPlanarImage<u8>,
-    rgba: &mut [u8],
-    rgba_stride: u32,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    match mode {
-        #[cfg(feature = "fast_mode")]
-        YuvConversionMode::Fast => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgba as u8 }, 7>(
-                planar_image,
-                rgba,
-                rgba_stride,
-                inverse_transform,
-                chroma_range,
-            )
+macro_rules! build_yuv420_row_pair_with_transform {
+    ($method:ident, $px_fmt:expr, $px_name:expr, $channels:expr) => {
+        #[doc = concat!("Convert a pair of I420 rows to ", $px_name, " using pre-computed inverse transform.")]
+        pub fn $method(
+            y0: &[u8],
+            y1: &[u8],
+            u: &[u8],
+            v: &[u8],
+            dst0: &mut [u8],
+            dst1: &mut [u8],
+            width: usize,
+            inverse_transform: &CbCrInverseTransform<i32>,
+            chroma_range: &YuvChromaRange,
+        ) {
+            yuv420_row_pair_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }>(
+                y0, y1, u, v, dst0, dst1, width, inverse_transform, chroma_range,
+            );
         }
-        YuvConversionMode::Balanced => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgba as u8 }, 13>(
-                planar_image,
-                rgba,
-                rgba_stride,
-                inverse_transform,
-                chroma_range,
-            )
-        }
-        #[cfg(feature = "professional_mode")]
-        YuvConversionMode::Professional => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgba as u8 }, 15>(
-                planar_image,
-                rgba,
-                rgba_stride,
-                inverse_transform,
-                chroma_range,
-            )
-        }
-        #[cfg(feature = "professional_mode")]
-        YuvConversionMode::Professional16 => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgba as u8 }, 16>(
-                planar_image,
-                rgba,
-                rgba_stride,
-                inverse_transform,
-                chroma_range,
-            )
-        }
-    }
+    };
 }
 
-/// Convert YUV 420 to RGB using pre-computed inverse transform coefficients.
-///
-/// The `mode` controls the fixed-point precision and must match the precision
-/// used to compute `inverse_transform`.
-pub fn yuv420_to_rgb_with_transform(
-    planar_image: &YuvPlanarImage<u8>,
-    rgb: &mut [u8],
-    rgb_stride: u32,
-    inverse_transform: &CbCrInverseTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    match mode {
-        #[cfg(feature = "fast_mode")]
-        YuvConversionMode::Fast => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgb as u8 }, 7>(
-                planar_image,
-                rgb,
-                rgb_stride,
-                inverse_transform,
-                chroma_range,
-            )
+build_yuv420_row_pair_with_transform!(
+    yuv420_row_pair_to_rgba_with_transform,
+    YuvSourceChannels::Rgba,
+    "RGBA",
+    4
+);
+build_yuv420_row_pair_with_transform!(
+    yuv420_row_pair_to_rgb_with_transform,
+    YuvSourceChannels::Rgb,
+    "RGB",
+    3
+);
+build_yuv420_row_pair_with_transform!(
+    yuv420_row_pair_to_bgra_with_transform,
+    YuvSourceChannels::Bgra,
+    "BGRA",
+    4
+);
+build_yuv420_row_pair_with_transform!(
+    yuv420_row_pair_to_bgr_with_transform,
+    YuvSourceChannels::Bgr,
+    "BGR",
+    3
+);
+
+macro_rules! build_yuv420_single_row_with_transform {
+    ($method:ident, $px_fmt:expr, $px_name:expr) => {
+        #[doc = concat!("Convert a single I420 row to ", $px_name, " using pre-computed inverse transform.")]
+        pub fn $method(
+            y: &[u8],
+            u: &[u8],
+            v: &[u8],
+            dst: &mut [u8],
+            width: usize,
+            inverse_transform: &CbCrInverseTransform<i32>,
+            chroma_range: &YuvChromaRange,
+        ) {
+            yuv420_single_row_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }>(
+                y, u, v, dst, width, inverse_transform, chroma_range,
+            );
         }
-        YuvConversionMode::Balanced => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgb as u8 }, 13>(
-                planar_image,
-                rgb,
-                rgb_stride,
-                inverse_transform,
-                chroma_range,
-            )
-        }
-        #[cfg(feature = "professional_mode")]
-        YuvConversionMode::Professional => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgb as u8 }, 15>(
-                planar_image,
-                rgb,
-                rgb_stride,
-                inverse_transform,
-                chroma_range,
-            )
-        }
-        #[cfg(feature = "professional_mode")]
-        YuvConversionMode::Professional16 => {
-            yuv420_to_rgbx_with_transform_impl::<{ YuvSourceChannels::Rgb as u8 }, 16>(
-                planar_image,
-                rgb,
-                rgb_stride,
-                inverse_transform,
-                chroma_range,
-            )
-        }
-    }
+    };
 }
+
+build_yuv420_single_row_with_transform!(
+    yuv420_single_row_to_rgba_with_transform,
+    YuvSourceChannels::Rgba,
+    "RGBA"
+);
+build_yuv420_single_row_with_transform!(
+    yuv420_single_row_to_rgb_with_transform,
+    YuvSourceChannels::Rgb,
+    "RGB"
+);
+build_yuv420_single_row_with_transform!(
+    yuv420_single_row_to_bgra_with_transform,
+    YuvSourceChannels::Bgra,
+    "BGRA"
+);
+build_yuv420_single_row_with_transform!(
+    yuv420_single_row_to_bgr_with_transform,
+    YuvSourceChannels::Bgr,
+    "BGR"
+);
+
+macro_rules! build_yuv420_frame_with_transform {
+    ($method:ident, $px_fmt:expr, $px_name:expr, $px_small:expr) => {
+        #[doc = concat!("Convert YUV 420 to ", $px_name, " using pre-computed inverse transform coefficients.\n\nThe `mode` controls the fixed-point precision and must match the precision\nused to compute `inverse_transform`.")]
+        pub fn $method(
+            planar_image: &YuvPlanarImage<u8>,
+            dst: &mut [u8],
+            dst_stride: u32,
+            inverse_transform: &CbCrInverseTransform<i32>,
+            chroma_range: &YuvChromaRange,
+            mode: YuvConversionMode,
+        ) -> Result<(), YuvError> {
+            match mode {
+                #[cfg(feature = "fast_mode")]
+                YuvConversionMode::Fast => {
+                    yuv420_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }, 7>(
+                        planar_image, dst, dst_stride, inverse_transform, chroma_range,
+                    )
+                }
+                YuvConversionMode::Balanced => {
+                    yuv420_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }, 13>(
+                        planar_image, dst, dst_stride, inverse_transform, chroma_range,
+                    )
+                }
+                #[cfg(feature = "professional_mode")]
+                YuvConversionMode::Professional => {
+                    yuv420_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }, 16>(
+                        planar_image, dst, dst_stride, inverse_transform, chroma_range,
+                    )
+                }
+            }
+        }
+    };
+}
+
+build_yuv420_frame_with_transform!(
+    yuv420_to_rgba_with_transform,
+    YuvSourceChannels::Rgba,
+    "RGBA",
+    "rgba"
+);
+build_yuv420_frame_with_transform!(
+    yuv420_to_rgb_with_transform,
+    YuvSourceChannels::Rgb,
+    "RGB",
+    "rgb"
+);

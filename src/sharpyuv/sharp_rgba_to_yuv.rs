@@ -589,7 +589,7 @@ fn rgbx_to_sharp_yuv_dispatch_mode<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
             sharp_yuv_gamma_transfer,
         ),
         #[cfg(feature = "professional_mode")]
-        YuvConversionMode::Professional => rgbx_to_sharp_yuv_core::<ORIGIN_CHANNELS, SAMPLING, 15>(
+        YuvConversionMode::Professional => rgbx_to_sharp_yuv_core::<ORIGIN_CHANNELS, SAMPLING, 16>(
             planar_image,
             rgba,
             rgba_stride,
@@ -597,17 +597,6 @@ fn rgbx_to_sharp_yuv_dispatch_mode<const ORIGIN_CHANNELS: u8, const SAMPLING: u8
             transform,
             sharp_yuv_gamma_transfer,
         ),
-        #[cfg(feature = "professional_mode")]
-        YuvConversionMode::Professional16 => {
-            rgbx_to_sharp_yuv_core::<ORIGIN_CHANNELS, SAMPLING, 16>(
-                planar_image,
-                rgba,
-                rgba_stride,
-                chroma_range,
-                transform,
-                sharp_yuv_gamma_transfer,
-            )
-        }
     }
 }
 
@@ -941,217 +930,85 @@ pub fn bgra_to_sharp_yuv420(
     )
 }
 
-/// Convert RGB to SharpYUV 422 using pre-computed transform coefficients.
-///
-/// Bypasses the standard kr/kb to coefficient derivation, allowing the caller to supply
-/// exact fixed-point coefficients (e.g. libwebp's VP8 matrix). The `mode` controls
-/// the fixed-point precision and must match the precision used to compute `transform`.
-pub fn rgb_to_sharp_yuv422_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    rgb: &[u8],
-    rgb_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsampling::Yuv422 as u8 },
-    >(
-        planar_image,
-        rgb,
-        rgb_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
+macro_rules! build_sharp_yuv_with_transform {
+    ($method:ident, $px_fmt:expr, $sampling:expr, $px_name:expr, $sampling_name:expr) => {
+        #[doc = concat!("Convert ", $px_name, " to SharpYUV ", $sampling_name, " using pre-computed transform coefficients.")]
+        pub fn $method(
+            planar_image: &mut YuvPlanarImageMut<u8>,
+            src: &[u8],
+            src_stride: u32,
+            transform: &CbCrForwardTransform<i32>,
+            chroma_range: &YuvChromaRange,
+            gamma_transfer: SharpYuvGammaTransfer,
+            mode: YuvConversionMode,
+        ) -> Result<(), YuvError> {
+            rgbx_to_sharp_yuv_dispatch_mode::<
+                { $px_fmt as u8 },
+                { $sampling as u8 },
+            >(
+                planar_image, src, src_stride, chroma_range, transform, gamma_transfer, mode,
+            )
+        }
+    };
 }
 
-/// Convert BGR to SharpYUV 422 using pre-computed transform coefficients.
-///
-/// See [`rgb_to_sharp_yuv422_with_transform`] for details.
-pub fn bgr_to_sharp_yuv422_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    bgr: &[u8],
-    bgr_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsampling::Yuv422 as u8 },
-    >(
-        planar_image,
-        bgr,
-        bgr_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
-}
+build_sharp_yuv_with_transform!(
+    rgb_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "RGB",
+    "422"
+);
+build_sharp_yuv_with_transform!(
+    bgr_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Bgr,
+    YuvChromaSubsampling::Yuv422,
+    "BGR",
+    "422"
+);
+build_sharp_yuv_with_transform!(
+    rgba_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "RGBA",
+    "422"
+);
+build_sharp_yuv_with_transform!(
+    bgra_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Bgra,
+    YuvChromaSubsampling::Yuv422,
+    "BGRA",
+    "422"
+);
 
-/// Convert RGBA to SharpYUV 422 using pre-computed transform coefficients.
-///
-/// See [`rgb_to_sharp_yuv422_with_transform`] for details.
-pub fn rgba_to_sharp_yuv422_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    rgba: &[u8],
-    rgba_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsampling::Yuv422 as u8 },
-    >(
-        planar_image,
-        rgba,
-        rgba_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
-}
-
-/// Convert BGRA to SharpYUV 422 using pre-computed transform coefficients.
-///
-/// See [`rgb_to_sharp_yuv422_with_transform`] for details.
-pub fn bgra_to_sharp_yuv422_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    bgra: &[u8],
-    bgra_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsampling::Yuv422 as u8 },
-    >(
-        planar_image,
-        bgra,
-        bgra_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
-}
-
-/// Convert RGB to SharpYUV 420 using pre-computed transform coefficients.
-///
-/// Bypasses the standard kr/kb to coefficient derivation, allowing the caller to supply
-/// exact fixed-point coefficients (e.g. libwebp's VP8 matrix). The `mode` controls
-/// the fixed-point precision and must match the precision used to compute `transform`.
-pub fn rgb_to_sharp_yuv420_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    rgb: &[u8],
-    rgb_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Rgb as u8 },
-        { YuvChromaSubsampling::Yuv420 as u8 },
-    >(
-        planar_image,
-        rgb,
-        rgb_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
-}
-
-/// Convert BGR to SharpYUV 420 using pre-computed transform coefficients.
-///
-/// See [`rgb_to_sharp_yuv420_with_transform`] for details.
-pub fn bgr_to_sharp_yuv420_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    bgr: &[u8],
-    bgr_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Bgr as u8 },
-        { YuvChromaSubsampling::Yuv420 as u8 },
-    >(
-        planar_image,
-        bgr,
-        bgr_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
-}
-
-/// Convert RGBA to SharpYUV 420 using pre-computed transform coefficients.
-///
-/// See [`rgb_to_sharp_yuv420_with_transform`] for details.
-pub fn rgba_to_sharp_yuv420_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    rgba: &[u8],
-    rgba_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Rgba as u8 },
-        { YuvChromaSubsampling::Yuv420 as u8 },
-    >(
-        planar_image,
-        rgba,
-        rgba_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
-}
-
-/// Convert BGRA to SharpYUV 420 using pre-computed transform coefficients.
-///
-/// See [`rgb_to_sharp_yuv420_with_transform`] for details.
-pub fn bgra_to_sharp_yuv420_with_transform(
-    planar_image: &mut YuvPlanarImageMut<u8>,
-    bgra: &[u8],
-    bgra_stride: u32,
-    transform: &CbCrForwardTransform<i32>,
-    chroma_range: &YuvChromaRange,
-    gamma_transfer: SharpYuvGammaTransfer,
-    mode: YuvConversionMode,
-) -> Result<(), YuvError> {
-    rgbx_to_sharp_yuv_dispatch_mode::<
-        { YuvSourceChannels::Bgra as u8 },
-        { YuvChromaSubsampling::Yuv420 as u8 },
-    >(
-        planar_image,
-        bgra,
-        bgra_stride,
-        chroma_range,
-        transform,
-        gamma_transfer,
-        mode,
-    )
-}
+build_sharp_yuv_with_transform!(
+    rgb_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "RGB",
+    "420"
+);
+build_sharp_yuv_with_transform!(
+    bgr_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Bgr,
+    YuvChromaSubsampling::Yuv420,
+    "BGR",
+    "420"
+);
+build_sharp_yuv_with_transform!(
+    rgba_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "RGBA",
+    "420"
+);
+build_sharp_yuv_with_transform!(
+    bgra_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Bgra,
+    YuvChromaSubsampling::Yuv420,
+    "BGRA",
+    "420"
+);
 
 #[cfg(test)]
 mod tests {
@@ -1272,7 +1129,7 @@ mod tests {
                 &transform,
                 &range,
                 SharpYuvGammaTransfer::Srgb,
-                YuvConversionMode::Professional16,
+                YuvConversionMode::Professional,
             )
             .unwrap();
 
@@ -1284,7 +1141,7 @@ mod tests {
                 W as u32 * CH as u32,
                 &inverse_transform,
                 &range,
-                YuvConversionMode::Professional16,
+                YuvConversionMode::Professional,
             )
             .unwrap();
 
@@ -1357,7 +1214,7 @@ mod tests {
                 &webp_transform,
                 &range,
                 SharpYuvGammaTransfer::Srgb,
-                YuvConversionMode::Professional16,
+                YuvConversionMode::Professional,
             )
             .unwrap();
 
@@ -1369,7 +1226,7 @@ mod tests {
                 W as u32 * CH as u32,
                 &inverse_transform,
                 &range,
-                YuvConversionMode::Professional16,
+                YuvConversionMode::Professional,
             )
             .unwrap();
 
@@ -1478,7 +1335,7 @@ mod tests {
             &transform_16,
             &range,
             SharpYuvGammaTransfer::Srgb,
-            YuvConversionMode::Professional16,
+            YuvConversionMode::Professional,
         )
         .unwrap();
 

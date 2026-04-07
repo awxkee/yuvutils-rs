@@ -954,18 +954,6 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
             }
             #[cfg(feature = "professional_mode")]
             YuvConversionMode::Professional => {
-                rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 15>(
-                    image,
-                    rgba,
-                    rgba_stride,
-                    range,
-                    matrix,
-                    SemiPlanarEncoderProfessional::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 15>::default(),
-                    SemiPlanar420EncoderProfessional::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 15>::default(),
-                )
-            }
-            #[cfg(feature = "professional_mode")]
-            YuvConversionMode::Professional16 => {
                 rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>(
                     image,
                     rgba,
@@ -984,7 +972,7 @@ fn rgbx_to_nv<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const SAMPLING: u8>
     )))]
     {
         #[cfg(feature = "professional_mode")]
-        if _mode == YuvConversionMode::Professional16 {
+        if _mode == YuvConversionMode::Professional {
             return rgbx_to_nv_impl::<ORIGIN_CHANNELS, UV_ORDER, SAMPLING, 16>(
                 image,
                 rgba,

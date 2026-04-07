@@ -163,25 +163,25 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
 
         if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
         {
-            v0 = _mm256_loadu_si256(src0.cast::<__m256i>());
-            v1 = _mm256_loadu_si256(src0.add(32).cast::<__m256i>());
-            v2 = _mm256_loadu_si256(src0.add(64).cast::<__m256i>());
-            v3 = _mm256_loadu_si256(src0.add(96).cast::<__m256i>());
+            v0 = _mm256_loadu_si256(src0.cast());
+            v1 = _mm256_loadu_si256(src0.add(32).cast());
+            v2 = _mm256_loadu_si256(src0.add(64).cast());
+            v3 = _mm256_loadu_si256(src0.add(96).cast());
 
-            v4 = _mm256_loadu_si256(src1.cast::<__m256i>());
-            v5 = _mm256_loadu_si256(src1.add(32).cast::<__m256i>());
-            v6 = _mm256_loadu_si256(src1.add(64).cast::<__m256i>());
-            v7 = _mm256_loadu_si256(src1.add(96).cast::<__m256i>());
+            v4 = _mm256_loadu_si256(src1.cast());
+            v5 = _mm256_loadu_si256(src1.add(32).cast());
+            v6 = _mm256_loadu_si256(src1.add(64).cast());
+            v7 = _mm256_loadu_si256(src1.add(96).cast());
         } else if source_channels == YuvSourceChannels::Bgr
             || source_channels == YuvSourceChannels::Rgb
         {
-            let j0 = _mm256_loadu_si256(src0.cast::<__m256i>());
-            let j1 = _mm256_loadu_si256(src0.add(32).cast::<__m256i>());
-            let j2 = _mm256_loadu_si256(src0.add(64).cast::<__m256i>());
+            let j0 = _mm256_loadu_si256(src0.cast());
+            let j1 = _mm256_loadu_si256(src0.add(32).cast());
+            let j2 = _mm256_loadu_si256(src0.add(64).cast());
 
-            let j3 = _mm256_loadu_si256(src1.cast::<__m256i>());
-            let j4 = _mm256_loadu_si256(src1.add(32).cast::<__m256i>());
-            let j5 = _mm256_loadu_si256(src1.add(64).cast::<__m256i>());
+            let j3 = _mm256_loadu_si256(src1.cast());
+            let j4 = _mm256_loadu_si256(src1.add(32).cast());
+            let j5 = _mm256_loadu_si256(src1.add(64).cast());
 
             (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(j0, j1, j2);
             (v4, v5, v6, v7) = _mm256_expand_rgb_to_rgba(j3, j4, j5);
@@ -306,25 +306,25 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
             if source_channels == YuvSourceChannels::Rgba
                 || source_channels == YuvSourceChannels::Bgra
             {
-                v0 = _mm256_loadu_si256(sb0.as_ptr().cast::<__m256i>());
-                v1 = _mm256_loadu_si256(sb0.as_ptr().add(32).cast::<__m256i>());
-                v2 = _mm256_loadu_si256(sb0.as_ptr().add(64).cast::<__m256i>());
-                v3 = _mm256_loadu_si256(sb0.as_ptr().add(96).cast::<__m256i>());
+                v0 = _mm256_loadu_si256(sb0.as_ptr().cast());
+                v1 = _mm256_loadu_si256(sb0.as_ptr().add(32).cast());
+                v2 = _mm256_loadu_si256(sb0.as_ptr().add(64).cast());
+                v3 = _mm256_loadu_si256(sb0.as_ptr().add(96).cast());
 
-                v4 = _mm256_loadu_si256(sb1.as_ptr().cast::<__m256i>());
-                v5 = _mm256_loadu_si256(sb1.as_ptr().add(32).cast::<__m256i>());
-                v6 = _mm256_loadu_si256(sb1.as_ptr().add(64).cast::<__m256i>());
-                v7 = _mm256_loadu_si256(sb1.as_ptr().add(96).cast::<__m256i>());
+                v4 = _mm256_loadu_si256(sb1.as_ptr().cast());
+                v5 = _mm256_loadu_si256(sb1.as_ptr().add(32).cast());
+                v6 = _mm256_loadu_si256(sb1.as_ptr().add(64).cast());
+                v7 = _mm256_loadu_si256(sb1.as_ptr().add(96).cast());
             } else if source_channels == YuvSourceChannels::Bgr
                 || source_channels == YuvSourceChannels::Rgb
             {
-                let j0 = _mm256_loadu_si256(sb0.as_ptr().cast::<__m256i>());
-                let j1 = _mm256_loadu_si256(sb0.as_ptr().add(32).cast::<__m256i>());
-                let j2 = _mm256_loadu_si256(sb0.as_ptr().add(64).cast::<__m256i>());
+                let j0 = _mm256_loadu_si256(sb0.as_ptr().cast());
+                let j1 = _mm256_loadu_si256(sb0.as_ptr().add(32).cast());
+                let j2 = _mm256_loadu_si256(sb0.as_ptr().add(64).cast());
 
-                let j3 = _mm256_loadu_si256(sb1.as_ptr().cast::<__m256i>());
-                let j4 = _mm256_loadu_si256(sb1.as_ptr().add(32).cast::<__m256i>());
-                let j5 = _mm256_loadu_si256(sb1.as_ptr().add(64).cast::<__m256i>());
+                let j3 = _mm256_loadu_si256(sb1.as_ptr().cast());
+                let j4 = _mm256_loadu_si256(sb1.as_ptr().add(32).cast());
+                let j5 = _mm256_loadu_si256(sb1.as_ptr().add(64).cast());
 
                 (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(j0, j1, j2);
                 (v4, v5, v6, v7) = _mm256_expand_rgb_to_rgba(j3, j4, j5);
@@ -545,25 +545,25 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
 
         if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
         {
-            v0 = _mm256_loadu_si256(src0.cast::<__m256i>());
-            v1 = _mm256_loadu_si256(src0.add(32).cast::<__m256i>());
-            v2 = _mm256_loadu_si256(src0.add(64).cast::<__m256i>());
-            v3 = _mm256_loadu_si256(src0.add(96).cast::<__m256i>());
+            v0 = _mm256_loadu_si256(src0.cast());
+            v1 = _mm256_loadu_si256(src0.add(32).cast());
+            v2 = _mm256_loadu_si256(src0.add(64).cast());
+            v3 = _mm256_loadu_si256(src0.add(96).cast());
 
-            v4 = _mm256_loadu_si256(src1.cast::<__m256i>());
-            v5 = _mm256_loadu_si256(src1.add(32).cast::<__m256i>());
-            v6 = _mm256_loadu_si256(src1.add(64).cast::<__m256i>());
-            v7 = _mm256_loadu_si256(src1.add(96).cast::<__m256i>());
+            v4 = _mm256_loadu_si256(src1.cast());
+            v5 = _mm256_loadu_si256(src1.add(32).cast());
+            v6 = _mm256_loadu_si256(src1.add(64).cast());
+            v7 = _mm256_loadu_si256(src1.add(96).cast());
         } else if source_channels == YuvSourceChannels::Bgr
             || source_channels == YuvSourceChannels::Rgb
         {
-            let j0 = _mm256_loadu_si256(src0.cast::<__m256i>());
-            let j1 = _mm256_loadu_si256(src0.add(32).cast::<__m256i>());
-            let j2 = _mm256_loadu_si256(src0.add(64).cast::<__m256i>());
+            let j0 = _mm256_loadu_si256(src0.cast());
+            let j1 = _mm256_loadu_si256(src0.add(32).cast());
+            let j2 = _mm256_loadu_si256(src0.add(64).cast());
 
-            let j3 = _mm256_loadu_si256(src1.cast::<__m256i>());
-            let j4 = _mm256_loadu_si256(src1.add(32).cast::<__m256i>());
-            let j5 = _mm256_loadu_si256(src1.add(64).cast::<__m256i>());
+            let j3 = _mm256_loadu_si256(src1.cast());
+            let j4 = _mm256_loadu_si256(src1.add(32).cast());
+            let j5 = _mm256_loadu_si256(src1.add(64).cast());
 
             (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(j0, j1, j2);
             (v4, v5, v6, v7) = _mm256_expand_rgb_to_rgba(j3, j4, j5);
@@ -692,25 +692,25 @@ unsafe fn avx2_rgba_to_yuv_dot_rgba_impl_dot420<const ORIGIN_CHANNELS: u8>(
 
         if source_channels == YuvSourceChannels::Rgba || source_channels == YuvSourceChannels::Bgra
         {
-            v0 = _mm256_loadu_si256(src_buffer0.as_ptr().cast::<__m256i>());
-            v1 = _mm256_loadu_si256(src_buffer0.as_ptr().add(32).cast::<__m256i>());
-            v2 = _mm256_loadu_si256(src_buffer0.as_ptr().add(64).cast::<__m256i>());
-            v3 = _mm256_loadu_si256(src_buffer0.as_ptr().add(96).cast::<__m256i>());
+            v0 = _mm256_loadu_si256(src_buffer0.as_ptr().cast());
+            v1 = _mm256_loadu_si256(src_buffer0.as_ptr().add(32).cast());
+            v2 = _mm256_loadu_si256(src_buffer0.as_ptr().add(64).cast());
+            v3 = _mm256_loadu_si256(src_buffer0.as_ptr().add(96).cast());
 
-            v4 = _mm256_loadu_si256(src_buffer1.as_ptr().cast::<__m256i>());
-            v5 = _mm256_loadu_si256(src_buffer1.as_ptr().add(32).cast::<__m256i>());
-            v6 = _mm256_loadu_si256(src_buffer1.as_ptr().add(64).cast::<__m256i>());
-            v7 = _mm256_loadu_si256(src_buffer1.as_ptr().add(96).cast::<__m256i>());
+            v4 = _mm256_loadu_si256(src_buffer1.as_ptr().cast());
+            v5 = _mm256_loadu_si256(src_buffer1.as_ptr().add(32).cast());
+            v6 = _mm256_loadu_si256(src_buffer1.as_ptr().add(64).cast());
+            v7 = _mm256_loadu_si256(src_buffer1.as_ptr().add(96).cast());
         } else if source_channels == YuvSourceChannels::Bgr
             || source_channels == YuvSourceChannels::Rgb
         {
-            let j0 = _mm256_loadu_si256(src_buffer0.as_ptr().cast::<__m256i>());
-            let j1 = _mm256_loadu_si256(src_buffer0.as_ptr().add(32).cast::<__m256i>());
-            let j2 = _mm256_loadu_si256(src_buffer0.as_ptr().add(64).cast::<__m256i>());
+            let j0 = _mm256_loadu_si256(src_buffer0.as_ptr().cast());
+            let j1 = _mm256_loadu_si256(src_buffer0.as_ptr().add(32).cast());
+            let j2 = _mm256_loadu_si256(src_buffer0.as_ptr().add(64).cast());
 
-            let j3 = _mm256_loadu_si256(src_buffer1.as_ptr().cast::<__m256i>());
-            let j4 = _mm256_loadu_si256(src_buffer1.as_ptr().add(32).cast::<__m256i>());
-            let j5 = _mm256_loadu_si256(src_buffer1.as_ptr().add(64).cast::<__m256i>());
+            let j3 = _mm256_loadu_si256(src_buffer1.as_ptr().cast());
+            let j4 = _mm256_loadu_si256(src_buffer1.as_ptr().add(32).cast());
+            let j5 = _mm256_loadu_si256(src_buffer1.as_ptr().add(64).cast());
 
             (v0, v1, v2, v3) = _mm256_expand_rgb_to_rgba(j0, j1, j2);
             (v4, v5, v6, v7) = _mm256_expand_rgb_to_rgba(j3, j4, j5);

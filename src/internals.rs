@@ -33,10 +33,6 @@ use crate::yuv_support::{CbCrForwardTransform, CbCrInverseTransform, YuvChromaRa
 /// Allocates stack buffers, copies remaining source pixels in (replicating the
 /// last pixel for odd-width subsampling), invokes the caller's encode block,
 /// then copies the Y/U/V results back to the destination planes.
-///
-/// Uses `MaybeUninit` for all buffers:
-/// - Source buffers are zeroed because SIMD reads the full vector width.
-/// - Output buffers are left uninitialized because the encode writes all bytes.
 #[allow(unused_macros)]
 macro_rules! tail_420 {
     (
@@ -50,34 +46,22 @@ macro_rules! tail_420 {
             let diff = $width - $cx;
             debug_assert!(diff <= $stride);
 
-            // SAFETY: Zeroed via `MaybeUninit::zeroed()`. SIMD reads the full STRIDE
-            // even when fewer than STRIDE pixels remain; zeroed padding ensures no UB.
-            // Actual pixel data is overwritten by `copy_nonoverlapping`.
-            let mut src_buf0: [std::mem::MaybeUninit<u8>; $stride * 4] =
-                [std::mem::MaybeUninit::zeroed(); $stride * 4];
-            let mut src_buf1: [std::mem::MaybeUninit<u8>; $stride * 4] =
-                [std::mem::MaybeUninit::zeroed(); $stride * 4];
+            let mut src_buf0: [u8; $stride * 4] = [0u8; $stride * 4];
+            let mut src_buf1: [u8; $stride * 4] = [0u8; $stride * 4];
 
-            // SAFETY: Left uninitialized. The encode function writes all STRIDE bytes
-            // via SIMD stores. Only `diff` (Y) or `diff.div_ceil(2)` (UV) bytes are
-            // read back by `copy_nonoverlapping`, all of which were written.
-            let mut y_buf0: [std::mem::MaybeUninit<u8>; $stride] =
-                [std::mem::MaybeUninit::uninit(); $stride];
-            let mut y_buf1: [std::mem::MaybeUninit<u8>; $stride] =
-                [std::mem::MaybeUninit::uninit(); $stride];
-            let mut u_buf: [std::mem::MaybeUninit<u8>; $stride] =
-                [std::mem::MaybeUninit::uninit(); $stride];
-            let mut v_buf: [std::mem::MaybeUninit<u8>; $stride] =
-                [std::mem::MaybeUninit::uninit(); $stride];
+            let mut y_buf0: [u8; $stride] = [0u8; $stride];
+            let mut y_buf1: [u8; $stride] = [0u8; $stride];
+            let mut u_buf: [u8; $stride] = [0u8; $stride];
+            let mut v_buf: [u8; $stride] = [0u8; $stride];
 
             std::ptr::copy_nonoverlapping(
                 $rgba0.get_unchecked($cx * $channels..).as_ptr(),
-                src_buf0.as_mut_ptr().cast::<u8>(),
+                src_buf0.as_mut_ptr(),
                 diff * $channels,
             );
             std::ptr::copy_nonoverlapping(
                 $rgba1.get_unchecked($cx * $channels..).as_ptr(),
-                src_buf1.as_mut_ptr().cast::<u8>(),
+                src_buf1.as_mut_ptr(),
                 diff * $channels,
             );
 
@@ -86,14 +70,8 @@ macro_rules! tail_420 {
                 let last0 = $rgba0.get_unchecked(lst..(lst + $channels));
                 let last1 = $rgba1.get_unchecked(lst..(lst + $channels));
                 let dvb = diff * $channels;
-                let d0 = std::slice::from_raw_parts_mut(
-                    src_buf0.as_mut_ptr().add(dvb).cast::<u8>(),
-                    $channels,
-                );
-                let d1 = std::slice::from_raw_parts_mut(
-                    src_buf1.as_mut_ptr().add(dvb).cast::<u8>(),
-                    $channels,
-                );
+                let d0 = src_buf0.get_unchecked_mut(dvb..(dvb + $channels));
+                let d1 = src_buf1.get_unchecked_mut(dvb..(dvb + $channels));
                 for (d, s) in d0.iter_mut().zip(last0) {
                     *d = *s;
                 }
@@ -102,22 +80,22 @@ macro_rules! tail_420 {
                 }
             }
 
-            let $sb0 = std::slice::from_raw_parts(src_buf0.as_ptr().cast::<u8>(), $stride * 4);
-            let $sb1 = std::slice::from_raw_parts(src_buf1.as_ptr().cast::<u8>(), $stride * 4);
-            let $yb0 = std::slice::from_raw_parts_mut(y_buf0.as_mut_ptr().cast::<u8>(), $stride);
-            let $yb1 = std::slice::from_raw_parts_mut(y_buf1.as_mut_ptr().cast::<u8>(), $stride);
-            let $ub = std::slice::from_raw_parts_mut(u_buf.as_mut_ptr().cast::<u8>(), $stride);
-            let $vb = std::slice::from_raw_parts_mut(v_buf.as_mut_ptr().cast::<u8>(), $stride);
+            let $sb0 = &src_buf0[..];
+            let $sb1 = &src_buf1[..];
+            let $yb0 = &mut y_buf0[..];
+            let $yb1 = &mut y_buf1[..];
+            let $ub = &mut u_buf[..];
+            let $vb = &mut v_buf[..];
 
             $encode;
 
             std::ptr::copy_nonoverlapping(
-                y_buf0.as_ptr().cast::<u8>(),
+                y_buf0.as_ptr(),
                 $y_plane0.get_unchecked_mut($cx..).as_mut_ptr(),
                 diff,
             );
             std::ptr::copy_nonoverlapping(
-                y_buf1.as_ptr().cast::<u8>(),
+                y_buf1.as_ptr(),
                 $y_plane1.get_unchecked_mut($cx..).as_mut_ptr(),
                 diff,
             );
@@ -126,12 +104,12 @@ macro_rules! tail_420 {
 
             let hv = diff.div_ceil(2);
             std::ptr::copy_nonoverlapping(
-                u_buf.as_ptr().cast::<u8>(),
+                u_buf.as_ptr(),
                 $u_plane.get_unchecked_mut($ux..).as_mut_ptr(),
                 hv,
             );
             std::ptr::copy_nonoverlapping(
-                v_buf.as_ptr().cast::<u8>(),
+                v_buf.as_ptr(),
                 $v_plane.get_unchecked_mut($ux..).as_mut_ptr(),
                 hv,
             );
