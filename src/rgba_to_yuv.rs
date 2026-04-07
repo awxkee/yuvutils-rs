@@ -278,38 +278,9 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     for RgbEncoderProfessional<ORIGIN_CHANNELS, SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        if PRECISION == 15 {
-            assert_eq!(PRECISION, 15);
-            #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-            {
-                use crate::neon::neon_rgba_to_yuv_prof;
-                return RgbEncoderProfessional {
-                    handler: Some(neon_rgba_to_yuv_prof::<ORIGIN_CHANNELS, SAMPLING>),
-                };
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                #[cfg(feature = "avx")]
-                {
-                    let use_avx = std::arch::is_x86_feature_detected!("avx2");
-                    if use_avx {
-                        use crate::avx2::avx2_rgba_to_yuv_prof;
-                        return RgbEncoderProfessional {
-                            handler: Some(
-                                avx2_rgba_to_yuv_prof::<ORIGIN_CHANNELS, SAMPLING, PRECISION>,
-                            ),
-                        };
-                    }
-                }
-                #[cfg(feature = "sse")]
-                if std::arch::is_x86_feature_detected!("sse4.1") {
-                    use crate::sse::sse_rgba_to_yuv_prof;
-                    return RgbEncoderProfessional {
-                        handler: Some(sse_rgba_to_yuv_prof::<ORIGIN_CHANNELS, SAMPLING, PRECISION>),
-                    };
-                }
-            }
-        }
+        // Non-420 professional SIMD handlers have not yet been updated for P16
+        // coefficients (they still use vqdmlal which expects P15). Scalar fallback
+        // is correct at P16; SIMD support is future work.
         RgbEncoderProfessional { handler: None }
     }
 }
@@ -537,8 +508,8 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         }
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
 
-        if PRECISION == 15 {
-            assert_eq!(PRECISION, 15);
+        if PRECISION == 16 {
+            assert_eq!(PRECISION, 16);
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 use crate::neon::neon_rgba_to_yuv_prof420;
@@ -1067,8 +1038,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 rgba_stride,
                 range,
                 matrix,
-                RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
-                RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                RgbEncoderProfessional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                RgbEncoder420Professional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
             ),
         }
     }
@@ -1085,8 +1056,8 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 rgba_stride,
                 range,
                 matrix,
-                RgbEncoder::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
-                RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                RgbEncoderProfessional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                RgbEncoder420Professional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
             );
         }
         rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
