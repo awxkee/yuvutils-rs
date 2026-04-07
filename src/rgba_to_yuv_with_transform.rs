@@ -124,11 +124,14 @@ unsafe fn dispatch_fwd_420<const ORIGIN_CHANNELS: u8, const PRECISION: i32>(
     if PRECISION == 16 {
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         {
-            use crate::neon::neon_rgba_to_yuv_prof420;
-            return neon_rgba_to_yuv_prof420::<ORIGIN_CHANNELS>(
-                transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
-                start_ux, width,
-            );
+            #[cfg(feature = "professional_mode")]
+            {
+                use crate::neon::neon_rgba_to_yuv_prof420;
+                return neon_rgba_to_yuv_prof420::<ORIGIN_CHANNELS>(
+                    transform, range, y_plane0, y_plane1, u_plane, v_plane, rgba0, rgba1, start_cx,
+                    start_ux, width,
+                );
+            }
         }
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
