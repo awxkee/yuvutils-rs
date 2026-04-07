@@ -776,31 +776,29 @@ build_yuv420_single_row_with_transform!(
 
 macro_rules! build_yuv420_frame_with_transform {
     ($method:ident, $px_fmt:expr, $px_name:expr, $px_small:expr) => {
-        #[doc = concat!("Convert YUV 420 to ", $px_name, " using pre-computed inverse transform coefficients.\n\nThe `mode` controls the fixed-point precision and must match the precision\nused to compute `inverse_transform`.")]
+        #[doc = concat!("Convert YUV 420 to ", $px_name, " using pre-computed inverse transform coefficients.")]
         pub fn $method(
             planar_image: &YuvPlanarImage<u8>,
             dst: &mut [u8],
             dst_stride: u32,
-            inverse_transform: &CbCrInverseTransform<i32>,
-            chroma_range: &YuvChromaRange,
-            mode: YuvConversionMode,
+            config: &YuvInverseTransform,
         ) -> Result<(), YuvError> {
-            match mode {
+            match config.mode {
                 #[cfg(feature = "fast_mode")]
                 YuvConversionMode::Fast => {
                     yuv420_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }, 7>(
-                        planar_image, dst, dst_stride, inverse_transform, chroma_range,
+                        planar_image, dst, dst_stride, &config.inverse_transform, &config.chroma_range,
                     )
                 }
                 YuvConversionMode::Balanced => {
                     yuv420_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }, 13>(
-                        planar_image, dst, dst_stride, inverse_transform, chroma_range,
+                        planar_image, dst, dst_stride, &config.inverse_transform, &config.chroma_range,
                     )
                 }
                 #[cfg(feature = "professional_mode")]
                 YuvConversionMode::Professional => {
                     yuv420_to_rgbx_with_transform_impl::<{ $px_fmt as u8 }, 16>(
-                        planar_image, dst, dst_stride, inverse_transform, chroma_range,
+                        planar_image, dst, dst_stride, &config.inverse_transform, &config.chroma_range,
                     )
                 }
             }

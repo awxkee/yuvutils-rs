@@ -146,7 +146,7 @@ unsafe fn encode_16_part_prof420<const ORIGIN_CHANNELS: u8>(
     vst1q_u8(y_plane0.as_mut_ptr(), y0);
     vst1q_u8(y_plane1.as_mut_ptr(), y1);
 
-    // Chroma: 4:2:0 subsampling — rounding halving average of 2x2 pixel blocks
+    // Chroma: 4:2:0 subsampling - rounding halving average of 2x2 pixel blocks
     let rhv = vrhaddq_u8(r_values0, r_values1);
     let ghv = vrhaddq_u8(g_values0, g_values1);
     let bhv = vrhaddq_u8(b_values0, b_values1);

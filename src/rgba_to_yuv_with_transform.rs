@@ -439,43 +439,31 @@ macro_rules! build_fwd_yuv420_with_transform {
             planar_image: &mut YuvPlanarImageMut<u8>,
             src: &[u8],
             src_stride: u32,
-            transform: &CbCrForwardTransform<i32>,
-            chroma_range: &YuvChromaRange,
-            mode: YuvConversionMode,
+            config: &YuvForwardTransform,
         ) -> Result<(), YuvError> {
+            let transform = &config.transform;
+            let chroma_range = &config.chroma_range;
             #[cfg(any(
                 any(target_arch = "x86", target_arch = "x86_64"),
                 all(target_arch = "aarch64", target_feature = "neon")
             ))]
             {
-                match mode {
+                match config.mode {
                     #[cfg(feature = "fast_mode")]
                     YuvConversionMode::Fast => {
                         rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 7>(
-                            planar_image,
-                            src,
-                            src_stride,
-                            transform,
-                            chroma_range,
+                            planar_image, src, src_stride, transform, chroma_range,
                         )
                     }
                     YuvConversionMode::Balanced => {
                         rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 13>(
-                            planar_image,
-                            src,
-                            src_stride,
-                            transform,
-                            chroma_range,
+                            planar_image, src, src_stride, transform, chroma_range,
                         )
                     }
                     #[cfg(feature = "professional_mode")]
                     YuvConversionMode::Professional => {
                         rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 16>(
-                            planar_image,
-                            src,
-                            src_stride,
-                            transform,
-                            chroma_range,
+                            planar_image, src, src_stride, transform, chroma_range,
                         )
                     }
                 }
@@ -485,27 +473,19 @@ macro_rules! build_fwd_yuv420_with_transform {
                 all(target_arch = "aarch64", target_feature = "neon",),
             )))]
             {
-                match mode {
+                match config.mode {
                     YuvConversionMode::Balanced => {}
                     #[cfg(feature = "fast_mode")]
                     YuvConversionMode::Fast => {}
                     #[cfg(feature = "professional_mode")]
                     YuvConversionMode::Professional => {
                         return rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 16>(
-                            planar_image,
-                            src,
-                            src_stride,
-                            transform,
-                            chroma_range,
+                            planar_image, src, src_stride, transform, chroma_range,
                         );
                     }
                 }
                 rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 13>(
-                    planar_image,
-                    src,
-                    src_stride,
-                    transform,
-                    chroma_range,
+                    planar_image, src, src_stride, transform, chroma_range,
                 )
             }
         }
@@ -532,6 +512,7 @@ mod tests {
     #[cfg(feature = "professional_mode")]
     use crate::yuv_support::{
         get_forward_transform, get_inverse_transform, get_yuv_range, ToIntegerTransform,
+        YuvForwardTransform, YuvInverseTransform,
     };
     #[cfg(feature = "professional_mode")]
     use crate::yuv_to_rgba_with_transform::yuv420_to_rgba_with_transform;
@@ -572,13 +553,16 @@ mod tests {
             YuvChromaSubsampling::Yuv420,
         );
 
+        let fwd_config = YuvForwardTransform {
+            transform,
+            chroma_range: range,
+            mode: YuvConversionMode::Professional,
+        };
         rgba_to_yuv420_with_transform(
             &mut planar_image,
             &source_rgba,
             IMAGE_WIDTH as u32 * CHANNELS as u32,
-            &transform,
-            &range,
-            YuvConversionMode::Professional,
+            &fwd_config,
         )
         .unwrap();
 
@@ -586,13 +570,16 @@ mod tests {
 
         let mut dest_rgba = vec![0u8; IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS];
 
+        let inv_config = YuvInverseTransform {
+            inverse_transform,
+            chroma_range: range,
+            mode: YuvConversionMode::Professional,
+        };
         yuv420_to_rgba_with_transform(
             &fixed_planar,
             &mut dest_rgba,
             IMAGE_WIDTH as u32 * CHANNELS as u32,
-            &inverse_transform,
-            &range,
-            YuvConversionMode::Professional,
+            &inv_config,
         )
         .unwrap();
 
@@ -703,26 +690,32 @@ mod tests {
                 YuvChromaSubsampling::Yuv420,
             );
 
+            let fwd_config = YuvForwardTransform {
+                transform: webp_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
             rgba_to_yuv420_with_transform(
                 &mut planar_image,
                 &source_rgba,
                 IMAGE_WIDTH as u32 * CHANNELS as u32,
-                &webp_transform,
-                &range,
-                YuvConversionMode::Professional,
+                &fwd_config,
             )
             .unwrap();
 
             let fixed_planar = planar_image.to_fixed();
             let mut dest_rgba = vec![0u8; IMAGE_WIDTH * IMAGE_HEIGHT * CHANNELS];
 
+            let inv_config = YuvInverseTransform {
+                inverse_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
             yuv420_to_rgba_with_transform(
                 &fixed_planar,
                 &mut dest_rgba,
                 IMAGE_WIDTH as u32 * CHANNELS as u32,
-                &inverse_transform,
-                &range,
-                YuvConversionMode::Professional,
+                &inv_config,
             )
             .unwrap();
 

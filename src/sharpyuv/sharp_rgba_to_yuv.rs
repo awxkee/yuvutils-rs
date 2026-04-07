@@ -937,16 +937,14 @@ macro_rules! build_sharp_yuv_with_transform {
             planar_image: &mut YuvPlanarImageMut<u8>,
             src: &[u8],
             src_stride: u32,
-            transform: &CbCrForwardTransform<i32>,
-            chroma_range: &YuvChromaRange,
+            config: &YuvForwardTransform,
             gamma_transfer: SharpYuvGammaTransfer,
-            mode: YuvConversionMode,
         ) -> Result<(), YuvError> {
             rgbx_to_sharp_yuv_dispatch_mode::<
                 { $px_fmt as u8 },
                 { $sampling as u8 },
             >(
-                planar_image, src, src_stride, chroma_range, transform, gamma_transfer, mode,
+                planar_image, src, src_stride, &config.chroma_range, &config.transform, gamma_transfer, config.mode,
             )
         }
     };
@@ -1016,7 +1014,10 @@ mod tests {
     use crate::sharpyuv::sharp_gamma::SharpYuvGammaTransfer;
     use crate::yuv_support::{
         get_forward_transform, get_inverse_transform, get_yuv_range, ToIntegerTransform,
+        YuvForwardTransform,
     };
+    #[cfg(feature = "professional_mode")]
+    use crate::yuv_support::YuvInverseTransform;
     #[cfg(feature = "professional_mode")]
     use crate::yuv_to_rgba_with_transform::yuv420_to_rgba_with_transform;
     use rand::RngExt;
@@ -1059,14 +1060,17 @@ mod tests {
 
         let mut planar_new =
             YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+        let fwd_config = YuvForwardTransform {
+            transform,
+            chroma_range: range,
+            mode: YuvConversionMode::Balanced,
+        };
         rgba_to_sharp_yuv420_with_transform(
             &mut planar_new,
             &src,
             W as u32 * CH as u32,
-            &transform,
-            &range,
+            &fwd_config,
             SharpYuvGammaTransfer::Srgb,
-            YuvConversionMode::Balanced,
         )
         .unwrap();
 
@@ -1122,26 +1126,32 @@ mod tests {
 
             let mut planar =
                 YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+            let fwd_config = YuvForwardTransform {
+                transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
             rgba_to_sharp_yuv420_with_transform(
                 &mut planar,
                 &src,
                 W as u32 * CH as u32,
-                &transform,
-                &range,
+                &fwd_config,
                 SharpYuvGammaTransfer::Srgb,
-                YuvConversionMode::Professional,
             )
             .unwrap();
 
             let fixed = planar.to_fixed();
             let mut dst = vec![0u8; W * H * CH];
+            let inv_config = YuvInverseTransform {
+                inverse_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
             yuv420_to_rgba_with_transform(
                 &fixed,
                 &mut dst,
                 W as u32 * CH as u32,
-                &inverse_transform,
-                &range,
-                YuvConversionMode::Professional,
+                &inv_config,
             )
             .unwrap();
 
@@ -1207,26 +1217,32 @@ mod tests {
 
             let mut planar =
                 YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+            let fwd_config = YuvForwardTransform {
+                transform: webp_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
             rgba_to_sharp_yuv420_with_transform(
                 &mut planar,
                 &src,
                 W as u32 * CH as u32,
-                &webp_transform,
-                &range,
+                &fwd_config,
                 SharpYuvGammaTransfer::Srgb,
-                YuvConversionMode::Professional,
             )
             .unwrap();
 
             let fixed = planar.to_fixed();
             let mut dst = vec![0u8; W * H * CH];
+            let inv_config = YuvInverseTransform {
+                inverse_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
             yuv420_to_rgba_with_transform(
                 &fixed,
                 &mut dst,
                 W as u32 * CH as u32,
-                &inverse_transform,
-                &range,
-                YuvConversionMode::Professional,
+                &inv_config,
             )
             .unwrap();
 
@@ -1273,14 +1289,17 @@ mod tests {
 
         let mut planar =
             YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv422);
+        let fwd_config = YuvForwardTransform {
+            transform,
+            chroma_range: range,
+            mode: YuvConversionMode::Balanced,
+        };
         rgb_to_sharp_yuv422_with_transform(
             &mut planar,
             &src,
             W as u32 * CH as u32,
-            &transform,
-            &range,
+            &fwd_config,
             SharpYuvGammaTransfer::Srgb,
-            YuvConversionMode::Balanced,
         )
         .unwrap();
 
@@ -1315,27 +1334,33 @@ mod tests {
 
         let mut planar_13 =
             YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+        let fwd_13 = YuvForwardTransform {
+            transform: transform_13,
+            chroma_range: range,
+            mode: YuvConversionMode::Balanced,
+        };
         rgba_to_sharp_yuv420_with_transform(
             &mut planar_13,
             &src,
             W as u32 * CH as u32,
-            &transform_13,
-            &range,
+            &fwd_13,
             SharpYuvGammaTransfer::Srgb,
-            YuvConversionMode::Balanced,
         )
         .unwrap();
 
         let mut planar_16 =
             YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+        let fwd_16 = YuvForwardTransform {
+            transform: transform_16,
+            chroma_range: range,
+            mode: YuvConversionMode::Professional,
+        };
         rgba_to_sharp_yuv420_with_transform(
             &mut planar_16,
             &src,
             W as u32 * CH as u32,
-            &transform_16,
-            &range,
+            &fwd_16,
             SharpYuvGammaTransfer::Srgb,
-            YuvConversionMode::Professional,
         )
         .unwrap();
 

@@ -855,3 +855,21 @@ impl Display for YuvConversionMode {
         }
     }
 }
+
+/// Bundles the forward (RGB to YUV) transform coefficients, chroma range,
+/// and conversion mode into a single value.
+#[derive(Copy, Clone, Debug)]
+pub struct YuvForwardTransform {
+    pub transform: CbCrForwardTransform<i32>,
+    pub chroma_range: YuvChromaRange,
+    pub mode: YuvConversionMode,
+}
+
+/// Bundles the inverse (YUV to RGB) transform coefficients, chroma range,
+/// and conversion mode into a single value.
+#[derive(Copy, Clone, Debug)]
+pub struct YuvInverseTransform {
+    pub inverse_transform: CbCrInverseTransform<i32>,
+    pub chroma_range: YuvChromaRange,
+    pub mode: YuvConversionMode,
+}
