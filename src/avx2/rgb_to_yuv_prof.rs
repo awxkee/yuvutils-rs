@@ -29,7 +29,7 @@
 
 use crate::avx2::avx2_utils::{
     _mm256_affine_dot, _mm256_affine_dot_split, _mm256_interleave_epi16,
-    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16, avx2_pack_u32,
+    _mm256_load_deinterleave_rgb_for_yuv, avx2_pack_u16,
     avx_pairwise_avg_epi16_epi8_j, shuffle,
 };
 use crate::internals::ProcessedOffset;
