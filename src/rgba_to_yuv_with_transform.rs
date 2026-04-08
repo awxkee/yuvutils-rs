@@ -455,18 +455,30 @@ macro_rules! build_fwd_yuv420_with_transform {
                     #[cfg(feature = "fast_mode")]
                     YuvConversionMode::Fast => {
                         rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 7>(
-                            planar_image, src, src_stride, transform, chroma_range,
+                            planar_image,
+                            src,
+                            src_stride,
+                            transform,
+                            chroma_range,
                         )
                     }
                     YuvConversionMode::Balanced => {
                         rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 13>(
-                            planar_image, src, src_stride, transform, chroma_range,
+                            planar_image,
+                            src,
+                            src_stride,
+                            transform,
+                            chroma_range,
                         )
                     }
                     #[cfg(feature = "professional_mode")]
                     YuvConversionMode::Professional => {
                         rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 16>(
-                            planar_image, src, src_stride, transform, chroma_range,
+                            planar_image,
+                            src,
+                            src_stride,
+                            transform,
+                            chroma_range,
                         )
                     }
                 }
@@ -483,12 +495,20 @@ macro_rules! build_fwd_yuv420_with_transform {
                     #[cfg(feature = "professional_mode")]
                     YuvConversionMode::Professional => {
                         return rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 16>(
-                            planar_image, src, src_stride, transform, chroma_range,
+                            planar_image,
+                            src,
+                            src_stride,
+                            transform,
+                            chroma_range,
                         );
                     }
                 }
                 rgbx_to_yuv420_with_transform_impl::<{ $px_fmt as u8 }, 13>(
-                    planar_image, src, src_stride, transform, chroma_range,
+                    planar_image,
+                    src,
+                    src_stride,
+                    transform,
+                    chroma_range,
                 )
             }
         }

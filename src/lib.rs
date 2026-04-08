@@ -173,8 +173,8 @@ mod yuy2_to_yuv_p16;
 
 pub use yuv_support::{
     CbCrForwardTransform, CbCrInverseTransform, Rgb30ByteOrder, ToIntegerTransform,
-    YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness,
-    YuvForwardTransform, YuvInverseTransform, YuvRange, YuvStandardMatrix,
+    YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvForwardTransform,
+    YuvInverseTransform, YuvRange, YuvStandardMatrix,
 };
 
 pub use yuv_support::{get_forward_transform, get_yuv_range, YuvChromaRange};

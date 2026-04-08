@@ -1012,12 +1012,12 @@ build_sharp_yuv_with_transform!(
 mod tests {
     use super::*;
     use crate::sharpyuv::sharp_gamma::SharpYuvGammaTransfer;
+    #[cfg(feature = "professional_mode")]
+    use crate::yuv_support::YuvInverseTransform;
     use crate::yuv_support::{
         get_forward_transform, get_inverse_transform, get_yuv_range, ToIntegerTransform,
         YuvForwardTransform,
     };
-    #[cfg(feature = "professional_mode")]
-    use crate::yuv_support::YuvInverseTransform;
     #[cfg(feature = "professional_mode")]
     use crate::yuv_to_rgba_with_transform::yuv420_to_rgba_with_transform;
     use rand::RngExt;
@@ -1147,13 +1147,8 @@ mod tests {
                 chroma_range: range,
                 mode: YuvConversionMode::Professional,
             };
-            yuv420_to_rgba_with_transform(
-                &fixed,
-                &mut dst,
-                W as u32 * CH as u32,
-                &inv_config,
-            )
-            .unwrap();
+            yuv420_to_rgba_with_transform(&fixed, &mut dst, W as u32 * CH as u32, &inv_config)
+                .unwrap();
 
             for (src_px, dst_px) in src.chunks_exact(CH).zip(dst.chunks_exact(CH)) {
                 worst_r = worst_r.max((dst_px[0] as i32 - src_px[0] as i32).abs());
@@ -1238,13 +1233,8 @@ mod tests {
                 chroma_range: range,
                 mode: YuvConversionMode::Professional,
             };
-            yuv420_to_rgba_with_transform(
-                &fixed,
-                &mut dst,
-                W as u32 * CH as u32,
-                &inv_config,
-            )
-            .unwrap();
+            yuv420_to_rgba_with_transform(&fixed, &mut dst, W as u32 * CH as u32, &inv_config)
+                .unwrap();
 
             for (src_px, dst_px) in src.chunks_exact(CH).zip(dst.chunks_exact(CH)) {
                 worst_r = worst_r.max((dst_px[0] as i32 - src_px[0] as i32).abs());
