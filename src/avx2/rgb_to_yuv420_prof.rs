@@ -28,7 +28,7 @@
  */
 
 use crate::avx2::avx2_utils::{
-    _mm256_affine_dot, _mm256_interleave_epi16, _mm256_load_deinterleave_rgb_for_yuv,
+    _mm256_affine_dot, _mm256_affine_dot_split, _mm256_interleave_epi16, _mm256_load_deinterleave_rgb_for_yuv,
     avx2_pack_u16, avx_pairwise_avg_epi16_epi8_j, shuffle,
 };
 use crate::internals::ProcessedOffset;
@@ -89,7 +89,11 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32, const 
 ) {
     let rounding_const_y = (1 << (PRECISION - 1)) - 1;
     let y_bias = _mm256_set1_epi32(range.bias_y as i32 * (1 << PRECISION) + rounding_const_y);
-    let v_yr_yg = _mm256_set1_epi32(transform._interleaved_yr_yg());
+    let yg_a = (transform.yg / 2) as i16;
+    let yg_b = (transform.yg - transform.yg / 2) as i16;
+    let yr = transform.yr as i16;
+    let v_yr_yga = _mm256_set1_epi32((yr as u16 as i32) | ((yg_a as i32) << 16));
+    let v_0_ygb = _mm256_set1_epi32((yg_b as i32) << 16);
     let v_yb = _mm256_set1_epi32(transform.yb);
 
     let precision_uv = PRECISION + 1;
@@ -113,8 +117,8 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32, const 
     let (rl_gl0, rl_gl1) = _mm256_interleave_epi16(rl0, gl0);
     let (b_lo0, b_lo1) = _mm256_interleave_epi16(bl0, _mm256_setzero_si256());
 
-    let y00_vl = _mm256_affine_dot::<PRECISION, HAS_DOT>(
-        y_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_yr_yg, v_yb,
+    let y00_vl = _mm256_affine_dot_split::<PRECISION>(
+        y_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_yr_yga, v_0_ygb, v_yb,
     );
 
     let rh0 = _mm256_unpackhi_epi8(r_values0, _mm256_setzero_si256());
@@ -124,8 +128,9 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32, const 
     let (rl_gh0, rl_gh1) = _mm256_interleave_epi16(rh0, gh0);
     let (b_h0, b_h1) = _mm256_interleave_epi16(bh0, _mm256_setzero_si256());
 
-    let y01_vl =
-        _mm256_affine_dot::<PRECISION, HAS_DOT>(y_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_yr_yg, v_yb);
+    let y01_vl = _mm256_affine_dot_split::<PRECISION>(
+        y_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_yr_yga, v_0_ygb, v_yb,
+    );
 
     let y0_values = _mm256_packus_epi16(y00_vl, y01_vl);
     _mm256_storeu_si256(y_dst0.as_mut_ptr() as *mut __m256i, y0_values);
@@ -137,8 +142,8 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32, const 
     let (rl_gl01, rl_gl11) = _mm256_interleave_epi16(rl1, gl1);
     let (b_lo10, b_lo11) = _mm256_interleave_epi16(bl1, _mm256_setzero_si256());
 
-    let y10_vl = _mm256_affine_dot::<PRECISION, HAS_DOT>(
-        y_bias, rl_gl01, rl_gl11, b_lo10, b_lo11, v_yr_yg, v_yb,
+    let y10_vl = _mm256_affine_dot_split::<PRECISION>(
+        y_bias, rl_gl01, rl_gl11, b_lo10, b_lo11, v_yr_yga, v_0_ygb, v_yb,
     );
 
     let rh1 = _mm256_unpackhi_epi8(r_values1, _mm256_setzero_si256());
@@ -148,8 +153,8 @@ unsafe fn encode_32_part<const ORIGIN_CHANNELS: u8, const PRECISION: i32, const 
     let (rl_gh11, rl_gh110) = _mm256_interleave_epi16(rh1, gh1);
     let (b_h11, b_h111) = _mm256_interleave_epi16(bh1, _mm256_setzero_si256());
 
-    let y11_vl = _mm256_affine_dot::<PRECISION, HAS_DOT>(
-        y_bias, rl_gh11, rl_gh110, b_h11, b_h111, v_yr_yg, v_yb,
+    let y11_vl = _mm256_affine_dot_split::<PRECISION>(
+        y_bias, rl_gh11, rl_gh110, b_h11, b_h111, v_yr_yga, v_0_ygb, v_yb,
     );
 
     let y0_values = _mm256_packus_epi16(y10_vl, y11_vl);
@@ -362,7 +367,10 @@ unsafe fn avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32
     );
     let channels = source_channels.get_channels_count();
 
-    let y_transform = _mm256_set1_epi64x(transform.avx_make_transform_y(source_channels));
+    let yg_a_4 = (transform.yg / 2) as i16;
+    let yg_b_4 = (transform.yg - transform.yg / 2) as i16;
+    let y_transform_a = _mm256_set1_epi64x(CbCrForwardTransform::<i32>::avx_pack_rgba(transform.yr as i16, yg_a_4, transform.yb as i16, source_channels));
+    let y_transform_b = _mm256_set1_epi64x(CbCrForwardTransform::<i32>::avx_pack_rgba(0, yg_b_4, 0, source_channels));
     let cb_transform = _mm256_set1_epi64x(transform.avx_make_transform_cb(source_channels));
     let cr_transform = _mm256_set1_epi64x(transform.avx_make_transform_cr(source_channels));
     let rounding_const_y = (1 << (PRECISION - 1)) - 1;
@@ -397,53 +405,37 @@ unsafe fn avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32
         let avgu0_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(avg0, shuf_uv), 1);
         let avgu1_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(avg1, shuf_uv), 1);
 
-        let y_row0 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y_row1 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w0_lo = _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256());
+        let w0_hi = _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256());
+        let y_row0 = _mm256_add_epi32(_mm256_madd_epi16(w0_lo, y_transform_a), _mm256_madd_epi16(w0_lo, y_transform_b));
+        let y_row1 = _mm256_add_epi32(_mm256_madd_epi16(w0_hi, y_transform_a), _mm256_madd_epi16(w0_hi, y_transform_b));
 
         let mut f_y0 = _mm256_hadd_epi32(y_row0, y_row1);
         f_y0 = _mm256_add_epi32(f_y0, y_bias);
         f_y0 = _mm256_srai_epi32::<PRECISION>(f_y0);
 
-        let y1_row0 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z1_0, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y1_row1 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z1_0, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w1_lo = _mm256_unpacklo_epi8(row_z1_0, _mm256_setzero_si256());
+        let w1_hi = _mm256_unpackhi_epi8(row_z1_0, _mm256_setzero_si256());
+        let y1_row0 = _mm256_add_epi32(_mm256_madd_epi16(w1_lo, y_transform_a), _mm256_madd_epi16(w1_lo, y_transform_b));
+        let y1_row1 = _mm256_add_epi32(_mm256_madd_epi16(w1_hi, y_transform_a), _mm256_madd_epi16(w1_hi, y_transform_b));
 
         let mut f_y1 = _mm256_hadd_epi32(y1_row0, y1_row1);
         f_y1 = _mm256_add_epi32(f_y1, y_bias);
         f_y1 = _mm256_srai_epi32::<PRECISION>(f_y1);
 
-        let y_row2 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z0_1, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y_row3 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z0_1, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w2_lo = _mm256_unpacklo_epi8(row_z0_1, _mm256_setzero_si256());
+        let w2_hi = _mm256_unpackhi_epi8(row_z0_1, _mm256_setzero_si256());
+        let y_row2 = _mm256_add_epi32(_mm256_madd_epi16(w2_lo, y_transform_a), _mm256_madd_epi16(w2_lo, y_transform_b));
+        let y_row3 = _mm256_add_epi32(_mm256_madd_epi16(w2_hi, y_transform_a), _mm256_madd_epi16(w2_hi, y_transform_b));
 
         let mut f_y2 = _mm256_hadd_epi32(y_row2, y_row3);
         f_y2 = _mm256_add_epi32(f_y2, y_bias);
         f_y2 = _mm256_srai_epi32::<PRECISION>(f_y2);
 
-        let y_row4 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z1_1, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y_row5 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z1_1, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w3_lo = _mm256_unpacklo_epi8(row_z1_1, _mm256_setzero_si256());
+        let w3_hi = _mm256_unpackhi_epi8(row_z1_1, _mm256_setzero_si256());
+        let y_row4 = _mm256_add_epi32(_mm256_madd_epi16(w3_lo, y_transform_a), _mm256_madd_epi16(w3_lo, y_transform_b));
+        let y_row5 = _mm256_add_epi32(_mm256_madd_epi16(w3_hi, y_transform_a), _mm256_madd_epi16(w3_hi, y_transform_b));
 
         let mut f_y3 = _mm256_hadd_epi32(y_row4, y_row5);
         f_y3 = _mm256_add_epi32(f_y3, y_bias);
@@ -518,27 +510,19 @@ unsafe fn avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32
 
         let avgu0_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(avg0, shuf_uv), 1);
 
-        let y_row0 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y_row1 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w0_lo = _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256());
+        let w0_hi = _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256());
+        let y_row0 = _mm256_add_epi32(_mm256_madd_epi16(w0_lo, y_transform_a), _mm256_madd_epi16(w0_lo, y_transform_b));
+        let y_row1 = _mm256_add_epi32(_mm256_madd_epi16(w0_hi, y_transform_a), _mm256_madd_epi16(w0_hi, y_transform_b));
 
         let mut f_y0 = _mm256_hadd_epi32(y_row0, y_row1);
         f_y0 = _mm256_add_epi32(f_y0, y_bias);
         f_y0 = _mm256_srai_epi32::<PRECISION>(f_y0);
 
-        let y_row2 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z0_1, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y_row3 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z0_1, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w1_lo = _mm256_unpacklo_epi8(row_z0_1, _mm256_setzero_si256());
+        let w1_hi = _mm256_unpackhi_epi8(row_z0_1, _mm256_setzero_si256());
+        let y_row2 = _mm256_add_epi32(_mm256_madd_epi16(w1_lo, y_transform_a), _mm256_madd_epi16(w1_lo, y_transform_b));
+        let y_row3 = _mm256_add_epi32(_mm256_madd_epi16(w1_hi, y_transform_a), _mm256_madd_epi16(w1_hi, y_transform_b));
 
         let mut f_y2 = _mm256_hadd_epi32(y_row2, y_row3);
         f_y2 = _mm256_add_epi32(f_y2, y_bias);
@@ -648,27 +632,19 @@ unsafe fn avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const PRECISION: i32
 
         let avgu0_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(avg0, shuf_uv), 1);
 
-        let y_row0 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y_row1 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w0_lo = _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256());
+        let w0_hi = _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256());
+        let y_row0 = _mm256_add_epi32(_mm256_madd_epi16(w0_lo, y_transform_a), _mm256_madd_epi16(w0_lo, y_transform_b));
+        let y_row1 = _mm256_add_epi32(_mm256_madd_epi16(w0_hi, y_transform_a), _mm256_madd_epi16(w0_hi, y_transform_b));
 
         let mut f_y0 = _mm256_hadd_epi32(y_row0, y_row1);
         f_y0 = _mm256_add_epi32(f_y0, y_bias);
         f_y0 = _mm256_srai_epi32::<PRECISION>(f_y0);
 
-        let y_row2 = _mm256_madd_epi16(
-            _mm256_unpacklo_epi8(row_z0_1, _mm256_setzero_si256()),
-            y_transform,
-        );
-        let y_row3 = _mm256_madd_epi16(
-            _mm256_unpackhi_epi8(row_z0_1, _mm256_setzero_si256()),
-            y_transform,
-        );
+        let w1_lo = _mm256_unpacklo_epi8(row_z0_1, _mm256_setzero_si256());
+        let w1_hi = _mm256_unpackhi_epi8(row_z0_1, _mm256_setzero_si256());
+        let y_row2 = _mm256_add_epi32(_mm256_madd_epi16(w1_lo, y_transform_a), _mm256_madd_epi16(w1_lo, y_transform_b));
+        let y_row3 = _mm256_add_epi32(_mm256_madd_epi16(w1_hi, y_transform_a), _mm256_madd_epi16(w1_hi, y_transform_b));
 
         let mut f_y2 = _mm256_hadd_epi32(y_row2, y_row3);
         f_y2 = _mm256_add_epi32(f_y2, y_bias);

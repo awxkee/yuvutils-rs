@@ -28,7 +28,7 @@
  */
 
 use crate::avx512bw::avx512_utils::{
-    _mm512_affine_dot, avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8_j,
+    _mm512_affine_dot, _mm512_affine_dot_split, avx512_load_rgb_u8, avx512_pack_u16, avx512_pairwise_avg_epi16_epi8_j,
     avx512_zip_epi16, avx512_zip_epi8,
 };
 use crate::internals::ProcessedOffset;
@@ -103,7 +103,11 @@ unsafe fn encode_64_part<
 
     let rounding_const_y = (1 << (PRECISION - 1)) - 1;
     let y_bias = _mm512_set1_epi32(range.bias_y as i32 * (1 << PRECISION) + rounding_const_y);
-    let v_yr_yg = _mm512_set1_epi32(transform._interleaved_yr_yg());
+    let yg_a = (transform.yg / 2) as i16;
+    let yg_b = (transform.yg - transform.yg / 2) as i16;
+    let yr = transform.yr as i16;
+    let v_yr_yga = _mm512_set1_epi32((yr as u16 as i32) | ((yg_a as i32) << 16));
+    let v_0_ygb = _mm512_set1_epi32((yg_b as i32) << 16);
     let v_yb = _mm512_set1_epi32(transform.yb);
 
     let precision_uv = PRECISION + 1;
@@ -127,8 +131,8 @@ unsafe fn encode_64_part<
     let (rl_gl0, rl_gl1) = avx512_zip_epi16(rl0, gl0);
     let (b_lo0, b_lo1) = avx512_zip_epi16(bl0, _mm512_setzero_si512());
 
-    let y00_vl = _mm512_affine_dot::<PRECISION, HAS_DOT>(
-        y_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_yr_yg, v_yb,
+    let y00_vl = _mm512_affine_dot_split::<PRECISION>(
+        y_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_yr_yga, v_0_ygb, v_yb,
     );
 
     let rh0 = _mm512_unpackhi_epi8(r_values0, _mm512_setzero_si512());
@@ -138,8 +142,9 @@ unsafe fn encode_64_part<
     let (rl_gh0, rl_gh1) = avx512_zip_epi16(rh0, gh0);
     let (b_h0, b_h1) = avx512_zip_epi16(bh0, _mm512_setzero_si512());
 
-    let y01_vl =
-        _mm512_affine_dot::<PRECISION, HAS_DOT>(y_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_yr_yg, v_yb);
+    let y01_vl = _mm512_affine_dot_split::<PRECISION>(
+        y_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_yr_yga, v_0_ygb, v_yb,
+    );
 
     let y0_values = _mm512_packus_epi16(y00_vl, y01_vl);
     _mm512_storeu_si512(y_dst0.as_mut_ptr() as *mut _, y0_values);
@@ -151,8 +156,8 @@ unsafe fn encode_64_part<
     let (rl_gl01, rl_gl11) = avx512_zip_epi16(rl1, gl1);
     let (b_lo10, b_lo11) = avx512_zip_epi16(bl1, _mm512_setzero_si512());
 
-    let y10_vl = _mm512_affine_dot::<PRECISION, HAS_DOT>(
-        y_bias, rl_gl01, rl_gl11, b_lo10, b_lo11, v_yr_yg, v_yb,
+    let y10_vl = _mm512_affine_dot_split::<PRECISION>(
+        y_bias, rl_gl01, rl_gl11, b_lo10, b_lo11, v_yr_yga, v_0_ygb, v_yb,
     );
 
     let rh1 = _mm512_unpackhi_epi8(r_values1, _mm512_setzero_si512());
@@ -162,8 +167,8 @@ unsafe fn encode_64_part<
     let (rl_gh11, rl_gh110) = avx512_zip_epi16(rh1, gh1);
     let (b_h11, b_h111) = avx512_zip_epi16(bh1, _mm512_setzero_si512());
 
-    let y11_vl = _mm512_affine_dot::<PRECISION, HAS_DOT>(
-        y_bias, rl_gh11, rl_gh110, b_h11, b_h111, v_yr_yg, v_yb,
+    let y11_vl = _mm512_affine_dot_split::<PRECISION>(
+        y_bias, rl_gh11, rl_gh110, b_h11, b_h111, v_yr_yga, v_0_ygb, v_yb,
     );
 
     let y0_values = _mm512_packus_epi16(y10_vl, y11_vl);

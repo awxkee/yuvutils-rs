@@ -34,36 +34,6 @@ use crate::yuv_support::{
 use std::arch::aarch64::*;
 
 #[inline(always)]
-unsafe fn vmlal_laneq_dot3<const L0: i32, const L1: i32, const L2: i32>(
-    bias: int32x4_t,
-    r: int16x4_t,
-    g: int16x4_t,
-    b: int16x4_t,
-    w_a: int16x8_t,
-    w_b: int16x8_t,
-) -> int32x4_t {
-    let mut acc = vmlal_laneq_s16::<L0>(bias, r, w_a);
-    acc = vmlal_laneq_s16::<L1>(acc, g, w_a);
-    acc = vmlal_laneq_s16::<L1>(acc, g, w_b);
-    vmlal_laneq_s16::<L2>(acc, b, w_a)
-}
-
-#[inline(always)]
-unsafe fn vmlal_high_laneq_dot3<const L0: i32, const L1: i32, const L2: i32>(
-    bias: int32x4_t,
-    r: int16x8_t,
-    g: int16x8_t,
-    b: int16x8_t,
-    w_a: int16x8_t,
-    w_b: int16x8_t,
-) -> int32x4_t {
-    let mut acc = vmlal_high_laneq_s16::<L0>(bias, r, w_a);
-    acc = vmlal_high_laneq_s16::<L1>(acc, g, w_a);
-    acc = vmlal_high_laneq_s16::<L1>(acc, g, w_b);
-    vmlal_high_laneq_s16::<L2>(acc, b, w_a)
-}
-
-#[inline(always)]
 unsafe fn encode_16_part_prof<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
     src: &[u8],
     y_dst: &mut [u8],

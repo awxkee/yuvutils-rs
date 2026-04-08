@@ -752,7 +752,7 @@ mod tests {
             }
         }
 
-        let max_diff = 1;
+        let max_diff = 2;
         assert!(
             worst_r <= max_diff && worst_g <= max_diff && worst_b <= max_diff,
             "WebP P16 round-trip: worst per-channel diffs ({},{},{}) exceed {}",

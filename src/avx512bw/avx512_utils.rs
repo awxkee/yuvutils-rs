@@ -927,6 +927,40 @@ pub(crate) unsafe fn _mm512_affine_dot<const PRECISION: u32, const HAS_DOT: bool
     }
 }
 
+/// Like `_mm512_affine_dot` but with split coefficient for the R⊗G pair.
+/// Used when the green coefficient exceeds i16::MAX (e.g. Professional P16).
+#[inline(always)]
+pub(crate) unsafe fn _mm512_affine_dot_split<const PRECISION: u32>(
+    accumulator: __m512i,
+    v0: __m512i,
+    v1: __m512i,
+    b0: __m512i,
+    b1: __m512i,
+    w0_a: __m512i,
+    w0_b: __m512i,
+    w1: __m512i,
+) -> __m512i {
+    let rg_a0 = _mm512_madd_epi16(v0, w0_a);
+    let rg_b0 = _mm512_madd_epi16(v0, w0_b);
+    let b_w0 = _mm512_madd_epi16(b0, w1);
+    let rg_a1 = _mm512_madd_epi16(v1, w0_a);
+    let rg_b1 = _mm512_madd_epi16(v1, w0_b);
+    let b_w1 = _mm512_madd_epi16(b1, w1);
+
+    let y_l_l = _mm512_add_epi32(
+        _mm512_add_epi32(rg_a0, rg_b0),
+        _mm512_add_epi32(b_w0, accumulator),
+    );
+    let y_l_h = _mm512_add_epi32(
+        _mm512_add_epi32(rg_a1, rg_b1),
+        _mm512_add_epi32(b_w1, accumulator),
+    );
+    avx512_pack_u32(
+        _mm512_srli_epi32::<PRECISION>(y_l_l),
+        _mm512_srli_epi32::<PRECISION>(y_l_h),
+    )
+}
+
 #[inline(always)]
 pub(crate) unsafe fn _mm512_expand8_to_10<const HAS_VBMI: bool>(v: __m512i) -> (__m512i, __m512i) {
     let (v0, v1) = avx512_zip_epi8::<HAS_VBMI>(v, v);
