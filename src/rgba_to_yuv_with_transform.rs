@@ -617,7 +617,7 @@ mod tests {
             let diff_g = (g as i32 - og as i32).abs();
             let diff_b = (b as i32 - ob as i32).abs();
 
-            let max_diff = 2;
+            let max_diff = 1;
             assert!(
                 diff_r <= max_diff,
                 "P16 Full/Bt709, R diff {}, Original RGBA {:?}, Round-tripped RGBA {:?}, point {:?}",
@@ -732,7 +732,7 @@ mod tests {
             }
         }
 
-        let max_diff = 2;
+        let max_diff = 1;
         assert!(
             worst_r <= max_diff && worst_g <= max_diff && worst_b <= max_diff,
             "WebP P16 round-trip: worst per-channel diffs ({},{},{}) exceed {}",
