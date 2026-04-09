@@ -108,7 +108,7 @@ unsafe fn sse_yuv_p16_to_rgba8_row_impl<
 
     let dst_ptr = bgra;
 
-    let v_max_colors = _mm_set1_epi16((1i16 << BIT_DEPTH as i16) - 1);
+    let v_alpha = _mm_set1_epi8(255u8 as i8);
 
     let y_corr = _mm_set1_epi16(bias_y as i16);
     let uv_corr = _mm_set1_epi16(bias_uv as i16);
@@ -215,7 +215,7 @@ unsafe fn sse_yuv_p16_to_rgba8_row_impl<
             r_values,
             g_values,
             b_values,
-            v_max_colors,
+            v_alpha,
         );
 
         cx += 8;
