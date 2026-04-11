@@ -555,7 +555,7 @@ fn yuv_nv_p10_to_image_impl<
             SAMPLING,
             ENDIANNESS,
             BYTES_POSITION,
-            14,
+            16,
             16,
         >(
             image,
@@ -569,7 +569,7 @@ fn yuv_nv_p10_to_image_impl<
                 SAMPLING,
                 ENDIANNESS,
                 BYTES_POSITION,
-                14,
+                16,
                 10,
             >::default(),
         ),

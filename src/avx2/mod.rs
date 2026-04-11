@@ -186,11 +186,6 @@ impl CbCrForwardTransform<i32> {
     }
 
     #[inline]
-    pub(crate) fn avx_make_transform_y(&self, cn: YuvSourceChannels) -> i64 {
-        Self::avx_pack_rgba(self.yr as i16, self.yg as i16, self.yb as i16, cn)
-    }
-
-    #[inline]
     pub(crate) fn avx_make_transform_cb(&self, cn: YuvSourceChannels) -> i64 {
         Self::avx_pack_rgba(self.cb_r as i16, self.cb_g as i16, self.cb_b as i16, cn)
     }
@@ -200,3 +195,5 @@ impl CbCrForwardTransform<i32> {
         Self::avx_pack_rgba(self.cr_r as i16, self.cr_g as i16, self.cr_b as i16, cn)
     }
 }
+mod rgba_to_yuv420_p16;
+pub(crate) use rgba_to_yuv420_p16::avx2_rgba_to_yuv420_p16;

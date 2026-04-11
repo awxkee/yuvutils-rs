@@ -660,6 +660,42 @@ pub(crate) unsafe fn _mm256_store_interleave_rgb16_for_yuv<const ORIGINS: u8>(
     }
 }
 
+/// Like `_mm256_affine_dot` but with split coefficient for the R⊗G pair.
+/// Used when the green coefficient exceeds i16::MAX (e.g. Professional P16).
+/// Takes two weight vectors `w0_a` (primary) and `w0_b` (split remainder)
+/// for the R⊗G multiply, plus `w1` for the B⊗0 multiply.
+#[inline(always)]
+pub(crate) unsafe fn _mm256_affine_dot_split<const PRECISION: i32>(
+    accumulator: __m256i,
+    v0: __m256i,
+    v1: __m256i,
+    b0: __m256i,
+    b1: __m256i,
+    w0_a: __m256i,
+    w0_b: __m256i,
+    w1: __m256i,
+) -> __m256i {
+    let rg_a0 = _mm256_madd_epi16(v0, w0_a);
+    let rg_b0 = _mm256_madd_epi16(v0, w0_b);
+    let b_w0 = _mm256_madd_epi16(b0, w1);
+    let rg_a1 = _mm256_madd_epi16(v1, w0_a);
+    let rg_b1 = _mm256_madd_epi16(v1, w0_b);
+    let b_w1 = _mm256_madd_epi16(b1, w1);
+
+    let y_l_l = _mm256_add_epi32(
+        _mm256_add_epi32(rg_a0, rg_b0),
+        _mm256_add_epi32(b_w0, accumulator),
+    );
+    let y_l_h = _mm256_add_epi32(
+        _mm256_add_epi32(rg_a1, rg_b1),
+        _mm256_add_epi32(b_w1, accumulator),
+    );
+    avx2_pack_u32(
+        _mm256_srli_epi32::<PRECISION>(y_l_l),
+        _mm256_srli_epi32::<PRECISION>(y_l_h),
+    )
+}
+
 #[inline(always)]
 pub(crate) unsafe fn _mm256_store_interleave_rgb_half_for_yuv<const ORIGINS: u8>(
     ptr: *mut u8,

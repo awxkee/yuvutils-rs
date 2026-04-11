@@ -120,6 +120,7 @@ mod rgb_to_ycgco;
 mod rgb_to_ycgco_r;
 mod rgba_to_nv;
 mod rgba_to_yuv;
+mod rgba_to_yuv_with_transform;
 mod sharpyuv;
 mod shuffle;
 #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "sse"))]
@@ -158,6 +159,8 @@ mod yuv_support;
 mod yuv_to_rgba;
 mod yuv_to_rgba_alpha;
 mod yuv_to_rgba_bilinear;
+#[allow(dead_code)]
+mod yuv_to_rgba_with_transform;
 mod yuv_to_yuy2;
 mod yuv_to_yuy2_p16;
 #[cfg(feature = "nightly_f16")]
@@ -169,9 +172,12 @@ mod yuy2_to_yuv;
 mod yuy2_to_yuv_p16;
 
 pub use yuv_support::{
-    Rgb30ByteOrder, YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness,
-    YuvRange, YuvStandardMatrix,
+    CbCrForwardTransform, CbCrInverseTransform, Rgb30ByteOrder, ToIntegerTransform,
+    YuvBytesPacking, YuvChromaSubsampling, YuvConversionMode, YuvEndianness, YuvForwardTransform,
+    YuvInverseTransform, YuvRange, YuvStandardMatrix,
 };
+
+pub use yuv_support::{get_forward_transform, get_yuv_range, YuvChromaRange};
 
 pub use yuv_nv_p10_to_rgb::{
     p010_to_bgr, p010_to_bgra, p010_to_rgb, p010_to_rgba, p210_to_bgr, p210_to_bgra, p210_to_rgb,
@@ -426,13 +432,21 @@ pub use yuy2_to_rgb_p16::yvyu422_to_rgb_p16;
 pub use yuy2_to_rgb_p16::yvyu422_to_rgba_p16;
 
 pub use sharpyuv::bgr_to_sharp_yuv420;
+pub use sharpyuv::bgr_to_sharp_yuv420_with_transform;
 pub use sharpyuv::bgr_to_sharp_yuv422;
+pub use sharpyuv::bgr_to_sharp_yuv422_with_transform;
 pub use sharpyuv::bgra_to_sharp_yuv420;
+pub use sharpyuv::bgra_to_sharp_yuv420_with_transform;
 pub use sharpyuv::bgra_to_sharp_yuv422;
+pub use sharpyuv::bgra_to_sharp_yuv422_with_transform;
 pub use sharpyuv::rgb_to_sharp_yuv420;
+pub use sharpyuv::rgb_to_sharp_yuv420_with_transform;
 pub use sharpyuv::rgb_to_sharp_yuv422;
+pub use sharpyuv::rgb_to_sharp_yuv422_with_transform;
 pub use sharpyuv::rgba_to_sharp_yuv420;
+pub use sharpyuv::rgba_to_sharp_yuv420_with_transform;
 pub use sharpyuv::rgba_to_sharp_yuv422;
+pub use sharpyuv::rgba_to_sharp_yuv422_with_transform;
 pub use sharpyuv::SharpYuvGammaTransfer;
 
 pub use from_identity::{
@@ -632,3 +646,5 @@ pub use yuv_p16_to_rgba16_bilinear::{
     i214_to_rgb14_bilinear, i214_to_rgba14_bilinear, i216_to_rgb16_bilinear,
     i216_to_rgba16_bilinear, i414_to_rgb14_bilinear, i414_to_rgba14_bilinear,
 };
+
+pub use rgba_to_yuv_with_transform::{rgb_to_yuv420_with_transform, rgba_to_yuv420_with_transform};

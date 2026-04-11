@@ -311,12 +311,12 @@ fn sharpen_row422<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION
     }
 }
 
-fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+fn rgbx_to_sharp_yuv_core<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32>(
     planar_image: &mut YuvPlanarImageMut<u8>,
     rgba: &[u8],
     rgba_stride: u32,
-    range: YuvRange,
-    matrix: YuvStandardMatrix,
+    chroma_range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
     sharp_yuv_gamma_transfer: SharpYuvGammaTransfer,
 ) -> Result<(), YuvError> {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
@@ -347,7 +347,6 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         *item = (gamma * 255.) as u8;
     }
 
-    // Always using 3 Channels ( RGB etc. ) layout since we do not need a alpha channel
     let mut rgb_layout: Vec<u16> =
         vec![0u16; planar_image.width as usize * planar_image.height as usize * 3];
 
@@ -377,24 +376,6 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
             dst[2] = linear_map_table[src[2] as usize];
         }
     });
-
-    let chroma_range = get_yuv_range(8, range);
-    let kr_kb = matrix.get_kr_kb();
-    let max_range_p8 = (1u32 << 8u32) - 1u32;
-    const PRECISION: i32 = 13;
-    let transform =
-        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
-            stored_t
-        } else {
-            let transform_precise = get_forward_transform(
-                max_range_p8,
-                chroma_range.range_y,
-                chroma_range.range_uv,
-                kr_kb.kr,
-                kr_kb.kb,
-            );
-            transform_precise.to_integers(PRECISION as u32)
-        };
 
     let y_iter;
     let u_iter;
@@ -502,8 +483,8 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                         rgb_layout_lane,
                         rgb_layout_next_lane,
                         &gamma_map_table,
-                        &chroma_range,
-                        &transform,
+                        chroma_range,
+                        transform,
                         planar_image.width as usize,
                     );
                 }
@@ -519,14 +500,13 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                     &mut v_plane[..(planar_image.width as usize).div_ceil(2)],
                     rgb_layout_lane,
                     &gamma_map_table,
-                    &chroma_range,
-                    &transform,
+                    chroma_range,
+                    transform,
                     planar_image.width as usize,
                 );
             }
         });
 
-    // Handle last row if image is odd
     if planar_image.height & 1 != 0 && chroma_subsampling == YuvChromaSubsampling::Yuv420 {
         let y_iter = planar_image
             .y_plane
@@ -571,14 +551,88 @@ fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 rgb_layout_lane,
                 rgb_layout_next_lane,
                 &gamma_map_table,
-                &chroma_range,
-                &transform,
+                chroma_range,
+                transform,
                 planar_image.width as usize,
             );
         });
     }
 
     Ok(())
+}
+
+fn rgbx_to_sharp_yuv_dispatch_mode<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+    planar_image: &mut YuvPlanarImageMut<u8>,
+    rgba: &[u8],
+    rgba_stride: u32,
+    chroma_range: &YuvChromaRange,
+    transform: &CbCrForwardTransform<i32>,
+    sharp_yuv_gamma_transfer: SharpYuvGammaTransfer,
+    mode: YuvConversionMode,
+) -> Result<(), YuvError> {
+    match mode {
+        #[cfg(feature = "fast_mode")]
+        YuvConversionMode::Fast => rgbx_to_sharp_yuv_core::<ORIGIN_CHANNELS, SAMPLING, 7>(
+            planar_image,
+            rgba,
+            rgba_stride,
+            chroma_range,
+            transform,
+            sharp_yuv_gamma_transfer,
+        ),
+        YuvConversionMode::Balanced => rgbx_to_sharp_yuv_core::<ORIGIN_CHANNELS, SAMPLING, 13>(
+            planar_image,
+            rgba,
+            rgba_stride,
+            chroma_range,
+            transform,
+            sharp_yuv_gamma_transfer,
+        ),
+        #[cfg(feature = "professional_mode")]
+        YuvConversionMode::Professional => rgbx_to_sharp_yuv_core::<ORIGIN_CHANNELS, SAMPLING, 16>(
+            planar_image,
+            rgba,
+            rgba_stride,
+            chroma_range,
+            transform,
+            sharp_yuv_gamma_transfer,
+        ),
+    }
+}
+
+fn rgbx_to_sharp_yuv<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
+    planar_image: &mut YuvPlanarImageMut<u8>,
+    rgba: &[u8],
+    rgba_stride: u32,
+    range: YuvRange,
+    matrix: YuvStandardMatrix,
+    sharp_yuv_gamma_transfer: SharpYuvGammaTransfer,
+) -> Result<(), YuvError> {
+    let chroma_range = get_yuv_range(8, range);
+    let kr_kb = matrix.get_kr_kb();
+    let max_range_p8 = (1u32 << 8u32) - 1u32;
+    const PRECISION: i32 = 13;
+    let transform =
+        if let Some(stored_t) = get_built_forward_transform(PRECISION as u32, 8, range, matrix) {
+            stored_t
+        } else {
+            let transform_precise = get_forward_transform(
+                max_range_p8,
+                chroma_range.range_y,
+                chroma_range.range_uv,
+                kr_kb.kr,
+                kr_kb.kb,
+            );
+            transform_precise.to_integers(PRECISION as u32)
+        };
+    rgbx_to_sharp_yuv_core::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
+        planar_image,
+        rgba,
+        rgba_stride,
+        &chroma_range,
+        &transform,
+        sharp_yuv_gamma_transfer,
+    )
 }
 
 /// Convert RGB image data to YUV 422 planar format using bi-linear interpolation and gamma correction ( sharp YUV algorithm ).
@@ -874,4 +928,445 @@ pub fn bgra_to_sharp_yuv420(
         matrix,
         gamma_transfer,
     )
+}
+
+macro_rules! build_sharp_yuv_with_transform {
+    ($method:ident, $px_fmt:expr, $sampling:expr, $px_name:expr, $sampling_name:expr) => {
+        #[doc = concat!("Convert ", $px_name, " to SharpYUV ", $sampling_name, " using pre-computed transform coefficients.")]
+        pub fn $method(
+            planar_image: &mut YuvPlanarImageMut<u8>,
+            src: &[u8],
+            src_stride: u32,
+            config: &YuvForwardTransform,
+            gamma_transfer: SharpYuvGammaTransfer,
+        ) -> Result<(), YuvError> {
+            rgbx_to_sharp_yuv_dispatch_mode::<
+                { $px_fmt as u8 },
+                { $sampling as u8 },
+            >(
+                planar_image, src, src_stride, &config.chroma_range, &config.transform, gamma_transfer, config.mode,
+            )
+        }
+    };
+}
+
+build_sharp_yuv_with_transform!(
+    rgb_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "RGB",
+    "422"
+);
+build_sharp_yuv_with_transform!(
+    bgr_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Bgr,
+    YuvChromaSubsampling::Yuv422,
+    "BGR",
+    "422"
+);
+build_sharp_yuv_with_transform!(
+    rgba_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv422,
+    "RGBA",
+    "422"
+);
+build_sharp_yuv_with_transform!(
+    bgra_to_sharp_yuv422_with_transform,
+    YuvSourceChannels::Bgra,
+    YuvChromaSubsampling::Yuv422,
+    "BGRA",
+    "422"
+);
+
+build_sharp_yuv_with_transform!(
+    rgb_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "RGB",
+    "420"
+);
+build_sharp_yuv_with_transform!(
+    bgr_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Bgr,
+    YuvChromaSubsampling::Yuv420,
+    "BGR",
+    "420"
+);
+build_sharp_yuv_with_transform!(
+    rgba_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Rgba,
+    YuvChromaSubsampling::Yuv420,
+    "RGBA",
+    "420"
+);
+build_sharp_yuv_with_transform!(
+    bgra_to_sharp_yuv420_with_transform,
+    YuvSourceChannels::Bgra,
+    YuvChromaSubsampling::Yuv420,
+    "BGRA",
+    "420"
+);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sharpyuv::sharp_gamma::SharpYuvGammaTransfer;
+    #[cfg(feature = "professional_mode")]
+    use crate::yuv_support::YuvInverseTransform;
+    use crate::yuv_support::{
+        get_forward_transform, get_inverse_transform, get_yuv_range, ToIntegerTransform,
+        YuvForwardTransform,
+    };
+    #[cfg(feature = "professional_mode")]
+    use crate::yuv_to_rgba_with_transform::yuv420_to_rgba_with_transform;
+    use rand::RngExt;
+
+    #[test]
+    fn test_sharp_yuv420_with_transform_matches_original() {
+        const W: usize = 64;
+        const H: usize = 64;
+        const CH: usize = 4;
+
+        let or = rand::rng().random_range(0..256) as u8;
+        let og = rand::rng().random_range(0..256) as u8;
+        let ob = rand::rng().random_range(0..256) as u8;
+
+        let mut src = vec![0u8; W * H * CH];
+        for px in src.chunks_exact_mut(CH) {
+            px[0] = or;
+            px[1] = og;
+            px[2] = ob;
+            px[3] = 255;
+        }
+
+        let range = get_yuv_range(8, YuvRange::Limited);
+        let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
+        let transform =
+            get_forward_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)
+                .to_integers(13);
+
+        let mut planar_orig =
+            YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+        rgba_to_sharp_yuv420(
+            &mut planar_orig,
+            &src,
+            W as u32 * CH as u32,
+            YuvRange::Limited,
+            YuvStandardMatrix::Bt601,
+            SharpYuvGammaTransfer::Srgb,
+        )
+        .unwrap();
+
+        let mut planar_new =
+            YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+        let fwd_config = YuvForwardTransform {
+            transform,
+            chroma_range: range,
+            mode: YuvConversionMode::Balanced,
+        };
+        rgba_to_sharp_yuv420_with_transform(
+            &mut planar_new,
+            &src,
+            W as u32 * CH as u32,
+            &fwd_config,
+            SharpYuvGammaTransfer::Srgb,
+        )
+        .unwrap();
+
+        assert_eq!(
+            planar_orig.y_plane.borrow(),
+            planar_new.y_plane.borrow(),
+            "Y planes differ between original and with_transform at Balanced/P13"
+        );
+        assert_eq!(
+            planar_orig.u_plane.borrow(),
+            planar_new.u_plane.borrow(),
+            "U planes differ"
+        );
+        assert_eq!(
+            planar_orig.v_plane.borrow(),
+            planar_new.v_plane.borrow(),
+            "V planes differ"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "professional_mode")]
+    fn test_sharp_yuv420_with_transform_p16_round_trip() {
+        const W: usize = 64;
+        const H: usize = 64;
+        const CH: usize = 4;
+
+        let mut worst_r = 0i32;
+        let mut worst_g = 0i32;
+        let mut worst_b = 0i32;
+
+        for _ in 0..20 {
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
+
+            let mut src = vec![0u8; W * H * CH];
+            for px in src.chunks_exact_mut(CH) {
+                px[0] = or;
+                px[1] = og;
+                px[2] = ob;
+                px[3] = 255;
+            }
+
+            let range = get_yuv_range(8, YuvRange::Limited);
+            let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
+            let transform =
+                get_forward_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)
+                    .to_integers(16);
+            let inverse_transform =
+                get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)
+                    .to_integers(16);
+
+            let mut planar =
+                YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+            let fwd_config = YuvForwardTransform {
+                transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
+            rgba_to_sharp_yuv420_with_transform(
+                &mut planar,
+                &src,
+                W as u32 * CH as u32,
+                &fwd_config,
+                SharpYuvGammaTransfer::Srgb,
+            )
+            .unwrap();
+
+            let fixed = planar.to_fixed();
+            let mut dst = vec![0u8; W * H * CH];
+            let inv_config = YuvInverseTransform {
+                inverse_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
+            yuv420_to_rgba_with_transform(&fixed, &mut dst, W as u32 * CH as u32, &inv_config)
+                .unwrap();
+
+            for (src_px, dst_px) in src.chunks_exact(CH).zip(dst.chunks_exact(CH)) {
+                worst_r = worst_r.max((dst_px[0] as i32 - src_px[0] as i32).abs());
+                worst_g = worst_g.max((dst_px[1] as i32 - src_px[1] as i32).abs());
+                worst_b = worst_b.max((dst_px[2] as i32 - src_px[2] as i32).abs());
+            }
+        }
+
+        let max_diff = 2;
+        assert!(
+            worst_r <= max_diff && worst_g <= max_diff && worst_b <= max_diff,
+            "SharpYUV P16 round-trip: worst per-channel diffs ({},{},{}) exceed {}",
+            worst_r,
+            worst_g,
+            worst_b,
+            max_diff
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "professional_mode")]
+    fn test_sharp_yuv420_webp_coefficients() {
+        const W: usize = 64;
+        const H: usize = 64;
+        const CH: usize = 4;
+
+        let webp_transform = CbCrForwardTransform {
+            yr: 16839,
+            yg: 33059,
+            yb: 6420,
+            cb_r: -9719,
+            cb_g: -19081,
+            cb_b: 28800,
+            cr_r: 28800,
+            cr_g: -24116,
+            cr_b: -4684,
+        };
+
+        let range = get_yuv_range(8, YuvRange::Limited);
+        let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
+        let inverse_transform =
+            get_inverse_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)
+                .to_integers(16);
+
+        let mut worst_r = 0i32;
+        let mut worst_g = 0i32;
+        let mut worst_b = 0i32;
+
+        for _ in 0..20 {
+            let or = rand::rng().random_range(0..256) as u8;
+            let og = rand::rng().random_range(0..256) as u8;
+            let ob = rand::rng().random_range(0..256) as u8;
+
+            let mut src = vec![0u8; W * H * CH];
+            for px in src.chunks_exact_mut(CH) {
+                px[0] = or;
+                px[1] = og;
+                px[2] = ob;
+                px[3] = 255;
+            }
+
+            let mut planar =
+                YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+            let fwd_config = YuvForwardTransform {
+                transform: webp_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
+            rgba_to_sharp_yuv420_with_transform(
+                &mut planar,
+                &src,
+                W as u32 * CH as u32,
+                &fwd_config,
+                SharpYuvGammaTransfer::Srgb,
+            )
+            .unwrap();
+
+            let fixed = planar.to_fixed();
+            let mut dst = vec![0u8; W * H * CH];
+            let inv_config = YuvInverseTransform {
+                inverse_transform,
+                chroma_range: range,
+                mode: YuvConversionMode::Professional,
+            };
+            yuv420_to_rgba_with_transform(&fixed, &mut dst, W as u32 * CH as u32, &inv_config)
+                .unwrap();
+
+            for (src_px, dst_px) in src.chunks_exact(CH).zip(dst.chunks_exact(CH)) {
+                worst_r = worst_r.max((dst_px[0] as i32 - src_px[0] as i32).abs());
+                worst_g = worst_g.max((dst_px[1] as i32 - src_px[1] as i32).abs());
+                worst_b = worst_b.max((dst_px[2] as i32 - src_px[2] as i32).abs());
+            }
+        }
+
+        let max_diff = 2;
+        assert!(
+            worst_r <= max_diff && worst_g <= max_diff && worst_b <= max_diff,
+            "SharpYUV WebP round-trip: worst per-channel diffs ({},{},{}) exceed {}",
+            worst_r,
+            worst_g,
+            worst_b,
+            max_diff
+        );
+    }
+
+    #[test]
+    fn test_sharp_yuv422_with_transform_round_trip() {
+        const W: usize = 64;
+        const H: usize = 64;
+        const CH: usize = 3;
+
+        let or = rand::rng().random_range(0..256) as u8;
+        let og = rand::rng().random_range(0..256) as u8;
+        let ob = rand::rng().random_range(0..256) as u8;
+
+        let mut src = vec![0u8; W * H * CH];
+        for px in src.chunks_exact_mut(CH) {
+            px[0] = or;
+            px[1] = og;
+            px[2] = ob;
+        }
+
+        let range = get_yuv_range(8, YuvRange::Limited);
+        let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
+        let transform =
+            get_forward_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)
+                .to_integers(13);
+
+        let mut planar =
+            YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv422);
+        let fwd_config = YuvForwardTransform {
+            transform,
+            chroma_range: range,
+            mode: YuvConversionMode::Balanced,
+        };
+        rgb_to_sharp_yuv422_with_transform(
+            &mut planar,
+            &src,
+            W as u32 * CH as u32,
+            &fwd_config,
+            SharpYuvGammaTransfer::Srgb,
+        )
+        .unwrap();
+
+        let y_val = planar.y_plane.borrow()[0];
+        assert!(y_val > 0, "Y plane should have non-zero values");
+    }
+
+    #[test]
+    #[cfg(feature = "professional_mode")]
+    fn test_sharp_yuv_precision_differs_across_modes() {
+        const W: usize = 64;
+        const H: usize = 64;
+        const CH: usize = 4;
+
+        let mut src = vec![0u8; W * H * CH];
+        for (i, px) in src.chunks_exact_mut(CH).enumerate() {
+            px[0] = (i % 256) as u8;
+            px[1] = ((i * 7) % 256) as u8;
+            px[2] = ((i * 13) % 256) as u8;
+            px[3] = 255;
+        }
+
+        let range = get_yuv_range(8, YuvRange::Limited);
+        let kr_kb = YuvStandardMatrix::Bt601.get_kr_kb();
+
+        let transform_13 =
+            get_forward_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)
+                .to_integers(13);
+        let transform_16 =
+            get_forward_transform(255, range.range_y, range.range_uv, kr_kb.kr, kr_kb.kb)
+                .to_integers(16);
+
+        let mut planar_13 =
+            YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+        let fwd_13 = YuvForwardTransform {
+            transform: transform_13,
+            chroma_range: range,
+            mode: YuvConversionMode::Balanced,
+        };
+        rgba_to_sharp_yuv420_with_transform(
+            &mut planar_13,
+            &src,
+            W as u32 * CH as u32,
+            &fwd_13,
+            SharpYuvGammaTransfer::Srgb,
+        )
+        .unwrap();
+
+        let mut planar_16 =
+            YuvPlanarImageMut::<u8>::alloc(W as u32, H as u32, YuvChromaSubsampling::Yuv420);
+        let fwd_16 = YuvForwardTransform {
+            transform: transform_16,
+            chroma_range: range,
+            mode: YuvConversionMode::Professional,
+        };
+        rgba_to_sharp_yuv420_with_transform(
+            &mut planar_16,
+            &src,
+            W as u32 * CH as u32,
+            &fwd_16,
+            SharpYuvGammaTransfer::Srgb,
+        )
+        .unwrap();
+
+        let y_diff: u32 = planar_13
+            .y_plane
+            .borrow()
+            .iter()
+            .zip(planar_16.y_plane.borrow().iter())
+            .map(|(a, b)| (*a as i32 - *b as i32).unsigned_abs())
+            .sum();
+
+        assert!(
+            y_diff <= (W * H) as u32,
+            "P13 vs P16 Y planes should be close, total diff: {} (max allowed: {})",
+            y_diff,
+            W * H
+        );
+    }
 }

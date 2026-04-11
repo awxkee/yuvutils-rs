@@ -28,6 +28,99 @@
  */
 use crate::yuv_support::{CbCrForwardTransform, CbCrInverseTransform, YuvChromaRange};
 
+/// Handles the tail (remainder) of a 420 SIMD encode loop.
+///
+/// Allocates stack buffers, copies remaining source pixels in (replicating the
+/// last pixel for odd-width subsampling), invokes the caller's encode block,
+/// then copies the Y/U/V results back to the destination planes.
+#[allow(unused_macros)]
+macro_rules! tail_420 {
+    (
+        $stride:expr,
+        $cx:expr, $ux:expr, $width:expr, $channels:expr,
+        $rgba0:expr, $rgba1:expr,
+        $y_plane0:expr, $y_plane1:expr, $u_plane:expr, $v_plane:expr,
+        |$sb0:ident, $sb1:ident, $yb0:ident, $yb1:ident, $ub:ident, $vb:ident| $encode:expr
+    ) => {
+        if $cx < $width {
+            let diff = $width - $cx;
+            debug_assert!(diff <= $stride);
+
+            let mut src_buf0: [u8; $stride * 4] = [0u8; $stride * 4];
+            let mut src_buf1: [u8; $stride * 4] = [0u8; $stride * 4];
+
+            let mut y_buf0: [u8; $stride] = [0u8; $stride];
+            let mut y_buf1: [u8; $stride] = [0u8; $stride];
+            let mut u_buf: [u8; $stride] = [0u8; $stride];
+            let mut v_buf: [u8; $stride] = [0u8; $stride];
+
+            std::ptr::copy_nonoverlapping(
+                $rgba0.get_unchecked($cx * $channels..).as_ptr(),
+                src_buf0.as_mut_ptr(),
+                diff * $channels,
+            );
+            std::ptr::copy_nonoverlapping(
+                $rgba1.get_unchecked($cx * $channels..).as_ptr(),
+                src_buf1.as_mut_ptr(),
+                diff * $channels,
+            );
+
+            if diff % 2 != 0 {
+                let lst = ($width - 1) * $channels;
+                let last0 = $rgba0.get_unchecked(lst..(lst + $channels));
+                let last1 = $rgba1.get_unchecked(lst..(lst + $channels));
+                let dvb = diff * $channels;
+                let d0 = src_buf0.get_unchecked_mut(dvb..(dvb + $channels));
+                let d1 = src_buf1.get_unchecked_mut(dvb..(dvb + $channels));
+                for (d, s) in d0.iter_mut().zip(last0) {
+                    *d = *s;
+                }
+                for (d, s) in d1.iter_mut().zip(last1) {
+                    *d = *s;
+                }
+            }
+
+            let $sb0 = &src_buf0[..];
+            let $sb1 = &src_buf1[..];
+            let $yb0 = &mut y_buf0[..];
+            let $yb1 = &mut y_buf1[..];
+            let $ub = &mut u_buf[..];
+            let $vb = &mut v_buf[..];
+
+            $encode;
+
+            std::ptr::copy_nonoverlapping(
+                y_buf0.as_ptr(),
+                $y_plane0.get_unchecked_mut($cx..).as_mut_ptr(),
+                diff,
+            );
+            std::ptr::copy_nonoverlapping(
+                y_buf1.as_ptr(),
+                $y_plane1.get_unchecked_mut($cx..).as_mut_ptr(),
+                diff,
+            );
+
+            $cx += diff;
+
+            let hv = diff.div_ceil(2);
+            std::ptr::copy_nonoverlapping(
+                u_buf.as_ptr(),
+                $u_plane.get_unchecked_mut($ux..).as_mut_ptr(),
+                hv,
+            );
+            std::ptr::copy_nonoverlapping(
+                v_buf.as_ptr(),
+                $v_plane.get_unchecked_mut($ux..).as_mut_ptr(),
+                hv,
+            );
+
+            $ux += hv;
+        }
+    };
+}
+#[allow(unused_imports)]
+pub(crate) use tail_420;
+
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub(crate) struct ProcessedOffset {

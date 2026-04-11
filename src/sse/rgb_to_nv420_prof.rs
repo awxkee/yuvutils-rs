@@ -29,7 +29,7 @@
 
 use crate::internals::ProcessedOffset;
 use crate::sse::{
-    _mm_affine_uv_dot, _mm_interleave_epi16, _mm_load_deinterleave_rgb_for_yuv,
+    _mm_affine_dot_split, _mm_affine_uv_dot, _mm_interleave_epi16, _mm_load_deinterleave_rgb_for_yuv,
     sse_pairwise_avg_epi8_j,
 };
 use crate::yuv_support::{CbCrForwardTransform, YuvChromaRange, YuvNVOrder, YuvSourceChannels};
@@ -76,7 +76,11 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
 
     let rounding_const_y = (1 << (PRECISION - 1)) - 1;
     let y_bias = _mm_set1_epi32(range.bias_y as i32 * (1 << PRECISION) + rounding_const_y);
-    let v_yr_yg = _mm_set1_epi32(transform._interleaved_yr_yg());
+    let yg_a = (transform.yg / 2) as i16;
+    let yg_b = (transform.yg - transform.yg / 2) as i16;
+    let yr = transform.yr as i16;
+    let v_yr_yga = _mm_set1_epi32((yr as u16 as i32) | ((yg_a as i32) << 16));
+    let v_0_ygb = _mm_set1_epi32((yg_b as i32) << 16);
     let v_yb = _mm_set1_epi32(transform.yb);
 
     let precision_uv = PRECISION + 1;
@@ -101,7 +105,9 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let (b_lo0, b_lo1) = _mm_interleave_epi16(bl0, _mm_setzero_si128());
 
     let y00_vl =
-        _mm_affine_uv_dot::<PRECISION>(y_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_yr_yg, v_yb);
+        _mm_affine_dot_split::<PRECISION>(
+        y_bias, rl_gl0, rl_gl1, b_lo0, b_lo1, v_yr_yga, v_0_ygb, v_yb,
+    );
 
     let rh0 = _mm_unpackhi_epi8(r_values0, _mm_setzero_si128());
     let gh0 = _mm_unpackhi_epi8(g_values0, _mm_setzero_si128());
@@ -110,7 +116,9 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let (rl_gh0, rl_gh1) = _mm_interleave_epi16(rh0, gh0);
     let (b_h0, b_h1) = _mm_interleave_epi16(bh0, _mm_setzero_si128());
 
-    let y01_vl = _mm_affine_uv_dot::<PRECISION>(y_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_yr_yg, v_yb);
+    let y01_vl = _mm_affine_dot_split::<PRECISION>(
+        y_bias, rl_gh0, rl_gh1, b_h0, b_h1, v_yr_yga, v_0_ygb, v_yb,
+    );
 
     let y0_values = _mm_packus_epi16(y00_vl, y01_vl);
     _mm_storeu_si128(y_dst0.as_mut_ptr() as *mut _, y0_values);
@@ -123,7 +131,9 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let (b_lo10, b_lo11) = _mm_interleave_epi16(bl1, _mm_setzero_si128());
 
     let y10_vl =
-        _mm_affine_uv_dot::<PRECISION>(y_bias, rl_gl01, rl_gl11, b_lo10, b_lo11, v_yr_yg, v_yb);
+        _mm_affine_dot_split::<PRECISION>(
+        y_bias, rl_gl01, rl_gl11, b_lo10, b_lo11, v_yr_yga, v_0_ygb, v_yb,
+    );
 
     let rh1 = _mm_unpackhi_epi8(r_values1, _mm_setzero_si128());
     let gh1 = _mm_unpackhi_epi8(g_values1, _mm_setzero_si128());
@@ -133,7 +143,9 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let (b_h11, b_h111) = _mm_interleave_epi16(bh1, _mm_setzero_si128());
 
     let y11_vl =
-        _mm_affine_uv_dot::<PRECISION>(y_bias, rl_gh11, rl_gh110, b_h11, b_h111, v_yr_yg, v_yb);
+        _mm_affine_dot_split::<PRECISION>(
+        y_bias, rl_gh11, rl_gh110, b_h11, b_h111, v_yr_yga, v_0_ygb, v_yb,
+    );
 
     let y0_values = _mm_packus_epi16(y10_vl, y11_vl);
     _mm_storeu_si128(y_dst1.as_mut_ptr() as *mut _, y0_values);
@@ -149,8 +161,8 @@ unsafe fn encode_16_part<const ORIGIN_CHANNELS: u8, const UV_ORDER: u8, const PR
     let (rhv0, rhv1) = _mm_interleave_epi16(r1, g1);
     let (bhv0, bhv1) = _mm_interleave_epi16(b1, _mm_setzero_si128());
 
-    let cb_s = _mm_affine_uv_dot::<16>(uv_bias, rhv0, rhv1, bhv0, bhv1, v_cb_r_g, v_cb_b);
-    let cr_s = _mm_affine_uv_dot::<16>(uv_bias, rhv0, rhv1, bhv0, bhv1, v_cr_r_g, v_cr_b);
+    let cb_s = _mm_affine_uv_dot::<17>(uv_bias, rhv0, rhv1, bhv0, bhv1, v_cb_r_g, v_cb_b);
+    let cr_s = _mm_affine_uv_dot::<17>(uv_bias, rhv0, rhv1, bhv0, bhv1, v_cr_r_g, v_cr_b);
 
     let cb = _mm_packus_epi16(cb_s, cb_s);
     let cr = _mm_packus_epi16(cr_s, cr_s);

@@ -278,8 +278,8 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
     for RgbEncoderProfessional<ORIGIN_CHANNELS, SAMPLING, PRECISION>
 {
     fn default() -> Self {
-        if PRECISION == 15 {
-            assert_eq!(PRECISION, 15);
+        if PRECISION == 16 {
+            assert_eq!(PRECISION, 16);
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 use crate::neon::neon_rgba_to_yuv_prof;
@@ -537,8 +537,8 @@ impl<const ORIGIN_CHANNELS: u8, const SAMPLING: u8, const PRECISION: i32> Defaul
         }
         assert_eq!(chroma_subsampling, YuvChromaSubsampling::Yuv420);
 
-        if PRECISION == 15 {
-            assert_eq!(PRECISION, 15);
+        if PRECISION == 16 {
+            assert_eq!(PRECISION, 16);
             #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
             {
                 use crate::neon::neon_rgba_to_yuv_prof420;
@@ -1061,14 +1061,14 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
                 RgbEncoder420::<ORIGIN_CHANNELS, SAMPLING, 13>::default(),
             ),
             #[cfg(feature = "professional_mode")]
-            YuvConversionMode::Professional => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 15>(
+            YuvConversionMode::Professional => rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 16>(
                 image,
                 rgba,
                 rgba_stride,
                 range,
                 matrix,
-                RgbEncoderProfessional::<ORIGIN_CHANNELS, SAMPLING, 15>::default(),
-                RgbEncoder420Professional::<ORIGIN_CHANNELS, SAMPLING, 15>::default(),
+                RgbEncoderProfessional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                RgbEncoder420Professional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
             ),
         }
     }
@@ -1077,6 +1077,18 @@ fn rgbx_to_yuv8<const ORIGIN_CHANNELS: u8, const SAMPLING: u8>(
         all(target_arch = "aarch64", target_feature = "neon",),
     )))]
     {
+        #[cfg(feature = "professional_mode")]
+        if _mode == YuvConversionMode::Professional {
+            return rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 16>(
+                image,
+                rgba,
+                rgba_stride,
+                range,
+                matrix,
+                RgbEncoderProfessional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+                RgbEncoder420Professional::<ORIGIN_CHANNELS, SAMPLING, 16>::default(),
+            );
+        }
         rgbx_to_yuv8_impl::<ORIGIN_CHANNELS, SAMPLING, 13>(
             image,
             rgba,
