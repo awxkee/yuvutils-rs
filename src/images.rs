@@ -30,7 +30,7 @@ use crate::yuv_error::{
     check_chroma_channel, check_interleaved_chroma_channel, check_rgba_destination,
     check_y8_channel, check_yuv_packed422,
 };
-use crate::yuv_support::YuvChromaSubsampling;
+use crate::yuv_support::{YuvChromaSubsampling, YuvSourceChannels};
 use crate::YuvError;
 use std::fmt::Debug;
 
@@ -331,14 +331,11 @@ where
         Ok(())
     }
 
-    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
-    /// We don't want to work with any tails, so we'll truncate to valid data.
-    pub(crate) fn projected_chroma_plane<'a>(
-        &self,
-        u: &'a [T],
-        stride: u32,
-        sampling: YuvChromaSubsampling,
-    ) -> &'a [T] {
+    /// Splits mutable self into valid-sized projections for Y, U, and V planes.
+    pub(crate) fn projected_planes(&self, sampling: YuvChromaSubsampling) -> (&[T], &[T], &[T]) {
+        let y_valid_size =
+            self.y_stride as usize * (self.height as usize - 1) + self.width as usize;
+
         let chroma_min_width = match sampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => self.width.div_ceil(2),
             YuvChromaSubsampling::Yuv444 => self.width,
@@ -347,27 +344,16 @@ where
             YuvChromaSubsampling::Yuv420 => self.height.div_ceil(2),
             YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => self.height,
         };
-        let valid_size = stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
-        &u[..valid_size]
-    }
+        let u_chroma_valid_size =
+            self.u_stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
+        let v_chroma_valid_size =
+            self.v_stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
 
-    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
-    /// We don't want to work with any tails, so we'll truncate it to valid data.
-    pub(crate) fn projected_y_plane(&self) -> &[T] {
-        let valid_size = self.y_stride as usize * (self.height as usize - 1) + self.width as usize;
-        &self.y_plane[..valid_size]
-    }
+        let y = &self.y_plane[..y_valid_size];
+        let u = &self.u_plane[..u_chroma_valid_size];
+        let v = &self.v_plane[..v_chroma_valid_size];
 
-    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
-    /// We don't want to work with any tails, so we'll truncate it to valid data.
-    pub(crate) fn projected_u_plane(&self, sampling: YuvChromaSubsampling) -> &[T] {
-        self.projected_chroma_plane(self.u_plane, self.u_stride, sampling)
-    }
-
-    /// API can accept almost arbitrary sized planes, with limiting that it has it's minimal size.
-    /// We don't want to work with any tails, so we'll truncate it to valid data.
-    pub(crate) fn projected_v_plane(&self, sampling: YuvChromaSubsampling) -> &[T] {
-        self.projected_chroma_plane(self.v_plane, self.v_stride, sampling)
+        (y, u, v)
     }
 }
 
@@ -450,6 +436,34 @@ where
         }
     }
 
+    /// Splits mutable self into valid-sized projections for Y, U, and V planes.
+    pub(crate) fn projected_planes_mut(
+        &mut self,
+        sampling: YuvChromaSubsampling,
+    ) -> (&mut [T], &mut [T], &mut [T]) {
+        let y_valid_size =
+            self.y_stride as usize * (self.height as usize - 1) + self.width as usize;
+
+        let chroma_min_width = match sampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => self.width.div_ceil(2),
+            YuvChromaSubsampling::Yuv444 => self.width,
+        };
+        let chroma_height = match sampling {
+            YuvChromaSubsampling::Yuv420 => self.height.div_ceil(2),
+            YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => self.height,
+        };
+        let u_chroma_valid_size =
+            self.u_stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
+        let v_chroma_valid_size =
+            self.v_stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
+
+        let y = &mut self.y_plane.borrow_mut()[..y_valid_size];
+        let u = &mut self.u_plane.borrow_mut()[..u_chroma_valid_size];
+        let v = &mut self.v_plane.borrow_mut()[..v_chroma_valid_size];
+
+        (y, u, v)
+    }
+
     pub fn to_fixed(&'a self) -> YuvPlanarImage<'a, T> {
         YuvPlanarImage {
             y_plane: self.y_plane.borrow(),
@@ -462,6 +476,13 @@ where
             height: self.height,
         }
     }
+}
+
+pub(crate) struct YuvPlanarProjectionAlpha<'a, T> {
+    pub y: &'a [T],
+    pub u: &'a [T],
+    pub v: &'a [T],
+    pub a: &'a [T],
 }
 
 #[derive(Debug)]
@@ -508,6 +529,37 @@ where
             subsampling,
         )?;
         Ok(())
+    }
+
+    /// Splits mutable self into valid-sized projections for Y, U, and V planes.
+    pub(crate) fn projected_planes(
+        &self,
+        sampling: YuvChromaSubsampling,
+    ) -> YuvPlanarProjectionAlpha<'_, T> {
+        let y_valid_size =
+            self.y_stride as usize * (self.height as usize - 1) + self.width as usize;
+        let a_valid_size =
+            self.a_stride as usize * (self.height as usize - 1) + self.width as usize;
+
+        let chroma_min_width = match sampling {
+            YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => self.width.div_ceil(2),
+            YuvChromaSubsampling::Yuv444 => self.width,
+        };
+        let chroma_height = match sampling {
+            YuvChromaSubsampling::Yuv420 => self.height.div_ceil(2),
+            YuvChromaSubsampling::Yuv422 | YuvChromaSubsampling::Yuv444 => self.height,
+        };
+        let u_chroma_valid_size =
+            self.u_stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
+        let v_chroma_valid_size =
+            self.v_stride as usize * (chroma_height as usize - 1) + chroma_min_width as usize;
+
+        YuvPlanarProjectionAlpha {
+            y: &self.y_plane[..y_valid_size],
+            u: &self.u_plane[..u_chroma_valid_size],
+            v: &self.v_plane[..v_chroma_valid_size],
+            a: &self.a_plane[..a_valid_size],
+        }
     }
 }
 
@@ -569,4 +621,28 @@ where
             height: self.height,
         }
     }
+}
+
+pub(crate) fn projected_rgba_plane_mut<T: Copy>(
+    buf: &mut [T],
+    width: u32,
+    height: u32,
+    stride: u32,
+    source_channels: YuvSourceChannels,
+) -> &mut [T] {
+    let valid_size = stride as usize * (height as usize - 1)
+        + width as usize * source_channels.get_channels_count();
+    &mut buf[..valid_size]
+}
+
+pub(crate) fn projected_rgba_plane<T: Copy>(
+    buf: &[T],
+    width: u32,
+    height: u32,
+    stride: u32,
+    source_channels: YuvSourceChannels,
+) -> &[T] {
+    let valid_size = stride as usize * (height as usize - 1)
+        + width as usize * source_channels.get_channels_count();
+    &buf[..valid_size]
 }

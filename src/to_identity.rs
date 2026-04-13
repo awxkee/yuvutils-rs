@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::images::projected_rgba_plane;
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
@@ -266,7 +267,7 @@ where
 }
 
 fn rgbx_to_gbr_impl<
-    V: Copy + AsPrimitive<i32> + 'static + Sized + Debug,
+    V: Copy + AsPrimitive<i32> + 'static + Sized + Debug + Default,
     J: Copy + AsPrimitive<i32>,
     const CN: u8,
     const BIT_DEPTH: usize,
@@ -301,17 +302,20 @@ where
     image.check_constraints(YuvChromaSubsampling::Yuv444)?;
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
 
-    let y_plane = image.y_plane.borrow_mut();
-    let u_plane = image.u_plane.borrow_mut();
-    let v_plane = image.v_plane.borrow_mut();
+    let width = image.width;
+    let height = image.height;
+
     let y_stride = image.y_stride as usize;
     let u_stride = image.u_stride as usize;
     let v_stride = image.v_stride as usize;
 
-    let y_iter = y_plane.chunks_exact_mut(y_stride);
-    let rgba_iter = rgba.chunks_exact(rgba_stride as usize);
-    let u_iter = u_plane.chunks_exact_mut(u_stride);
-    let v_iter = v_plane.chunks_exact_mut(v_stride);
+    let (y_plane, u_plane, v_plane) = image.projected_planes_mut(YuvChromaSubsampling::Yuv444);
+    let rgba = projected_rgba_plane(rgba, width, height, rgba_stride, cn);
+
+    let y_iter = y_plane.chunks_mut(y_stride);
+    let rgba_iter = rgba.chunks(rgba_stride as usize);
+    let u_iter = u_plane.chunks_mut(u_stride);
+    let v_iter = v_plane.chunks_mut(v_stride);
 
     match yuv_range {
         YuvRange::Limited => {
@@ -327,9 +331,9 @@ where
             let row_handler = make_limited_converter::<V, J, CN, BIT_DEPTH, PRECISION>();
 
             for (((y_dst, u_dst), v_dst), rgba) in y_iter.zip(u_iter).zip(v_iter).zip(rgba_iter) {
-                let y_dst = &mut y_dst[..image.width as usize];
-                let u_dst = &mut u_dst[..image.width as usize];
-                let v_dst = &mut v_dst[..image.width as usize];
+                let y_dst = &mut y_dst[..width as usize];
+                let u_dst = &mut u_dst[..width as usize];
+                let v_dst = &mut v_dst[..width as usize];
 
                 unsafe {
                     row_handler(y_dst, u_dst, v_dst, rgba, y_coef, y_bias);
@@ -339,9 +343,9 @@ where
         YuvRange::Full => {
             let row_handler = make_full_converter::<V, CN>();
             for (((y_dst, u_dst), v_dst), rgba) in y_iter.zip(u_iter).zip(v_iter).zip(rgba_iter) {
-                let y_dst = &mut y_dst[..image.width as usize];
-                let u_dst = &mut u_dst[..image.width as usize];
-                let v_dst = &mut v_dst[..image.width as usize];
+                let y_dst = &mut y_dst[..width as usize];
+                let u_dst = &mut u_dst[..width as usize];
+                let v_dst = &mut v_dst[..width as usize];
 
                 unsafe {
                     row_handler(y_dst, u_dst, v_dst, rgba);

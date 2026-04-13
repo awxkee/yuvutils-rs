@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #![forbid(unsafe_code)]
+use crate::images::projected_rgba_plane_mut;
 use crate::numerics::qrshr;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{get_yuv_range, YuvSourceChannels};
@@ -312,9 +313,6 @@ where
         },
         "Unsupported bit depth and data type combination"
     );
-    let y_plane = image.y_plane;
-    let u_plane = image.u_plane;
-    let v_plane = image.v_plane;
     let y_stride = image.y_stride as usize;
     let u_stride = image.u_stride as usize;
     let v_stride = image.v_stride as usize;
@@ -331,19 +329,22 @@ where
     let u_iter;
     let v_iter;
 
+    let (y_plane, u_plane, v_plane) = image.projected_planes(YuvChromaSubsampling::Yuv444);
+    let rgba = projected_rgba_plane_mut(rgba, image.width, image.height, rgba_stride, cn);
+
     #[cfg(feature = "rayon")]
     {
-        y_iter = y_plane.par_chunks_exact(y_stride);
-        rgb_iter = rgba.par_chunks_exact_mut(rgba_stride as usize);
-        u_iter = u_plane.par_chunks_exact(u_stride);
-        v_iter = v_plane.par_chunks_exact(v_stride);
+        y_iter = y_plane.par_chunks(y_stride);
+        rgb_iter = rgba.par_chunks_mut(rgba_stride as usize);
+        u_iter = u_plane.par_chunks(u_stride);
+        v_iter = v_plane.par_chunks(v_stride);
     }
     #[cfg(not(feature = "rayon"))]
     {
-        y_iter = y_plane.chunks_exact(y_stride);
-        rgb_iter = rgba.chunks_exact_mut(rgba_stride as usize);
-        u_iter = u_plane.chunks_exact(u_stride);
-        v_iter = v_plane.chunks_exact(v_stride);
+        y_iter = y_plane.chunks(y_stride);
+        rgb_iter = rgba.chunks_mut(rgba_stride as usize);
+        u_iter = u_plane.chunks(u_stride);
+        v_iter = v_plane.chunks(v_stride);
     }
 
     match yuv_range {

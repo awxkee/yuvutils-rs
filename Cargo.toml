@@ -2,7 +2,7 @@ workspace = { members = ["app"], exclude = ["fuzz", "coeffs", "wasm"]}
 
 [package]
 name = "yuv"
-version = "0.8.13"
+version = "0.8.14"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 readme = "README.md"

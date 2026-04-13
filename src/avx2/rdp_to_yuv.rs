@@ -135,7 +135,7 @@ unsafe fn rdp_avx2_rgba_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
     width: usize,
 ) -> ProcessedOffset {
     let source_channels: RdpChannels = ORIGIN_CHANNELS.into();
-    let channels = source_channels.get_channels_count();
+    let channels = source_channels.channel_count();
 
     let src_ptr = rgba;
     let uv_bias = _mm256_setzero_si256();
@@ -388,7 +388,7 @@ unsafe fn rdp_avx2_4chan_to_yuv_impl<const ORIGIN_CHANNELS: u8, const Q: i32>(
             || source_channels == RdpChannels::Bgra
             || source_channels == RdpChannels::Rgba
     );
-    let channels = source_channels.get_channels_count();
+    let channels = source_channels.channel_count();
 
     let src_ptr = rgba;
     let y_transform = _mm256_set1_epi64x(transform.rdp_avx_make_transform_y(source_channels));

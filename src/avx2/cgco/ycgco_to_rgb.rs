@@ -30,6 +30,9 @@ use crate::avx2::avx2_utils::{_mm256_store_interleave_rgb_for_yuv, avx2_pack_u16
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{YuvChromaRange, YuvSourceChannels};
 use crate::YuvChromaSubsampling;
+#[cfg(target_arch = "x86")]
+use std::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 pub(crate) unsafe fn avx2_ycgco_full_range_to_rgb<
@@ -71,16 +74,13 @@ unsafe fn avx2_ycgco_full_range_to_rgb_impl<const DESTINATION_CHANNELS: u8, cons
     let mut cx = 0;
     let mut uv_x = 0;
 
-    let y_ptr = y_plane.as_ptr();
-    let u_ptr = u_plane.as_ptr();
-    let v_ptr = v_plane.as_ptr();
     let rgba_ptr = rgba.as_mut_ptr();
 
     let bias_y = _mm256_set1_epi8(chroma_range.bias_y as i8);
     let bias_uv = _mm256_set1_epi8(chroma_range.bias_uv as i8);
 
     while cx + 32 <= width {
-        let y_raw = _mm256_loadu_si256(y_ptr.add(cx) as *const __m256i);
+        let y_raw = _mm256_loadu_si256(y_plane.get_unchecked(cx..).as_ptr() as *const __m256i);
         let y_values = _mm256_subs_epu8(
             y_raw,
             _mm256_broadcastb_epi8(_mm256_castsi256_si128(bias_y)),
@@ -88,12 +88,13 @@ unsafe fn avx2_ycgco_full_range_to_rgb_impl<const DESTINATION_CHANNELS: u8, cons
 
         let (u_values, v_values) = match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
-                let u_raw = _mm_loadu_si128(u_ptr.add(uv_x) as *const __m128i);
-                let v_raw = _mm_loadu_si128(v_ptr.add(uv_x) as *const __m128i);
+                let u_raw =
+                    _mm_loadu_si128(u_plane.get_unchecked(uv_x..).as_ptr() as *const __m128i);
+                let v_raw =
+                    _mm_loadu_si128(v_plane.get_unchecked(uv_x..).as_ptr() as *const __m128i);
                 let bias_uv_128 = _mm256_castsi256_si128(bias_uv);
                 let u_sub = _mm_sub_epi8(u_raw, bias_uv_128);
                 let v_sub = _mm_sub_epi8(v_raw, bias_uv_128);
-                // Interleave each byte with itself: [a,b,...] -> [a,a,b,b,...]
                 let u_interleaved = _mm_unpacklo_epi8(u_sub, u_sub);
                 let u_high = _mm_unpackhi_epi8(u_sub, u_sub);
                 let v_interleaved = _mm_unpacklo_epi8(v_sub, v_sub);
@@ -104,8 +105,10 @@ unsafe fn avx2_ycgco_full_range_to_rgb_impl<const DESTINATION_CHANNELS: u8, cons
                 )
             }
             YuvChromaSubsampling::Yuv444 => {
-                let u_raw = _mm256_loadu_si256(u_ptr.add(uv_x) as *const __m256i);
-                let v_raw = _mm256_loadu_si256(v_ptr.add(uv_x) as *const __m256i);
+                let u_raw =
+                    _mm256_loadu_si256(u_plane.get_unchecked(uv_x..).as_ptr() as *const __m256i);
+                let v_raw =
+                    _mm256_loadu_si256(v_plane.get_unchecked(uv_x..).as_ptr() as *const __m256i);
                 (
                     _mm256_sub_epi8(u_raw, bias_uv),
                     _mm256_sub_epi8(v_raw, bias_uv),
@@ -116,7 +119,6 @@ unsafe fn avx2_ycgco_full_range_to_rgb_impl<const DESTINATION_CHANNELS: u8, cons
         let y_low = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(y_values));
         let y_high = _mm256_cvtepu8_epi16(_mm256_extracti128_si256::<1>(y_values));
 
-        // Sign-reinterpret chroma
         let cg_low = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(u_values));
         let cg_high = _mm256_cvtepi8_epi16(_mm256_extracti128_si256::<1>(u_values));
         let co_low = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(v_values));
