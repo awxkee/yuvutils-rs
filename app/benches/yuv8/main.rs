@@ -29,14 +29,16 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::{GenericImageView, ImageReader};
 use std::alloc::Layout;
+use std::hint::black_box;
 use yuv::{
-    gbr_to_rgba, rgb_to_gbr, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444,
-    rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
+    gbr_to_rgba, icgc_ro210_to_rgba, icgc_ro410_to_rgba, rgb_to_gbr, rgb_to_icgc_ro410,
+    rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv16,
+    rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
     rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgba, ycgco444_to_rgba, yuv400_to_rgba,
     yuv420_to_rgb, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgba,
     yuv422_to_rgba_bilinear, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb,
     YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvGrayImageMut, YuvPackedImage,
-    YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
+    YuvPlanarImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
 };
 use yuv_sys::{
     rs_ABGRToI420, rs_ABGRToJ422, rs_ABGRToNV21, rs_I400ToARGB, rs_I420ToABGR, rs_I420ToRGB24,
@@ -122,6 +124,98 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let fixed_gbr = gbr_image.to_fixed();
 
     let fixed_gray = gray_image.to_fixed();
+
+    c.bench_function("yuvutils YCgCo-Re 4:4:4 -> RGBA", |b| {
+        let mut rgb_bytes = vec![black_box(0u8); dimensions.0 as usize * 4 * dimensions.1 as usize];
+        let mut image = black_box(YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv444,
+        ));
+        rgba_to_icgc_ro410(&mut image, &rgb_bytes, dimensions.0 * 4u32, YuvRange::Full).unwrap();
+        let fixed_image = image.to_fixed();
+        b.iter(|| {
+            icgc_ro410_to_rgba(
+                black_box(&fixed_image),
+                black_box(&mut rgb_bytes),
+                dimensions.0 * 4u32,
+                YuvRange::Full,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YCgCo-Re 4:4:4 Limited -> RGBA", |b| {
+        let mut rgb_bytes = vec![black_box(0u8); dimensions.0 as usize * 4 * dimensions.1 as usize];
+        let mut image = black_box(YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv444,
+        ));
+        rgba_to_icgc_ro410(
+            &mut image,
+            &rgb_bytes,
+            dimensions.0 * 4u32,
+            YuvRange::Limited,
+        )
+        .unwrap();
+        let fixed_image = image.to_fixed();
+        b.iter(|| {
+            icgc_ro410_to_rgba(
+                black_box(&fixed_image),
+                black_box(&mut rgb_bytes),
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YCgCo-Re 4:2:2 -> RGBA", |b| {
+        let mut rgb_bytes = vec![black_box(0u8); dimensions.0 as usize * 4 * dimensions.1 as usize];
+        let mut image = black_box(YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv422,
+        ));
+        rgba_to_icgc_ro210(&mut image, &rgb_bytes, dimensions.0 * 4u32, YuvRange::Full).unwrap();
+        let fixed_image = image.to_fixed();
+        b.iter(|| {
+            icgc_ro210_to_rgba(
+                black_box(&fixed_image),
+                black_box(&mut rgb_bytes),
+                dimensions.0 * 4u32,
+                YuvRange::Full,
+            )
+            .unwrap();
+        })
+    });
+
+    c.bench_function("yuvutils YCgCo-Re 4:2:2 Limited -> RGBA", |b| {
+        let mut rgb_bytes = vec![black_box(0u8); dimensions.0 as usize * 4 * dimensions.1 as usize];
+        let mut image = black_box(YuvPlanarImageMut::<u16>::alloc(
+            dimensions.0,
+            dimensions.1,
+            YuvChromaSubsampling::Yuv422,
+        ));
+        rgba_to_icgc_ro210(
+            &mut image,
+            &rgb_bytes,
+            dimensions.0 * 4u32,
+            YuvRange::Limited,
+        )
+        .unwrap();
+        let fixed_image = image.to_fixed();
+        b.iter(|| {
+            icgc_ro210_to_rgba(
+                black_box(&fixed_image),
+                black_box(&mut rgb_bytes),
+                dimensions.0 * 4u32,
+                YuvRange::Limited,
+            )
+            .unwrap();
+        })
+    });
 
     c.bench_function("yuvutils GBR -> RGBA Limited", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];

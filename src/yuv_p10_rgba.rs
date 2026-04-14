@@ -278,7 +278,7 @@ fn yuv_p16_to_image_ant<
             let b0 = qrshr::<BIT_DEPTH>(y_value0 + cb_coef * cb_value);
             let g0 = qrshr::<BIT_DEPTH>(y_value0 - g_coef_1 * cr_value - g_coef_2 * cb_value);
 
-            let rgba0 = &mut rgba[0..channels];
+            let rgba0 = &mut rgba[..channels];
 
             rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
             rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
@@ -316,7 +316,7 @@ fn yuv_p16_to_image_ant<
                 as i32
                 - bias_uv;
             let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
-            let rgba0 = &mut rgba[0..channels];
+            let rgba0 = &mut rgba[..channels];
 
             let r0 = qrshr::<BIT_DEPTH>(y_value0 + cr_coef * cr_value);
             let b0 = qrshr::<BIT_DEPTH>(y_value0 + cb_coef * cb_value);
@@ -429,10 +429,10 @@ fn yuv_p16_to_image_ant<
                 .zip(y_plane.chunks_exact(image.y_stride as usize))
             {
                 process_halved_chroma_row(
-                    &y_plane[0..image.width as usize],
-                    &u_plane[0..(image.width as usize).div_ceil(2)],
-                    &v_plane[0..(image.width as usize).div_ceil(2)],
-                    &mut rgba[0..image.width as usize * channels],
+                    &y_plane[..image.width as usize],
+                    &u_plane[..(image.width as usize).div_ceil(2)],
+                    &v_plane[..(image.width as usize).div_ceil(2)],
+                    &mut rgba[..image.width as usize * channels],
                 );
             }
         });
@@ -455,10 +455,10 @@ fn yuv_p16_to_image_ant<
                 .last()
                 .unwrap();
             process_halved_chroma_row(
-                &y_plane[0..image.width as usize],
-                &u_plane[0..(image.width as usize).div_ceil(2)],
-                &v_plane[0..(image.width as usize).div_ceil(2)],
-                &mut rgba[0..image.width as usize * channels],
+                &y_plane[..image.width as usize],
+                &u_plane[..(image.width as usize).div_ceil(2)],
+                &v_plane[..(image.width as usize).div_ceil(2)],
+                &mut rgba[..image.width as usize * channels],
             );
         }
     } else {

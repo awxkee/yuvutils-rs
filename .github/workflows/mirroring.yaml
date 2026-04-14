@@ -19,7 +19,7 @@ jobs:
         run: |
           git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/awxkee/yuv
           git remote add codeberg https://awxkee:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/awxkee/yuv.git
-          git push gitlab --all --force
-          git push gitlab --tags --force
-          git push codeberg --all --force
-          git push codeberg --tags --force
+          git push gitlab --all
+          git push gitlab --tags
+          git push codeberg --all
+          git push codeberg --tags

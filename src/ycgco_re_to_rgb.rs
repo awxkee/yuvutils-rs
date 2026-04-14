@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::images::projected_rgba_plane_mut;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -38,19 +39,281 @@ use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
 use std::ops::Sub;
 
+trait YCgCoRoReNeonDispatch<V, W, J> {
+    fn kernel444_or_422(
+        range: YuvRange,
+    ) -> Option<
+        unsafe fn(
+            y_ptr: &[V],
+            u_ptr: &[V],
+            v_ptr: &[V],
+            rgba_ptr: &mut [W],
+            width: usize,
+            chroma_range: YuvChromaRange,
+            range_reduction_y: i32,
+        ),
+    >;
+}
+
+struct DefaultDispatch<
+    const SAMPLING: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+    const R_TYPE: usize,
+    const DST_CHANS: u8,
+> {}
+
+impl<
+        const SAMPLING: u8,
+        const PRECISION: i32,
+        const BIT_DEPTH: usize,
+        const R_TYPE: usize,
+        const DST_CHANS: u8,
+    > YCgCoRoReNeonDispatch<u16, u8, i16>
+    for DefaultDispatch<SAMPLING, PRECISION, BIT_DEPTH, R_TYPE, DST_CHANS>
+{
+    #[inline(always)]
+    fn kernel444_or_422(
+        _range: YuvRange,
+    ) -> Option<unsafe fn(&[u16], &[u16], &[u16], &mut [u8], usize, YuvChromaRange, i32)> {
+        #[cfg(all(target_arch = "x86_64", feature = "avx"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx2") {
+                match _range {
+                    YuvRange::Limited => {
+                        use crate::avx2::ycgco_ro_re_u16_to_rgba_avx2;
+                        return Some(
+                            ycgco_ro_re_u16_to_rgba_avx2::<
+                                SAMPLING,
+                                PRECISION,
+                                BIT_DEPTH,
+                                R_TYPE,
+                                DST_CHANS,
+                            >,
+                        );
+                    }
+                    YuvRange::Full => {
+                        use crate::avx2::ycgco_ro_re_u16_to_rgba_avx2_full;
+                        return Some(
+                            ycgco_ro_re_u16_to_rgba_avx2_full::<
+                                SAMPLING,
+                                PRECISION,
+                                BIT_DEPTH,
+                                R_TYPE,
+                                DST_CHANS,
+                            >,
+                        );
+                    }
+                }
+            }
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
+            match _range {
+                YuvRange::Limited => {
+                    use crate::neon::ycgco_ro_re_u16_to_rgba_neon;
+                    Some(
+                        ycgco_ro_re_u16_to_rgba_neon::<
+                            SAMPLING,
+                            PRECISION,
+                            BIT_DEPTH,
+                            R_TYPE,
+                            DST_CHANS,
+                        >,
+                    )
+                }
+                YuvRange::Full => {
+                    use crate::neon::ycgco_ro_re_u16_to_rgba_neon_full;
+                    Some(
+                        ycgco_ro_re_u16_to_rgba_neon_full::<
+                            SAMPLING,
+                            PRECISION,
+                            BIT_DEPTH,
+                            R_TYPE,
+                            DST_CHANS,
+                        >,
+                    )
+                }
+            }
+        }
+        #[cfg(not(target_arch = "aarch64"))]
+        {
+            None
+        }
+    }
+}
+
+impl<
+        const SAMPLING: u8,
+        const PRECISION: i32,
+        const BIT_DEPTH: usize,
+        const R_TYPE: usize,
+        const DST_CHANS: u8,
+    > YCgCoRoReNeonDispatch<u16, u16, i16>
+    for DefaultDispatch<SAMPLING, PRECISION, BIT_DEPTH, R_TYPE, DST_CHANS>
+{
+    #[inline(always)]
+    fn kernel444_or_422(
+        _: YuvRange,
+    ) -> Option<unsafe fn(&[u16], &[u16], &[u16], &mut [u16], usize, YuvChromaRange, i32)> {
+        None
+    }
+}
+
 #[inline(always)]
 /// Saturating rounding shift right against bit depth
 fn qrshr<const PRECISION: i32, const BP: usize, const R_TYPE: usize>(val: i32) -> i32 {
     let r_type: YCgCoR = YCgCoR::from(R_TYPE);
     let max_value: i32 = (1 << BP) - 1;
+    let rounding: i32 = (1 << (PRECISION)) - 1;
     match r_type {
-        YCgCoR::YCgCoRo => {
-            let rounding: i32 = (1 << (PRECISION)) - 1;
-            ((val + rounding) >> (PRECISION + 1)).min(max_value).max(0)
+        YCgCoR::YCgCoRo => ((val + rounding) >> PRECISION).min(max_value).max(0),
+        YCgCoR::YCgCoRe => ((val + rounding) >> PRECISION).min(max_value).max(0),
+    }
+}
+
+fn process_444_row<
+    V: AsPrimitive<J> + 'static + Default + Debug + Sync + Send,
+    W: 'static + Default + Debug + Sync + Send + Copy + Clone,
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
+    const DESTINATION_CHANNELS: u8,
+    const BIT_DEPTH: usize,
+    const R_TYPE: usize,
+    const PRECISION: i32,
+>(
+    y_plane: &[V],
+    u_plane: &[V],
+    v_plane: &[V],
+    rgba: &mut [W],
+    _: usize,
+    chroma_range: YuvChromaRange,
+    range_reduction_y: i32,
+) where
+    i32: AsPrimitive<V> + AsPrimitive<W>,
+    u32: AsPrimitive<J>,
+{
+    let max_colors = ((1u32 << BIT_DEPTH) - 1u32) as i32;
+    let bias_y: J = chroma_range.bias_y.as_();
+    let bias_uv: J = chroma_range.bias_uv.as_();
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = dst_chans.get_channels_count();
+    for (((rgba, &y_src), &u_src), &v_src) in rgba
+        .chunks_exact_mut(channels)
+        .zip(y_plane.iter())
+        .zip(u_plane.iter())
+        .zip(v_plane.iter())
+    {
+        let y_value = (y_src.as_() - bias_y).as_();
+        let cg_value = (u_src.as_() - bias_uv).as_();
+        let co_value = (v_src.as_() - bias_uv).as_();
+
+        let t0 = y_value - (cg_value >> 1);
+        let bz0 = t0 - (co_value >> 1);
+
+        let r = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz0 + co_value) * range_reduction_y);
+        let b = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(bz0 * range_reduction_y);
+        let g = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((t0 + cg_value) * range_reduction_y);
+
+        rgba[dst_chans.get_r_channel_offset()] = r.as_();
+        rgba[dst_chans.get_g_channel_offset()] = g.as_();
+        rgba[dst_chans.get_b_channel_offset()] = b.as_();
+        if dst_chans.has_alpha() {
+            rgba[dst_chans.get_a_channel_offset()] = max_colors.as_();
         }
-        YCgCoR::YCgCoRe => {
-            let rounding: i32 = (1 << (PRECISION - 1)) - 1;
-            ((val + rounding) >> PRECISION).min(max_value).max(0)
+    }
+}
+
+fn process_422_row<
+    V: AsPrimitive<J> + 'static + Default + Debug + Sync + Send,
+    W: 'static + Default + Debug + Sync + Send + Copy + Clone,
+    J: Copy + AsPrimitive<i32> + 'static + Sub<Output = J> + Send + Sync,
+    const DESTINATION_CHANNELS: u8,
+    const BIT_DEPTH: usize,
+    const R_TYPE: usize,
+    const PRECISION: i32,
+>(
+    y_plane: &[V],
+    u_plane: &[V],
+    v_plane: &[V],
+    rgba: &mut [W],
+    width: usize,
+    chroma_range: YuvChromaRange,
+    range_reduction_y: i32,
+) where
+    i32: AsPrimitive<V> + AsPrimitive<W>,
+    u32: AsPrimitive<J>,
+{
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = dst_chans.get_channels_count();
+    let max_colors = ((1u32 << BIT_DEPTH) - 1u32) as i32;
+
+    let bias_y: J = chroma_range.bias_y.as_();
+    let bias_uv: J = chroma_range.bias_uv.as_();
+
+    for (((rgba, y_src), &u_src), &v_src) in rgba
+        .chunks_exact_mut(channels * 2)
+        .zip(y_plane.chunks_exact(2))
+        .zip(u_plane.iter())
+        .zip(v_plane.iter())
+    {
+        let y_value0 = (y_src[0].as_() - bias_y).as_();
+        let cg_value = (u_src.as_() - bias_uv).as_();
+        let co_value = (v_src.as_() - bias_uv).as_();
+
+        let t0 = y_value0 - (cg_value >> 1);
+        let bz0 = t0 - (co_value >> 1);
+
+        let r0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz0 + co_value) * range_reduction_y);
+        let b0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(bz0 * range_reduction_y);
+        let g0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((t0 + cg_value) * range_reduction_y);
+
+        let rgba0 = &mut rgba[..channels];
+
+        rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
+        rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
+        rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
+        if dst_chans.has_alpha() {
+            rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
+        }
+
+        let y_value1 = (y_src[1].as_() - bias_y).as_();
+
+        let t1 = y_value1 - (cg_value >> 1);
+        let bz1 = t1 - (co_value >> 1);
+
+        let r1 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz1 + co_value) * range_reduction_y);
+        let b1 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(bz1 * range_reduction_y);
+        let g1 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((t1 + cg_value) * range_reduction_y);
+
+        let rgba1 = &mut rgba[channels..channels * 2];
+
+        rgba1[dst_chans.get_r_channel_offset()] = r1.as_();
+        rgba1[dst_chans.get_g_channel_offset()] = g1.as_();
+        rgba1[dst_chans.get_b_channel_offset()] = b1.as_();
+        if dst_chans.has_alpha() {
+            rgba1[dst_chans.get_a_channel_offset()] = max_colors.as_();
+        }
+    }
+
+    if width & 1 != 0 {
+        let y_value0 = (y_plane.last().unwrap().as_() - bias_y).as_();
+        let cg_value = (u_plane.last().unwrap().as_() - bias_uv).as_();
+        let co_value = (v_plane.last().unwrap().as_() - bias_uv).as_();
+        let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
+        let rgba0 = &mut rgba[..channels];
+
+        let t0 = y_value0 - (cg_value >> 1);
+        let bz0 = t0 - (co_value >> 1);
+
+        let r0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz0 + co_value) * range_reduction_y);
+        let b0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(bz0 * range_reduction_y);
+        let g0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((t0 + cg_value) * range_reduction_y);
+
+        rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
+        rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
+        rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
+        if dst_chans.has_alpha() {
+            rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
         }
     }
 }
@@ -74,6 +337,8 @@ fn ycgce_ro_rgbx<
 where
     i32: AsPrimitive<V> + AsPrimitive<W>,
     u32: AsPrimitive<J>,
+    DefaultDispatch<SAMPLING, 13, BIT_DEPTH, R_TYPE, DESTINATION_CHANNELS>:
+        YCgCoRoReNeonDispatch<V, W, J>,
 {
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
@@ -82,236 +347,173 @@ where
     check_rgba_destination(rgba, rgba_stride, image.width, image.height, channels)?;
     image.check_constraints(chroma_subsampling)?;
 
-    let chroma_range = get_yuv_range(BIT_DEPTH as u32 + 2, range);
+    let yuv_bit_depth = match YCgCoR::from(R_TYPE) {
+        YCgCoR::YCgCoRo => BIT_DEPTH as u32 + 1,
+        YCgCoR::YCgCoRe => BIT_DEPTH as u32 + 2,
+    };
 
-    let same_yuv_range = get_yuv_range(BIT_DEPTH as u32, range);
-
-    let bias_y: J = chroma_range.bias_y.as_();
-    let bias_uv: J = chroma_range.bias_uv.as_();
+    let chroma_range = get_yuv_range(yuv_bit_depth, range);
 
     const PRECISION: i32 = 13;
 
-    let max_colors = ((1u32 << BIT_DEPTH) - 1u32) as i32;
     let precision_scale = (1 << PRECISION) as f32;
 
-    let max_colors_for_reduction = ((1u32 << BIT_DEPTH) - 1u32) as i32;
-    let range_reduction_y = (max_colors_for_reduction as f32 / same_yuv_range.range_y as f32
+    let max_colors_for_reduction = ((1u32 << yuv_bit_depth) - 1u32) as i32;
+
+    let range_reduction_y = (max_colors_for_reduction as f32 / chroma_range.range_y as f32
         * precision_scale)
         .round() as i16;
 
-    let process_halved_chroma_row = |y_plane: &[V],
-                                     u_plane: &[V],
-                                     v_plane: &[V],
-                                     rgba: &mut [W]| {
-        for (((rgba, y_src), &u_src), &v_src) in rgba
-            .chunks_exact_mut(channels * 2)
-            .zip(y_plane.chunks_exact(2))
-            .zip(u_plane.iter())
-            .zip(v_plane.iter())
-        {
-            let y_value0 = (y_src[0].as_() - bias_y).as_();
-            let cg_value = (u_src.as_() - bias_uv).as_();
-            let co_value = (v_src.as_() - bias_uv).as_();
-
-            let t0 = y_value0 - (cg_value >> 1);
-            let bz0 = t0 - (co_value >> 1);
-
-            let r0 =
-                qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz0 + co_value) * range_reduction_y as i32);
-            let b0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(bz0 * range_reduction_y as i32);
-            let g0 =
-                qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((t0 + cg_value) * range_reduction_y as i32);
-
-            let rgba0 = &mut rgba[0..channels];
-
-            rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
-            rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
-            rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
-            if dst_chans.has_alpha() {
-                rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
-            }
-
-            let y_value1 = (y_src[1].as_() - bias_y).as_();
-
-            let t1 = y_value1 - (cg_value >> 1);
-            let bz1 = t1 - (co_value >> 1);
-
-            let r1 =
-                qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz1 + co_value) * range_reduction_y as i32);
-            let b1 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(bz1 * range_reduction_y as i32);
-            let g1 =
-                qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((t1 + cg_value) * range_reduction_y as i32);
-
-            let rgba1 = &mut rgba[channels..channels * 2];
-
-            rgba1[dst_chans.get_r_channel_offset()] = r1.as_();
-            rgba1[dst_chans.get_g_channel_offset()] = g1.as_();
-            rgba1[dst_chans.get_b_channel_offset()] = b1.as_();
-            if dst_chans.has_alpha() {
-                rgba1[dst_chans.get_a_channel_offset()] = max_colors.as_();
-            }
-        }
-
-        if image.width & 1 != 0 {
-            let y_value0 = (y_plane.last().unwrap().as_() - bias_y).as_();
-            let cg_value = (u_plane.last().unwrap().as_() - bias_uv).as_();
-            let co_value = (v_plane.last().unwrap().as_() - bias_uv).as_();
-            let rgba = rgba.chunks_exact_mut(channels).last().unwrap();
-            let rgba0 = &mut rgba[0..channels];
-
-            let t0 = y_value0 - (cg_value >> 1);
-            let bz0 = t0 - (co_value >> 1);
-
-            let r0 =
-                qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz0 + co_value) * range_reduction_y as i32);
-            let b0 = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(bz0 * range_reduction_y as i32);
-            let g0 =
-                qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((t0 + cg_value) * range_reduction_y as i32);
-
-            rgba0[dst_chans.get_r_channel_offset()] = r0.as_();
-            rgba0[dst_chans.get_g_channel_offset()] = g0.as_();
-            rgba0[dst_chans.get_b_channel_offset()] = b0.as_();
-            if dst_chans.has_alpha() {
-                rgba0[dst_chans.get_a_channel_offset()] = max_colors.as_();
-            }
-        }
-    };
+    let (y_plane, u_plane, v_plane) = image.projected_planes(chroma_subsampling);
+    let rgba = projected_rgba_plane_mut(rgba, image.width, image.height, rgba_stride, dst_chans);
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+        let row_handler = DefaultDispatch::<
+            SAMPLING,
+            PRECISION,
+            BIT_DEPTH,
+            R_TYPE,
+            DESTINATION_CHANNELS,
+        >::kernel444_or_422(range)
+        .unwrap_or(process_444_row::<V, W, J, DESTINATION_CHANNELS, BIT_DEPTH, R_TYPE, PRECISION>);
         let iter;
         #[cfg(feature = "rayon")]
         {
             iter = rgba
-                .par_chunks_exact_mut(rgba_stride as usize)
-                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize))
-                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
-                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+                .par_chunks_mut(rgba_stride as usize)
+                .zip(y_plane.par_chunks(image.y_stride as usize))
+                .zip(u_plane.par_chunks(image.u_stride as usize))
+                .zip(v_plane.par_chunks(image.v_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = rgba
-                .chunks_exact_mut(rgba_stride as usize)
-                .zip(image.y_plane.chunks_exact(image.y_stride as usize))
-                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
-                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+                .chunks_mut(rgba_stride as usize)
+                .zip(y_plane.chunks(image.y_stride as usize))
+                .zip(u_plane.chunks(image.u_stride as usize))
+                .zip(v_plane.chunks(image.v_stride as usize));
         }
         iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            let y_plane = &y_plane[0..image.width as usize];
-            for (((rgba, &y_src), &u_src), &v_src) in rgba
-                .chunks_exact_mut(channels)
-                .zip(y_plane.iter())
-                .zip(u_plane.iter())
-                .zip(v_plane.iter())
-            {
-                let y_value = (y_src.as_() - bias_y).as_();
-                let cg_value = (u_src.as_() - bias_uv).as_();
-                let co_value = (v_src.as_() - bias_uv).as_();
-
-                let t0 = y_value - (cg_value >> 1);
-                let bz0 = t0 - (co_value >> 1);
-
-                let r = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(
-                    (bz0 + co_value) * range_reduction_y as i32,
+            let y_plane = &y_plane[..image.width as usize];
+            unsafe {
+                row_handler(
+                    y_plane,
+                    u_plane,
+                    v_plane,
+                    rgba,
+                    image.width as usize,
+                    chroma_range,
+                    range_reduction_y as i32,
                 );
-                let b = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>((bz0) * range_reduction_y as i32);
-                let g = qrshr::<PRECISION, BIT_DEPTH, R_TYPE>(
-                    (t0 + cg_value) * range_reduction_y as i32,
-                );
-
-                rgba[dst_chans.get_r_channel_offset()] = r.as_();
-                rgba[dst_chans.get_g_channel_offset()] = g.as_();
-                rgba[dst_chans.get_b_channel_offset()] = b.as_();
-                if dst_chans.has_alpha() {
-                    rgba[dst_chans.get_a_channel_offset()] = max_colors.as_();
-                }
             }
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv422 {
+        let row_handler = DefaultDispatch::<
+            SAMPLING,
+            PRECISION,
+            BIT_DEPTH,
+            R_TYPE,
+            DESTINATION_CHANNELS,
+        >::kernel444_or_422(range)
+        .unwrap_or(process_422_row::<V, W, J, DESTINATION_CHANNELS, BIT_DEPTH, R_TYPE, PRECISION>);
         let iter;
         #[cfg(feature = "rayon")]
         {
             iter = rgba
-                .par_chunks_exact_mut(rgba_stride as usize)
-                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize))
-                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
-                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+                .par_chunks_mut(rgba_stride as usize)
+                .zip(y_plane.par_chunks(image.y_stride as usize))
+                .zip(u_plane.par_chunks(image.u_stride as usize))
+                .zip(v_plane.par_chunks(image.v_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = rgba
-                .chunks_exact_mut(rgba_stride as usize)
-                .zip(image.y_plane.chunks_exact(image.y_stride as usize))
-                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
-                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+                .chunks_mut(rgba_stride as usize)
+                .zip(y_plane.chunks(image.y_stride as usize))
+                .zip(u_plane.chunks(image.u_stride as usize))
+                .zip(v_plane.chunks(image.v_stride as usize));
         }
-        iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            process_halved_chroma_row(
+        iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| unsafe {
+            row_handler(
                 &y_plane[..image.width as usize],
                 &u_plane[..(image.width as usize).div_ceil(2)],
                 &v_plane[..(image.width as usize).div_ceil(2)],
                 &mut rgba[..image.width as usize * channels],
+                image.width as usize,
+                chroma_range,
+                range_reduction_y as i32,
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
+        let row_handler = DefaultDispatch::<
+            SAMPLING,
+            PRECISION,
+            BIT_DEPTH,
+            R_TYPE,
+            DESTINATION_CHANNELS,
+        >::kernel444_or_422(range)
+        .unwrap_or(process_422_row::<V, W, J, DESTINATION_CHANNELS, BIT_DEPTH, R_TYPE, PRECISION>);
         let iter;
         #[cfg(feature = "rayon")]
         {
             iter = rgba
-                .par_chunks_exact_mut(rgba_stride as usize * 2)
-                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize * 2))
-                .zip(image.u_plane.par_chunks_exact(image.u_stride as usize))
-                .zip(image.v_plane.par_chunks_exact(image.v_stride as usize));
+                .par_chunks_mut(rgba_stride as usize * 2)
+                .zip(y_plane.par_chunks(image.y_stride as usize * 2))
+                .zip(u_plane.par_chunks(image.u_stride as usize))
+                .zip(v_plane.par_chunks(image.v_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = rgba
-                .chunks_exact_mut(rgba_stride as usize * 2)
-                .zip(image.y_plane.chunks_exact(image.y_stride as usize * 2))
-                .zip(image.u_plane.chunks_exact(image.u_stride as usize))
-                .zip(image.v_plane.chunks_exact(image.v_stride as usize));
+                .chunks_mut(rgba_stride as usize * 2)
+                .zip(y_plane.chunks(image.y_stride as usize * 2))
+                .zip(u_plane.chunks(image.u_stride as usize))
+                .zip(v_plane.chunks(image.v_stride as usize));
         }
-        iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            let (rgba0, rgba1) = rgba.split_at_mut(rgba_stride as usize);
-            let (y_plane0, y_plane1) = y_plane.split_at(image.y_stride as usize);
+        iter.take(image.height as usize / 2)
+            .for_each(|(((rgba, y_plane), u_plane), v_plane)| {
+                let (rgba0, rgba1) = rgba.split_at_mut(rgba_stride as usize);
+                let (y_plane0, y_plane1) = y_plane.split_at(image.y_stride as usize);
 
-            process_halved_chroma_row(
-                &y_plane0[..image.width as usize],
-                &u_plane[..(image.width as usize).div_ceil(2)],
-                &v_plane[..(image.width as usize).div_ceil(2)],
-                &mut rgba0[..image.width as usize * channels],
-            );
+                unsafe {
+                    row_handler(
+                        &y_plane0[..image.width as usize],
+                        &u_plane[..(image.width as usize).div_ceil(2)],
+                        &v_plane[..(image.width as usize).div_ceil(2)],
+                        &mut rgba0[..image.width as usize * channels],
+                        image.width as usize,
+                        chroma_range,
+                        range_reduction_y as i32,
+                    );
 
-            process_halved_chroma_row(
-                &y_plane1[..image.width as usize],
-                &u_plane[..(image.width as usize).div_ceil(2)],
-                &v_plane[..(image.width as usize).div_ceil(2)],
-                &mut rgba1[..image.width as usize * channels],
-            );
-        });
+                    row_handler(
+                        &y_plane1[..image.width as usize],
+                        &u_plane[..(image.width as usize).div_ceil(2)],
+                        &v_plane[..(image.width as usize).div_ceil(2)],
+                        &mut rgba1[..image.width as usize * channels],
+                        image.width as usize,
+                        chroma_range,
+                        range_reduction_y as i32,
+                    );
+                }
+            });
 
         if image.height & 1 != 0 {
-            let rgba = rgba.chunks_exact_mut(rgba_stride as usize).last().unwrap();
-            let u_plane = image
-                .u_plane
-                .chunks_exact(image.u_stride as usize)
-                .last()
-                .unwrap();
-            let v_plane = image
-                .v_plane
-                .chunks_exact(image.v_stride as usize)
-                .last()
-                .unwrap();
-            let y_plane = image
-                .y_plane
-                .chunks_exact(image.y_stride as usize)
-                .last()
-                .unwrap();
-            process_halved_chroma_row(
-                &y_plane[..image.width as usize],
-                &u_plane[..(image.width as usize).div_ceil(2)],
-                &v_plane[..(image.width as usize).div_ceil(2)],
-                &mut rgba[..image.width as usize * channels],
-            );
+            let rgba = rgba.chunks_mut(rgba_stride as usize).last().unwrap();
+            let u_plane = u_plane.chunks(image.u_stride as usize).last().unwrap();
+            let v_plane = v_plane.chunks(image.v_stride as usize).last().unwrap();
+            let y_plane = y_plane.chunks(image.y_stride as usize).last().unwrap();
+            unsafe {
+                row_handler(
+                    &y_plane[..image.width as usize],
+                    &u_plane[..(image.width as usize).div_ceil(2)],
+                    &v_plane[..(image.width as usize).div_ceil(2)],
+                    &mut rgba[..image.width as usize * channels],
+                    image.width as usize,
+                    chroma_range,
+                    range_reduction_y as i32,
+                );
+            }
         }
     } else {
         unreachable!();

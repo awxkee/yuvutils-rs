@@ -26,6 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use crate::images::projected_rgba_plane;
 use crate::ycgcor_support::YCgCoR;
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::*;
@@ -37,19 +38,11 @@ use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
 use std::fmt::Debug;
 
-fn c_r<const BP: i32, const R_TYPE: usize>(v: i32) -> i32 {
-    let r_type: YCgCoR = YCgCoR::from(R_TYPE);
-    match r_type {
-        YCgCoR::YCgCoRo => (v << 1) | (v >> (BP - 1)),
-        YCgCoR::YCgCoRe => v,
-    }
-}
-
 /// Convert RGB to YCgCo
 /// Note: YCgCo requires to adjust range on RGB rather than YUV
 fn rgbx_to_ycgco<
     V: Copy + AsPrimitive<i32> + 'static + Clone + Debug + Send + Sync,
-    F: Copy + 'static + Clone + Debug + Send + Sync,
+    F: Copy + 'static + Clone + Debug + Send + Sync + Default,
     const ORIGIN_CHANNELS: u8,
     const SAMPLING: u8,
     const BP: i32,
@@ -68,7 +61,10 @@ where
     let channels = src_chans.get_channels_count();
     const PRECISION: i32 = 13;
 
-    let new_yuv_bp = BP + 2;
+    let new_yuv_bp = match YCgCoR::from(R_TYPE) {
+        YCgCoR::YCgCoRo => BP + 1,
+        YCgCoR::YCgCoRe => BP + 2,
+    };
     let range = get_yuv_range(new_yuv_bp as u32, yuv_range);
 
     let precision_scale = (1 << PRECISION) as f32;
@@ -87,81 +83,77 @@ where
     let range_reduction_y =
         (old_range.range_y as f32 / max_colors_rgb as f32 * precision_scale).round() as i16;
 
-    let process_halved_chroma_row =
-        |y_plane: &mut [F], u_plane: &mut [F], v_plane: &mut [F], rgba: &[V]| {
-            for (((y_dst, u_dst), v_dst), rgba) in y_plane
-                .chunks_exact_mut(2)
-                .zip(u_plane.iter_mut())
-                .zip(v_plane.iter_mut())
-                .zip(rgba.chunks_exact(channels * 2))
-            {
-                let src0 = &rgba[0..channels];
+    let width = image.width;
+    let height = image.height;
 
-                let r0 = c_r::<BP, R_TYPE>(src0[src_chans.get_r_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let g0 = c_r::<BP, R_TYPE>(src0[src_chans.get_g_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let b0 = c_r::<BP, R_TYPE>(src0[src_chans.get_b_channel_offset()].as_())
-                    * range_reduction_y as i32;
+    let process_halved_chroma_row = |y_plane: &mut [F],
+                                     u_plane: &mut [F],
+                                     v_plane: &mut [F],
+                                     rgba: &[V]| {
+        for (((y_dst, u_dst), v_dst), rgba) in y_plane
+            .chunks_exact_mut(2)
+            .zip(u_plane.iter_mut())
+            .zip(v_plane.iter_mut())
+            .zip(rgba.chunks_exact(channels * 2))
+        {
+            let src0 = &rgba[..channels];
 
-                let src1 = &rgba[channels..channels * 2];
+            let r0 = src0[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g0 = src0[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b0 = src0[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-                let r1 = c_r::<BP, R_TYPE>(src1[src_chans.get_r_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let g1 = c_r::<BP, R_TYPE>(src1[src_chans.get_g_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let b1 = c_r::<BP, R_TYPE>(src1[src_chans.get_b_channel_offset()].as_())
-                    * range_reduction_y as i32;
+            let src1 = &rgba[channels..channels * 2];
 
-                let t0 = b0 + ((r0 - b0) >> 1);
-                let cg0 = g0 - t0;
-                let y_0 = ((t0 + (cg0 >> 1)) + bias_y) >> PRECISION;
+            let r1 = src1[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g1 = src1[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b1 = src1[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-                y_dst[0] = y_0.min(max_colors).max(0).as_();
+            let t0 = b0 + ((r0 - b0) >> 1);
+            let cg0 = g0 - t0;
+            let y_0 = ((t0 + (cg0 >> 1)) + bias_y) >> PRECISION;
 
-                let t1 = b1 + ((r1 - b1) >> 1);
-                let cg1 = g1 - t1;
+            y_dst[0] = y_0.min(max_colors).max(0).as_();
 
-                let y_1 = ((t1 + (cg1 >> 1)) + bias_y) >> PRECISION;
+            let t1 = b1 + ((r1 - b1) >> 1);
+            let cg1 = g1 - t1;
 
-                y_dst[1] = y_1.min(max_colors).max(0).as_();
+            let y_1 = ((t1 + (cg1 >> 1)) + bias_y) >> PRECISION;
 
-                let r = (r0 + r1 + 1) >> 1;
-                let g = (g0 + g1 + 1) >> 1;
-                let b = (b0 + b1 + 1) >> 1;
+            y_dst[1] = y_1.min(max_colors).max(0).as_();
 
-                let t = b + ((r - b) >> 1);
+            let r = (r0 + r1 + 1) >> 1;
+            let g = (g0 + g1 + 1) >> 1;
+            let b = (b0 + b1 + 1) >> 1;
 
-                let co = (r - b + bias_uv) >> PRECISION;
-                let cg = (g - t + bias_uv) >> PRECISION;
+            let t = b + ((r - b) >> 1);
 
-                *u_dst = cg.min(max_colors).max(0).as_();
-                *v_dst = co.min(max_colors).max(0).as_();
-            }
+            let co = (r - b + bias_uv) >> PRECISION;
+            let cg = (g - t + bias_uv) >> PRECISION;
 
-            if image.width & 1 != 0 {
-                let rgb_last = rgba.chunks_exact(channels * 2).remainder();
-                let r0 = c_r::<BP, R_TYPE>(rgb_last[src_chans.get_r_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let g0 = c_r::<BP, R_TYPE>(rgb_last[src_chans.get_g_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let b0 = c_r::<BP, R_TYPE>(rgb_last[src_chans.get_b_channel_offset()].as_())
-                    * range_reduction_y as i32;
+            *u_dst = cg.min(max_colors).max(0).as_();
+            *v_dst = co.min(max_colors).max(0).as_();
+        }
 
-                let y_last = y_plane.last_mut().unwrap();
-                let u_last = u_plane.last_mut().unwrap();
-                let v_last = v_plane.last_mut().unwrap();
+        if width & 1 != 0 {
+            let rgb_last = rgba.chunks_exact(channels * 2).remainder();
+            let r0 = rgb_last[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g0 = rgb_last[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b0 = rgb_last[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-                let t = b0 + ((r0 - b0) >> 1);
-                let co = (r0 - b0 + bias_uv) >> PRECISION;
-                let cg = g0 - t;
-                let y_0 = ((t + (cg >> 1)) + bias_y) >> PRECISION;
+            let y_last = y_plane.last_mut().unwrap();
+            let u_last = u_plane.last_mut().unwrap();
+            let v_last = v_plane.last_mut().unwrap();
 
-                *y_last = y_0.min(max_colors).max(0).as_();
-                *u_last = ((cg + bias_uv) >> PRECISION).min(max_colors).max(0).as_();
-                *v_last = co.min(max_colors).max(0).as_();
-            }
-        };
+            let t = b0 + ((r0 - b0) >> 1);
+            let co = (r0 - b0 + bias_uv) >> PRECISION;
+            let cg = g0 - t;
+            let y_0 = ((t + (cg >> 1)) + bias_y) >> PRECISION;
+
+            *y_last = y_0.min(max_colors).max(0).as_();
+            *u_last = ((cg + bias_uv) >> PRECISION).min(max_colors).max(0).as_();
+            *v_last = co.min(max_colors).max(0).as_();
+        }
+    };
 
     let process_doubled_row = |y_plane0: &mut [F],
                                y_plane1: &mut [F],
@@ -179,12 +171,9 @@ where
         {
             let src00 = &rgba0[0..channels];
 
-            let r00 = c_r::<BP, R_TYPE>(src00[src_chans.get_r_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let g00 = c_r::<BP, R_TYPE>(src00[src_chans.get_g_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let b00 = c_r::<BP, R_TYPE>(src00[src_chans.get_b_channel_offset()].as_())
-                * range_reduction_y as i32;
+            let r00 = src00[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g00 = src00[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b00 = src00[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
             let t00 = b00 + ((r00 - b00) >> 1);
             let cg00 = g00 - t00;
@@ -194,12 +183,9 @@ where
 
             let src1 = &rgba0[channels..channels * 2];
 
-            let r01 = c_r::<BP, R_TYPE>(src1[src_chans.get_r_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let g01 = c_r::<BP, R_TYPE>(src1[src_chans.get_g_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let b01 = c_r::<BP, R_TYPE>(src1[src_chans.get_b_channel_offset()].as_())
-                * range_reduction_y as i32;
+            let r01 = src1[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g01 = src1[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b01 = src1[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
             let t01 = b01 + ((r01 - b01) >> 1);
             let cg01 = g01 - t01;
@@ -209,12 +195,9 @@ where
 
             let src10 = &rgba1[0..channels];
 
-            let r10 = c_r::<BP, R_TYPE>(src10[src_chans.get_r_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let g10 = c_r::<BP, R_TYPE>(src10[src_chans.get_g_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let b10 = c_r::<BP, R_TYPE>(src10[src_chans.get_b_channel_offset()].as_())
-                * range_reduction_y as i32;
+            let r10 = src10[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g10 = src10[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b10 = src10[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
             let t10 = b10 + ((r10 - b10) >> 1);
             let cg10 = g10 - t10;
@@ -224,12 +207,9 @@ where
 
             let src11 = &rgba1[channels..channels * 2];
 
-            let r11 = c_r::<BP, R_TYPE>(src11[src_chans.get_r_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let g11 = c_r::<BP, R_TYPE>(src11[src_chans.get_g_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let b11 = c_r::<BP, R_TYPE>(src11[src_chans.get_b_channel_offset()].as_())
-                * range_reduction_y as i32;
+            let r11 = src11[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g11 = src11[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b11 = src11[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
             let t11 = b11 + ((r11 - b11) >> 1);
             let cg11 = g11 - t11;
@@ -250,22 +230,16 @@ where
             *v_dst = co.min(max_colors).max(0).as_();
         }
 
-        if image.width & 1 != 0 {
+        if width & 1 != 0 {
             let rgb_last0 = rgba0.chunks_exact(channels * 2).remainder();
             let rgb_last1 = rgba1.chunks_exact(channels * 2).remainder();
-            let r0 = c_r::<BP, R_TYPE>(rgb_last0[src_chans.get_r_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let g0 = c_r::<BP, R_TYPE>(rgb_last0[src_chans.get_g_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let b0 = c_r::<BP, R_TYPE>(rgb_last0[src_chans.get_b_channel_offset()].as_())
-                * range_reduction_y as i32;
+            let r0 = rgb_last0[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g0 = rgb_last0[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b0 = rgb_last0[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
-            let r1 = c_r::<BP, R_TYPE>(rgb_last1[src_chans.get_r_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let g1 = c_r::<BP, R_TYPE>(rgb_last1[src_chans.get_g_channel_offset()].as_())
-                * range_reduction_y as i32;
-            let b1 = c_r::<BP, R_TYPE>(rgb_last1[src_chans.get_b_channel_offset()].as_())
-                * range_reduction_y as i32;
+            let r1 = rgb_last1[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+            let g1 = rgb_last1[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+            let b1 = rgb_last1[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
             let y0_last = y_plane0.last_mut().unwrap();
             let y1_last = y_plane1.last_mut().unwrap();
@@ -296,45 +270,42 @@ where
         }
     };
 
-    let y_plane = image.y_plane.borrow_mut();
-    let u_plane = image.u_plane.borrow_mut();
-    let v_plane = image.v_plane.borrow_mut();
     let y_stride = image.y_stride as usize;
     let u_stride = image.u_stride as usize;
     let v_stride = image.v_stride as usize;
+
+    let (y_plane, u_plane, v_plane) = image.projected_planes_mut(chroma_subsampling);
+    let rgba = projected_rgba_plane(rgba, width, height, rgba_stride, src_chans);
 
     if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
         let iter;
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride)
-                .zip(u_plane.par_chunks_exact_mut(u_stride))
-                .zip(v_plane.par_chunks_exact_mut(v_stride))
-                .zip(rgba.par_chunks_exact(rgba_stride as usize));
+                .par_chunks_mut(y_stride)
+                .zip(u_plane.par_chunks_mut(u_stride))
+                .zip(v_plane.par_chunks_mut(v_stride))
+                .zip(rgba.par_chunks(rgba_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride)
-                .zip(u_plane.chunks_exact_mut(u_stride))
-                .zip(v_plane.chunks_exact_mut(v_stride))
-                .zip(rgba.chunks_exact(rgba_stride as usize));
+                .chunks_mut(y_stride)
+                .zip(u_plane.chunks_mut(u_stride))
+                .zip(v_plane.chunks_mut(v_stride))
+                .zip(rgba.chunks(rgba_stride as usize));
         }
         iter.for_each(|(((y_dst, u_plane), v_plane), rgba)| {
-            let y_dst = &mut y_dst[..image.width as usize];
+            let y_dst = &mut y_dst[..width as usize];
             for (((y_dst, u_dst), v_dst), rgba) in y_dst
                 .iter_mut()
                 .zip(u_plane.iter_mut())
                 .zip(v_plane.iter_mut())
                 .zip(rgba.chunks_exact(channels))
             {
-                let r0 = c_r::<BP, R_TYPE>(rgba[src_chans.get_r_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let g0 = c_r::<BP, R_TYPE>(rgba[src_chans.get_g_channel_offset()].as_())
-                    * range_reduction_y as i32;
-                let b0 = c_r::<BP, R_TYPE>(rgba[src_chans.get_b_channel_offset()].as_())
-                    * range_reduction_y as i32;
+                let r0 = rgba[src_chans.get_r_channel_offset()].as_() * range_reduction_y as i32;
+                let g0 = rgba[src_chans.get_g_channel_offset()].as_() * range_reduction_y as i32;
+                let b0 = rgba[src_chans.get_b_channel_offset()].as_() * range_reduction_y as i32;
 
                 let co = r0 - b0;
                 let t = b0 + (co >> 1);
@@ -352,26 +323,26 @@ where
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride)
-                .zip(u_plane.par_chunks_exact_mut(u_stride))
-                .zip(v_plane.par_chunks_exact_mut(v_stride))
-                .zip(rgba.par_chunks_exact(rgba_stride as usize));
+                .par_chunks_mut(y_stride)
+                .zip(u_plane.par_chunks_mut(u_stride))
+                .zip(v_plane.par_chunks_mut(v_stride))
+                .zip(rgba.par_chunks(rgba_stride as usize));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride)
-                .zip(u_plane.chunks_exact_mut(u_stride))
-                .zip(v_plane.chunks_exact_mut(v_stride))
-                .zip(rgba.chunks_exact(rgba_stride as usize));
+                .chunks_mut(y_stride)
+                .zip(u_plane.chunks_mut(u_stride))
+                .zip(v_plane.chunks_mut(v_stride))
+                .zip(rgba.chunks(rgba_stride as usize));
         }
 
         iter.for_each(|(((y_plane, u_plane), v_plane), rgba)| {
             process_halved_chroma_row(
-                &mut y_plane[..image.width as usize],
-                &mut u_plane[..(image.width as usize).div_ceil(2)],
-                &mut v_plane[..(image.width as usize).div_ceil(2)],
-                &rgba[..image.width as usize * channels],
+                &mut y_plane[..width as usize],
+                &mut u_plane[..(width as usize).div_ceil(2)],
+                &mut v_plane[..(width as usize).div_ceil(2)],
+                &rgba[..width as usize * channels],
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
@@ -379,42 +350,43 @@ where
         #[cfg(feature = "rayon")]
         {
             iter = y_plane
-                .par_chunks_exact_mut(y_stride * 2)
-                .zip(u_plane.par_chunks_exact_mut(u_stride))
-                .zip(v_plane.par_chunks_exact_mut(v_stride))
-                .zip(rgba.par_chunks_exact(rgba_stride as usize * 2));
+                .par_chunks_mut(y_stride * 2)
+                .zip(u_plane.par_chunks_mut(u_stride))
+                .zip(v_plane.par_chunks_mut(v_stride))
+                .zip(rgba.par_chunks(rgba_stride as usize * 2));
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = y_plane
-                .chunks_exact_mut(y_stride * 2)
-                .zip(u_plane.chunks_exact_mut(u_stride))
-                .zip(v_plane.chunks_exact_mut(v_stride))
-                .zip(rgba.chunks_exact(rgba_stride as usize * 2));
+                .chunks_mut(y_stride * 2)
+                .zip(u_plane.chunks_mut(u_stride))
+                .zip(v_plane.chunks_mut(v_stride))
+                .zip(rgba.chunks(rgba_stride as usize * 2));
         }
-        iter.for_each(|(((y_plane, u_plane), v_plane), rgba)| {
-            let (rgba0, rgba1) = rgba.split_at(rgba_stride as usize);
-            let (y_plane0, y_plane1) = y_plane.split_at_mut(y_stride);
-            process_doubled_row(
-                &mut y_plane0[..image.width as usize],
-                &mut y_plane1[..image.width as usize],
-                &mut u_plane[..(image.width as usize).div_ceil(2)],
-                &mut v_plane[..(image.width as usize).div_ceil(2)],
-                &rgba0[..image.width as usize * channels],
-                &rgba1[..image.width as usize * channels],
-            );
-        });
+        iter.take(height as usize / 2)
+            .for_each(|(((y_plane, u_plane), v_plane), rgba)| {
+                let (rgba0, rgba1) = rgba.split_at(rgba_stride as usize);
+                let (y_plane0, y_plane1) = y_plane.split_at_mut(y_stride);
+                process_doubled_row(
+                    &mut y_plane0[..width as usize],
+                    &mut y_plane1[..width as usize],
+                    &mut u_plane[..(width as usize).div_ceil(2)],
+                    &mut v_plane[..(width as usize).div_ceil(2)],
+                    &rgba0[..width as usize * channels],
+                    &rgba1[..width as usize * channels],
+                );
+            });
 
-        if image.height & 1 != 0 {
-            let remainder_y_plane = y_plane.chunks_exact_mut(y_stride * 2).into_remainder();
-            let remainder_rgba = rgba.chunks_exact(rgba_stride as usize * 2).remainder();
-            let u_plane = u_plane.chunks_exact_mut(u_stride).last().unwrap();
-            let v_plane = v_plane.chunks_exact_mut(v_stride).last().unwrap();
+        if height & 1 != 0 {
+            let remainder_y_plane = y_plane.chunks_mut(y_stride * 2).last().unwrap();
+            let remainder_rgba = rgba.chunks(rgba_stride as usize * 2).last().unwrap();
+            let u_plane = u_plane.chunks_mut(u_stride).last().unwrap();
+            let v_plane = v_plane.chunks_mut(v_stride).last().unwrap();
             process_halved_chroma_row(
-                &mut remainder_y_plane[..image.width as usize],
-                &mut u_plane[..(image.width as usize).div_ceil(2)],
-                &mut v_plane[..(image.width as usize).div_ceil(2)],
-                &remainder_rgba[..image.width as usize * channels],
+                &mut remainder_y_plane[..width as usize],
+                &mut u_plane[..(width as usize).div_ceil(2)],
+                &mut v_plane[..(width as usize).div_ceil(2)],
+                &remainder_rgba[..width as usize * channels],
             );
         }
     } else {

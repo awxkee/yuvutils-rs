@@ -77,7 +77,7 @@ impl From<u8> for RdpChannels {
 
 impl RdpChannels {
     #[inline(always)]
-    pub const fn get_channels_count(&self) -> usize {
+    pub const fn channel_count(&self) -> usize {
         match self {
             RdpChannels::Rgb | RdpChannels::Bgr => 3,
             RdpChannels::Rgba | RdpChannels::Bgra | RdpChannels::Abgr | RdpChannels::Argb => 4,
@@ -205,13 +205,39 @@ impl<const ORIGIN_CHANNELS: u8, const Q: i32> WideRdpRowForwardHandler<i16, u8, 
     }
 }
 
+/// Projects an RGBA/RGB/BGR/BGRA buffer to its valid size,
+/// truncating any tail beyond the last valid row.
+pub(crate) fn rdp_projected_rgba_plane<T: Copy>(
+    buf: &[T],
+    width: u32,
+    height: u32,
+    stride: u32,
+    source_channels: RdpChannels,
+) -> &[T] {
+    let valid_size =
+        stride as usize * (height as usize - 1) + width as usize * source_channels.channel_count();
+    &buf[..valid_size]
+}
+
+pub(crate) fn rdp_projected_rgba_plane_mut<T: Copy>(
+    buf: &mut [T],
+    width: u32,
+    height: u32,
+    stride: u32,
+    source_channels: RdpChannels,
+) -> &mut [T] {
+    let valid_size =
+        stride as usize * (height as usize - 1) + width as usize * source_channels.channel_count();
+    &mut buf[..valid_size]
+}
+
 fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
     planar_image: &mut YuvPlanarImageMut<i16>,
     rgba: &[u8],
     rgba_stride: u32,
 ) -> Result<(), YuvError> {
     let ch: RdpChannels = ORIGIN_CHANNELS.into();
-    let channels = ch.get_channels_count();
+    let channels = ch.channel_count();
     planar_image.check_constraints(YuvChromaSubsampling::Yuv444)?;
     check_rgba_destination(
         rgba,
@@ -220,10 +246,6 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
         planar_image.height,
         channels,
     )?;
-
-    let y_plane = planar_image.y_plane.borrow_mut();
-    let u_plane = planar_image.u_plane.borrow_mut();
-    let v_plane = planar_image.v_plane.borrow_mut();
 
     const PRECISION: i32 = 15;
     const SCALE: f32 = (1 << PRECISION) as f32;
@@ -251,10 +273,21 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
 
     let handler = RgbEncoder::<ORIGIN_CHANNELS, 10>::default();
 
+    let y_stride = planar_image.y_stride;
+    let u_stride = planar_image.u_stride;
+    let v_stride = planar_image.v_stride;
+    let width = planar_image.width;
+    let height = planar_image.height;
+
+    let (y_plane, u_plane, v_plane) =
+        planar_image.projected_planes_mut(YuvChromaSubsampling::Yuv444);
+
+    let rgba = rdp_projected_rgba_plane(rgba, width, height, rgba_stride, ch);
+
     let iter = y_plane
-        .chunks_mut(planar_image.y_stride as usize)
-        .zip(u_plane.chunks_mut(planar_image.u_stride as usize))
-        .zip(v_plane.chunks_mut(planar_image.v_stride as usize))
+        .chunks_mut(y_stride as usize)
+        .zip(u_plane.chunks_mut(u_stride as usize))
+        .zip(v_plane.chunks_mut(v_stride as usize))
         .zip(rgba.chunks(rgba_stride as usize));
 
     iter.for_each(|(((y_dst, u_dst), v_dst), rgba)| {
@@ -263,7 +296,7 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
             u_dst,
             v_dst,
             rgba,
-            planar_image.width,
+            width,
             YuvChromaRange {
                 bias_y: 4096,
                 bias_uv: 0,
@@ -279,7 +312,7 @@ fn to_rdp_yuv<const ORIGIN_CHANNELS: u8>(
             .zip(u_dst.iter_mut())
             .zip(v_dst.iter_mut())
             .zip(rgba.chunks_exact(channels))
-            .take(planar_image.width as usize)
+            .take(width as usize)
             .skip(offset.cx)
         {
             let r = rgba[ch.get_r_channel_offset()] as i32;
@@ -333,7 +366,7 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
     rgba_stride: u32,
 ) -> Result<(), YuvError> {
     let ch: RdpChannels = ORIGIN_CHANNELS.into();
-    let channels = ch.get_channels_count();
+    let channels = ch.channel_count();
     planar_image.check_constraints(YuvChromaSubsampling::Yuv444)?;
     check_rgba_destination(
         rgba,
@@ -342,10 +375,6 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
         planar_image.height,
         channels,
     )?;
-
-    let y_plane = planar_image.y_plane;
-    let u_plane = planar_image.u_plane;
-    let v_plane = planar_image.v_plane;
 
     const PRECISION: i32 = 16;
     const Y_SCALE: i32 = 1 << PRECISION;
@@ -361,6 +390,15 @@ fn rdp_yuv_to_rgb<const ORIGIN_CHANNELS: u8>(
         g_coeff_1: B_G_1,
         g_coeff_2: B_G_2,
     };
+
+    let (y_plane, u_plane, v_plane) = planar_image.projected_planes(YuvChromaSubsampling::Yuv444);
+    let rgba = rdp_projected_rgba_plane_mut(
+        rgba,
+        planar_image.width,
+        planar_image.height,
+        rgba_stride,
+        ch,
+    );
 
     let iter = y_plane
         .chunks(planar_image.y_stride as usize)

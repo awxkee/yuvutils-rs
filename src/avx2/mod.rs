@@ -30,6 +30,7 @@
 #![allow(clippy::incompatible_msrv)]
 mod avx2_utils;
 mod ayuv_to_rgba;
+mod cgco;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
 mod gbr_to_rgb;
@@ -63,8 +64,6 @@ mod rgba_to_yuv_fast420;
 mod shuffle;
 mod y_to_rgba;
 mod y_to_rgba_alpha;
-#[cfg(target_arch = "x86_64")]
-mod ycgco_to_rgb;
 mod yuv16_to_rgba16_bilinear;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
@@ -96,6 +95,9 @@ mod yuy2_to_rgb;
 mod yuy2_to_yuv;
 
 pub(crate) use ayuv_to_rgba::avx2_ayuv_to_rgba;
+pub(crate) use cgco::avx2_ycgco_full_range_to_rgb;
+#[cfg(feature = "ycgco_r_type")]
+pub(crate) use cgco::{ycgco_ro_re_u16_to_rgba_avx2, ycgco_ro_re_u16_to_rgba_avx2_full};
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{SurfaceU16ToFloat16Avx2, SurfaceU8ToFloat16Avx2};
 pub(crate) use gbr_to_rgb::{avx_yuv_to_rgba_row_full, avx_yuv_to_rgba_row_limited};
@@ -129,8 +131,6 @@ pub(crate) use rgba_to_yuv_fast420::avx2_rgba_to_yuv_dot_rgba420;
 pub(crate) use shuffle::{ShuffleConverterAvx2, ShuffleQTableConverterAvx2};
 pub(crate) use y_to_rgba::avx2_y_to_rgba_row;
 pub(crate) use y_to_rgba_alpha::avx2_y_to_rgba_alpha_row;
-#[cfg(target_arch = "x86_64")]
-pub(crate) use ycgco_to_rgb::avx2_ycgco_full_range_to_rgb;
 pub(crate) use yuv16_to_rgba16_bilinear::{
     avx_planar16_bilinear_1_row_rgba, avx_planar16_bilinear_2_rows_rgba,
 };
