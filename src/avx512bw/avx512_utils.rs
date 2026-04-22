@@ -189,18 +189,6 @@ pub(crate) unsafe fn avx512_put_rgb16(dst: *mut u16, a: __m512i, b: __m512i, c: 
 }
 
 #[inline(always)]
-pub(crate) unsafe fn avx512_put_half_rgb_u8<const HAS_VBMI: bool>(
-    dst: *mut u8,
-    a: __m512i,
-    b: __m512i,
-    c: __m512i,
-) {
-    let (rgb0, rgb1, _) = avx512_interleave_rgb::<HAS_VBMI>(a, b, c);
-    _mm512_storeu_si512(dst as *mut _, rgb0);
-    _mm256_storeu_si256(dst.add(64) as *mut __m256i, _mm512_castsi512_si256(rgb1));
-}
-
-#[inline(always)]
 pub(crate) unsafe fn avx512_interleave_rgba16(
     a: __m512i,
     b: __m512i,
@@ -269,19 +257,6 @@ pub(crate) unsafe fn avx512_put_rgba_u8<const HAS_VBMI: bool>(
     _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
     _mm512_storeu_si512(dst.add(128) as *mut _, rgb2);
     _mm512_storeu_si512(dst.add(128 + 64) as *mut _, rgb3);
-}
-
-#[inline(always)]
-pub(crate) unsafe fn avx512_put_half_rgba_u8<const HAS_VBMI: bool>(
-    dst: *mut u8,
-    a: __m512i,
-    b: __m512i,
-    c: __m512i,
-    d: __m512i,
-) {
-    let (rgb0, rgb1, _, _) = avx512_interleave_rgba::<HAS_VBMI>(a, b, c, d);
-    _mm512_storeu_si512(dst as *mut _, rgb0);
-    _mm512_storeu_si512(dst.add(64) as *mut _, rgb1);
 }
 
 #[inline(always)]
@@ -468,31 +443,6 @@ pub(crate) unsafe fn avx512_store_rgba_for_yuv_u8<const DN: u8, const HAS_VBMI: 
         }
         YuvSourceChannels::Bgra => {
             avx512_put_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
-        }
-    }
-}
-
-#[inline(always)]
-pub(crate) unsafe fn avx512_store_half_rgba_for_yuv_u8<const DN: u8, const HAS_VBMI: bool>(
-    dst: *mut u8,
-    r: __m512i,
-    g: __m512i,
-    b: __m512i,
-    a: __m512i,
-) {
-    let destination_channels: YuvSourceChannels = DN.into();
-    match destination_channels {
-        YuvSourceChannels::Rgb => {
-            avx512_put_half_rgb_u8::<HAS_VBMI>(dst, r, g, b);
-        }
-        YuvSourceChannels::Bgr => {
-            avx512_put_half_rgb_u8::<HAS_VBMI>(dst, b, g, r);
-        }
-        YuvSourceChannels::Rgba => {
-            avx512_put_half_rgba_u8::<HAS_VBMI>(dst, r, g, b, a);
-        }
-        YuvSourceChannels::Bgra => {
-            avx512_put_half_rgba_u8::<HAS_VBMI>(dst, b, g, r, a);
         }
     }
 }

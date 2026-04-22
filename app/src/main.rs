@@ -35,11 +35,11 @@ use std::io::Read;
 use std::time::Instant;
 use yuv::{
     i010_alpha_to_rgba10, i010_to_rgb10_bilinear, i010_to_rgba10, i010_to_rgba10_bilinear,
-    i210_to_rgba10, i210_to_rgba10_bilinear, icgc_re010_to_rgba, icgc_re410_to_rgb,
+    i210_to_rgba10, i210_to_rgba10_bilinear, i212_to_rgb, icgc_re010_to_rgba, icgc_re410_to_rgb,
     icgc_ro010_to_rgba, icgc_ro210_to_rgb, icgc_ro210_to_rgba, icgc_ro410_to_rgb,
-    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_i010, rgb10_to_i410, rgb10_to_p010,
-    rgb_to_icgc_re410, rgb_to_icgc_ro210, rgb_to_icgc_ro410, rgb_to_ycgco444, rgb_to_yuv420,
-    rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgb_to_yuv_nv24,
+    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_i010, rgb10_to_i410, rgb10_to_p010, rgb12_to_i212,
+    rgb12_to_i412, rgb_to_icgc_re410, rgb_to_icgc_ro210, rgb_to_icgc_ro410, rgb_to_ycgco444,
+    rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgb_to_yuv_nv24,
     rgba10_to_i010, rgba10_to_i210, rgba10_to_p010, rgba12_to_i412, rgba_to_icgc_re010,
     rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444,
     rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16,
@@ -107,18 +107,19 @@ fn main() {
     let mut bi_planar_image =
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
 
-    // let mut bytes_16: Vec<u16> = src_bytes
-    //     .iter()
-    //     .map(|&x| ((x as u16) << 2) | ((x as u16) >> 6))
-    //     .collect();
+    let mut bytes_16: Vec<u16> = src_bytes
+        .iter()
+        .map(|&x| ((x as u16) << 4) | ((x as u16) >> 4))
+        .collect();
 
     let start_time = Instant::now();
 
-    rgb_to_icgc_ro210(
+    rgb12_to_i212(
         &mut planar_image,
-        &src_bytes,
+        &bytes_16,
         rgba_stride as u32,
         YuvRange::Limited,
+        YuvStandardMatrix::Bt709,
     )
     .unwrap();
 
@@ -127,7 +128,14 @@ fn main() {
     rgba.fill(0);
 
     let start_time = Instant::now();
-    icgc_ro210_to_rgb(&fixed, &mut rgba, rgba_stride as u32, YuvRange::Limited).unwrap();
+    i212_to_rgb(
+        &fixed,
+        &mut rgba,
+        rgba_stride as u32,
+        YuvRange::Limited,
+        YuvStandardMatrix::Bt709,
+    )
+    .unwrap();
     println!("Backward time: {:?}", start_time.elapsed());
 
     // let fixed_biplanar = bi_planar_image.to_fixed();
