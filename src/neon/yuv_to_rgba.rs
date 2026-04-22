@@ -341,7 +341,7 @@ unsafe fn neon_yuv_to_rgba_row_rdm_impl<
         }
     }
 
-    while cx + 8 < width {
+    while cx + 8 <= width {
         let yvl = vld1_u8(y_ptr.add(cx));
         let u_low_u8: int8x8_t;
         let v_low_u8: int8x8_t;

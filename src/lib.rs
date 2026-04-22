@@ -289,12 +289,12 @@ pub use yuv_p10_rgba::{
     i010_be_to_bgr, i010_be_to_bgra, i010_be_to_rgb, i010_be_to_rgba, i012_be_to_bgr,
     i012_be_to_bgra, i012_be_to_rgb, i012_be_to_rgba, i210_be_to_bgr, i210_be_to_bgra,
     i210_be_to_rgb, i210_be_to_rgba, i212_be_to_bgr, i212_be_to_bgra, i212_be_to_rgb,
-    i212_be_to_rgba, i410_be_to_rgba,
+    i212_be_to_rgba, i410_be_to_rgba, i412_be_to_rgba,
 };
 pub use yuv_p10_rgba::{
     i010_to_bgr, i010_to_bgra, i010_to_rgb, i010_to_rgba, i012_to_bgr, i012_to_bgra, i012_to_rgb,
     i012_to_rgba, i210_to_bgr, i210_to_bgra, i210_to_rgb, i210_to_rgba, i212_to_bgr, i212_to_bgra,
-    i212_to_rgb, i212_to_rgba, i410_to_rgba,
+    i212_to_rgb, i212_to_rgba, i410_to_rgba, i412_to_rgb, i412_to_rgba,
 };
 
 pub use rgb_to_ycgco::{
