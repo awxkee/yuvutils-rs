@@ -686,7 +686,7 @@ unsafe fn avx2_rgba_to_nv_fast_rgba_impl_dot<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 32 < width as usize {
+    while cx + 32 <= width as usize {
         let src = rgba.get_unchecked(cx * channels..).as_ptr();
 
         let (v0, v1, v2, v3);
