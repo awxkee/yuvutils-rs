@@ -77,10 +77,12 @@ mod yuv_nv_to_rgba_fast420;
 #[cfg(feature = "professional_mode")]
 mod yuv_nv_to_rgba_prof;
 mod yuv_p16_to_rgb16;
+mod yuv_p16_to_rgb16_420;
 mod yuv_p16_to_rgb16_alpha;
 mod yuv_p16_to_rgb8;
 mod yuv_p16_to_rgb8_alpha;
 mod yuv_p16_to_rgb_d16;
+mod yuv_p16_to_rgb_d16_420;
 #[cfg(feature = "nightly_f16")]
 mod yuv_p16_to_rgb_f16;
 mod yuv_to_rgba;
@@ -146,10 +148,12 @@ pub(crate) use yuv_nv_to_rgba_fast420::avx_yuv_nv_to_rgba_fast420;
 #[cfg(feature = "professional_mode")]
 pub(crate) use yuv_nv_to_rgba_prof::avx2_yuv_nv_to_rgba_row_prof;
 pub(crate) use yuv_p16_to_rgb16::avx_yuv_p16_to_rgba_row;
+pub(crate) use yuv_p16_to_rgb16_420::avx_yuv_p16_to_rgba_row420;
 pub(crate) use yuv_p16_to_rgb16_alpha::avx_yuv_p16_to_rgba_alpha_row;
 pub(crate) use yuv_p16_to_rgb8::avx_yuv_p16_to_rgba8_row;
 pub(crate) use yuv_p16_to_rgb8_alpha::avx_yuv_p16_to_rgba8_alpha_row;
 pub(crate) use yuv_p16_to_rgb_d16::avx_yuv_p16_to_rgba_d16_row;
+pub(crate) use yuv_p16_to_rgb_d16_420::avx_yuv_p16_to_rgba_d16_row420;
 #[cfg(feature = "nightly_f16")]
 pub(crate) use yuv_p16_to_rgb_f16::avx_yuv_p16_to_rgba_f16_row;
 pub(crate) use yuv_to_rgba::avx2_yuv_to_rgba_row;

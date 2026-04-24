@@ -137,7 +137,7 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs420<const ORIGIN_CHANNELS: u8>(
 
     let rgb_shuffle = _mm_setr_epi8(0, 1, 2, -1, 3, 4, 5, -1, 6, 7, 8, -1, 9, 10, 11, -1);
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let src0 = rgba0.get_unchecked(cx * channels..).as_ptr();
         let src1 = rgba1.get_unchecked(cx * channels..).as_ptr();
 

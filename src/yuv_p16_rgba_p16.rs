@@ -29,8 +29,6 @@
 use crate::images::projected_rgba_plane_mut;
 #[allow(unused_imports)]
 use crate::internals::ProcessedOffset;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::neon::neon_yuv_p16_to_rgba16_row;
 use crate::numerics::{qrshr, to_ne};
 use crate::yuv_error::check_rgba_destination;
 use crate::yuv_support::{
@@ -54,6 +52,136 @@ trait WideRowInversionHandler<V, K> {
         chroma: YuvChromaRange,
         transform: &CbCrInverseTransform<K>,
     ) -> bool;
+}
+
+pub(crate) struct WideRow420InversionHandler<
+    const DESTINATION_CHANNELS: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const PRECISION: i32,
+    const BIT_DEPTH: usize,
+> {
+    handler: Option<
+        fn(
+            y0_plane: &[u16],
+            y1_plane: &[u16],
+            u_plane: &[u16],
+            v_plane: &[u16],
+            rgba0: &mut [u16],
+            rgba1: &mut [u16],
+            width: u32,
+            chroma: &YuvChromaRange,
+            transform: &CbCrInverseTransform<i32>,
+        ),
+    >,
+}
+
+impl<
+        const DESTINATION_CHANNELS: u8,
+        const ENDIANNESS: u8,
+        const BYTES_POSITION: u8,
+        const PRECISION: i32,
+        const BIT_DEPTH: usize,
+    > Default
+    for WideRow420InversionHandler<
+        DESTINATION_CHANNELS,
+        ENDIANNESS,
+        BYTES_POSITION,
+        PRECISION,
+        BIT_DEPTH,
+    >
+{
+    fn default() -> Self {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
+            #[cfg(feature = "rdm")]
+            {
+                let is_rdm_available = std::arch::is_aarch64_feature_detected!("rdm");
+                if is_rdm_available && BIT_DEPTH == 10 {
+                    use crate::neon::neon_yuv_p16_to_rgba16_row420_rdm;
+                    return WideRow420InversionHandler {
+                        handler: Some(
+                            neon_yuv_p16_to_rgba16_row420_rdm::<
+                                DESTINATION_CHANNELS,
+                                ENDIANNESS,
+                                BYTES_POSITION,
+                                PRECISION,
+                                BIT_DEPTH,
+                            >,
+                        ),
+                    };
+                }
+            }
+            if BIT_DEPTH <= 16 {
+                use crate::neon::neon_yuv_p16_to_rgba16_row420;
+                return WideRow420InversionHandler {
+                    handler: Some(
+                        neon_yuv_p16_to_rgba16_row420::<
+                            DESTINATION_CHANNELS,
+                            ENDIANNESS,
+                            BYTES_POSITION,
+                            PRECISION,
+                            BIT_DEPTH,
+                        >,
+                    ),
+                };
+            }
+        }
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            #[cfg(feature = "avx")]
+            {
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    return if BIT_DEPTH == 10 {
+                        assert_eq!(BIT_DEPTH, 10);
+                        use crate::avx2::avx_yuv_p16_to_rgba_row420;
+                        WideRow420InversionHandler {
+                            handler: Some(
+                                avx_yuv_p16_to_rgba_row420::<
+                                    DESTINATION_CHANNELS,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    BIT_DEPTH,
+                                    PRECISION,
+                                >,
+                            ),
+                        }
+                    } else {
+                        use crate::avx2::avx_yuv_p16_to_rgba_d16_row420;
+                        WideRow420InversionHandler {
+                            handler: Some(
+                                avx_yuv_p16_to_rgba_d16_row420::<
+                                    DESTINATION_CHANNELS,
+                                    ENDIANNESS,
+                                    BYTES_POSITION,
+                                    BIT_DEPTH,
+                                    PRECISION,
+                                >,
+                            ),
+                        }
+                    };
+                }
+            }
+            #[cfg(feature = "sse")]
+            {
+                if BIT_DEPTH == 10 && std::arch::is_x86_feature_detected!("sse4.1") {
+                    use crate::sse::sse_yuv_p16_to_rgba_row420;
+                    return WideRow420InversionHandler {
+                        handler: Some(
+                            sse_yuv_p16_to_rgba_row420::<
+                                DESTINATION_CHANNELS,
+                                ENDIANNESS,
+                                BYTES_POSITION,
+                                BIT_DEPTH,
+                                PRECISION,
+                            >,
+                        ),
+                    };
+                }
+            }
+        }
+        WideRow420InversionHandler { handler: None }
+    }
 }
 
 struct WideRowAnyHandler<
@@ -124,6 +252,7 @@ impl<
                 }
             }
             if BIT_DEPTH <= 16 {
+                use crate::neon::neon_yuv_p16_to_rgba16_row;
                 return WideRowAnyHandler {
                     handler: Some(
                         neon_yuv_p16_to_rgba16_row::<
@@ -165,10 +294,10 @@ impl<
             #[cfg(feature = "avx")]
             {
                 if use_avx {
-                    if BIT_DEPTH == 10 {
+                    return if BIT_DEPTH == 10 {
                         assert_eq!(BIT_DEPTH, 10);
                         use crate::avx2::avx_yuv_p16_to_rgba_row;
-                        return WideRowAnyHandler {
+                        WideRowAnyHandler {
                             handler: Some(
                                 avx_yuv_p16_to_rgba_row::<
                                     DESTINATION_CHANNELS,
@@ -179,10 +308,10 @@ impl<
                                     PRECISION,
                                 >,
                             ),
-                        };
+                        }
                     } else {
                         use crate::avx2::avx_yuv_p16_to_rgba_d16_row;
-                        return WideRowAnyHandler {
+                        WideRowAnyHandler {
                             handler: Some(
                                 avx_yuv_p16_to_rgba_d16_row::<
                                     DESTINATION_CHANNELS,
@@ -193,8 +322,8 @@ impl<
                                     PRECISION,
                                 >,
                             ),
-                        };
-                    }
+                        }
+                    };
                 }
             }
             #[cfg(feature = "sse")]
@@ -383,6 +512,163 @@ fn process_halved_row<
     }
 }
 
+fn process_double_rows<
+    const DESTINATION_CHANNELS: u8,
+    const ENDIANNESS: u8,
+    const BYTES_POSITION: u8,
+    const BIT_DEPTH: usize,
+    const PRECISION: i32,
+>(
+    y_plane0: &[u16],
+    y_plane1: &[u16],
+    u_plane: &[u16],
+    v_plane: &[u16],
+    rgba0: &mut [u16],
+    rgba1: &mut [u16],
+    wide_row_handler: &WideRow420InversionHandler<
+        DESTINATION_CHANNELS,
+        ENDIANNESS,
+        BYTES_POSITION,
+        PRECISION,
+        BIT_DEPTH,
+    >,
+    width: u32,
+    chroma_range: YuvChromaRange,
+    transform: &CbCrInverseTransform<i32>,
+) {
+    if let Some(handler) = wide_row_handler.handler.as_ref() {
+        handler(
+            y_plane0,
+            y_plane1,
+            u_plane,
+            v_plane,
+            rgba0,
+            rgba1,
+            width,
+            &chroma_range,
+            transform,
+        );
+        return;
+    }
+    let max_range_p16 = ((1u32 << BIT_DEPTH as u32) - 1) as i32;
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = dst_chans.get_channels_count();
+
+    let msb_shift = (16 - BIT_DEPTH) as i32;
+
+    let cr_coef = transform.cr_coef;
+    let cb_coef = transform.cb_coef;
+    let y_coef = transform.y_coef;
+    let g_coef_1 = transform.g_coeff_1;
+    let g_coef_2 = transform.g_coeff_2;
+
+    let bias_y = chroma_range.bias_y as i32;
+    let bias_uv = chroma_range.bias_uv as i32;
+
+    for (((((rgba_row0, rgba_row1), y_src0), y_src1), &u_src), &v_src) in rgba0
+        .chunks_exact_mut(channels * 2)
+        .zip(rgba1.chunks_exact_mut(channels * 2))
+        .zip(y_plane0.chunks_exact(2))
+        .zip(y_plane1.chunks_exact(2))
+        .zip(u_plane.iter())
+        .zip(v_plane.iter())
+    {
+        let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(u_src, msb_shift) as i32 - bias_uv;
+        let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(v_src, msb_shift) as i32 - bias_uv;
+
+        let cr_r = cr_coef * cr_value;
+        let cb_b = cb_coef * cb_value;
+        let g_uv = g_coef_1 * cr_value + g_coef_2 * cb_value;
+
+        // row 0, pixel 0
+        let y_value00 =
+            (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src0[0], msb_shift) as i32 - bias_y) * y_coef;
+        let dst00 = &mut rgba_row0[..channels];
+        dst00[dst_chans.get_r_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value00 + cr_r) as u16;
+        dst00[dst_chans.get_g_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value00 - g_uv) as u16;
+        dst00[dst_chans.get_b_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value00 + cb_b) as u16;
+        if dst_chans.has_alpha() {
+            dst00[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+        }
+
+        // row 0, pixel 1
+        let y_value01 =
+            (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src0[1], msb_shift) as i32 - bias_y) * y_coef;
+        let dst01 = &mut rgba_row0[channels..channels * 2];
+        dst01[dst_chans.get_r_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value01 + cr_r) as u16;
+        dst01[dst_chans.get_g_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value01 - g_uv) as u16;
+        dst01[dst_chans.get_b_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value01 + cb_b) as u16;
+        if dst_chans.has_alpha() {
+            dst01[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+        }
+
+        // row 1, pixel 0
+        let y_value10 =
+            (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src1[0], msb_shift) as i32 - bias_y) * y_coef;
+        let dst10 = &mut rgba_row1[..channels];
+        dst10[dst_chans.get_r_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value10 + cr_r) as u16;
+        dst10[dst_chans.get_g_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value10 - g_uv) as u16;
+        dst10[dst_chans.get_b_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value10 + cb_b) as u16;
+        if dst_chans.has_alpha() {
+            dst10[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+        }
+
+        // row 1, pixel 1
+        let y_value11 =
+            (to_ne::<ENDIANNESS, BYTES_POSITION>(y_src1[1], msb_shift) as i32 - bias_y) * y_coef;
+        let dst11 = &mut rgba_row1[channels..channels * 2];
+        dst11[dst_chans.get_r_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value11 + cr_r) as u16;
+        dst11[dst_chans.get_g_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value11 - g_uv) as u16;
+        dst11[dst_chans.get_b_channel_offset()] =
+            qrshr::<PRECISION, BIT_DEPTH>(y_value11 + cb_b) as u16;
+        if dst_chans.has_alpha() {
+            dst11[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+        }
+    }
+
+    // odd width tail — shared chroma from last u/v sample
+    if width & 1 != 0 {
+        let cb_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*u_plane.last().unwrap(), msb_shift)
+            as i32
+            - bias_uv;
+        let cr_value = to_ne::<ENDIANNESS, BYTES_POSITION>(*v_plane.last().unwrap(), msb_shift)
+            as i32
+            - bias_uv;
+
+        let cr_r = cr_coef * cr_value;
+        let cb_b = cb_coef * cb_value;
+        let g_uv = g_coef_1 * cr_value + g_coef_2 * cb_value;
+
+        for (y_plane, rgba_row) in [(y_plane0, &mut *rgba0), (y_plane1, &mut *rgba1)] {
+            let y_value = (to_ne::<ENDIANNESS, BYTES_POSITION>(*y_plane.last().unwrap(), msb_shift)
+                as i32
+                - bias_y)
+                * y_coef;
+            let dst = rgba_row.chunks_exact_mut(channels).last().unwrap();
+            dst[dst_chans.get_r_channel_offset()] =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value + cr_r) as u16;
+            dst[dst_chans.get_g_channel_offset()] =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value - g_uv) as u16;
+            dst[dst_chans.get_b_channel_offset()] =
+                qrshr::<PRECISION, BIT_DEPTH>(y_value + cb_b) as u16;
+            if dst_chans.has_alpha() {
+                dst[dst_chans.get_a_channel_offset()] = max_range_p16 as u16;
+            }
+        }
+    }
+}
+
 fn yuv_p16_to_image_p16_ant<
     const DESTINATION_CHANNELS: u8,
     const SAMPLING: u8,
@@ -540,6 +826,13 @@ fn yuv_p16_to_image_p16_ant<
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
+        let wide_row420_handler = WideRow420InversionHandler::<
+            DESTINATION_CHANNELS,
+            ENDIANNESS,
+            BYTES_POSITION,
+            PRECISION,
+            BIT_DEPTH,
+        >::default();
         let iter;
         #[cfg(feature = "rayon")]
         {
@@ -559,28 +852,26 @@ fn yuv_p16_to_image_p16_ant<
         }
         iter.take(image.height as usize / 2)
             .for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-                for (rgba, y_plane) in rgba
-                    .chunks_mut(rgba_stride as usize)
-                    .zip(y_plane.chunks(image.y_stride as usize))
-                {
-                    process_halved_row::<
-                        DESTINATION_CHANNELS,
-                        SAMPLING,
-                        ENDIANNESS,
-                        BYTES_POSITION,
-                        BIT_DEPTH,
-                        PRECISION,
-                    >(
-                        &y_plane[..image.width as usize],
-                        &u_plane[..(image.width as usize).div_ceil(2)],
-                        &v_plane[..(image.width as usize).div_ceil(2)],
-                        &mut rgba[..image.width as usize * channels],
-                        &wide_row_handler,
-                        image.width,
-                        chroma_range,
-                        &transform,
-                    );
-                }
+                let (y0, y1) = y_plane.split_at(image.y_stride as usize);
+                let (rgba0, rgba1) = rgba.split_at_mut(rgba_stride as usize);
+                process_double_rows::<
+                    DESTINATION_CHANNELS,
+                    ENDIANNESS,
+                    BYTES_POSITION,
+                    BIT_DEPTH,
+                    PRECISION,
+                >(
+                    &y0[..image.width as usize],
+                    &y1[..image.width as usize],
+                    &u_plane[..(image.width as usize).div_ceil(2)],
+                    &v_plane[..(image.width as usize).div_ceil(2)],
+                    &mut rgba0[..image.width as usize * channels],
+                    &mut rgba1[..image.width as usize * channels],
+                    &wide_row420_handler,
+                    image.width,
+                    chroma_range,
+                    &transform,
+                );
             });
 
         if image.height & 1 != 0 {

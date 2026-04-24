@@ -17,7 +17,7 @@ jobs:
 
       - name: Mirror to GitLab
         run: |
-          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/awxkee/yuv
+          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/awxkee/yuv.git
           git remote add codeberg https://awxkee:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/awxkee/yuv.git
           git push gitlab --all
           git push gitlab --tags

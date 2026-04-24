@@ -6,7 +6,7 @@
 Fast and simple YUV approximation conversion in pure Rust. At most the same as libyuv does.
 Performance will be equal to libyuv or slightly higher on platforms where SIMD is implemented. Otherwise, equal or slower.
 
-Mostly implemented AVX-512, AVX2, SSE, NEON, WASM. Waiting for SVE to be available in `nightly`.
+Mostly implemented AVX-512, AVX2, SSE, NEON, WASM.
 
 x86 targets with SSE and AVX uses runtime dispatch to detect available cpu features.
 

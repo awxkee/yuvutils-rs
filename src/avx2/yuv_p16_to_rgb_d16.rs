@@ -309,7 +309,7 @@ unsafe fn avx_yuv_p16_to_rgba_row_d16_impl<
             &y_buffer, &u_buffer, &v_buffer, cut_rgba, 16, range, transform,
         );
 
-        let rgba_dst = &mut bgra[cx..cx + channels * diff];
+        let rgba_dst = &mut bgra[cx * channels..cx * channels + channels * diff];
         rgba_dst.copy_from_slice(&cut_rgba[..rgba_dst.len()]);
     }
 }
