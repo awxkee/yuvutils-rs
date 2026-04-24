@@ -31,11 +31,11 @@ use image::{GenericImageView, ImageReader};
 use std::alloc::Layout;
 use std::hint::black_box;
 use yuv::{
-    gbr_to_rgba, icgc_ro210_to_rgba, icgc_ro410_to_rgba, rgb_to_gbr, rgb_to_icgc_ro410,
-    rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv16,
-    rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444,
-    rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgba, ycgco444_to_rgba, yuv400_to_rgba,
-    yuv420_to_rgb, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgba,
+    gbr_to_rgba, icgc_ro210_to_rgba, icgc_ro410_to_rgba, rdp_rgba_to_yuv444, rgb_to_gbr,
+    rgb_to_icgc_ro410, rgb_to_yuv400, rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12,
+    rgb_to_yuv_nv16, rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_yuv420, rgba_to_yuv422,
+    rgba_to_yuv444, rgba_to_yuv_nv12, vyua_to_rgba, ycgco420_to_rgba, ycgco444_to_rgba,
+    yuv400_to_rgba, yuv420_to_rgb, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgba,
     yuv422_to_rgba_bilinear, yuv444_to_rgba, yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb,
     YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvGrayImageMut, YuvPackedImage,
     YuvPlanarImage, YuvPlanarImageMut, YuvRange, YuvStandardMatrix,
@@ -125,7 +125,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let fixed_gray = gray_image.to_fixed();
 
-    c.bench_function("yuvutils YCgCo-Re 4:4:4 -> RGBA", |b| {
+    /*c.bench_function("yuvutils YCgCo-Re 4:4:4 -> RGBA", |b| {
         let mut rgb_bytes = vec![black_box(0u8); dimensions.0 as usize * 4 * dimensions.1 as usize];
         let mut image = black_box(YuvPlanarImageMut::<u16>::alloc(
             dimensions.0,
@@ -341,7 +341,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             )
             .unwrap();
         })
-    });
+    });*/
 
     c.bench_function("yuvutils RGBA -> YUV 4:2:0 Balanced", |b| {
         let mut test_planar = YuvPlanarImageMut::<u8>::alloc(

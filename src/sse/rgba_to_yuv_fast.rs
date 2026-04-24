@@ -136,7 +136,7 @@ unsafe fn sse41_rgba_to_yuv_dot_rgba_impl_ubs<const ORIGIN_CHANNELS: u8, const S
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    while cx + 16 < width {
+    while cx + 16 <= width {
         let src = rgba.get_unchecked(cx * channels..).as_ptr();
 
         let (v0, v1, v2, v3);

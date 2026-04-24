@@ -373,10 +373,183 @@ unsafe fn avx2_rgba_to_yuv_impl_prof_4chan<
 
     let uv_bias = _mm256_set1_epi32(range.bias_uv as i32 * (1 << precision_uv) + rounding_const_uv);
 
-    let shuf_uv_back = _mm256_setr_epi32(0, 4, -1, -1, -1, -1, -1, -1);
+    let shuf_uv_back = _mm256_setr_epi32(0, 4, 1, 5, -1, -1, -1, -1);
 
     let mut cx = start_cx;
     let mut uv_x = start_ux;
+
+    while cx + 32 <= width {
+        let src_ptr0 = rgba.get_unchecked(cx * channels..);
+
+        let row_z0_0 = _mm256_loadu_si256(src_ptr0.as_ptr() as *const _);
+        let row_z1_0 = _mm256_loadu_si256(src_ptr0.get_unchecked(32..).as_ptr() as *const _);
+        let row_z2_0 = _mm256_loadu_si256(src_ptr0.get_unchecked(64..).as_ptr() as *const _);
+        let row_z3_0 = _mm256_loadu_si256(src_ptr0.get_unchecked(96..).as_ptr() as *const _);
+
+        let w0 = _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256());
+        let w1 = _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256());
+        let w2 = _mm256_unpacklo_epi8(row_z1_0, _mm256_setzero_si256());
+        let w3 = _mm256_unpackhi_epi8(row_z1_0, _mm256_setzero_si256());
+
+        let mut f_y0 = _mm256_hadd_epi32(
+            _mm256_madd_epi16(w0, y_transform),
+            _mm256_madd_epi16(w1, y_transform),
+        );
+        f_y0 = _mm256_add_epi32(f_y0, y_bias);
+        f_y0 = _mm256_srai_epi32::<PRECISION>(f_y0);
+
+        let mut f_y1 = _mm256_hadd_epi32(
+            _mm256_madd_epi16(w2, y_transform),
+            _mm256_madd_epi16(w3, y_transform),
+        );
+        f_y1 = _mm256_add_epi32(f_y1, y_bias);
+        f_y1 = _mm256_srai_epi32::<PRECISION>(f_y1);
+
+        // --- Y plane: second 16 pixels ---
+        let w4 = _mm256_unpacklo_epi8(row_z2_0, _mm256_setzero_si256());
+        let w5 = _mm256_unpackhi_epi8(row_z2_0, _mm256_setzero_si256());
+        let w6 = _mm256_unpacklo_epi8(row_z3_0, _mm256_setzero_si256());
+        let w7 = _mm256_unpackhi_epi8(row_z3_0, _mm256_setzero_si256());
+
+        let mut f_y2 = _mm256_hadd_epi32(
+            _mm256_madd_epi16(w4, y_transform),
+            _mm256_madd_epi16(w5, y_transform),
+        );
+        f_y2 = _mm256_add_epi32(f_y2, y_bias);
+        f_y2 = _mm256_srai_epi32::<PRECISION>(f_y2);
+
+        let mut f_y3 = _mm256_hadd_epi32(
+            _mm256_madd_epi16(w6, y_transform),
+            _mm256_madd_epi16(w7, y_transform),
+        );
+        f_y3 = _mm256_add_epi32(f_y3, y_bias);
+        f_y3 = _mm256_srai_epi32::<PRECISION>(f_y3);
+
+        let z_y0 = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+            _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_y0, f_y1)),
+            _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_y2, f_y3)),
+        ));
+
+        _mm256_storeu_si256(y_plane.get_unchecked_mut(cx..).as_mut_ptr().cast(), z_y0);
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || chroma_subsampling == YuvChromaSubsampling::Yuv420
+        {
+            let avgu0_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z0_0, shuf_uv), 1);
+            let avgu1_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z1_0, shuf_uv), 1);
+
+            let mut f_cb0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(
+                _mm256_madd_epi16(avgu0_v, cb_transform),
+                _mm256_madd_epi16(avgu1_v, cb_transform),
+            ));
+            let mut f_cr0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(
+                _mm256_madd_epi16(avgu0_v, cr_transform),
+                _mm256_madd_epi16(avgu1_v, cr_transform),
+            ));
+            f_cb0 = _mm256_srai_epi32::<16>(_mm256_add_epi32(f_cb0, uv_bias));
+            f_cr0 = _mm256_srai_epi32::<16>(_mm256_add_epi32(f_cr0, uv_bias));
+
+            let avgu2_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z2_0, shuf_uv), 1);
+            let avgu3_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z3_0, shuf_uv), 1);
+
+            let mut f_cb1 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(
+                _mm256_madd_epi16(avgu2_v, cb_transform),
+                _mm256_madd_epi16(avgu3_v, cb_transform),
+            ));
+            let mut f_cr1 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(
+                _mm256_madd_epi16(avgu2_v, cr_transform),
+                _mm256_madd_epi16(avgu3_v, cr_transform),
+            ));
+            f_cb1 = _mm256_srai_epi32::<16>(_mm256_add_epi32(f_cb1, uv_bias));
+            f_cr1 = _mm256_srai_epi32::<16>(_mm256_add_epi32(f_cr1, uv_bias));
+
+            let z_cb0 = _mm256_permutevar8x32_epi32(
+                _mm256_packus_epi16(_mm256_packus_epi32(f_cb0, f_cb1), _mm256_setzero_si256()),
+                shuf_uv_back,
+            );
+
+            let z_cr0 = _mm256_permutevar8x32_epi32(
+                _mm256_packus_epi16(_mm256_packus_epi32(f_cr0, f_cr1), _mm256_setzero_si256()),
+                shuf_uv_back,
+            );
+
+            _mm_storeu_si128(
+                u_plane.get_unchecked_mut(uv_x..).as_mut_ptr() as *mut _,
+                _mm256_castsi256_si128(z_cb0),
+            );
+            _mm_storeu_si128(
+                v_plane.get_unchecked_mut(uv_x..).as_mut_ptr() as *mut _,
+                _mm256_castsi256_si128(z_cr0),
+            );
+        } else {
+            let mut f_cb0 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w0, cb_transform),
+                _mm256_madd_epi16(w1, cb_transform),
+            );
+            let mut f_cr0 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w0, cr_transform),
+                _mm256_madd_epi16(w1, cr_transform),
+            );
+            let mut f_cb1 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w2, cb_transform),
+                _mm256_madd_epi16(w3, cb_transform),
+            );
+            let mut f_cr1 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w2, cr_transform),
+                _mm256_madd_epi16(w3, cr_transform),
+            );
+
+            f_cb0 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cb0, uv_bias));
+            f_cr0 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cr0, uv_bias));
+            f_cb1 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cb1, uv_bias));
+            f_cr1 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cr1, uv_bias));
+
+            let mut f_cb2 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w4, cb_transform),
+                _mm256_madd_epi16(w5, cb_transform),
+            );
+            let mut f_cr2 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w4, cr_transform),
+                _mm256_madd_epi16(w5, cr_transform),
+            );
+            let mut f_cb3 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w6, cb_transform),
+                _mm256_madd_epi16(w7, cb_transform),
+            );
+            let mut f_cr3 = _mm256_hadd_epi32(
+                _mm256_madd_epi16(w6, cr_transform),
+                _mm256_madd_epi16(w7, cr_transform),
+            );
+
+            f_cb2 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cb2, uv_bias));
+            f_cr2 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cr2, uv_bias));
+            f_cb3 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cb3, uv_bias));
+            f_cr3 = _mm256_srai_epi32::<PRECISION>(_mm256_add_epi32(f_cr3, uv_bias));
+
+            let z_cb0 = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cb0, f_cb1)),
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cb2, f_cb3)),
+            ));
+
+            let z_cr0 = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cr0, f_cr1)),
+                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cr2, f_cr3)),
+            ));
+
+            _mm256_storeu_si256(u_plane.get_unchecked_mut(uv_x..).as_mut_ptr().cast(), z_cb0);
+            _mm256_storeu_si256(v_plane.get_unchecked_mut(uv_x..).as_mut_ptr().cast(), z_cr0);
+        }
+
+        if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            uv_x += 32;
+        } else if chroma_subsampling == YuvChromaSubsampling::Yuv422
+            || chroma_subsampling == YuvChromaSubsampling::Yuv420
+        {
+            uv_x += 16;
+        }
+
+        cx += 32;
+    }
 
     while cx + 16 <= width {
         let src_ptr0 = rgba.get_unchecked(cx * channels..);
@@ -544,131 +717,17 @@ unsafe fn avx2_rgba_to_yuv_impl_prof_4chan<
             }
         }
 
-        let row_z0_0 = _mm256_loadu_si256(src_buffer.as_ptr() as *const _);
-        let row_z1_0 = _mm256_loadu_si256(src_buffer.get_unchecked(32..).as_ptr() as *const _);
-
-        let w0 = _mm256_unpacklo_epi8(row_z0_0, _mm256_setzero_si256());
-        let w1 = _mm256_unpackhi_epi8(row_z0_0, _mm256_setzero_si256());
-
-        let rgba0_row0 = _mm256_madd_epi16(w0, y_transform);
-        let rgba0_row1 = _mm256_madd_epi16(w1, y_transform);
-
-        let mut f_y0 = _mm256_hadd_epi32(rgba0_row0, rgba0_row1);
-        f_y0 = _mm256_add_epi32(f_y0, y_bias);
-        f_y0 = _mm256_srai_epi32::<PRECISION>(f_y0);
-
-        let w2 = _mm256_unpacklo_epi8(row_z1_0, _mm256_setzero_si256());
-        let w3 = _mm256_unpackhi_epi8(row_z1_0, _mm256_setzero_si256());
-
-        let rgba1_row0 = _mm256_madd_epi16(w2, y_transform);
-        let rgba1_row1 = _mm256_madd_epi16(w3, y_transform);
-
-        let mut f_y1 = _mm256_hadd_epi32(rgba1_row0, rgba1_row1);
-        f_y1 = _mm256_add_epi32(f_y1, y_bias);
-        f_y1 = _mm256_srai_epi32::<PRECISION>(f_y1);
-
-        let z_y = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
-            _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_y0, f_y1)),
-            _mm256_setzero_si256(),
-        ));
-
-        _mm_storeu_si128(
-            y_buffer0.as_mut_ptr() as *mut _,
-            _mm256_castsi256_si128(z_y),
+        avx2_rgba_to_yuv_impl_prof_4chan::<ORIGIN_CHANNELS, SAMPLING, PRECISION>(
+            transform,
+            range,
+            &mut y_buffer0,
+            &mut u_buffer,
+            &mut v_buffer,
+            &src_buffer,
+            0,
+            0,
+            16,
         );
-
-        if chroma_subsampling == YuvChromaSubsampling::Yuv422
-            || (chroma_subsampling == YuvChromaSubsampling::Yuv420)
-        {
-            let avgu0_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z0_0, shuf_uv), 1);
-            let avgu1_v = avx_pairwise_avg_epi16_epi8_j(_mm256_shuffle_epi8(row_z1_0, shuf_uv), 1);
-
-            let cb_row0 = _mm256_madd_epi16(avgu0_v, cb_transform);
-            let cb_row1 = _mm256_madd_epi16(avgu1_v, cb_transform);
-            let cr_row0 = _mm256_madd_epi16(avgu0_v, cr_transform);
-            let cr_row1 = _mm256_madd_epi16(avgu1_v, cr_transform);
-
-            const M: i32 = shuffle(3, 1, 2, 0);
-
-            let mut f_cb0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(cb_row0, cb_row1));
-            let mut f_cr0 = _mm256_permute4x64_epi64::<M>(_mm256_hadd_epi32(cr_row0, cr_row1));
-
-            f_cb0 = _mm256_add_epi32(f_cb0, uv_bias);
-            f_cr0 = _mm256_add_epi32(f_cr0, uv_bias);
-
-            f_cb0 = _mm256_srai_epi32::<16>(f_cb0);
-            f_cr0 = _mm256_srai_epi32::<16>(f_cr0);
-
-            let z_cb = _mm256_permutevar8x32_epi32(
-                _mm256_packus_epi16(
-                    _mm256_packus_epi32(f_cb0, _mm256_setzero_si256()),
-                    _mm256_setzero_si256(),
-                ),
-                shuf_uv_back,
-            );
-            let z_cr = _mm256_permutevar8x32_epi32(
-                _mm256_packus_epi16(
-                    _mm256_packus_epi32(f_cr0, _mm256_setzero_si256()),
-                    _mm256_setzero_si256(),
-                ),
-                shuf_uv_back,
-            );
-
-            _mm_storeu_si64(
-                u_buffer.as_mut_ptr() as *mut _,
-                _mm256_castsi256_si128(z_cb),
-            );
-            _mm_storeu_si64(
-                v_buffer.as_mut_ptr() as *mut _,
-                _mm256_castsi256_si128(z_cr),
-            );
-        } else {
-            let cb0_row0 = _mm256_madd_epi16(w0, cb_transform);
-            let cb0_row1 = _mm256_madd_epi16(w1, cb_transform);
-            let cr0_row0 = _mm256_madd_epi16(w0, cr_transform);
-            let cr0_row1 = _mm256_madd_epi16(w1, cr_transform);
-
-            let mut f_cb0 = _mm256_hadd_epi32(cb0_row0, cb0_row1);
-            let mut f_cr0 = _mm256_hadd_epi32(cr0_row0, cr0_row1);
-
-            let cb1_row0 = _mm256_madd_epi16(w2, cb_transform);
-            let cb1_row1 = _mm256_madd_epi16(w3, cb_transform);
-            let cr1_row0 = _mm256_madd_epi16(w2, cr_transform);
-            let cr1_row1 = _mm256_madd_epi16(w3, cr_transform);
-
-            let mut f_cb1 = _mm256_hadd_epi32(cb1_row0, cb1_row1);
-            let mut f_cr1 = _mm256_hadd_epi32(cr1_row0, cr1_row1);
-
-            f_cb0 = _mm256_add_epi32(f_cb0, uv_bias);
-            f_cr0 = _mm256_add_epi32(f_cr0, uv_bias);
-
-            f_cb1 = _mm256_add_epi32(f_cb1, uv_bias);
-            f_cr1 = _mm256_add_epi32(f_cr1, uv_bias);
-
-            f_cb0 = _mm256_srai_epi32::<PRECISION>(f_cb0);
-            f_cr0 = _mm256_srai_epi32::<PRECISION>(f_cr0);
-
-            f_cb1 = _mm256_srai_epi32::<PRECISION>(f_cb1);
-            f_cr1 = _mm256_srai_epi32::<PRECISION>(f_cr1);
-
-            let z_cb = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
-                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cb0, f_cb1)),
-                _mm256_setzero_si256(),
-            ));
-            let z_cr = _mm256_permute4x64_epi64::<M>(_mm256_packus_epi16(
-                _mm256_permute4x64_epi64::<M>(_mm256_packus_epi32(f_cr0, f_cr1)),
-                _mm256_setzero_si256(),
-            ));
-
-            _mm_storeu_si128(
-                u_buffer.as_mut_ptr() as *mut _,
-                _mm256_castsi256_si128(z_cb),
-            );
-            _mm_storeu_si128(
-                v_buffer.as_mut_ptr() as *mut _,
-                _mm256_castsi256_si128(z_cr),
-            );
-        }
 
         std::ptr::copy_nonoverlapping(
             y_buffer0.as_ptr().cast(),

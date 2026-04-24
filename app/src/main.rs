@@ -35,16 +35,17 @@ use std::io::Read;
 use std::time::Instant;
 use yuv::{
     i010_alpha_to_rgba10, i010_to_rgb10_bilinear, i010_to_rgba10, i010_to_rgba10_bilinear,
-    i210_to_rgba10, i210_to_rgba10_bilinear, i212_to_rgb, icgc_re010_to_rgba, icgc_re410_to_rgb,
-    icgc_ro010_to_rgba, icgc_ro210_to_rgb, icgc_ro210_to_rgba, icgc_ro410_to_rgb,
-    icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_i010, rgb10_to_i410, rgb10_to_p010, rgb12_to_i212,
-    rgb12_to_i412, rgb_to_icgc_re410, rgb_to_icgc_ro210, rgb_to_icgc_ro410, rgb_to_ycgco444,
-    rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgb_to_yuv_nv24,
-    rgba10_to_i010, rgba10_to_i210, rgba10_to_p010, rgba12_to_i412, rgba_to_icgc_re010,
-    rgba_to_icgc_ro010, rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444,
-    rgba_to_yuv420, rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16,
-    rgba_to_yuv_nv24, ycgco420_to_rgba, ycgco444_to_rgb, ycgco444_to_rgba, yuv420_alpha_to_rgba,
-    yuv420_to_rgb, yuv420_to_rgb_bilinear, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgb,
+    i012_to_rgb12, i210_to_rgba10, i210_to_rgba10_bilinear, i212_to_rgb, i212_to_rgb12,
+    icgc_re010_to_rgba, icgc_re410_to_rgb, icgc_ro010_to_rgba, icgc_ro210_to_rgb,
+    icgc_ro210_to_rgba, icgc_ro410_to_rgb, icgc_ro410_to_rgba, p010_to_rgba10, rgb10_to_i010,
+    rgb10_to_i410, rgb10_to_p010, rgb12_to_i012, rgb12_to_i212, rgb12_to_i412, rgb_to_icgc_re410,
+    rgb_to_icgc_ro210, rgb_to_icgc_ro410, rgb_to_ycgco444, rgb_to_yuv420, rgb_to_yuv422,
+    rgb_to_yuv444, rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgb_to_yuv_nv24, rgba10_to_i010,
+    rgba10_to_i210, rgba10_to_p010, rgba12_to_i412, rgba_to_icgc_re010, rgba_to_icgc_ro010,
+    rgba_to_icgc_ro210, rgba_to_icgc_ro410, rgba_to_ycgco420, rgba_to_ycgco444, rgba_to_yuv420,
+    rgba_to_yuv422, rgba_to_yuv444, rgba_to_yuv_nv12, rgba_to_yuv_nv16, rgba_to_yuv_nv24,
+    ycgco420_to_rgba, ycgco444_to_rgb, ycgco444_to_rgba, yuv420_alpha_to_rgba, yuv420_to_rgb,
+    yuv420_to_rgb_bilinear, yuv420_to_rgba, yuv420_to_rgba_bilinear, yuv422_to_rgb,
     yuv422_to_rgb_bilinear, yuv422_to_rgba, yuv422_to_rgba_bilinear, yuv444_to_rgb, yuv444_to_rgba,
     yuv_nv12_to_rgb, yuv_nv12_to_rgba, yuv_nv16_to_rgb, yuv_nv16_to_rgba, yuv_nv24_to_rgb,
     yuv_nv24_to_rgba, YuvBiPlanarImageMut, YuvChromaSubsampling, YuvConversionMode, YuvPlanarImage,
@@ -70,7 +71,7 @@ fn main() {
         .unwrap()
         .decode()
         .unwrap();
-    let img = DynamicImage::ImageRgb8(img.to_rgb8());
+    let img = DynamicImage::ImageRgba8(img.to_rgba8());
 
     let dimensions = img.dimensions();
 
@@ -102,7 +103,7 @@ fn main() {
     let mut uv_nv_plane = vec![0u8; width as usize * (height as usize + 1) / 2];
 
     let mut planar_image =
-        YuvPlanarImageMut::<u16>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
+        YuvPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv420);
     //
     let mut bi_planar_image =
         YuvBiPlanarImageMut::<u8>::alloc(width as u32, height as u32, YuvChromaSubsampling::Yuv422);
@@ -114,21 +115,23 @@ fn main() {
 
     let start_time = Instant::now();
 
-    rgb12_to_i212(
+    rgba_to_yuv420(
         &mut planar_image,
-        &bytes_16,
+        &src_bytes,
         rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt709,
+        YuvConversionMode::Professional,
     )
     .unwrap();
 
     println!("Forward time: {:?}", start_time.elapsed());
     let fixed = planar_image.to_fixed();
     rgba.fill(0);
+    // bytes_16.fill(0);
 
     let start_time = Instant::now();
-    i212_to_rgb(
+    yuv420_to_rgba(
         &fixed,
         &mut rgba,
         rgba_stride as u32,
@@ -161,41 +164,41 @@ fn main() {
     // // convert_rgb_f16_to_rgb(&rgba_f16, rgba_stride, &mut rgba, rgba_stride, width as usize, height as usize).unwrap();
     //
 
-    // rgba = rgba_f16.iter().map(|&x| (x as f32 * 255.) as u8).collect();
-
-    // let mut img = ImageReader::open("./converted_sharp151_x86o.png")
-    //     .unwrap()
-    //     .decode()
-    //     .unwrap();
-    // let img0 = DynamicImage::ImageRgb8(img.to_rgb8());
-    // for (y, (row_src, row_ref)) in rgba
-    //     .chunks_exact(dimensions.0 as usize)
-    //     .zip(img0.as_bytes().chunks_exact(dimensions.0 as usize))
-    //     .enumerate()
-    // {
-    //     for (x, (src, src_ref)) in row_src
-    //         .chunks_exact(3)
-    //         .zip(row_ref.chunks_exact(3))
-    //         .enumerate()
-    //     {
-    //         if src[0] != src_ref[0] {
-    //             panic!(
-    //                 "disconvergence r on ({x}, {y}) vals {} vs {}",
-    //                 src[0], src_ref[0]
-    //             );
-    //         }
-    //     }
-    // }
+    // rgba = bytes_16.iter().map(|&x| (x >> 4) as u8).collect();
+    //
+    let mut img = ImageReader::open("./converted_sharp151_x86_0.png")
+        .unwrap()
+        .decode()
+        .unwrap();
+    let img0 = DynamicImage::ImageRgba8(img.to_rgba8());
+    for (y, (row_src, row_ref)) in rgba
+        .chunks_exact(dimensions.0 as usize)
+        .zip(img0.as_bytes().chunks_exact(dimensions.0 as usize))
+        .enumerate()
+    {
+        for (x, (src, src_ref)) in row_src
+            .chunks_exact(4)
+            .zip(row_ref.chunks_exact(4))
+            .enumerate()
+        {
+            if src[0] != src_ref[0] {
+                panic!(
+                    "disconvergence r on ({x}, {y}) vals {} vs {}",
+                    src[0], src_ref[0]
+                );
+            }
+        }
+    }
 
     image::save_buffer(
         "converted_sharp151_x86.png",
         rgba.as_bytes(),
         dimensions.0,
         dimensions.1,
-        if components == 3 {
-            image::ExtendedColorType::Rgb8
-        } else {
+        if components == 4 {
             image::ExtendedColorType::Rgba8
+        } else {
+            image::ExtendedColorType::Rgb8
         },
     )
     .unwrap();
