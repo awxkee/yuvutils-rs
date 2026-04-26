@@ -449,7 +449,7 @@ unsafe fn neon_yuv_p16_to_rgba16_row_impl<
             &y_buffer, &u_buffer, &v_buffer, cut_rgba, 8, range, transform,
         );
 
-        let rgba_dst = &mut rgba[cx..cx + channels * diff];
+        let rgba_dst = &mut rgba[cx * channels..cx * channels + channels * diff];
         rgba_dst.copy_from_slice(&cut_rgba[..rgba_dst.len()]);
     }
 }
@@ -760,7 +760,7 @@ unsafe fn neon_yuv_p16_to_rgba16_row_rdm_impl<
             &y_buffer, &u_buffer, &v_buffer, cut_rgba, 8, range, transform,
         );
 
-        let rgba_dst = &mut rgba[cx..cx + channels * diff];
+        let rgba_dst = &mut rgba[cx * channels..cx * channels + channels * diff];
         rgba_dst.copy_from_slice(&cut_rgba[..rgba_dst.len()]);
     }
 }

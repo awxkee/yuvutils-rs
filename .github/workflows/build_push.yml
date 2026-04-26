@@ -31,7 +31,7 @@ jobs:
 
   build_arm:
     name: Build ARM
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -59,7 +59,7 @@ jobs:
 
   clippy_arm:
     name: Clippy ARM
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -68,7 +68,7 @@ jobs:
 
   tests_arm:
     name: Testing ARM
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
@@ -150,7 +150,7 @@ jobs:
 
   fuzz_arm:
     name: Fuzzing ARM
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
       - run: cargo install cargo-fuzz
@@ -175,7 +175,7 @@ jobs:
 
   fuzz_arm_i8mm:
     name: Fuzzing ARM I8MM
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
       - run: cargo install cargo-fuzz
@@ -184,7 +184,7 @@ jobs:
 
   fuzz_arm_rdm:
     name: Fuzzing ARM RDM
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
