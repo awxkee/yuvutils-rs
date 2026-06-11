@@ -34,7 +34,7 @@ use fast_transpose::{
     transpose_rgb16, transpose_rgba, transpose_rgba16, FlipMode, FlopMode, TransposeError,
 };
 
-/// Declares rotation mode, 90, 180, 270
+/// Number of degrees the image shall be rotated (counter-clockwise)
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum RotationMode {
     Rotate90,
