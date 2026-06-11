@@ -530,3 +530,33 @@ d_cv!(
     "YCgCo 4:4:4 12-bit",
     "RGBA"
 );
+
+d_cv!(
+    rgb12_to_icgc012,
+    u16,
+    12,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv420,
+    "YCgCo 4:2:0 12-bit",
+    "RGB"
+);
+
+d_cv!(
+    rgb12_to_icgc212,
+    u16,
+    12,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv422,
+    "YCgCo 4:2:2 12-bit",
+    "RGB"
+);
+
+d_cv!(
+    rgb12_to_icgc412,
+    u16,
+    12,
+    YuvSourceChannels::Rgb,
+    YuvChromaSubsampling::Yuv444,
+    "YCgCo 4:4:4 12-bit",
+    "RGB"
+);
