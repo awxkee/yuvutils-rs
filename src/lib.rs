@@ -110,6 +110,7 @@ mod numerics;
 #[cfg(feature = "rdp")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rdp")))]
 mod rdp;
+mod rgb16_to_y_p16;
 mod rgb16_to_yuv_p16;
 mod rgb_ar30;
 mod rgb_to_nv_p16;
@@ -624,6 +625,7 @@ pub use yuv_to_rgba_bilinear::{
     yuv422_to_rgb_bilinear, yuv422_to_rgba_bilinear,
 };
 
+pub use rgb16_to_y_p16::{rgb10_to_y010, rgb12_to_y012, rgba10_to_y010, rgba12_to_y012};
 pub use yuv_p16_to_rgba16_bilinear::{
     i010_to_rgb10_bilinear, i010_to_rgba10_bilinear, i012_to_rgb12_bilinear,
     i012_to_rgba12_bilinear, i014_to_rgb14_bilinear, i014_to_rgba14_bilinear,
