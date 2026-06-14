@@ -260,6 +260,14 @@ where
             height,
         }
     }
+
+    /// Splits mutable self into valid-sized projections for Y, U, and V planes.
+    pub(crate) fn projected_plane_mut(&mut self) -> &mut [T] {
+        let y_valid_size =
+            self.y_stride as usize * (self.height as usize - 1) + self.width as usize;
+
+        &mut self.y_plane.borrow_mut()[..y_valid_size]
+    }
 }
 
 #[derive(Debug)]
