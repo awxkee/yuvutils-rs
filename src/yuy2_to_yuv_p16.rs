@@ -90,7 +90,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let yuy2_src = &yuy2_src[..yuy2_width];
             let y_dst = &mut y_dst[..planar_image.width as usize];
             let u_dst = &mut u_dst[..planar_image.width as usize];
-            let u_dst = &mut u_dst[..planar_image.width as usize];
+            let v_dst = &mut v_dst[..planar_image.width as usize];
 
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
                 .chunks_exact_mut(2)
@@ -151,7 +151,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let yuy2_src = &yuy2_src[..yuy2_width];
             let y_dst = &mut y_dst[..planar_image.width as usize];
             let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
-            let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
+            let v_dst = &mut v_dst[..(planar_image.width as usize).div_ceil(2)];
 
             for (((y_dst, u_dst), v_dst), yuy2) in y_dst
                 .chunks_exact_mut(2)
@@ -215,7 +215,7 @@ fn yuy2_to_yuv_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
                 let yuy2 = &yuy2[..yuy2_width];
                 let y_dst = &mut y_dst[..planar_image.width as usize];
                 let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
-                let u_dst = &mut u_dst[..(planar_image.width as usize).div_ceil(2)];
+                let v_dst = &mut v_dst[..(planar_image.width as usize).div_ceil(2)];
 
                 let process_chroma = y & 1 == 0;
 
