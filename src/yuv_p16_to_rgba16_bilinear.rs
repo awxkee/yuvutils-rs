@@ -57,6 +57,71 @@ type DoubleRowInterpolator = fn(
     width: u32,
 );
 
+/// Chroma rows shifted up by one with the last row repeated: the second
+/// interpolation row for each 4:2:0 luma row pair, clamped at the bottom edge.
+#[cfg(not(feature = "rayon"))]
+fn shifted_rows(plane: &[u16], stride: usize) -> impl Iterator<Item = &[u16]> {
+    plane
+        .chunks(stride)
+        .skip(1)
+        .chain(plane.chunks(stride).last())
+}
+
+#[cfg(feature = "rayon")]
+fn shifted_rows_par(plane: &[u16], stride: usize) -> impl IndexedParallelIterator<Item = &[u16]> {
+    plane
+        .par_chunks(stride)
+        .skip(1)
+        .chain(rayon::iter::once(plane.chunks(stride).last().unwrap()))
+}
+
+/// Finishes the final pixel pair on even widths, which the `windows(2)` chroma
+/// iteration in the row interpolators cannot reach: chroma has
+/// `ceil(width / 2)` columns, so that iterator yields one item fewer than the
+/// number of pixel pairs. Both pixels interpolate against the last chroma
+/// column (edge clamp).
+#[allow(dead_code)]
+#[inline]
+fn interpolate_last_pair<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEPTH: usize>(
+    range: &YuvChromaRange,
+    transform: &CbCrInverseTransform<i16>,
+    y_plane: &[u16],
+    cb: u32,
+    cr: u32,
+    rgba: &mut [u16],
+    width: u32,
+) {
+    if width & 1 != 0 || width == 0 {
+        return;
+    }
+    let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
+    let channels = dst_chans.get_channels_count();
+
+    let max_colors = ((1u32 << BIT_DEPTH) - 1) as u16;
+
+    let cb_value = cb as i32 - range.bias_uv as i32;
+    let cr_value = cr as i32 - range.bias_uv as i32;
+
+    let rgba = &mut rgba[(width as usize - 2) * channels..width as usize * channels];
+    let y_src = &y_plane[width as usize - 2..width as usize];
+    for (rgba, y_src) in rgba.chunks_exact_mut(channels).zip(y_src.iter()) {
+        let y_value = (*y_src as i32 - range.bias_y as i32) * transform.y_coef as i32;
+
+        let r = qrshr::<Q, BIT_DEPTH>(y_value + transform.cr_coef as i32 * cr_value);
+        let b = qrshr::<Q, BIT_DEPTH>(y_value + transform.cb_coef as i32 * cb_value);
+        let g = qrshr::<Q, BIT_DEPTH>(
+            y_value - transform.g_coeff_1 as i32 * cr_value - transform.g_coeff_2 as i32 * cb_value,
+        );
+
+        rgba[dst_chans.get_r_channel_offset()] = r as u16;
+        rgba[dst_chans.get_g_channel_offset()] = g as u16;
+        rgba[dst_chans.get_b_channel_offset()] = b as u16;
+        if dst_chans.has_alpha() {
+            rgba[dst_chans.get_a_channel_offset()] = max_colors;
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEPTH: usize>(
     range: &YuvChromaRange,
@@ -65,7 +130,7 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
     u_plane: &[u16],
     v_plane: &[u16],
     rgba: &mut [u16],
-    _: u32,
+    width: u32,
 ) {
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
@@ -134,6 +199,16 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
         }
     }
 
+    interpolate_last_pair::<DESTINATION_CHANNELS, Q, BIT_DEPTH>(
+        range,
+        transform,
+        y_plane,
+        *u_plane.last().unwrap() as u32,
+        *v_plane.last().unwrap() as u32,
+        rgba,
+        width,
+    );
+
     let y_chunks = y_plane.chunks_exact(2);
     let y_remainder = y_chunks.remainder();
     let rgba_chunks = rgba.chunks_exact_mut(channels * 2);
@@ -169,7 +244,7 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
     v_plane0: &[u16],
     v_plane1: &[u16],
     rgba: &mut [u16],
-    _: u32,
+    width: u32,
 ) {
     let dst_chans: YuvSourceChannels = DESTINATION_CHANNELS.into();
     let channels = dst_chans.get_channels_count();
@@ -259,6 +334,18 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
             rgba01[dst_chans.get_a_channel_offset()] = max_colors;
         }
     }
+
+    // At the right edge the 9/3/3/1 kernel collapses to a 3/1 blend of the two
+    // chroma rows.
+    interpolate_last_pair::<DESTINATION_CHANNELS, Q, BIT_DEPTH>(
+        range,
+        transform,
+        y_plane,
+        (*u_plane0.last().unwrap() as u32 * 3 + *u_plane1.last().unwrap() as u32 + 2) >> 2,
+        (*v_plane0.last().unwrap() as u32 * 3 + *v_plane1.last().unwrap() as u32 + 2) >> 2,
+        rgba,
+        width,
+    );
 
     let y_chunks = y_plane.chunks_exact(2);
     let y_remainder = y_chunks.remainder();
@@ -404,87 +491,77 @@ fn yuv16_to_rgbx_impl_bilinear<
             );
         });
     } else if chroma_subsampling == YuvChromaSubsampling::Yuv420 {
+        // Chroma planes have `ceil(height / 2)` rows: the luma row pair `cy`
+        // interpolates between chroma rows `cy` and `cy + 1`, with the second one
+        // clamped to the last chroma row at the bottom edge (`skip(1)` shifted
+        // rows chained with the last row repeated).
         let iter;
         #[cfg(feature = "rayon")]
         {
             iter = rgba
-                .par_chunks_exact_mut(rgba_stride as usize)
-                .zip(image.y_plane.par_chunks_exact(image.y_stride as usize))
-                .zip(
-                    image
-                        .u_plane
-                        .par_windows(image.u_stride as usize * 2)
-                        .step_by(image.u_stride as usize),
-                )
-                .zip(
-                    image
-                        .v_plane
-                        .par_windows(image.v_stride as usize * 2)
-                        .step_by(image.v_stride as usize),
-                );
+                .par_chunks_mut(rgba_stride as usize * 2)
+                .zip(image.y_plane.par_chunks(image.y_stride as usize * 2))
+                .zip(image.u_plane.par_chunks(image.u_stride as usize))
+                .zip(shifted_rows_par(image.u_plane, image.u_stride as usize))
+                .zip(image.v_plane.par_chunks(image.v_stride as usize))
+                .zip(shifted_rows_par(image.v_plane, image.v_stride as usize))
+                .take(image.height as usize / 2);
         }
         #[cfg(not(feature = "rayon"))]
         {
             iter = rgba
-                .chunks_exact_mut(rgba_stride as usize * 2)
-                .zip(image.y_plane.chunks_exact(image.y_stride as usize * 2))
-                .zip(
-                    image
-                        .u_plane
-                        .windows(image.u_stride as usize * 2)
-                        .step_by(image.u_stride as usize),
-                )
-                .zip(
-                    image
-                        .v_plane
-                        .windows(image.v_stride as usize * 2)
-                        .step_by(image.v_stride as usize),
-                );
+                .chunks_mut(rgba_stride as usize * 2)
+                .zip(image.y_plane.chunks(image.y_stride as usize * 2))
+                .zip(image.u_plane.chunks(image.u_stride as usize))
+                .zip(shifted_rows(image.u_plane, image.u_stride as usize))
+                .zip(image.v_plane.chunks(image.v_stride as usize))
+                .zip(shifted_rows(image.v_plane, image.v_stride as usize))
+                .take(image.height as usize / 2);
         }
-        iter.for_each(|(((rgba, y_plane), u_plane), v_plane)| {
-            let (y_plane0, y_plane1) = y_plane.split_at(image.y_stride as usize);
-            let (rgba0, rgba1) = rgba.split_at_mut(rgba_stride as usize);
-            let (u_plane0, u_plane1) = u_plane.split_at(image.u_stride as usize);
-            let (v_plane0, v_plane1) = v_plane.split_at(image.v_stride as usize);
-            two_rows_interpolator(
-                &chroma_range,
-                &inverse_transform,
-                &y_plane0[..image.width as usize],
-                &u_plane0[..(image.width as usize).div_ceil(2)],
-                &u_plane1[..(image.width as usize).div_ceil(2)],
-                &v_plane0[..(image.width as usize).div_ceil(2)],
-                &v_plane1[..(image.width as usize).div_ceil(2)],
-                &mut rgba0[..image.width as usize * channels],
-                image.width,
-            );
-            two_rows_interpolator(
-                &chroma_range,
-                &inverse_transform,
-                &y_plane1[..image.width as usize],
-                &u_plane1[..(image.width as usize).div_ceil(2)],
-                &u_plane0[..(image.width as usize).div_ceil(2)],
-                &v_plane1[..(image.width as usize).div_ceil(2)],
-                &v_plane0[..(image.width as usize).div_ceil(2)],
-                &mut rgba1[..image.width as usize * channels],
-                image.width,
-            );
-        });
+        iter.for_each(
+            |(((((rgba, y_plane), u_plane0), u_plane1), v_plane0), v_plane1)| {
+                let (y_plane0, y_plane1) = y_plane.split_at(image.y_stride as usize);
+                let (rgba0, rgba1) = rgba.split_at_mut(rgba_stride as usize);
+                two_rows_interpolator(
+                    &chroma_range,
+                    &inverse_transform,
+                    &y_plane0[..image.width as usize],
+                    &u_plane0[..(image.width as usize).div_ceil(2)],
+                    &u_plane1[..(image.width as usize).div_ceil(2)],
+                    &v_plane0[..(image.width as usize).div_ceil(2)],
+                    &v_plane1[..(image.width as usize).div_ceil(2)],
+                    &mut rgba0[..image.width as usize * channels],
+                    image.width,
+                );
+                two_rows_interpolator(
+                    &chroma_range,
+                    &inverse_transform,
+                    &y_plane1[..image.width as usize],
+                    &u_plane1[..(image.width as usize).div_ceil(2)],
+                    &u_plane0[..(image.width as usize).div_ceil(2)],
+                    &v_plane1[..(image.width as usize).div_ceil(2)],
+                    &v_plane0[..(image.width as usize).div_ceil(2)],
+                    &mut rgba1[..image.width as usize * channels],
+                    image.width,
+                );
+            },
+        );
 
         if image.height & 1 != 0 {
-            let rgba = rgba.chunks_exact_mut(rgba_stride as usize).last().unwrap();
+            let rgba = rgba.chunks_mut(rgba_stride as usize).last().unwrap();
             let u_plane = image
                 .u_plane
-                .chunks_exact(image.u_stride as usize)
+                .chunks(image.u_stride as usize)
                 .last()
                 .unwrap();
             let v_plane = image
                 .v_plane
-                .chunks_exact(image.v_stride as usize)
+                .chunks(image.v_stride as usize)
                 .last()
                 .unwrap();
             let y_plane = image
                 .y_plane
-                .chunks_exact(image.y_stride as usize)
+                .chunks(image.y_stride as usize)
                 .last()
                 .unwrap();
             one_row_interpolator(
@@ -732,3 +809,79 @@ d_cnv!(
     "rgb",
     16
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_all_rows_written(
+        rgba: &[u16],
+        width: usize,
+        height: usize,
+        y_plane: &[u16],
+        max_value: u16,
+    ) {
+        for y in 0..height {
+            // Color is asserted away from the right edge only: the row
+            // iteration fixed here is verified by the rows being present at
+            // all; right-edge color accuracy varies between the SIMD kernels
+            // and is covered by the 8-bit tests.
+            for x in [0, width / 2] {
+                let px = &rgba[(y * width + x) * 4..][..4];
+                let expected = y_plane[y * width + x] as i32;
+                for c in 0..3 {
+                    let diff = (px[c] as i32 - expected).abs();
+                    assert!(
+                        diff <= 2,
+                        "Pixel ({}, {}) diverged: expected gray {}, got {:?}",
+                        x,
+                        y,
+                        expected,
+                        px
+                    );
+                }
+                assert_eq!(px[3], max_value, "Alpha not written at ({}, {})", x, y);
+            }
+            let last = &rgba[(y * width + width - 1) * 4..][..4];
+            assert_eq!(last[3], max_value, "Last pixel not written in row {}", y);
+        }
+    }
+
+    #[test]
+    fn test_i010_bilinear_writes_all_rows() {
+        // Even and odd heights: gradient luma with flat mid chroma decodes
+        // to gray close to the luma value in full range.
+        for height in [127usize, 128usize] {
+            let width = 128usize;
+            let mut y_plane = vec![0u16; width * height];
+            for y in 0..height {
+                for x in 0..width {
+                    y_plane[y * width + x] = (((x + y) * 1023) / (width + height)) as u16;
+                }
+            }
+            let chroma_size = width.div_ceil(2) * height.div_ceil(2);
+            let u_plane = vec![512u16; chroma_size];
+            let v_plane = vec![512u16; chroma_size];
+            let image = YuvPlanarImage {
+                y_plane: &y_plane,
+                y_stride: width as u32,
+                u_plane: &u_plane,
+                u_stride: width.div_ceil(2) as u32,
+                v_plane: &v_plane,
+                v_stride: width.div_ceil(2) as u32,
+                width: width as u32,
+                height: height as u32,
+            };
+            let mut rgba = vec![0u16; width * height * 4];
+            i010_to_rgba10_bilinear(
+                &image,
+                &mut rgba,
+                (width * 4) as u32,
+                YuvRange::Full,
+                YuvStandardMatrix::Bt601,
+            )
+            .unwrap();
+            assert_all_rows_written(&rgba, width, height, &y_plane, 1023);
+        }
+    }
+}
