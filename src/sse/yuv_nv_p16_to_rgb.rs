@@ -131,11 +131,6 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
         _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
     while cx + 8 < width as usize {
-        let u_high;
-        let v_high;
-        let u_low;
-        let v_low;
-
         let dst_ptr = dst_ptr.get_unchecked_mut(cx * channels..);
 
         let mut y_vl = _mm_loadu_si128(y_ld_ptr.get_unchecked(cx..).as_ptr() as *const __m128i);
@@ -148,7 +143,7 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
         }
         let y_values = _mm_subs_epu16(y_vl, y_corr);
 
-        match chroma_subsampling {
+        let (u_high, v_high, u_low, v_low) = match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_ld = uv_ld_ptr.get_unchecked(ux..).as_ptr();
 
@@ -180,10 +175,12 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
                 let u_values_32 = _mm_unpacklo_epi32(u_values_c, _mm_setzero_si128());
                 let v_values_32 = _mm_unpacklo_epi32(v_values_c, _mm_setzero_si128());
 
-                u_high = _mm_unpackhi_epi32(u_values_32, u_values_32);
-                v_high = _mm_unpackhi_epi32(v_values_32, v_values_32);
-                u_low = _mm_unpacklo_epi32(u_values_32, u_values_32);
-                v_low = _mm_unpacklo_epi32(v_values_32, v_values_32);
+                (
+                    _mm_unpackhi_epi32(u_values_32, u_values_32),
+                    _mm_unpackhi_epi32(v_values_32, v_values_32),
+                    _mm_unpacklo_epi32(u_values_32, u_values_32),
+                    _mm_unpacklo_epi32(v_values_32, v_values_32),
+                )
             }
             YuvChromaSubsampling::Yuv444 => {
                 let uv_ld = uv_ld_ptr.get_unchecked(ux..).as_ptr();
@@ -211,12 +208,14 @@ unsafe fn sse_yuv_nv_p16_to_rgba_row_impl<
 
                 let u_values_c = _mm_sub_epi16(u_vl, uv_corr_q);
                 let v_values_c = _mm_sub_epi16(v_vl, uv_corr_q);
-                u_high = _mm_unpackhi_epi16(u_values_c, zeros);
-                v_high = _mm_unpackhi_epi16(v_values_c, zeros);
-                u_low = _mm_unpacklo_epi32(u_values_c, _mm_setzero_si128());
-                v_low = _mm_unpacklo_epi32(v_values_c, _mm_setzero_si128());
+                (
+                    _mm_unpackhi_epi16(u_values_c, zeros),
+                    _mm_unpackhi_epi16(v_values_c, zeros),
+                    _mm_unpacklo_epi32(u_values_c, _mm_setzero_si128()),
+                    _mm_unpacklo_epi32(v_values_c, _mm_setzero_si128()),
+                )
             }
-        }
+        };
 
         let y_high = _mm_madd_epi16(_mm_unpackhi_epi16(y_values, zeros), v_luma_coeff);
 

@@ -76,16 +76,13 @@ pub(crate) unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TA
             let v_pos = _uv_x;
             let y_pos = _cx;
 
-            let u_pixels;
-            let v_pixels;
-
             let y_ptr = y_plane.as_ptr().add(y_pos);
             let y_pixels = (
                 _mm256_loadu_si256(y_ptr as *const __m256i),
                 _mm256_loadu_si256(y_ptr.add(32) as *const __m256i),
             );
 
-            if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let (u_pixels, v_pixels) = if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                 let u_ptr = u_plane.as_ptr().add(u_pos);
                 let full_u = (
                     _mm256_loadu_si256(u_ptr as *const __m256i),
@@ -97,12 +94,16 @@ pub(crate) unsafe fn yuv_to_yuy2_avx2_row_impl<const SAMPLING: u8, const YUY2_TA
                     _mm256_loadu_si256(v_ptr.add(32) as *const __m256i),
                 );
 
-                u_pixels = _mm256_havg_epu8(full_u.0, full_u.1);
-                v_pixels = _mm256_havg_epu8(full_v.0, full_v.1);
+                (
+                    _mm256_havg_epu8(full_u.0, full_u.1),
+                    _mm256_havg_epu8(full_v.0, full_v.1),
+                )
             } else {
-                u_pixels = _mm256_loadu_si256(u_plane.as_ptr().add(u_pos) as *const __m256i);
-                v_pixels = _mm256_loadu_si256(v_plane.as_ptr().add(v_pos) as *const __m256i);
-            }
+                (
+                    _mm256_loadu_si256(u_plane.as_ptr().add(u_pos) as *const __m256i),
+                    _mm256_loadu_si256(v_plane.as_ptr().add(v_pos) as *const __m256i),
+                )
+            };
 
             let (low_y, high_y) = _mm256_deinterleave_x2_epi8(y_pixels.0, y_pixels.1);
 

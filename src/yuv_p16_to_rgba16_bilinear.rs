@@ -670,26 +670,6 @@ d_cnv!(
     "rgb",
     14
 );
-// 14-bit, 4:4:4
-
-d_cnv!(
-    i414_to_rgba14_bilinear,
-    YuvSourceChannels::Rgba,
-    YuvChromaSubsampling::Yuv444,
-    "I414",
-    "RGBA",
-    "rgba",
-    14
-);
-d_cnv!(
-    i414_to_rgb14_bilinear,
-    YuvSourceChannels::Rgb,
-    YuvChromaSubsampling::Yuv444,
-    "I414",
-    "RGB",
-    "rgb",
-    14
-);
 
 // 4:2:0, 16 bit
 
