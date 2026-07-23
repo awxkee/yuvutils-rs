@@ -89,20 +89,22 @@ unsafe fn yuv_to_yuy2_sse_impl<const SAMPLING: u8, const YUY2_TARGET: usize>(
             let v_pos = _uv_x;
             let y_pos = _cx;
 
-            let u_pixels;
-            let v_pixels;
             let y_pixels = _mm_loadu_si128_x2(y_plane.as_ptr().add(y_pos));
 
-            if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let (u_pixels, v_pixels) = if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                 let full_u = _mm_loadu_si128_x2(u_plane.as_ptr().add(u_pos));
                 let full_v = _mm_loadu_si128_x2(v_plane.as_ptr().add(v_pos));
 
-                u_pixels = _mm_havg_epu8(full_u.0, full_u.1);
-                v_pixels = _mm_havg_epu8(full_v.0, full_v.1);
+                (
+                    _mm_havg_epu8(full_u.0, full_u.1),
+                    _mm_havg_epu8(full_v.0, full_v.1),
+                )
             } else {
-                u_pixels = _mm_loadu_si128(u_plane.as_ptr().add(u_pos) as *const __m128i);
-                v_pixels = _mm_loadu_si128(v_plane.as_ptr().add(v_pos) as *const __m128i);
-            }
+                (
+                    _mm_loadu_si128(u_plane.as_ptr().add(u_pos) as *const __m128i),
+                    _mm_loadu_si128(v_plane.as_ptr().add(v_pos) as *const __m128i),
+                )
+            };
 
             let y_pixels_low = _mm_shuffle_epi8(y_pixels.0, v_shuffle);
             let y_pixels_high = _mm_shuffle_epi8(y_pixels.1, v_shuffle);

@@ -64,20 +64,22 @@ pub(crate) fn yuv_to_yuy2_neon_impl<const SAMPLING: u8, const YUY2_TARGET: usize
             let v_pos = uv_x;
             let y_pos = cx;
 
-            let u_pixels;
-            let v_pixels;
             let y_pixels = xvld1q_u8_x2(y_plane.as_ptr().add(y_pos));
 
-            if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
+            let (u_pixels, v_pixels) = if chroma_subsampling == YuvChromaSubsampling::Yuv444 {
                 let full_u = xvld1q_u8_x2(u_plane.as_ptr().add(u_pos));
                 let full_v = xvld1q_u8_x2(v_plane.as_ptr().add(v_pos));
 
-                u_pixels = vrhaddq_u8(full_u.0, full_u.1);
-                v_pixels = vrhaddq_u8(full_v.0, full_v.1);
+                (
+                    vrhaddq_u8(full_u.0, full_u.1),
+                    vrhaddq_u8(full_v.0, full_v.1),
+                )
             } else {
-                u_pixels = vld1q_u8(u_plane.as_ptr().add(u_pos));
-                v_pixels = vld1q_u8(v_plane.as_ptr().add(v_pos));
-            }
+                (
+                    vld1q_u8(u_plane.as_ptr().add(u_pos)),
+                    vld1q_u8(v_plane.as_ptr().add(v_pos)),
+                )
+            };
 
             let y_pixels_low = vqtbl1q_u8(y_pixels.0, v_shuffle);
             let y_pixels_high = vqtbl1q_u8(y_pixels.1, v_shuffle);
