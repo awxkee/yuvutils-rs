@@ -1066,10 +1066,10 @@ unsafe fn avx_planar16_bilinear_2_rows_rgba_impl<
             uu10 = _mm_srli_epi32::<4>(uu10);
             vv10 = _mm_srli_epi32::<4>(vv10);
 
-            uu01 = _mm_packus_epi32(uu01, uv_corr);
-            vv01 = _mm_packus_epi32(vv01, uv_corr);
-            uu10 = _mm_packus_epi32(uu10, uv_corr);
-            vv10 = _mm_packus_epi32(vv10, uv_corr);
+            uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
+            vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             let intl_uu_lo = _mm_sub_epi16(_mm_unpacklo_epi16(uu01, uu10), uv_corr);
             let intl_vv_lo = _mm_sub_epi16(_mm_unpacklo_epi16(vv01, vv10), uv_corr);
