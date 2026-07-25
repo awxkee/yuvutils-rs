@@ -131,6 +131,11 @@ unsafe fn sse_planar16_bilinear_1_row_rgba_impl<
             uu10 = _mm_srli_epi32::<2>(uu10);
             vv10 = _mm_srli_epi32::<2>(vv10);
 
+            uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
+            vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
+
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
             uu10 = _mm_sub_epi16(uu10, uv_corr);
@@ -224,6 +229,11 @@ unsafe fn sse_planar16_bilinear_1_row_rgba_impl<
 
             uu10 = _mm_srli_epi32::<2>(uu10);
             vv10 = _mm_srli_epi32::<2>(vv10);
+
+            uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
+            vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -336,6 +346,11 @@ unsafe fn sse_planar16_bilinear_1_row_rgba_impl<
 
             uu10 = _mm_srli_epi32::<2>(uu10);
             vv10 = _mm_srli_epi32::<2>(vv10);
+
+            uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
+            vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             uu01 = _mm_sub_epi16(uu01, uv_corr);
             vv01 = _mm_sub_epi16(vv01, uv_corr);
@@ -507,11 +522,11 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
             );
 
             let mut uu10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x1_y0, u_value_x0_y0),
+                _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0),
                 inter_row10,
             );
             let mut vv10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0),
                 inter_row10,
             );
 
@@ -645,11 +660,11 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
             );
 
             let mut uu10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x1_y0, u_value_x0_y0),
+                _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0),
                 inter_row10,
             );
             let mut vv10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0),
                 inter_row10,
             );
 
@@ -668,10 +683,20 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
                 ),
             );
 
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x0_y1, _mm_setzero_si128()));
-            uu10 = _mm_add_epi32(uu10, _mm_unpacklo_epi16(u_value_x1_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x0_y1, _mm_setzero_si128()));
-            vv10 = _mm_add_epi32(vv10, _mm_unpacklo_epi16(v_value_x1_y1, _mm_setzero_si128()));
+            uu10 = _mm_add_epi32(
+                uu10,
+                _mm_madd_epi16(
+                    _mm_unpacklo_epi16(u_value_x0_y1, u_value_x1_y1),
+                    inter_row32,
+                ),
+            );
+            vv10 = _mm_add_epi32(
+                vv10,
+                _mm_madd_epi16(
+                    _mm_unpacklo_epi16(v_value_x0_y1, v_value_x1_y1),
+                    inter_row32,
+                ),
+            );
 
             uu01 = _mm_add_epi32(uu01, inter_rnd);
             vv01 = _mm_add_epi32(vv01, inter_rnd);
@@ -683,10 +708,10 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
             uu10 = _mm_srli_epi32::<4>(uu10);
             vv10 = _mm_srli_epi32::<4>(vv10);
 
-            uu01 = _mm_packus_epi32(uu01, uv_corr);
-            vv01 = _mm_packus_epi32(vv01, uv_corr);
-            uu10 = _mm_packus_epi32(uu10, uv_corr);
-            vv10 = _mm_packus_epi32(vv10, uv_corr);
+            uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
+            vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             let intl_uu_lo = _mm_sub_epi16(_mm_unpacklo_epi16(uu01, uu10), uv_corr);
             let intl_vv_lo = _mm_sub_epi16(_mm_unpacklo_epi16(vv01, vv10), uv_corr);
@@ -808,11 +833,11 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
             );
 
             let mut uu10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(u_value_x1_y0, u_value_x0_y0),
+                _mm_unpacklo_epi16(u_value_x0_y0, u_value_x1_y0),
                 inter_row10,
             );
             let mut vv10 = _mm_madd_epi16(
-                _mm_unpacklo_epi16(v_value_x1_y0, v_value_x0_y0),
+                _mm_unpacklo_epi16(v_value_x0_y0, v_value_x1_y0),
                 inter_row10,
             );
 
@@ -856,10 +881,10 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
             uu10 = _mm_srli_epi32::<4>(uu10);
             vv10 = _mm_srli_epi32::<4>(vv10);
 
-            uu01 = _mm_packus_epi32(uu01, uv_corr);
-            vv01 = _mm_packus_epi32(vv01, uv_corr);
-            uu10 = _mm_packus_epi32(uu10, uv_corr);
-            vv10 = _mm_packus_epi32(vv10, uv_corr);
+            uu01 = _mm_packus_epi32(uu01, _mm_setzero_si128());
+            vv01 = _mm_packus_epi32(vv01, _mm_setzero_si128());
+            uu10 = _mm_packus_epi32(uu10, _mm_setzero_si128());
+            vv10 = _mm_packus_epi32(vv10, _mm_setzero_si128());
 
             let intl_uu_lo = _mm_sub_epi16(_mm_unpacklo_epi16(uu01, uu10), uv_corr);
             let intl_vv_lo = _mm_sub_epi16(_mm_unpacklo_epi16(vv01, vv10), uv_corr);
@@ -922,6 +947,121 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
                 rgba.get_unchecked_mut(dst_shift..).as_mut_ptr(),
                 diff * channels,
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::yuv_support::YuvRange;
+
+    fn test_range() -> YuvChromaRange {
+        YuvChromaRange {
+            bias_y: 0,
+            bias_uv: 0,
+            range_y: 1023,
+            range_uv: 1023,
+            range: YuvRange::Full,
+        }
+    }
+
+    fn chroma_only_transform() -> CbCrInverseTransform<i16> {
+        CbCrInverseTransform {
+            y_coef: 0,
+            cr_coef: 0,
+            cb_coef: 1 << 13,
+            g_coeff_1: 0,
+            g_coeff_2: 0,
+        }
+    }
+
+    #[test]
+    fn planar16_bilinear_1_row_packs_interpolated_chroma() {
+        if !std::arch::is_x86_feature_detected!("sse4.1") {
+            return;
+        }
+
+        let width = 31usize;
+        let chroma_width = width.div_ceil(2);
+        let y_plane = vec![0; width];
+        let u_plane: Vec<u16> = (0..chroma_width).map(|x| 80 + x as u16 * 47).collect();
+        let v_plane = vec![0; chroma_width];
+        let mut rgb = vec![u16::MAX; width * 3];
+
+        sse_planar16_bilinear_1_row_rgba::<{ YuvSourceChannels::Rgb as u8 }, 13, 10>(
+            &test_range(),
+            &chroma_only_transform(),
+            &y_plane,
+            &u_plane,
+            &v_plane,
+            &mut rgb,
+            width as u32,
+        );
+
+        for (x, pixel) in rgb.chunks_exact(3).enumerate() {
+            let cx = x / 2;
+            let next_cx = (cx + 1).min(chroma_width - 1);
+            let expected_b = if x & 1 == 0 {
+                (u_plane[cx] as u32 * 3 + u_plane[next_cx] as u32 + 2) >> 2
+            } else {
+                (u_plane[cx] as u32 + u_plane[next_cx] as u32 * 3 + 2) >> 2
+            };
+
+            assert_eq!(pixel, [0, 0, expected_b as u16], "x {x}");
+        }
+    }
+
+    #[test]
+    fn planar16_bilinear_2_rows_matches_expected_weights() {
+        if !std::arch::is_x86_feature_detected!("sse4.1") {
+            return;
+        }
+
+        let range = test_range();
+        let transform = chroma_only_transform();
+
+        for width in [11usize, 15] {
+            let chroma_width = width.div_ceil(2);
+            let y_plane = vec![0; width];
+            let u0_plane: Vec<u16> = (0..chroma_width).map(|x| 100 + x as u16 * 70).collect();
+            let u1_plane: Vec<u16> = (0..chroma_width).map(|x| 50 + x as u16 * 40).collect();
+            let v_plane = vec![0; chroma_width];
+            let mut rgb = vec![u16::MAX; width * 3];
+
+            sse_planar16_bilinear_2_rows_rgba::<{ YuvSourceChannels::Rgb as u8 }, 13, 10>(
+                &range,
+                &transform,
+                &y_plane,
+                &u0_plane,
+                &u1_plane,
+                &v_plane,
+                &v_plane,
+                &mut rgb,
+                width as u32,
+            );
+
+            for (x, pixel) in rgb.chunks_exact(3).enumerate() {
+                let cx = x / 2;
+                let next_cx = (cx + 1).min(chroma_width - 1);
+                let expected_b = if x & 1 == 0 {
+                    (u0_plane[cx] as u32 * 9
+                        + u0_plane[next_cx] as u32 * 3
+                        + u1_plane[cx] as u32 * 3
+                        + u1_plane[next_cx] as u32
+                        + 8)
+                        >> 4
+                } else {
+                    (u0_plane[cx] as u32 * 3
+                        + u0_plane[next_cx] as u32 * 9
+                        + u1_plane[cx] as u32
+                        + u1_plane[next_cx] as u32 * 3
+                        + 8)
+                        >> 4
+                };
+
+                assert_eq!(pixel, [0, 0, expected_b as u16], "width {width}, x {x}");
+            }
         }
     }
 }
