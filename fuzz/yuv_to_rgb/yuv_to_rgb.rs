@@ -39,95 +39,131 @@ use yuv::{
 };
 
 fuzz_target!(|data: (u8, u8, u8, u8, u8, u8)| {
-    fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4);
-    fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4);
+    fuzz_yuv_420(data.0, data.1, data.2, data.3, data.4, data.5);
+    fuzz_yuv_422(data.0, data.1, data.2, data.3, data.4, data.5);
     fuzz_yuv_444(data.0, data.1, data.2, data.3, data.4);
 });
 
-fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
+fn assert_rgba_alpha(rgba: &[u8], stride: usize, width: usize, height: usize) {
+    for row in 0..height {
+        assert!(rgba[row * stride..row * stride + width * 4]
+            .chunks_exact(4)
+            .all(|pixel| pixel[3] == 255));
+    }
+}
+
+fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8, stride_seed: u8) {
     if i_height == 0 || i_width == 0 {
         return;
     }
-    let y_plane = vec![y_value; i_height as usize * i_width as usize];
-    let a_plane = vec![y_value; i_height as usize * i_width as usize];
-    let u_plane = vec![u_value; (i_width as usize).div_ceil(2) * (i_height as usize).div_ceil(2)];
-    let v_plane = vec![v_value; (i_width as usize).div_ceil(2) * (i_height as usize).div_ceil(2)];
+    let width = i_width as usize;
+    let height = i_height as usize;
+    let chroma_width = width.div_ceil(2);
+    let chroma_height = height.div_ceil(2);
+    let y_stride = width + (stride_seed & 3) as usize;
+    let u_stride = chroma_width + ((stride_seed >> 2) & 3) as usize;
+    let v_stride = chroma_width + ((stride_seed >> 4) & 3) as usize;
+    let dst_padding = ((stride_seed >> 6) & 3) as usize;
+    let y_plane = vec![y_value; y_stride * (height - 1) + width];
+    let u_plane = vec![u_value; u_stride * (chroma_height - 1) + chroma_width];
+    let v_plane = vec![v_value; v_stride * (chroma_height - 1) + chroma_width];
+    let tight_y_plane = vec![y_value; width * height];
+    let tight_a_plane = vec![y_value; width * height];
+    let tight_u_plane = vec![u_value; chroma_width * chroma_height];
+    let tight_v_plane = vec![v_value; chroma_width * chroma_height];
 
-    let planar_image = YuvPlanarImage {
+    let bilinear_image = YuvPlanarImage {
         y_plane: &y_plane,
-        y_stride: i_width as u32,
+        y_stride: y_stride as u32,
         u_plane: &u_plane,
-        u_stride: (i_width as u32).div_ceil(2),
+        u_stride: u_stride as u32,
         v_plane: &v_plane,
-        v_stride: (i_width as u32).div_ceil(2),
+        v_stride: v_stride as u32,
+        width: i_width as u32,
+        height: i_height as u32,
+    };
+    let tight_image = YuvPlanarImage {
+        y_plane: &tight_y_plane,
+        y_stride: i_width as u32,
+        u_plane: &tight_u_plane,
+        u_stride: chroma_width as u32,
+        v_plane: &tight_v_plane,
+        v_stride: chroma_width as u32,
         width: i_width as u32,
         height: i_height as u32,
     };
 
-    let mut target_rgb = vec![0u8; i_width as usize * i_height as usize * 3];
+    let rgb_width = width * 3;
+    let rgb_stride = rgb_width + dst_padding;
+    let mut target_rgb = vec![0u8; rgb_width * height];
+    let mut bilinear_rgb = vec![0u8; rgb_stride * (height - 1) + rgb_width];
 
     yuv420_to_rgb(
-        &planar_image,
+        &tight_image,
         &mut target_rgb,
-        i_width as u32 * 3,
+        rgb_width as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
     yuv420_to_rgb_bilinear(
-        &planar_image,
-        &mut target_rgb,
-        i_width as u32 * 3,
+        &bilinear_image,
+        &mut bilinear_rgb,
+        rgb_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
     ycgco420_to_rgb(
-        &planar_image,
+        &tight_image,
         &mut target_rgb,
-        i_width as u32 * 3,
+        rgb_width as u32,
         YuvRange::Full,
     )
     .unwrap();
 
-    let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
+    let rgba_width = width * 4;
+    let rgba_stride = rgba_width + dst_padding;
+    let mut target_rgba = vec![0u8; rgba_width * height];
+    let mut bilinear_rgba = vec![0u8; rgba_stride * (height - 1) + rgba_width];
 
     yuv420_to_rgba(
-        &planar_image,
+        &tight_image,
         &mut target_rgba,
-        i_width as u32 * 4,
+        rgba_width as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
     yuv420_to_rgba_bilinear(
-        &planar_image,
-        &mut target_rgba,
-        i_width as u32 * 4,
+        &bilinear_image,
+        &mut bilinear_rgba,
+        rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+    assert_rgba_alpha(&bilinear_rgba, rgba_stride, width, height);
 
     ycgco420_to_rgba(
-        &planar_image,
+        &tight_image,
         &mut target_rgba,
-        i_width as u32 * 4,
+        rgba_width as u32,
         YuvRange::Full,
     )
     .unwrap();
 
     let planar_image_with_alpha = YuvPlanarImageWithAlpha {
-        y_plane: &y_plane,
+        y_plane: &tight_y_plane,
         y_stride: i_width as u32,
-        u_plane: &u_plane,
-        u_stride: (i_width as u32).div_ceil(2),
-        v_plane: &v_plane,
-        v_stride: (i_width as u32).div_ceil(2),
-        a_plane: &a_plane,
+        u_plane: &tight_u_plane,
+        u_stride: chroma_width as u32,
+        v_plane: &tight_v_plane,
+        v_stride: chroma_width as u32,
+        a_plane: &tight_a_plane,
         a_stride: i_width as u32,
         width: i_width as u32,
         height: i_height as u32,
@@ -136,7 +172,7 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     yuv420_alpha_to_rgba(
         &planar_image_with_alpha,
         &mut target_rgba,
-        i_width as u32 * 4,
+        rgba_width as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
         false,
@@ -144,90 +180,117 @@ fn fuzz_yuv_420(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     .unwrap();
 }
 
-fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8) {
+fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8, stride_seed: u8) {
     if i_height == 0 || i_width == 0 {
         return;
     }
-    let y_plane = vec![y_value; i_height as usize * i_width as usize];
-    let a_plane = vec![y_value; i_height as usize * i_width as usize];
-    let u_plane = vec![u_value; (i_width as usize).div_ceil(2) * i_height as usize];
-    let v_plane = vec![v_value; (i_width as usize).div_ceil(2) * i_height as usize];
+    let width = i_width as usize;
+    let height = i_height as usize;
+    let chroma_width = width.div_ceil(2);
+    let y_stride = width + (stride_seed & 3) as usize;
+    let u_stride = chroma_width + ((stride_seed >> 2) & 3) as usize;
+    let v_stride = chroma_width + ((stride_seed >> 4) & 3) as usize;
+    let dst_padding = ((stride_seed >> 6) & 3) as usize;
+    let y_plane = vec![y_value; y_stride * (height - 1) + width];
+    let u_plane = vec![u_value; u_stride * (height - 1) + chroma_width];
+    let v_plane = vec![v_value; v_stride * (height - 1) + chroma_width];
+    let tight_y_plane = vec![y_value; width * height];
+    let tight_a_plane = vec![y_value; width * height];
+    let tight_u_plane = vec![u_value; chroma_width * height];
+    let tight_v_plane = vec![v_value; chroma_width * height];
 
-    let planar_image = YuvPlanarImage {
+    let bilinear_image = YuvPlanarImage {
         y_plane: &y_plane,
-        y_stride: i_width as u32,
+        y_stride: y_stride as u32,
         u_plane: &u_plane,
-        u_stride: (i_width as u32).div_ceil(2),
+        u_stride: u_stride as u32,
         v_plane: &v_plane,
-        v_stride: (i_width as u32).div_ceil(2),
+        v_stride: v_stride as u32,
+        width: i_width as u32,
+        height: i_height as u32,
+    };
+    let tight_image = YuvPlanarImage {
+        y_plane: &tight_y_plane,
+        y_stride: i_width as u32,
+        u_plane: &tight_u_plane,
+        u_stride: chroma_width as u32,
+        v_plane: &tight_v_plane,
+        v_stride: chroma_width as u32,
         width: i_width as u32,
         height: i_height as u32,
     };
 
-    let mut target_rgb = vec![0u8; i_width as usize * i_height as usize * 3];
+    let rgb_width = width * 3;
+    let rgb_stride = rgb_width + dst_padding;
+    let mut target_rgb = vec![0u8; rgb_width * height];
+    let mut bilinear_rgb = vec![0u8; rgb_stride * (height - 1) + rgb_width];
 
     yuv422_to_rgb(
-        &planar_image,
+        &tight_image,
         &mut target_rgb,
-        i_width as u32 * 3,
+        rgb_width as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
     yuv422_to_rgb_bilinear(
-        &planar_image,
-        &mut target_rgb,
-        i_width as u32 * 3,
+        &bilinear_image,
+        &mut bilinear_rgb,
+        rgb_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
     ycgco422_to_rgb(
-        &planar_image,
+        &tight_image,
         &mut target_rgb,
-        i_width as u32 * 3,
+        rgb_width as u32,
         YuvRange::Full,
     )
     .unwrap();
 
-    let mut target_rgba = vec![0u8; i_width as usize * i_height as usize * 4];
+    let rgba_width = width * 4;
+    let rgba_stride = rgba_width + dst_padding;
+    let mut target_rgba = vec![0u8; rgba_width * height];
+    let mut bilinear_rgba = vec![0u8; rgba_stride * (height - 1) + rgba_width];
 
     yuv422_to_rgba(
-        &planar_image,
+        &tight_image,
         &mut target_rgba,
-        i_width as u32 * 4,
+        rgba_width as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
 
     yuv422_to_rgba_bilinear(
-        &planar_image,
-        &mut target_rgba,
-        i_width as u32 * 4,
+        &bilinear_image,
+        &mut bilinear_rgba,
+        rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+    assert_rgba_alpha(&bilinear_rgba, rgba_stride, width, height);
 
     ycgco422_to_rgba(
-        &planar_image,
+        &tight_image,
         &mut target_rgba,
-        i_width as u32 * 4,
+        rgba_width as u32,
         YuvRange::Full,
     )
     .unwrap();
 
     let planar_image_with_alpha = YuvPlanarImageWithAlpha {
-        y_plane: &y_plane,
+        y_plane: &tight_y_plane,
         y_stride: i_width as u32,
-        u_plane: &u_plane,
-        u_stride: (i_width as u32).div_ceil(2),
-        v_plane: &v_plane,
-        v_stride: (i_width as u32).div_ceil(2),
-        a_plane: &a_plane,
+        u_plane: &tight_u_plane,
+        u_stride: chroma_width as u32,
+        v_plane: &tight_v_plane,
+        v_stride: chroma_width as u32,
+        a_plane: &tight_a_plane,
         a_stride: i_width as u32,
         width: i_width as u32,
         height: i_height as u32,
@@ -236,7 +299,7 @@ fn fuzz_yuv_422(i_width: u8, i_height: u8, y_value: u8, u_value: u8, v_value: u8
     yuv422_alpha_to_rgba(
         &planar_image_with_alpha,
         &mut target_rgba,
-        i_width as u32 * 4,
+        rgba_width as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
         false,
