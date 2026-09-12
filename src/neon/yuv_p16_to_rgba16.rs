@@ -523,7 +523,7 @@ unsafe fn neon_yuv_p16_to_rgba16_row_rdm_impl<
 
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
-    let v_alpha = vdupq_n_u16((1 << BIT_DEPTH) - 1);
+    let v_alpha = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1) as u16);
     let zeros = vdupq_n_s16(0);
 
     let mut cx = 0usize;
