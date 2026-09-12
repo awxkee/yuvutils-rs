@@ -85,12 +85,13 @@ fn fuzz_yuv_420(
     let y_stride = width + (stride_seed & 3) as usize;
     let u_stride = chroma_width + ((stride_seed >> 2) & 3) as usize;
     let v_stride = chroma_width + ((stride_seed >> 4) & 3) as usize;
+    let a_stride = width + ((stride_seed >> 1) & 3) as usize;
     let dst_padding = ((stride_seed >> 6) & 3) as usize;
     let y_plane = vec![y_value; y_stride * (height - 1) + width];
     let u_plane = vec![u_value; u_stride * (chroma_height - 1) + chroma_width];
     let v_plane = vec![v_value; v_stride * (chroma_height - 1) + chroma_width];
+    let a_plane = vec![y_value; a_stride * (height - 1) + width];
     let tight_y_plane = vec![y_value; width * height];
-    let tight_a_plane = vec![y_value; width * height];
     let tight_u_plane = vec![u_value; chroma_width * chroma_height];
     let tight_v_plane = vec![v_value; chroma_width * chroma_height];
 
@@ -192,26 +193,28 @@ fn fuzz_yuv_420(
     .unwrap();
 
     let planar_image_alpha = YuvPlanarImageWithAlpha {
-        y_plane: &tight_y_plane,
-        y_stride: i_width as u32,
-        u_plane: &tight_u_plane,
-        u_stride: chroma_width as u32,
-        v_plane: &tight_v_plane,
-        v_stride: chroma_width as u32,
-        a_plane: &tight_a_plane,
-        a_stride: i_width as u32,
+        y_plane: &y_plane,
+        y_stride: y_stride as u32,
+        u_plane: &u_plane,
+        u_stride: u_stride as u32,
+        v_plane: &v_plane,
+        v_stride: v_stride as u32,
+        a_plane: &a_plane,
+        a_stride: a_stride as u32,
         width: i_width as u32,
         height: i_height as u32,
     };
+    let mut alpha_rgba = vec![0u16; rgba_stride * (height - 1) + rgba_width];
 
     i010_alpha_to_rgba10(
         &planar_image_alpha,
-        &mut target_rgba,
-        rgba_width as u32,
+        &mut alpha_rgba,
+        rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+    assert_rgba_alpha(&alpha_rgba, rgba_stride, width, height, y_value);
 }
 
 fn fuzz_yuv_422(
@@ -231,12 +234,13 @@ fn fuzz_yuv_422(
     let y_stride = width + (stride_seed & 3) as usize;
     let u_stride = chroma_width + ((stride_seed >> 2) & 3) as usize;
     let v_stride = chroma_width + ((stride_seed >> 4) & 3) as usize;
+    let a_stride = width + ((stride_seed >> 1) & 3) as usize;
     let dst_padding = ((stride_seed >> 6) & 3) as usize;
     let y_plane = vec![y_value; y_stride * (height - 1) + width];
     let u_plane = vec![u_value; u_stride * (height - 1) + chroma_width];
     let v_plane = vec![v_value; v_stride * (height - 1) + chroma_width];
+    let a_plane = vec![y_value; a_stride * (height - 1) + width];
     let tight_y_plane = vec![y_value; width * height];
-    let tight_a_plane = vec![y_value; width * height];
     let tight_u_plane = vec![u_value; chroma_width * height];
     let tight_v_plane = vec![v_value; chroma_width * height];
 
@@ -338,26 +342,28 @@ fn fuzz_yuv_422(
     .unwrap();
 
     let planar_image_alpha = YuvPlanarImageWithAlpha {
-        y_plane: &tight_y_plane,
-        y_stride: i_width as u32,
-        u_plane: &tight_u_plane,
-        u_stride: chroma_width as u32,
-        v_plane: &tight_v_plane,
-        v_stride: chroma_width as u32,
-        a_plane: &tight_a_plane,
-        a_stride: i_width as u32,
+        y_plane: &y_plane,
+        y_stride: y_stride as u32,
+        u_plane: &u_plane,
+        u_stride: u_stride as u32,
+        v_plane: &v_plane,
+        v_stride: v_stride as u32,
+        a_plane: &a_plane,
+        a_stride: a_stride as u32,
         width: i_width as u32,
         height: i_height as u32,
     };
+    let mut alpha_rgba = vec![0u16; rgba_stride * (height - 1) + rgba_width];
 
     i210_alpha_to_rgba10(
         &planar_image_alpha,
-        &mut target_rgba,
-        rgba_width as u32,
+        &mut alpha_rgba,
+        rgba_stride as u32,
         YuvRange::Limited,
         YuvStandardMatrix::Bt601,
     )
     .unwrap();
+    assert_rgba_alpha(&alpha_rgba, rgba_stride, width, height, y_value);
 }
 
 fn fuzz_yuv_444(i_width: u8, i_height: u8, y_value: u16, u_value: u16, v_value: u16) {
