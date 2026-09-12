@@ -145,7 +145,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
             vqshrun_n_s32::<16>(glv)
         };
 
-        let v_max = vdupq_n_u16((1 << BIT_DEPTH) - 1);
+        let v_max = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1) as u16);
 
         let rw = vminq_u16(vcombine_u16(r_low, r_high), v_max);
         let gw = vminq_u16(vcombine_u16(g_low, g_high), v_max);
@@ -259,7 +259,7 @@ pub(crate) unsafe fn neon_yuv_nv12_p10_to_ar30_row<
             vqshrun_n_s32::<16>(glv)
         };
 
-        let v_max = vdupq_n_u16((1 << BIT_DEPTH) - 1);
+        let v_max = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1) as u16);
 
         let rw = vminq_u16(vcombine_u16(r_low, r_high), v_max);
         let gw = vminq_u16(vcombine_u16(g_low, g_high), v_max);

@@ -64,7 +64,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let v_max_colors = vdupq_n_u16((1u16 << BIT_DEPTH as u16) - 1);
+    let v_max_colors = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1) as u16);
 
     let y_corr = vdupq_n_s16(bias_y as i16);
     let uv_corr = vdupq_n_s16(bias_uv as i16);
@@ -178,7 +178,7 @@ pub(crate) unsafe fn neon_yuv_nv_p16_to_rgba_row_rdm<
     let bias_y = range.bias_y as i32;
     let bias_uv = range.bias_uv as i32;
 
-    let v_max_colors = vdupq_n_u16((1u16 << BIT_DEPTH as u16) - 1);
+    let v_max_colors = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1) as u16);
 
     let y_corr = vdupq_n_u16(bias_y as u16);
     let uv_corr = vdupq_n_s16(bias_uv as i16);

@@ -474,7 +474,7 @@ unsafe fn sse_planar16_bilinear_2_rows_rgba_impl<
 
         let y_corr = _mm_set1_epi16(range.bias_y as i16);
         let uv_corr = _mm_set1_epi16(range.bias_uv as i16);
-        let v_alpha = _mm_set1_epi16(((1u16 << BIT_DEPTH) - 1) as i16);
+        let v_alpha = _mm_set1_epi16(((1u32 << BIT_DEPTH) - 1) as i16);
         let r_coef = _mm_set1_epi32(i32::from_ne_bytes([
             y_coef[0], y_coef[1], cr_coef[0], cr_coef[1],
         ]));

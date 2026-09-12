@@ -81,7 +81,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row<
     let mut cx = start_cx;
     let mut ux = start_ux;
 
-    let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
+    let v_max_values = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1) as u16);
 
     while cx + 16 <= width as usize {
         let y_values0: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
@@ -500,7 +500,7 @@ pub(crate) unsafe fn neon_yuv_p16_to_rgba16_alpha_row_rdm<
     let v_weights = vld1q_s16(weights_arr.as_ptr());
 
     let zeros = vdupq_n_s16(0);
-    let v_max_values = vdupq_n_u16((1 << BIT_DEPTH) - 1);
+    let v_max_values = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1) as u16);
 
     let mut cx = start_cx;
     let mut ux = start_ux;
