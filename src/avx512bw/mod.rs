@@ -42,6 +42,7 @@ mod rgba_to_yuv420;
 mod rgba_to_yuv_fast;
 #[cfg(feature = "fast_mode")]
 mod rgba_to_yuv_fast420;
+mod shuffle;
 mod y_to_rgb;
 mod yuv_nv_to_rgba;
 mod yuv_nv_to_rgba420;
@@ -69,6 +70,7 @@ pub(crate) use rgba_to_yuv_fast::{avx512_rgba_to_yuv_dot_rgba, avx512_rgba_to_yu
 pub(crate) use rgba_to_yuv_fast420::{
     avx512_rgba_to_yuv_dot_rgba420, avx512_rgba_to_yuv_dot_rgba420_vbmi,
 };
+pub(crate) use shuffle::ShuffleQTableConverterAvx512;
 pub(crate) use y_to_rgb::avx512_y_to_rgb_row;
 pub(crate) use yuv_nv_to_rgba::avx512_yuv_nv_to_rgba;
 pub(crate) use yuv_nv_to_rgba420::avx512_yuv_nv_to_rgba420;
