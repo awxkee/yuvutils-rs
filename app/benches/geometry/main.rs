@@ -48,7 +48,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             rotate_rgba(
-                &rgba_src_bytes,
+                rgba_src_bytes,
                 dimensions.0 as usize * 4,
                 &mut rgb_bytes,
                 4 * dimensions.1 as usize,
@@ -57,7 +57,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 RotationMode::Rotate90,
             )
             .unwrap();
-        })
+        });
     });
 
     c.bench_function("libyuv: Rotate 90 RGBA8", |b| {
@@ -72,14 +72,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.1 as i32,
                 RotationMode_kRotate90,
             );
-        })
+        });
     });
 
     c.bench_function("yuvutils: Rotate 180 RGBA8", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             rotate_rgba(
-                &rgba_src_bytes,
+                rgba_src_bytes,
                 dimensions.0 as usize * 4,
                 &mut rgb_bytes,
                 4 * dimensions.0 as usize,
@@ -88,7 +88,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 RotationMode::Rotate180,
             )
             .unwrap();
-        })
+        });
     });
 
     c.bench_function("libyuv: Rotate 180 RGBA8", |b| {
@@ -103,14 +103,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.1 as i32,
                 RotationMode_kRotate180,
             );
-        })
+        });
     });
 
     c.bench_function("yuvutils: Rotate 90 Plane8", |b| {
         let mut t_bytes = vec![0u8; dimensions.0 as usize * dimensions.1 as usize];
         b.iter(|| {
             rotate_plane(
-                &plane_src_bytes,
+                plane_src_bytes,
                 dimensions.0 as usize,
                 &mut t_bytes,
                 dimensions.1 as usize,
@@ -119,7 +119,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 RotationMode::Rotate90,
             )
             .unwrap();
-        })
+        });
     });
 
     c.bench_function("libyuv: Rotate 90 Plane8", |b| {
@@ -133,14 +133,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 as i32,
                 dimensions.1 as i32,
             );
-        })
+        });
     });
 
     c.bench_function("yuvutils: Rotate 180 Plane8", |b| {
         let mut t_bytes = vec![0u8; dimensions.0 as usize * dimensions.1 as usize];
         b.iter(|| {
             rotate_plane(
-                &plane_src_bytes,
+                plane_src_bytes,
                 dimensions.0 as usize,
                 &mut t_bytes,
                 dimensions.0 as usize,
@@ -149,7 +149,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 RotationMode::Rotate180,
             )
             .unwrap();
-        })
+        });
     });
 
     c.bench_function("libyuv: Rotate 180 Plane8", |b| {
@@ -163,14 +163,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.0 as i32,
                 dimensions.1 as i32,
             );
-        })
+        });
     });
 
     c.bench_function("yuvutils: Rotate 270 RGBA8", |b| {
         let mut rgb_bytes = vec![0u8; dimensions.0 as usize * 4 * dimensions.1 as usize];
         b.iter(|| {
             rotate_rgba(
-                &rgba_src_bytes,
+                rgba_src_bytes,
                 dimensions.0 as usize * 4,
                 &mut rgb_bytes,
                 4 * dimensions.1 as usize,
@@ -179,7 +179,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 RotationMode::Rotate270,
             )
             .unwrap();
-        })
+        });
     });
 
     c.bench_function("libyuv: Rotate 270 RGBA8", |b| {
@@ -194,7 +194,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 dimensions.1 as i32,
                 RotationMode_kRotate270,
             );
-        })
+        });
     });
 }
 

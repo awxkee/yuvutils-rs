@@ -53,7 +53,7 @@ pub enum MirrorMode {
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -85,7 +85,7 @@ pub fn mirror_rgba(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -117,7 +117,7 @@ pub fn mirror_rgb(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -153,7 +153,7 @@ pub fn mirror_cbcr(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -185,7 +185,7 @@ pub fn mirror_plane(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -217,7 +217,7 @@ pub fn mirror_rgba16(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -249,7 +249,7 @@ pub fn mirror_rgb16(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -285,7 +285,7 @@ pub fn mirror_cbcr16(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [MirrorMode] for mode info
+/// * `mode`: Refer to [`MirrorMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///

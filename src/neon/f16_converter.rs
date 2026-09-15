@@ -349,7 +349,7 @@ impl SurfaceFloat16ToUnsigned<u8> for SurfaceF16ToUnsigned8NeonFallback {
                 let lo = vmovn_u32(m0);
                 let hi = vmovn_u32(m1);
                 let merged = vqmovn_u16(vcombine_u16(lo, hi));
-                vst1_u8(dst.as_mut_ptr(), merged)
+                vst1_u8(dst.as_mut_ptr(), merged);
             }
 
             let src_rem = src.chunks_exact(8).remainder();

@@ -56,7 +56,7 @@ pub(crate) fn neon_yuv_p16_to_rgba_row<
             BYTES_POSITION,
             BIT_DEPTH,
             PRECISION,
-        >(y_ld_ptr, u_ld_ptr, v_ld_ptr, rgba, range, transform)
+        >(y_ld_ptr, u_ld_ptr, v_ld_ptr, rgba, range, transform);
     }
 }
 

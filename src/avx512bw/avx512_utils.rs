@@ -1085,14 +1085,14 @@ mod tests {
     #[test]
     fn check_rgb8_deinterleaving() {
         unsafe {
-            let mut rgb_store = vec![0u8; 64 * 3];
+            let mut rgb_store = [0u8; 64 * 3];
             let has_avx512vbmi = std::is_x86_feature_detected!("avx512vbmi");
             let has_avx512bw = std::is_x86_feature_detected!("avx512bw");
             if !has_avx512bw {
                 println!("Launched test on a platform that does not support it");
                 return;
             }
-            for (_, chunk) in rgb_store.chunks_exact_mut(3).enumerate() {
+            for chunk in rgb_store.chunks_exact_mut(3) {
                 chunk[0] = 1;
                 chunk[1] = 2;
                 chunk[2] = 3;

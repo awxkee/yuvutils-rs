@@ -50,7 +50,7 @@ pub(crate) unsafe fn neon_ayuv_to_rgba_rdm<const DESTINATION_CHANNELS: u8, const
         bias_uv,
         width,
         use_premultiply,
-    )
+    );
 }
 
 pub(crate) unsafe fn neon_ayuv_to_rgba<const DESTINATION_CHANNELS: u8, const PACKED: u8>(
@@ -70,7 +70,7 @@ pub(crate) unsafe fn neon_ayuv_to_rgba<const DESTINATION_CHANNELS: u8, const PAC
         bias_uv,
         width,
         use_premultiply,
-    )
+    );
 }
 
 #[inline(always)]
