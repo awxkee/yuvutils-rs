@@ -77,8 +77,8 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
     let g_coef_1 = transform.g_coeff_1;
     let g_coef_2 = transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i16;
-    let bias_uv = range.bias_uv as i16;
+    let bias_y = range.bias_y as i32;
+    let bias_uv = range.bias_uv as i32;
 
     let max_colors = ((1u32 << BIT_DEPTH) - 1) as u16;
 
@@ -96,14 +96,14 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
         let cb_1 = ((u_src[0] as u32 + (u_src[1] as u32) * 3 + 2) >> 2) as u16;
         let cr_1 = ((v_src[0] as u32 + (v_src[1] as u32) * 3 + 2) >> 2) as u16;
 
-        let y_value0 = (y_src[0] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value0 = cb_0 as i16 - bias_uv;
-        let cr_value0 = cr_0 as i16 - bias_uv;
+        let y_value0 = (y_src[0] as i32 - bias_y) * y_coef as i32;
+        let cb_value0 = cb_0 as i32 - bias_uv;
+        let cr_value0 = cr_0 as i32 - bias_uv;
 
-        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value0 as i32);
-        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value0 as i32);
+        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value0);
+        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value0);
         let g0 = qrshr::<Q, BIT_DEPTH>(
-            y_value0 - g_coef_1 as i32 * cr_value0 as i32 - g_coef_2 as i32 * cb_value0 as i32,
+            y_value0 - g_coef_1 as i32 * cr_value0 - g_coef_2 as i32 * cb_value0,
         );
 
         let rgba0 = &mut rgba[..channels];
@@ -115,9 +115,9 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
             rgba0[dst_chans.get_a_channel_offset()] = max_colors;
         }
 
-        let y_value1 = (y_src[1] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value1 = cb_1 as i32 - bias_uv as i32;
-        let cr_value1 = cr_1 as i32 - bias_uv as i32;
+        let y_value1 = (y_src[1] as i32 - bias_y) * y_coef as i32;
+        let cb_value1 = cb_1 as i32 - bias_uv;
+        let cr_value1 = cr_1 as i32 - bias_uv;
 
         let r0 = qrshr::<Q, BIT_DEPTH>(y_value1 + cr_coef as i32 * cr_value1);
         let b0 = qrshr::<Q, BIT_DEPTH>(y_value1 + cb_coef as i32 * cb_value1);
@@ -141,9 +141,9 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
     let rgba_remainder = rgba_chunks.into_remainder();
 
     if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value = *u_plane.last().unwrap() as i32 - bias_uv as i32;
-        let cr_value = *v_plane.last().unwrap() as i32 - bias_uv as i32;
+        let y_value0 = (*last_y as i32 - bias_y) * y_coef as i32;
+        let cb_value = *u_plane.last().unwrap() as i32 - bias_uv;
+        let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
         let rgba0 = &mut rgba[..channels];
 
         let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value);
@@ -181,8 +181,8 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
     let g_coef_1 = transform.g_coeff_1;
     let g_coef_2 = transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i16;
-    let bias_uv = range.bias_uv as i16;
+    let bias_y = range.bias_y as i32;
+    let bias_uv = range.bias_uv as i32;
 
     let max_colors = ((1u32 << BIT_DEPTH) - 1) as u16;
 
@@ -222,9 +222,9 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
             + (1 << 3))
             >> 4;
 
-        let y_value0 = (y_src0[0] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value0 = cb_0 as i32 - bias_uv as i32;
-        let cr_value0 = cr_0 as i32 - bias_uv as i32;
+        let y_value0 = (y_src0[0] as i32 - bias_y) * y_coef as i32;
+        let cb_value0 = cb_0 as i32 - bias_uv;
+        let cr_value0 = cr_0 as i32 - bias_uv;
 
         let g_built_coeff0 = -g_coef_1 as i32 * cr_value0 - g_coef_2 as i32 * cb_value0;
 
@@ -241,9 +241,9 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
             rgba00[dst_chans.get_a_channel_offset()] = max_colors;
         }
 
-        let y_value1 = (y_src0[1] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value1 = cb_1 as i32 - bias_uv as i32;
-        let cr_value1 = cr_1 as i32 - bias_uv as i32;
+        let y_value1 = (y_src0[1] as i32 - bias_y) * y_coef as i32;
+        let cb_value1 = cb_1 as i32 - bias_uv;
+        let cr_value1 = cr_1 as i32 - bias_uv;
 
         let g_built_coeff1 = -g_coef_1 as i32 * cr_value1 - g_coef_2 as i32 * cb_value1;
 
@@ -267,15 +267,15 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
     let rgba_remainder = rgba_chunks.into_remainder();
 
     if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
+        let y_value0 = (*last_y as i32 - bias_y) * y_coef as i32;
 
         let cb_0 =
             (*u_plane0.last().unwrap() as u32 * 3 + *u_plane1.last().unwrap() as u32 + 2) >> 2;
         let cr_0 =
             (*v_plane0.last().unwrap() as u32 + (*v_plane1.last().unwrap()) as u32 * 3 + 2) >> 2;
 
-        let cb_value = cb_0 as i32 - bias_uv as i32;
-        let cr_value = cr_0 as i32 - bias_uv as i32;
+        let cb_value = cb_0 as i32 - bias_uv;
+        let cr_value = cr_0 as i32 - bias_uv;
         let rgba0 = &mut rgba[..channels];
 
         let g_built_coeff = -g_coef_1 as i32 * cr_value - g_coef_2 as i32 * cb_value;
