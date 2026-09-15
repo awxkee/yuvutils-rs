@@ -77,8 +77,11 @@ impl ShuffleConverterFactory<u8> for u8 {
     fn make_converter<const SRC: u8, const DST: u8>() -> Box<dyn ShuffleConverter<u8, SRC, DST>> {
         let mut _converter: Box<dyn ShuffleConverter<u8, SRC, DST>> =
             Box::new(Rgba8DefaultConverter::default());
-        let src_channels: YuvSourceChannels = SRC.into();
-        let dst_channels: YuvSourceChannels = DST.into();
+        #[cfg(any(feature = "nightly_avx512", feature = "avx", feature = "sse"))]
+        let (src_channels, dst_channels) = (
+            YuvSourceChannels::from(SRC),
+            YuvSourceChannels::from(DST),
+        );
 
         #[cfg(feature = "nightly_avx512")]
         if std::arch::is_x86_feature_detected!("avx512bw") {
