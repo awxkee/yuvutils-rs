@@ -1193,6 +1193,57 @@ mod tests {
     use rand::RngExt;
 
     #[test]
+    fn test_yuv444_limited_range_luma_bias_in_residue_block() {
+        for width in [64usize, 128, 256, 67] {
+            for luma in [0usize, 128] {
+                let y: Vec<u8> = (0..width)
+                    .map(|x| {
+                        if luma == 0 {
+                            (x % 16) as u8
+                        } else {
+                            (128 + x % 8) as u8
+                        }
+                    })
+                    .collect();
+                let u = vec![128u8; width];
+                let v = vec![128u8; width];
+                let image = crate::YuvPlanarImage {
+                    y_plane: &y,
+                    y_stride: width as u32,
+                    u_plane: &u,
+                    u_stride: width as u32,
+                    v_plane: &v,
+                    v_stride: width as u32,
+                    width: width as u32,
+                    height: 1,
+                };
+                let mut rgb = vec![0u8; width * 3];
+                yuv444_to_rgb(
+                    &image,
+                    &mut rgb,
+                    (width * 3) as u32,
+                    YuvRange::Limited,
+                    YuvStandardMatrix::Bt601,
+                )
+                .unwrap();
+
+                for (x, &y_value) in y.iter().enumerate() {
+                    let expect = (1.164 * (f64::from(y_value) - 16.0))
+                        .round()
+                        .clamp(0.0, 255.0) as i32;
+                    for channel in 0..3 {
+                        let got = i32::from(rgb[x * 3 + channel]);
+                        assert!(
+                            (got - expect).abs() <= 3,
+                            "width {width}, luma {y_value}, x {x}, channel {channel}: got {got}, expected ~{expect}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_yuv444_round_trip_full_range() {
         fn matrix(yuv_accuracy: YuvConversionMode, max_diff: i32) {
             let image_width = 256usize;

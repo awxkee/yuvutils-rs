@@ -157,7 +157,7 @@ unsafe fn sse_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 8 < width {
-        let y_values = _mm_subs_epi8(_xx_load_si64(y_ptr.add(cx)), y_corr);
+        let y_values = _mm_subs_epu8(_xx_load_si64(y_ptr.add(cx)), y_corr);
 
         let reshuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
 

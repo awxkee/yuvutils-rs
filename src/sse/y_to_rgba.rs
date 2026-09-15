@@ -101,7 +101,7 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
     }
 
     while cx + 8 < width {
-        let y_values = _mm_subs_epi8(_mm_loadu_si64(y_ptr.add(cx)), y_corr);
+        let y_values = _mm_subs_epu8(_mm_loadu_si64(y_ptr.add(cx)), y_corr);
 
         let v_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
 
@@ -134,7 +134,7 @@ unsafe fn sse_y_to_rgba_row_impl<const DESTINATION_CHANNELS: u8>(
             diff,
         );
 
-        let y_values = _mm_subs_epi8(_mm_loadu_si64(y_buffer.as_ptr().cast()), y_corr);
+        let y_values = _mm_subs_epu8(_mm_loadu_si64(y_buffer.as_ptr().cast()), y_corr);
 
         let v_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
 

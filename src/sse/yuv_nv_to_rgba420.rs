@@ -190,8 +190,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let uv_values_ = _mm_loadu_si64(uv_ptr.add(uv_x));
 
-        let y_values0 = _mm_subs_epi8(y_vl0, y_corr);
-        let y_values1 = _mm_subs_epi8(y_vl1, y_corr);
+        let y_values0 = _mm_subs_epu8(y_vl0, y_corr);
+        let y_values1 = _mm_subs_epu8(y_vl1, y_corr);
         let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
         if order == YuvNVOrder::VU {
@@ -291,8 +291,8 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let uv_values_ = _mm_loadu_si64(uv_buffer.as_ptr().cast());
 
-        let y_values0 = _mm_subs_epi8(y_vl0, y_corr);
-        let y_values1 = _mm_subs_epi8(y_vl1, y_corr);
+        let y_values0 = _mm_subs_epu8(y_vl0, y_corr);
+        let y_values1 = _mm_subs_epu8(y_vl1, y_corr);
         let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
         if order == YuvNVOrder::VU {
