@@ -43,6 +43,7 @@ pub enum BufferStoreMut<'a, T: Copy + Debug> {
 
 impl<T: Copy + Debug> BufferStoreMut<'_, T> {
     #[allow(clippy::should_implement_trait)]
+    #[must_use]
     pub fn borrow(&self) -> &[T] {
         match self {
             Self::Borrowed(p_ref) => p_ref,
@@ -135,6 +136,7 @@ where
     T: Default + Clone + Copy + Debug,
 {
     /// Allocates mutable target Bi-Planar image with required chroma subsampling
+    #[must_use]
     pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsampling) -> Self {
         let chroma_width = match subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
@@ -158,6 +160,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn to_fixed(&'a self) -> YuvBiPlanarImage<'a, T> {
         YuvBiPlanarImage {
             y_plane: self.y_plane.borrow(),
@@ -174,6 +177,7 @@ impl<'a, T> YuvBiPlanarImage<'a, T>
 where
     T: Default + Clone + Copy + Debug,
 {
+    #[must_use]
     pub fn from_mut(bi_planar_mut: &'a YuvBiPlanarImageMut<T>) -> Self {
         YuvBiPlanarImage::<'a, T> {
             y_plane: bi_planar_mut.y_plane.borrow(),
@@ -236,6 +240,7 @@ where
         Ok(())
     }
 
+    #[must_use]
     pub fn to_fixed(&'a self) -> YuvGrayImage<'a, T> {
         YuvGrayImage {
             y_plane: self.y_plane.borrow(),
@@ -251,6 +256,7 @@ where
     T: Copy + Debug + Clone + Default,
 {
     /// Allocates mutable target gray image
+    #[must_use]
     pub fn alloc(width: u32, height: u32) -> Self {
         let y_target = vec![T::default(); width as usize * height as usize];
         Self {
@@ -418,6 +424,7 @@ where
     T: Default + Clone + Copy + Debug,
 {
     /// Allocates mutable target planar image with required chroma subsampling
+    #[must_use]
     pub fn alloc(width: u32, height: u32, subsampling: YuvChromaSubsampling) -> Self {
         let chroma_width = match subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
@@ -472,6 +479,7 @@ where
         (y, u, v)
     }
 
+    #[must_use]
     pub fn to_fixed(&'a self) -> YuvPlanarImage<'a, T> {
         YuvPlanarImage {
             y_plane: self.y_plane.borrow(),
@@ -621,6 +629,7 @@ where
         Ok(())
     }
 
+    #[must_use]
     pub fn to_fixed(&'a self) -> YuvPackedImage<'a, T> {
         YuvPackedImage::<'a, T> {
             yuy: self.yuy.borrow(),

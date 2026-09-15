@@ -65,7 +65,7 @@ pub(crate) fn map_ft_result(result: Result<(), TransposeError>) -> Result<(), Yu
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -116,7 +116,7 @@ pub fn rotate_rgba(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -167,7 +167,7 @@ pub fn rotate_rgb(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -220,7 +220,7 @@ pub fn rotate_cbcr(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -271,7 +271,7 @@ pub fn rotate_plane(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -324,7 +324,7 @@ pub fn rotate_rgba16(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -375,7 +375,7 @@ pub fn rotate_rgb16(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///
@@ -428,7 +428,7 @@ pub fn rotate_cbcr16(
 /// * `dst_stride`: Destination image stride
 /// * `width`: Image width
 /// * `height`: Image Height
-/// * `mode`: Refer to [RotationMode] for mode info
+/// * `mode`: Refer to [`RotationMode`] for mode info
 ///
 /// returns: Result<(), [YuvError]>
 ///

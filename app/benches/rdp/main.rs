@@ -163,7 +163,7 @@ pub fn to_64x64_ycbcr_tile(
     let bpp = 8;
 
     let input = TileIterator::new(input, width, height, stride, bpp);
-    iter_to_ycbcr(input, y, cb, cr, rgbx_to_rgb)
+    iter_to_ycbcr(input, y, cb, cr, rgbx_to_rgb);
 }
 
 /// Convert a 16-bit RDP color to RGB representation. Input value should be represented in
@@ -334,7 +334,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let imgbuf = image::ImageBuffer::from_fn(dimensions.0, dimensions.1, |x, y| {
         let p = (y * dimensions.0 + x) as usize;
-        let p = plane.y_plane.borrow()[p] as i16;
+        let p = plane.y_plane.borrow()[p];
         let p = ((p + 4096) as u16 >> 5) as u8;
         image::Luma([p])
     });
@@ -342,7 +342,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     let imgbuf = image::ImageBuffer::from_fn(dimensions.0, dimensions.1, |x, y| {
         let p = (y * dimensions.0 + x) as usize;
-        let p = iplane.y_plane.borrow()[p] as i16;
+        let p = iplane.y_plane.borrow()[p];
         let p = ((p + 4096) as u16 >> 5) as u8;
         image::Luma([p])
     });

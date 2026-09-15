@@ -88,7 +88,7 @@ fn ar30_to_rgb8_impl<
 ///
 /// * `ar30`: Source AR30 data
 /// * `ar30_stride`: Source AR30 stride
-/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `byte_order`: See [`Rgb30ByteOrder`] for more info
 /// * `rgb`: Destination RGB data
 /// * `rgb_stride`: Destination RGB stride
 /// * `width`: Image width
@@ -123,7 +123,7 @@ pub fn ar30_to_rgb8(
 ///
 /// * `ab30`: Source AR30 data
 /// * `ab30_stride`: Source AR30 stride
-/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `byte_order`: See [`Rgb30ByteOrder`] for more info
 /// * `rgb`: Destination RGB data
 /// * `rgb_stride`: Destination RGB stride
 /// * `width`: Image width
@@ -158,7 +158,7 @@ pub fn ab30_to_rgb8(
 ///
 /// * `ar30`: Source RA30 data
 /// * `ar30_stride`: Source RA30 stride
-/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `byte_order`: See [`Rgb30ByteOrder`] for more info
 /// * `rgb`: Destination RGB data
 /// * `rgb_stride`: Destination RGB stride
 /// * `width`: Image width
@@ -193,7 +193,7 @@ pub fn ra30_to_rgb8(
 ///
 /// * `ar30`: Source RA30 data
 /// * `ar30_stride`: Source RA30 stride
-/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `byte_order`: See [`Rgb30ByteOrder`] for more info
 /// * `rgb`: Destination RGB data
 /// * `rgb_stride`: Destination RGB stride
 /// * `width`: Image width
@@ -228,7 +228,7 @@ pub fn ba30_to_rgb8(
 ///
 /// * `ar30`: Source AR30 data
 /// * `ar30_stride`: Source AR30 stride
-/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `byte_order`: See [`Rgb30ByteOrder`] for more info
 /// * `rgba`: Destination RGBA data
 /// * `rgba_stride`: Destination RGBA stride
 /// * `width`: Image width
@@ -263,7 +263,7 @@ pub fn ar30_to_rgba8(
 ///
 /// * `ar30`: Source RA30 data
 /// * `ar30_stride`: Source RA30 stride
-/// * `byte_order`: See [Rgb30ByteOrder] for more info
+/// * `byte_order`: See [`Rgb30ByteOrder`] for more info
 /// * `rgba`: Destination RGBA data
 /// * `rgba_stride`: Destination RGBA stride
 /// * `width`: Image width

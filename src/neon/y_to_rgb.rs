@@ -43,7 +43,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row_rdm<const DESTINATION_CHANNELS: u8>(
 ) {
     neon_y_to_rgb_row_impl::<DESTINATION_CHANNELS, true>(
         range, transform, y_plane, rgba, start_cx, width,
-    )
+    );
 }
 
 pub(crate) unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
@@ -56,7 +56,7 @@ pub(crate) unsafe fn neon_y_to_rgb_row<const DESTINATION_CHANNELS: u8>(
 ) {
     neon_y_to_rgb_row_impl::<DESTINATION_CHANNELS, false>(
         range, transform, y_plane, rgba, start_cx, width,
-    )
+    );
 }
 
 #[inline(always)]
