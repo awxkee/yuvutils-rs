@@ -264,7 +264,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
             }
         }
 
-        let y_values = _mm_subs_epi8(y_vl0, y_corr);
+        let y_values = _mm_subs_epu8(y_vl0, y_corr);
         let u_low = _mm_sub_epi16(u_low_u16, uv_corr);
         let v_low = _mm_sub_epi16(v_low_u16, uv_corr);
         let y_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);
@@ -383,7 +383,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
             }
         }
 
-        let y_values = _mm_subs_epi8(y_vl0, y_corr);
+        let y_values = _mm_subs_epu8(y_vl0, y_corr);
         let u_low = _mm_sub_epi16(u_low_u16, uv_corr);
         let v_low = _mm_sub_epi16(v_low_u16, uv_corr);
         let y_low = _mm_mulhrs_epi16(_mm_expand8_lo_to_10(y_values), v_luma_coeff);

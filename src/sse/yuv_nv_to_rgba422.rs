@@ -163,7 +163,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let distribute_shuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
 
-        let y_values = _mm_subs_epi8(y_vl0, y_corr);
+        let y_values = _mm_subs_epu8(y_vl0, y_corr);
 
         u = _mm_shuffle_epi8(u, distribute_shuffle);
         v = _mm_shuffle_epi8(v, distribute_shuffle);
@@ -238,7 +238,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let distribute_shuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
 
-        let y_values = _mm_subs_epi8(y_vl0, y_corr);
+        let y_values = _mm_subs_epu8(y_vl0, y_corr);
 
         u = _mm_shuffle_epi8(u, distribute_shuffle);
         v = _mm_shuffle_epi8(v, distribute_shuffle);
