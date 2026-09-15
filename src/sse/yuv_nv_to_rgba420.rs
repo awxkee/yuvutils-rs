@@ -218,7 +218,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
         );
 
         let v_cr_lo = _mm_mulhrs_epi16(v_low, v_cr_coeff);
-        let v_cb_lo = _mm_mulhrs_epi16(u_low, v_cr_coeff);
+        let v_cb_lo = _mm_mulhrs_epi16(u_low, v_cb_coeff);
 
         let r_low0 = _mm_add_epi16(y_low0, v_cr_lo);
         let b_low0 = _mm_add_epi16(y_low0, v_cb_lo);
@@ -319,7 +319,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl420<const UV_ORDER: u8, const DESTINATION_CHANN
         );
 
         let v_cr_lo = _mm_mulhrs_epi16(v_low, v_cr_coeff);
-        let v_cb_lo = _mm_mulhrs_epi16(u_low, v_cr_coeff);
+        let v_cb_lo = _mm_mulhrs_epi16(u_low, v_cb_coeff);
 
         let r_low0 = _mm_add_epi16(y_low0, v_cr_lo);
         let b_low0 = _mm_add_epi16(y_low0, v_cb_lo);
