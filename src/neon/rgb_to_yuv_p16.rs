@@ -413,6 +413,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
     let v_cr_b = vdupq_n_s16(transform.cr_b as i16);
 
     let i_bias_y = vdupq_n_s16(range.bias_y as i16 * (1 << 2) + (1 << (SCALE - 1)) - 1);
+    // Chroma floor after the >>2 narrowing is the unscaled bias, not the scaled luma accumulator bias.
+    let i_clamp_uv = vdupq_n_s16(range.bias_y as i16);
     let uv_bias = vdupq_n_s16(bias_uv * (1 << 2) + (1 << (SCALE - 1)) - 1);
     let i_cap_y = vdupq_n_s16(range.range_y as i16 + range.bias_y as i16);
     let i_cap_uv = vdupq_n_s16(range.bias_y as i16 + range.range_uv as i16);
@@ -457,8 +459,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             cb_h = vqrdmlahq_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
             cr_h = vqrdmlahq_laneq_s16::<0>(cr_h, vreinterpretq_s16_u16(b_values), v_cr_b);
 
-            let cb_max = vmaxq_s16(vshrq_n_s16::<2>(cb_h), i_bias_y);
-            let cr_max = vmaxq_s16(vshrq_n_s16::<2>(cr_h), i_bias_y);
+            let cb_max = vmaxq_s16(vshrq_n_s16::<2>(cb_h), i_clamp_uv);
+            let cr_max = vmaxq_s16(vshrq_n_s16::<2>(cr_h), i_clamp_uv);
 
             let mut cb_vl = vreinterpretq_u16_s16(vminq_s16(cb_max, i_cap_uv));
             let mut cr_vl = vreinterpretq_u16_s16(vminq_s16(cr_max, i_cap_uv));
@@ -492,8 +494,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             cbk = vqrdmlah_laneq_s16::<5>(cbk, b1, v_weights);
             crk = vqrdmlah_laneq_s16::<0>(crk, b1, v_cr_b);
 
-            let cb_max = vmax_s16(vshr_n_s16::<2>(cbk), vget_low_s16(i_bias_y));
-            let cr_max = vmax_s16(vshr_n_s16::<2>(crk), vget_low_s16(i_bias_y));
+            let cb_max = vmax_s16(vshr_n_s16::<2>(cbk), vget_low_s16(i_clamp_uv));
+            let cr_max = vmax_s16(vshr_n_s16::<2>(crk), vget_low_s16(i_clamp_uv));
 
             let mut cb = vreinterpret_u16_s16(vmin_s16(cb_max, vget_low_s16(i_cap_uv)));
             let mut cr = vreinterpret_u16_s16(vmin_s16(cr_max, vget_low_s16(i_cap_uv)));
@@ -578,8 +580,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             cb_h = vqrdmlahq_laneq_s16::<5>(cb_h, vreinterpretq_s16_u16(b_values), v_weights);
             cr_h = vqrdmlahq_laneq_s16::<0>(cr_h, vreinterpretq_s16_u16(b_values), v_cr_b);
 
-            let cb_max = vmaxq_s16(vshrq_n_s16::<2>(cb_h), i_bias_y);
-            let cr_max = vmaxq_s16(vshrq_n_s16::<2>(cr_h), i_bias_y);
+            let cb_max = vmaxq_s16(vshrq_n_s16::<2>(cb_h), i_clamp_uv);
+            let cr_max = vmaxq_s16(vshrq_n_s16::<2>(cr_h), i_clamp_uv);
 
             let mut cb_vl = vreinterpretq_u16_s16(vminq_s16(cb_max, i_cap_uv));
             let mut cr_vl = vreinterpretq_u16_s16(vminq_s16(cr_max, i_cap_uv));
@@ -611,8 +613,8 @@ pub(crate) unsafe fn neon_rgba_to_yuv_p16_rdm<
             cbk = vqrdmlah_laneq_s16::<5>(cbk, b1, v_weights);
             crk = vqrdmlah_laneq_s16::<0>(crk, b1, v_cr_b);
 
-            let cb_max = vmax_s16(vshr_n_s16::<2>(cbk), vget_low_s16(i_bias_y));
-            let cr_max = vmax_s16(vshr_n_s16::<2>(crk), vget_low_s16(i_bias_y));
+            let cb_max = vmax_s16(vshr_n_s16::<2>(cbk), vget_low_s16(i_clamp_uv));
+            let cr_max = vmax_s16(vshr_n_s16::<2>(crk), vget_low_s16(i_clamp_uv));
 
             let mut cb = vreinterpret_u16_s16(vmin_s16(cb_max, vget_low_s16(i_cap_uv)));
             let mut cr = vreinterpret_u16_s16(vmin_s16(cr_max, vget_low_s16(i_cap_uv)));

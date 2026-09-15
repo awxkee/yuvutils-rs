@@ -512,3 +512,60 @@ unsafe fn neon_yuv_to_rgba_row_rdm_impl<
 
     ProcessedOffset { cx, ux: uv_x }
 }
+
+#[cfg(all(test, feature = "rdm"))]
+mod tests {
+    use super::*;
+    use crate::yuv_support::{
+        get_yuv_range, search_inverse_transform, YuvRange, YuvStandardMatrix,
+    };
+
+    /// Regression: the baseline kernels emulated the RDM multiply-accumulate with a
+    /// truncating `SQDMULH` plus a *wrapping* add, so the same binary produced
+    /// different pixels on CPUs with and without `FEAT_RDM`.
+    #[test]
+    fn test_rdm_and_baseline_neon_rows_agree() {
+        if !std::arch::is_aarch64_feature_detected!("rdm") {
+            return;
+        }
+        let width = 67usize;
+        let y: Vec<u8> = (0..width).map(|x| ((x * 37 + 11) % 256) as u8).collect();
+        let u: Vec<u8> = (0..width).map(|x| ((x * 91 + 5) % 256) as u8).collect();
+        let v: Vec<u8> = (0..width).map(|x| ((x * 53 + 7) % 256) as u8).collect();
+
+        let matrix = YuvStandardMatrix::Bt601;
+        let range = get_yuv_range(8, YuvRange::Limited);
+        let transform = search_inverse_transform(
+            13,
+            8,
+            YuvRange::Limited,
+            matrix,
+            range,
+            matrix.get_kr_kb(),
+        );
+
+        let mut rdm = vec![0u8; width * 3];
+        let mut baseline = vec![0u8; width * 3];
+        unsafe {
+            neon_yuv_to_rgba_row_rdm::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+                &range, &transform, &y, &u, &v, &mut rdm, 0, 0, width,
+            );
+            neon_yuv_to_rgba_row::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
+                &range,
+                &transform,
+                &y,
+                &u,
+                &v,
+                &mut baseline,
+                0,
+                0,
+                width,
+            );
+        }
+        assert!(
+            rdm.iter().any(|&p| p != 0),
+            "the row kernels did not write any pixel"
+        );
+        assert_eq!(rdm, baseline);
+    }
+}

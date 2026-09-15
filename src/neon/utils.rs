@@ -762,7 +762,10 @@ pub(crate) unsafe fn xqdmlahq_laneq_s16<const LANE: i32, const R: bool>(
     if R {
         vqrdmlahq_laneq_s16::<LANE>(a, b, c)
     } else {
-        vaddq_s16(a, vqdmulhq_laneq_s16::<LANE>(b, c))
+        // SQ(R)DMLAH rounds the product and saturates the sum, so the emulation
+        // has to do both: otherwise CPUs without FEAT_RDM return different
+        // pixels than CPUs with it for the same input.
+        vqaddq_s16(a, vqrdmulhq_laneq_s16::<LANE>(b, c))
     }
 }
 
@@ -771,20 +774,14 @@ pub(crate) unsafe fn xqdmulhq_laneq_s16<const LANE: i32, const R: bool>(
     a: int16x8_t,
     b: int16x8_t,
 ) -> int16x8_t {
-    if R {
-        vqrdmulhq_laneq_s16::<LANE>(a, b)
-    } else {
-        vqdmulhq_laneq_s16::<LANE>(a, b)
-    }
+    // SQ(R)DMULH is baseline NEON: FEAT_RDM only adds the fused accumulate, so
+    // the product is rounded on both paths and both yield identical results.
+    vqrdmulhq_laneq_s16::<LANE>(a, b)
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xqdmulhq_n_s16<const R: bool>(a: int16x8_t, b: i16) -> int16x8_t {
-    if R {
-        vqrdmulhq_n_s16(a, b)
-    } else {
-        vqdmulhq_n_s16(a, b)
-    }
+    vqrdmulhq_n_s16(a, b)
 }
 
 #[inline(always)]
