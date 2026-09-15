@@ -84,9 +84,13 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32>(
 
     // Bilinear upscaling weights in Q0.2
 
-    for (((rgba, y_src), u_src), v_src) in rgba
+    let blended_pairs = (y_plane.len() / 2).min(u_plane.len().saturating_sub(1));
+    let (y_head, y_reminder) = y_plane.split_at(blended_pairs * 2);
+    let (rgba_head, rgba_reminder) = rgba.split_at_mut(blended_pairs * channels * 2);
+
+    for (((rgba, y_src), u_src), v_src) in rgba_head
         .chunks_exact_mut(channels * 2)
-        .zip(y_plane.chunks_exact(2))
+        .zip(y_head.chunks_exact(2))
         .zip(u_plane.windows(2))
         .zip(v_plane.windows(2))
     {
@@ -135,27 +139,31 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32>(
         }
     }
 
-    let y_chunks = y_plane.chunks_exact(2);
-    let y_remainder = y_chunks.remainder();
-    let rgba_chunks = rgba.chunks_exact_mut(channels * 2);
-    let rgba_remainder = rgba_chunks.into_remainder();
+    // The pair (or the single pixel) left over takes the last chroma sample
+    // twice. The image checks reject a chroma row shorter than one sample, so
+    // there is nothing to convert from only if the caller bypasses them.
+    if let (Some(&u_last), Some(&v_last)) = (u_plane.last(), v_plane.last()) {
+        let cb_value = u_last as i16 - bias_uv;
+        let cr_value = v_last as i16 - bias_uv;
 
-    if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value = *u_plane.last().unwrap() as i16 - bias_uv;
-        let cr_value = *v_plane.last().unwrap() as i16 - bias_uv;
-        let rgba0 = &mut rgba[..channels];
+        for (rgba0, y_src) in rgba_reminder
+            .chunks_exact_mut(channels)
+            .zip(y_reminder.iter())
+        {
+            let y_value0 = (*y_src as i32 - bias_y as i32) * y_coef as i32;
 
-        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value as i32);
-        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value as i32);
-        let g0 = qrshr::<Q, BIT_DEPTH>(
-            y_value0 - g_coef_1 as i32 * cr_value as i32 - g_coef_2 as i32 * cb_value as i32,
-        );
-        rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
-        rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
-        rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
-        if dst_chans.has_alpha() {
-            rgba0[dst_chans.get_a_channel_offset()] = 255;
+            let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value as i32);
+            let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value as i32);
+            let g0 = qrshr::<Q, BIT_DEPTH>(
+                y_value0 - g_coef_1 as i32 * cr_value as i32 - g_coef_2 as i32 * cb_value as i32,
+            );
+
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
+            if dst_chans.has_alpha() {
+                rgba0[dst_chans.get_a_channel_offset()] = 255;
+            }
         }
     }
 }
@@ -188,9 +196,18 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32>(
 
     // Bilinear upscaling weights in Q0.4
 
-    for (((((rgba0, y_src0), u_src), u_src_next), v_src), v_src_next) in rgba
+    let chroma_width = u_plane0
+        .len()
+        .min(u_plane1.len())
+        .min(v_plane0.len())
+        .min(v_plane1.len());
+    let blended_pairs = (y_plane.len() / 2).min(chroma_width.saturating_sub(1));
+    let (y_head, y_reminder) = y_plane.split_at(blended_pairs * 2);
+    let (rgba_head, rgba_reminder) = rgba.split_at_mut(blended_pairs * channels * 2);
+
+    for (((((rgba0, y_src0), u_src), u_src_next), v_src), v_src_next) in rgba_head
         .chunks_exact_mut(channels * 2)
-        .zip(y_plane.chunks_exact(2))
+        .zip(y_head.chunks_exact(2))
         .zip(u_plane0.windows(2))
         .zip(u_plane1.windows(2))
         .zip(v_plane0.windows(2))
@@ -263,34 +280,35 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32>(
         }
     }
 
-    let y_chunks = y_plane.chunks_exact(2);
-    let y_remainder = y_chunks.remainder();
-    let rgba_chunks = rgba.chunks_exact_mut(channels * 2);
-    let rgba_remainder = rgba_chunks.into_remainder();
-
-    if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
-
-        let cb_0 =
-            (*u_plane0.last().unwrap() as u16 * 3 + *u_plane1.last().unwrap() as u16 + 2) >> 2;
-        let cr_0 =
-            (*v_plane0.last().unwrap() as u16 + (*v_plane1.last().unwrap()) as u16 * 3 + 2) >> 2;
-
-        let cb_value = cb_0 as i16 - bias_uv;
-        let cr_value = cr_0 as i16 - bias_uv;
-        let rgba0 = &mut rgba[..channels];
-
+    // The pair (or the single pixel) left over takes the last chroma samples
+    // twice. The image checks reject a chroma row shorter than one sample, so
+    // there is nothing to convert from only if the caller bypasses them.
+    if let (Some(&u0_last), Some(&u1_last), Some(&v0_last), Some(&v1_last)) = (
+        u_plane0.last(),
+        u_plane1.last(),
+        v_plane0.last(),
+        v_plane1.last(),
+    ) {
+        let cb_value = ((u0_last as u16 * 3 + u1_last as u16 + 2) >> 2) as i16 - bias_uv;
+        let cr_value = ((v0_last as u16 + v1_last as u16 * 3 + 2) >> 2) as i16 - bias_uv;
         let g_built_coeff = -g_coef_1 as i32 * cr_value as i32 - g_coef_2 as i32 * cb_value as i32;
 
-        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value as i32);
-        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value as i32);
-        let g0 = qrshr::<Q, BIT_DEPTH>(y_value0 + g_built_coeff);
+        for (rgba0, y_src0) in rgba_reminder
+            .chunks_exact_mut(channels)
+            .zip(y_reminder.iter())
+        {
+            let y_value0 = (*y_src0 as i32 - bias_y as i32) * y_coef as i32;
 
-        rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
-        rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
-        rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
-        if dst_chans.has_alpha() {
-            rgba0[dst_chans.get_a_channel_offset()] = 255;
+            let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value as i32);
+            let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value as i32);
+            let g0 = qrshr::<Q, BIT_DEPTH>(y_value0 + g_built_coeff);
+
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u8;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u8;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u8;
+            if dst_chans.has_alpha() {
+                rgba0[dst_chans.get_a_channel_offset()] = 255;
+            }
         }
     }
 }

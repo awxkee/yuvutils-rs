@@ -84,9 +84,13 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
 
     // Bilinear upscaling weights in Q0.2
 
-    for (((rgba, y_src), u_src), v_src) in rgba
+    let blended_pairs = (y_plane.len() / 2).min(u_plane.len().saturating_sub(1));
+    let (y_head, y_reminder) = y_plane.split_at(blended_pairs * 2);
+    let (rgba_head, rgba_reminder) = rgba.split_at_mut(blended_pairs * channels * 2);
+
+    for (((rgba, y_src), u_src), v_src) in rgba_head
         .chunks_exact_mut(channels * 2)
-        .zip(y_plane.chunks_exact(2))
+        .zip(y_head.chunks_exact(2))
         .zip(u_plane.windows(2))
         .zip(v_plane.windows(2))
     {
@@ -135,27 +139,28 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
         }
     }
 
-    let y_chunks = y_plane.chunks_exact(2);
-    let y_remainder = y_chunks.remainder();
-    let rgba_chunks = rgba.chunks_exact_mut(channels * 2);
-    let rgba_remainder = rgba_chunks.into_remainder();
+    if let (Some(&u_last), Some(&v_last)) = (u_plane.last(), v_plane.last()) {
+        let cb_value = u_last as i32 - bias_uv;
+        let cr_value = v_last as i32 - bias_uv;
 
-    if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y) * y_coef as i32;
-        let cb_value = *u_plane.last().unwrap() as i32 - bias_uv;
-        let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
-        let rgba0 = &mut rgba[..channels];
+        for (rgba0, y_src) in rgba_reminder
+            .chunks_exact_mut(channels)
+            .zip(y_reminder.iter())
+        {
+            let y_value0 = (*y_src as i32 - bias_y) * y_coef as i32;
 
-        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value);
-        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value);
-        let g0 = qrshr::<Q, BIT_DEPTH>(
-            y_value0 - g_coef_1 as i32 * cr_value - g_coef_2 as i32 * cb_value,
-        );
-        rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
-        rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
-        rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
-        if dst_chans.has_alpha() {
-            rgba0[dst_chans.get_a_channel_offset()] = max_colors;
+            let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value);
+            let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value);
+            let g0 = qrshr::<Q, BIT_DEPTH>(
+                y_value0 - g_coef_1 as i32 * cr_value - g_coef_2 as i32 * cb_value,
+            );
+
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
+            if dst_chans.has_alpha() {
+                rgba0[dst_chans.get_a_channel_offset()] = max_colors;
+            }
         }
     }
 }
@@ -188,9 +193,18 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
 
     // Bilinear upscaling weights in Q0.4
 
-    for (((((rgba0, y_src0), u_src), u_src_next), v_src), v_src_next) in rgba
+    let chroma_width = u_plane0
+        .len()
+        .min(u_plane1.len())
+        .min(v_plane0.len())
+        .min(v_plane1.len());
+    let blended_pairs = (y_plane.len() / 2).min(chroma_width.saturating_sub(1));
+    let (y_head, y_reminder) = y_plane.split_at(blended_pairs * 2);
+    let (rgba_head, rgba_reminder) = rgba.split_at_mut(blended_pairs * channels * 2);
+
+    for (((((rgba0, y_src0), u_src), u_src_next), v_src), v_src_next) in rgba_head
         .chunks_exact_mut(channels * 2)
-        .zip(y_plane.chunks_exact(2))
+        .zip(y_head.chunks_exact(2))
         .zip(u_plane0.windows(2))
         .zip(u_plane1.windows(2))
         .zip(v_plane0.windows(2))
@@ -261,34 +275,32 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
         }
     }
 
-    let y_chunks = y_plane.chunks_exact(2);
-    let y_remainder = y_chunks.remainder();
-    let rgba_chunks = rgba.chunks_exact_mut(channels * 2);
-    let rgba_remainder = rgba_chunks.into_remainder();
-
-    if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y) * y_coef as i32;
-
-        let cb_0 =
-            (*u_plane0.last().unwrap() as u32 * 3 + *u_plane1.last().unwrap() as u32 + 2) >> 2;
-        let cr_0 =
-            (*v_plane0.last().unwrap() as u32 + (*v_plane1.last().unwrap()) as u32 * 3 + 2) >> 2;
-
-        let cb_value = cb_0 as i32 - bias_uv;
-        let cr_value = cr_0 as i32 - bias_uv;
-        let rgba0 = &mut rgba[..channels];
-
+    if let (Some(&u0_last), Some(&u1_last), Some(&v0_last), Some(&v1_last)) = (
+        u_plane0.last(),
+        u_plane1.last(),
+        v_plane0.last(),
+        v_plane1.last(),
+    ) {
+        let cb_value = ((u0_last as u32 * 3 + u1_last as u32 + 2) >> 2) as i32 - bias_uv;
+        let cr_value = ((v0_last as u32 + v1_last as u32 * 3 + 2) >> 2) as i32 - bias_uv;
         let g_built_coeff = -g_coef_1 as i32 * cr_value - g_coef_2 as i32 * cb_value;
 
-        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value);
-        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value);
-        let g0 = qrshr::<Q, BIT_DEPTH>(y_value0 + g_built_coeff);
+        for (rgba0, y_src0) in rgba_reminder
+            .chunks_exact_mut(channels)
+            .zip(y_reminder.iter())
+        {
+            let y_value0 = (*y_src0 as i32 - bias_y) * y_coef as i32;
 
-        rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
-        rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
-        rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
-        if dst_chans.has_alpha() {
-            rgba0[dst_chans.get_a_channel_offset()] = max_colors;
+            let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value);
+            let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value);
+            let g0 = qrshr::<Q, BIT_DEPTH>(y_value0 + g_built_coeff);
+
+            rgba0[dst_chans.get_r_channel_offset()] = r0 as u16;
+            rgba0[dst_chans.get_g_channel_offset()] = g0 as u16;
+            rgba0[dst_chans.get_b_channel_offset()] = b0 as u16;
+            if dst_chans.has_alpha() {
+                rgba0[dst_chans.get_a_channel_offset()] = max_colors;
+            }
         }
     }
 }
@@ -818,7 +830,7 @@ mod tests {
         ];
         let check = |rgb: &[u16], method: &str| {
             for row in rgb.chunks_exact(width * 3) {
-                for pixel in row[..(width - 2) * 3].chunks_exact(3) {
+                for pixel in row.chunks_exact(3) {
                     for (channel, (&value, expected)) in
                         pixel.iter().zip(expected.iter()).enumerate()
                     {
@@ -881,5 +893,71 @@ mod tests {
         )
         .unwrap();
         check(&rgb, "i216");
+    }
+    #[test]
+    fn i216_bilinear_replicates_the_last_chroma_sample() {
+        fn image<'a>(
+            y: &'a [u16],
+            u: &'a [u16],
+            v: &'a [u16],
+            width: usize,
+            height: usize,
+            chroma_width: usize,
+        ) -> YuvPlanarImage<'a, u16> {
+            YuvPlanarImage {
+                y_plane: y,
+                y_stride: width as u32,
+                u_plane: u,
+                u_stride: chroma_width as u32,
+                v_plane: v,
+                v_stride: chroma_width as u32,
+                width: width as u32,
+                height: height as u32,
+            }
+        }
+
+        let width = 8usize;
+        let height = 2usize;
+        let chroma_width = width.div_ceil(2);
+        let y = vec![30000u16; width * height];
+        let u: Vec<u16> = (0..chroma_width * height)
+            .map(|i| 32768 + (i % chroma_width) as u16 * 6000)
+            .collect();
+        let v: Vec<u16> = (0..chroma_width * height)
+            .map(|i| 32768 + (i % chroma_width) as u16 * 3000)
+            .collect();
+
+        let mut rgb = vec![0u16; width * height * 3];
+        i216_to_rgb16_bilinear(
+            &image(&y, &u, &v, width, height, chroma_width),
+            &mut rgb,
+            (width * 3) as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt601,
+        )
+        .unwrap();
+
+        // A two pixel wide image has a single chroma sample
+        let narrow_y = vec![30000u16; 2];
+        let narrow_u = [*u.last().unwrap()];
+        let narrow_v = [*v.last().unwrap()];
+        let mut narrow = vec![0u16; 2 * 3];
+        i216_to_rgb16_bilinear(
+            &image(&narrow_y, &narrow_u, &narrow_v, 2, 1, 1),
+            &mut narrow,
+            2 * 3,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt601,
+        )
+        .unwrap();
+
+        for (row, rgb_row) in rgb.chunks_exact(width * 3).enumerate() {
+            let tail = &rgb_row[(width - 2) * 3..];
+            assert_eq!(
+                tail,
+                narrow.as_slice(),
+                "row {row}: the last pair is not written with the replicated chroma sample"
+            );
+        }
     }
 }
