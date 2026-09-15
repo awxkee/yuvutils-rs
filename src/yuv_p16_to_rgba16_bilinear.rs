@@ -77,8 +77,8 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
     let g_coef_1 = transform.g_coeff_1;
     let g_coef_2 = transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i16;
-    let bias_uv = range.bias_uv as i16;
+    let bias_y = range.bias_y as i32;
+    let bias_uv = range.bias_uv as i32;
 
     let max_colors = ((1u32 << BIT_DEPTH) - 1) as u16;
 
@@ -96,14 +96,14 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
         let cb_1 = ((u_src[0] as u32 + (u_src[1] as u32) * 3 + 2) >> 2) as u16;
         let cr_1 = ((v_src[0] as u32 + (v_src[1] as u32) * 3 + 2) >> 2) as u16;
 
-        let y_value0 = (y_src[0] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value0 = cb_0 as i16 - bias_uv;
-        let cr_value0 = cr_0 as i16 - bias_uv;
+        let y_value0 = (y_src[0] as i32 - bias_y) * y_coef as i32;
+        let cb_value0 = cb_0 as i32 - bias_uv;
+        let cr_value0 = cr_0 as i32 - bias_uv;
 
-        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value0 as i32);
-        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value0 as i32);
+        let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value0);
+        let b0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cb_coef as i32 * cb_value0);
         let g0 = qrshr::<Q, BIT_DEPTH>(
-            y_value0 - g_coef_1 as i32 * cr_value0 as i32 - g_coef_2 as i32 * cb_value0 as i32,
+            y_value0 - g_coef_1 as i32 * cr_value0 - g_coef_2 as i32 * cb_value0,
         );
 
         let rgba0 = &mut rgba[..channels];
@@ -115,9 +115,9 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
             rgba0[dst_chans.get_a_channel_offset()] = max_colors;
         }
 
-        let y_value1 = (y_src[1] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value1 = cb_1 as i32 - bias_uv as i32;
-        let cr_value1 = cr_1 as i32 - bias_uv as i32;
+        let y_value1 = (y_src[1] as i32 - bias_y) * y_coef as i32;
+        let cb_value1 = cb_1 as i32 - bias_uv;
+        let cr_value1 = cr_1 as i32 - bias_uv;
 
         let r0 = qrshr::<Q, BIT_DEPTH>(y_value1 + cr_coef as i32 * cr_value1);
         let b0 = qrshr::<Q, BIT_DEPTH>(y_value1 + cb_coef as i32 * cb_value1);
@@ -141,9 +141,9 @@ fn interpolate_1_row<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEP
     let rgba_remainder = rgba_chunks.into_remainder();
 
     if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value = *u_plane.last().unwrap() as i32 - bias_uv as i32;
-        let cr_value = *v_plane.last().unwrap() as i32 - bias_uv as i32;
+        let y_value0 = (*last_y as i32 - bias_y) * y_coef as i32;
+        let cb_value = *u_plane.last().unwrap() as i32 - bias_uv;
+        let cr_value = *v_plane.last().unwrap() as i32 - bias_uv;
         let rgba0 = &mut rgba[..channels];
 
         let r0 = qrshr::<Q, BIT_DEPTH>(y_value0 + cr_coef as i32 * cr_value);
@@ -181,8 +181,8 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
     let g_coef_1 = transform.g_coeff_1;
     let g_coef_2 = transform.g_coeff_2;
 
-    let bias_y = range.bias_y as i16;
-    let bias_uv = range.bias_uv as i16;
+    let bias_y = range.bias_y as i32;
+    let bias_uv = range.bias_uv as i32;
 
     let max_colors = ((1u32 << BIT_DEPTH) - 1) as u16;
 
@@ -222,9 +222,9 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
             + (1 << 3))
             >> 4;
 
-        let y_value0 = (y_src0[0] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value0 = cb_0 as i32 - bias_uv as i32;
-        let cr_value0 = cr_0 as i32 - bias_uv as i32;
+        let y_value0 = (y_src0[0] as i32 - bias_y) * y_coef as i32;
+        let cb_value0 = cb_0 as i32 - bias_uv;
+        let cr_value0 = cr_0 as i32 - bias_uv;
 
         let g_built_coeff0 = -g_coef_1 as i32 * cr_value0 - g_coef_2 as i32 * cb_value0;
 
@@ -241,9 +241,9 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
             rgba00[dst_chans.get_a_channel_offset()] = max_colors;
         }
 
-        let y_value1 = (y_src0[1] as i32 - bias_y as i32) * y_coef as i32;
-        let cb_value1 = cb_1 as i32 - bias_uv as i32;
-        let cr_value1 = cr_1 as i32 - bias_uv as i32;
+        let y_value1 = (y_src0[1] as i32 - bias_y) * y_coef as i32;
+        let cb_value1 = cb_1 as i32 - bias_uv;
+        let cr_value1 = cr_1 as i32 - bias_uv;
 
         let g_built_coeff1 = -g_coef_1 as i32 * cr_value1 - g_coef_2 as i32 * cb_value1;
 
@@ -267,15 +267,15 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
     let rgba_remainder = rgba_chunks.into_remainder();
 
     if let ([last_y], rgba) = (y_remainder, rgba_remainder) {
-        let y_value0 = (*last_y as i32 - bias_y as i32) * y_coef as i32;
+        let y_value0 = (*last_y as i32 - bias_y) * y_coef as i32;
 
         let cb_0 =
             (*u_plane0.last().unwrap() as u32 * 3 + *u_plane1.last().unwrap() as u32 + 2) >> 2;
         let cr_0 =
             (*v_plane0.last().unwrap() as u32 + (*v_plane1.last().unwrap()) as u32 * 3 + 2) >> 2;
 
-        let cb_value = cb_0 as i32 - bias_uv as i32;
-        let cr_value = cr_0 as i32 - bias_uv as i32;
+        let cb_value = cb_0 as i32 - bias_uv;
+        let cr_value = cr_0 as i32 - bias_uv;
         let rgba0 = &mut rgba[..channels];
 
         let g_built_coeff = -g_coef_1 as i32 * cr_value - g_coef_2 as i32 * cb_value;
@@ -295,24 +295,24 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
 
 fn make_1_row_interpolator<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEPTH: usize>(
 ) -> OneRowInterpolator {
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    {
-        if BIT_DEPTH <= 14 {
+    if BIT_DEPTH <= 14 {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
             use crate::neon::neon_planar16_bilinear_1_row_rgba16;
             return neon_planar16_bilinear_1_row_rgba16::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
         }
-    }
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(feature = "avx")]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            use crate::avx2::avx_planar16_bilinear_1_row_rgba;
-            return avx_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
-        }
-        #[cfg(feature = "sse")]
-        if std::arch::is_x86_feature_detected!("sse4.1") {
-            use crate::sse::sse_planar16_bilinear_1_row_rgba;
-            return sse_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            #[cfg(feature = "avx")]
+            if std::arch::is_x86_feature_detected!("avx2") {
+                use crate::avx2::avx_planar16_bilinear_1_row_rgba;
+                return avx_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
+            #[cfg(feature = "sse")]
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                use crate::sse::sse_planar16_bilinear_1_row_rgba;
+                return sse_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
         }
     }
     interpolate_1_row::<DESTINATION_CHANNELS, Q, BIT_DEPTH>
@@ -323,24 +323,24 @@ fn make_2_rows_interpolator<
     const Q: i32,
     const BIT_DEPTH: usize,
 >() -> DoubleRowInterpolator {
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    {
-        if BIT_DEPTH <= 14 {
+    if BIT_DEPTH <= 14 {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
             use crate::neon::neon_planar16_bilinear_2_rows_rgba;
             return neon_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
         }
-    }
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(feature = "avx")]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            use crate::avx2::avx_planar16_bilinear_2_rows_rgba;
-            return avx_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
-        }
-        #[cfg(feature = "sse")]
-        if std::arch::is_x86_feature_detected!("sse4.1") {
-            use crate::sse::sse_planar16_bilinear_2_rows_rgba;
-            return sse_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            #[cfg(feature = "avx")]
+            if std::arch::is_x86_feature_detected!("avx2") {
+                use crate::avx2::avx_planar16_bilinear_2_rows_rgba;
+                return avx_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
+            #[cfg(feature = "sse")]
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                use crate::sse::sse_planar16_bilinear_2_rows_rgba;
+                return sse_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
         }
     }
     interpolate_2_rows::<DESTINATION_CHANNELS, Q, BIT_DEPTH>
@@ -802,5 +802,84 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn i016_bilinear_flat_color_16bit() {
+        let width = 4usize;
+        let height = 4usize;
+        let (y_value, u_value, v_value) = (32768u16, 65535u16, 32768u16);
+
+        let cb = f64::from(u_value) - 32768.;
+        let expected = [
+            f64::from(y_value),
+            f64::from(y_value) - 0.344136 * cb,
+            f64::from(y_value) + 1.772 * cb,
+        ];
+        let check = |rgb: &[u16], method: &str| {
+            for row in rgb.chunks_exact(width * 3) {
+                for pixel in row[..(width - 2) * 3].chunks_exact(3) {
+                    for (channel, (&value, expected)) in
+                        pixel.iter().zip(expected.iter()).enumerate()
+                    {
+                        let expected = expected.clamp(0., 65535.);
+                        assert!(
+                            (f64::from(value) - expected).abs() <= 8.,
+                            "{method}: channel {channel}: got {value}, expected about {expected}"
+                        );
+                    }
+                }
+            }
+        };
+
+        fn make_image<'a>(
+            y: &'a [u16],
+            u: &'a [u16],
+            v: &'a [u16],
+            width: usize,
+            height: usize,
+            chroma_width: usize,
+        ) -> YuvPlanarImage<'a, u16> {
+            YuvPlanarImage {
+                y_plane: y,
+                y_stride: width as u32,
+                u_plane: u,
+                u_stride: chroma_width as u32,
+                v_plane: v,
+                v_stride: chroma_width as u32,
+                width: width as u32,
+                height: height as u32,
+            }
+        }
+
+        let y = vec![y_value; width * height];
+        let chroma_width = width / 2;
+        let mut rgb = vec![0u16; width * height * 3];
+
+        // 4:2:0 goes through the two-row interpolator.
+        let u = vec![u_value; chroma_width * (height / 2)];
+        let v = vec![v_value; chroma_width * (height / 2)];
+        i016_to_rgb16_bilinear(
+            &make_image(&y, &u, &v, width, height, chroma_width),
+            &mut rgb,
+            (width * 3) as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt601,
+        )
+        .unwrap();
+        check(&rgb, "i016");
+
+        // 4:2:2 goes through the one-row interpolator.
+        let u = vec![u_value; chroma_width * height];
+        let v = vec![v_value; chroma_width * height];
+        i216_to_rgb16_bilinear(
+            &make_image(&y, &u, &v, width, height, chroma_width),
+            &mut rgb,
+            (width * 3) as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt601,
+        )
+        .unwrap();
+        check(&rgb, "i216");
     }
 }
