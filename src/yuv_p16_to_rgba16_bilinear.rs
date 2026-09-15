@@ -295,24 +295,24 @@ fn interpolate_2_rows<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DE
 
 fn make_1_row_interpolator<const DESTINATION_CHANNELS: u8, const Q: i32, const BIT_DEPTH: usize>(
 ) -> OneRowInterpolator {
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    {
-        if BIT_DEPTH <= 14 {
+    if BIT_DEPTH <= 14 {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
             use crate::neon::neon_planar16_bilinear_1_row_rgba16;
             return neon_planar16_bilinear_1_row_rgba16::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
         }
-    }
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(feature = "avx")]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            use crate::avx2::avx_planar16_bilinear_1_row_rgba;
-            return avx_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
-        }
-        #[cfg(feature = "sse")]
-        if std::arch::is_x86_feature_detected!("sse4.1") {
-            use crate::sse::sse_planar16_bilinear_1_row_rgba;
-            return sse_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            #[cfg(feature = "avx")]
+            if std::arch::is_x86_feature_detected!("avx2") {
+                use crate::avx2::avx_planar16_bilinear_1_row_rgba;
+                return avx_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
+            #[cfg(feature = "sse")]
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                use crate::sse::sse_planar16_bilinear_1_row_rgba;
+                return sse_planar16_bilinear_1_row_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
         }
     }
     interpolate_1_row::<DESTINATION_CHANNELS, Q, BIT_DEPTH>
@@ -323,24 +323,24 @@ fn make_2_rows_interpolator<
     const Q: i32,
     const BIT_DEPTH: usize,
 >() -> DoubleRowInterpolator {
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-    {
-        if BIT_DEPTH <= 14 {
+    if BIT_DEPTH <= 14 {
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        {
             use crate::neon::neon_planar16_bilinear_2_rows_rgba;
             return neon_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
         }
-    }
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        #[cfg(feature = "avx")]
-        if std::arch::is_x86_feature_detected!("avx2") {
-            use crate::avx2::avx_planar16_bilinear_2_rows_rgba;
-            return avx_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
-        }
-        #[cfg(feature = "sse")]
-        if std::arch::is_x86_feature_detected!("sse4.1") {
-            use crate::sse::sse_planar16_bilinear_2_rows_rgba;
-            return sse_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            #[cfg(feature = "avx")]
+            if std::arch::is_x86_feature_detected!("avx2") {
+                use crate::avx2::avx_planar16_bilinear_2_rows_rgba;
+                return avx_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
+            #[cfg(feature = "sse")]
+            if std::arch::is_x86_feature_detected!("sse4.1") {
+                use crate::sse::sse_planar16_bilinear_2_rows_rgba;
+                return sse_planar16_bilinear_2_rows_rgba::<DESTINATION_CHANNELS, Q, BIT_DEPTH>;
+            }
         }
     }
     interpolate_2_rows::<DESTINATION_CHANNELS, Q, BIT_DEPTH>
@@ -802,5 +802,84 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn i016_bilinear_flat_color_16bit() {
+        let width = 4usize;
+        let height = 4usize;
+        let (y_value, u_value, v_value) = (32768u16, 65535u16, 32768u16);
+
+        let cb = f64::from(u_value) - 32768.;
+        let expected = [
+            f64::from(y_value),
+            f64::from(y_value) - 0.344136 * cb,
+            f64::from(y_value) + 1.772 * cb,
+        ];
+        let check = |rgb: &[u16], method: &str| {
+            for row in rgb.chunks_exact(width * 3) {
+                for pixel in row[..(width - 2) * 3].chunks_exact(3) {
+                    for (channel, (&value, expected)) in
+                        pixel.iter().zip(expected.iter()).enumerate()
+                    {
+                        let expected = expected.clamp(0., 65535.);
+                        assert!(
+                            (f64::from(value) - expected).abs() <= 8.,
+                            "{method}: channel {channel}: got {value}, expected about {expected}"
+                        );
+                    }
+                }
+            }
+        };
+
+        fn make_image<'a>(
+            y: &'a [u16],
+            u: &'a [u16],
+            v: &'a [u16],
+            width: usize,
+            height: usize,
+            chroma_width: usize,
+        ) -> YuvPlanarImage<'a, u16> {
+            YuvPlanarImage {
+                y_plane: y,
+                y_stride: width as u32,
+                u_plane: u,
+                u_stride: chroma_width as u32,
+                v_plane: v,
+                v_stride: chroma_width as u32,
+                width: width as u32,
+                height: height as u32,
+            }
+        }
+
+        let y = vec![y_value; width * height];
+        let chroma_width = width / 2;
+        let mut rgb = vec![0u16; width * height * 3];
+
+        // 4:2:0 goes through the two-row interpolator.
+        let u = vec![u_value; chroma_width * (height / 2)];
+        let v = vec![v_value; chroma_width * (height / 2)];
+        i016_to_rgb16_bilinear(
+            &make_image(&y, &u, &v, width, height, chroma_width),
+            &mut rgb,
+            (width * 3) as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt601,
+        )
+        .unwrap();
+        check(&rgb, "i016");
+
+        // 4:2:2 goes through the one-row interpolator.
+        let u = vec![u_value; chroma_width * height];
+        let v = vec![v_value; chroma_width * height];
+        i216_to_rgb16_bilinear(
+            &make_image(&y, &u, &v, width, height, chroma_width),
+            &mut rgb,
+            (width * 3) as u32,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt601,
+        )
+        .unwrap();
+        check(&rgb, "i216");
     }
 }
