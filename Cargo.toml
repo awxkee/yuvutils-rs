@@ -2,7 +2,7 @@ workspace = { members = ["app"], exclude = ["fuzz", "coeffs", "wasm"]}
 
 [package]
 name = "yuv"
-version = "0.8.18"
+version = "0.8.19"
 edition = "2021"
 description = "High performance utilities for YUV format handling and conversion."
 keywords = ["yuv", "ycbcr", "yuv2rgb", "rgb2yuv", "converter"]
