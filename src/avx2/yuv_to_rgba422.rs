@@ -77,7 +77,7 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm256_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm256_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm256_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm256_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
@@ -94,11 +94,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
         let u_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(u_values));
         let v_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(v_values));
 
-        let u_k_w = _mm256_unpacklo_epi8(u_k, u_k);
-        let v_k_w = _mm256_unpacklo_epi8(v_k, v_k);
+        let u_k_w = _mm256_unpacklo_epi8(u_k, _mm256_setzero_si256());
+        let v_k_w = _mm256_unpacklo_epi8(v_k, _mm256_setzero_si256());
 
-        let u_k_k = _mm256_srli_epi16::<6>(u_k_w);
-        let v_k_k = _mm256_srli_epi16::<6>(v_k_w);
+        let u_k_k = _mm256_slli_epi16::<2>(u_k_w);
+        let v_k_k = _mm256_slli_epi16::<2>(v_k_w);
 
         let u_vl = _mm256_sub_epi16(u_k_k, uv_corr);
         let v_vl = _mm256_sub_epi16(v_k_k, uv_corr);
@@ -195,11 +195,11 @@ unsafe fn avx2_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
         let u_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(u_values));
         let v_k = _mm256_permute4x64_epi64::<0x50>(_mm256_castsi128_si256(v_values));
 
-        let u_k_w = _mm256_unpacklo_epi8(u_k, u_k);
-        let v_k_w = _mm256_unpacklo_epi8(v_k, v_k);
+        let u_k_w = _mm256_unpacklo_epi8(u_k, _mm256_setzero_si256());
+        let v_k_w = _mm256_unpacklo_epi8(v_k, _mm256_setzero_si256());
 
-        let u_k_k = _mm256_srli_epi16::<6>(u_k_w);
-        let v_k_k = _mm256_srli_epi16::<6>(v_k_w);
+        let u_k_k = _mm256_slli_epi16::<2>(u_k_w);
+        let v_k_k = _mm256_slli_epi16::<2>(v_k_w);
 
         let u_vl = _mm256_sub_epi16(u_k_k, uv_corr);
         let v_vl = _mm256_sub_epi16(v_k_k, uv_corr);
