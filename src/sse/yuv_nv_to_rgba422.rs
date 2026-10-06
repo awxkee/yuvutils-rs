@@ -79,7 +79,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
@@ -94,14 +94,14 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let y_values = _mm_subs_epu8(y_vl0, y_corr);
 
-        let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
-        let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+        let sh_e = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
+        let sh_o = _mm_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1);
 
         let mut u = _mm_shuffle_epi8(uv_values_, sh_e);
         let mut v = _mm_shuffle_epi8(uv_values_, sh_o);
 
-        u = _mm_srli_epi16::<6>(u);
-        v = _mm_srli_epi16::<6>(v);
+        u = _mm_slli_epi16::<2>(u);
+        v = _mm_slli_epi16::<2>(v);
 
         u = _mm_sub_epi16(u, uv_corr);
         v = _mm_sub_epi16(v, uv_corr);
@@ -161,15 +161,16 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
-        let distribute_shuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
+        let distribute_shuffle =
+            _mm_setr_epi8(0, -1, 0, -1, 1, -1, 1, -1, 2, -1, 2, -1, 3, -1, 3, -1);
 
         let y_values = _mm_subs_epu8(y_vl0, y_corr);
 
         u = _mm_shuffle_epi8(u, distribute_shuffle);
         v = _mm_shuffle_epi8(v, distribute_shuffle);
 
-        u = _mm_srli_epi16::<6>(u);
-        v = _mm_srli_epi16::<6>(v);
+        u = _mm_slli_epi16::<2>(u);
+        v = _mm_slli_epi16::<2>(v);
 
         u = _mm_sub_epi16(u, uv_corr);
         v = _mm_sub_epi16(v, uv_corr);
@@ -236,15 +237,16 @@ unsafe fn sse_yuv_nv_to_rgba_impl422<const UV_ORDER: u8, const DESTINATION_CHANN
 
         let (mut u, mut v) = _mm_deinterleave_x2_epi8(uv_values_, zeros);
 
-        let distribute_shuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
+        let distribute_shuffle =
+            _mm_setr_epi8(0, -1, 0, -1, 1, -1, 1, -1, 2, -1, 2, -1, 3, -1, 3, -1);
 
         let y_values = _mm_subs_epu8(y_vl0, y_corr);
 
         u = _mm_shuffle_epi8(u, distribute_shuffle);
         v = _mm_shuffle_epi8(v, distribute_shuffle);
 
-        u = _mm_srli_epi16::<6>(u);
-        v = _mm_srli_epi16::<6>(v);
+        u = _mm_slli_epi16::<2>(u);
+        v = _mm_slli_epi16::<2>(v);
 
         u = _mm_sub_epi16(u, uv_corr);
         v = _mm_sub_epi16(v, uv_corr);

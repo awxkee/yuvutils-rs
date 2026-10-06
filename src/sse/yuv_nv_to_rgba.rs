@@ -90,7 +90,7 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
@@ -118,33 +118,33 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
                     std::mem::swap(&mut u, &mut v);
                 }
 
-                let uhw = _mm_unpackhi_epi8(u, u);
-                let vhw = _mm_unpackhi_epi8(v, v);
-                let ulw = _mm_unpacklo_epi8(u, u);
-                let vlw = _mm_unpacklo_epi8(v, v);
+                let uhw = _mm_unpackhi_epi8(u, _mm_setzero_si128());
+                let vhw = _mm_unpackhi_epi8(v, _mm_setzero_si128());
+                let ulw = _mm_unpacklo_epi8(u, _mm_setzero_si128());
+                let vlw = _mm_unpacklo_epi8(v, _mm_setzero_si128());
 
-                u_high_u16 = _mm_srli_epi16::<6>(uhw);
-                v_high_u16 = _mm_srli_epi16::<6>(vhw);
-                u_low_u16 = _mm_srli_epi16::<6>(ulw);
-                v_low_u16 = _mm_srli_epi16::<6>(vlw);
+                u_high_u16 = _mm_slli_epi16::<2>(uhw);
+                v_high_u16 = _mm_slli_epi16::<2>(vhw);
+                u_low_u16 = _mm_slli_epi16::<2>(ulw);
+                v_low_u16 = _mm_slli_epi16::<2>(vlw);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let uv_source_ptr = uv_ptr.add(uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
                 let row1 = _mm_loadu_si128(uv_source_ptr.add(16) as *const __m128i);
 
-                let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
-                let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+                let sh_e = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
+                let sh_o = _mm_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1);
 
                 let uhw = _mm_shuffle_epi8(row1, sh_e);
                 let vhw = _mm_shuffle_epi8(row1, sh_o);
                 let ulw = _mm_shuffle_epi8(row0, sh_e);
                 let vlw = _mm_shuffle_epi8(row0, sh_o);
 
-                u_high_u16 = _mm_srli_epi16::<6>(uhw);
-                v_high_u16 = _mm_srli_epi16::<6>(vhw);
-                u_low_u16 = _mm_srli_epi16::<6>(ulw);
-                v_low_u16 = _mm_srli_epi16::<6>(vlw);
+                u_high_u16 = _mm_slli_epi16::<2>(uhw);
+                v_high_u16 = _mm_slli_epi16::<2>(vhw);
+                u_low_u16 = _mm_slli_epi16::<2>(ulw);
+                v_low_u16 = _mm_slli_epi16::<2>(vlw);
 
                 if order == YuvNVOrder::VU {
                     std::mem::swap(&mut u_high_u16, &mut v_high_u16);
@@ -218,14 +218,14 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_values_ = _mm_loadu_si64(uv_ptr.add(uv_x));
 
-                let sh_e = _mm_setr_epi8(0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 6);
-                let sh_o = _mm_setr_epi8(1, 1, 1, 1, 3, 3, 3, 3, 5, 5, 5, 5, 7, 7, 7, 7);
+                let sh_e = _mm_setr_epi8(0, -1, 0, -1, 2, -1, 2, -1, 4, -1, 4, -1, 6, -1, 6, -1);
+                let sh_o = _mm_setr_epi8(1, -1, 1, -1, 3, -1, 3, -1, 5, -1, 5, -1, 7, -1, 7, -1);
 
                 let wu = _mm_shuffle_epi8(uv_values_, sh_e);
                 let wv = _mm_shuffle_epi8(uv_values_, sh_o);
 
-                let u = _mm_srli_epi16::<6>(wu);
-                let v = _mm_srli_epi16::<6>(wv);
+                let u = _mm_slli_epi16::<2>(wu);
+                let v = _mm_slli_epi16::<2>(wv);
 
                 match order {
                     YuvNVOrder::UV => {
@@ -242,14 +242,14 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
                 let uv_source_ptr = uv_ptr.add(uv_x);
                 let row0 = _mm_loadu_si128(uv_source_ptr as *const __m128i);
 
-                let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
-                let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+                let sh_e = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
+                let sh_o = _mm_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1);
 
                 let wu = _mm_shuffle_epi8(row0, sh_e);
                 let wv = _mm_shuffle_epi8(row0, sh_o);
 
-                let u = _mm_srli_epi16::<6>(wu);
-                let v = _mm_srli_epi16::<6>(wv);
+                let u = _mm_slli_epi16::<2>(wu);
+                let v = _mm_slli_epi16::<2>(wv);
 
                 match order {
                     YuvNVOrder::UV => {
@@ -338,14 +338,14 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_values_ = _mm_loadu_si64(uv_buffer.as_ptr().cast());
 
-                let sh_e = _mm_setr_epi8(0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 6);
-                let sh_o = _mm_setr_epi8(1, 1, 1, 1, 3, 3, 3, 3, 5, 5, 5, 5, 7, 7, 7, 7);
+                let sh_e = _mm_setr_epi8(0, -1, 0, -1, 2, -1, 2, -1, 4, -1, 4, -1, 6, -1, 6, -1);
+                let sh_o = _mm_setr_epi8(1, -1, 1, -1, 3, -1, 3, -1, 5, -1, 5, -1, 7, -1, 7, -1);
 
                 let wu = _mm_shuffle_epi8(uv_values_, sh_e);
                 let wv = _mm_shuffle_epi8(uv_values_, sh_o);
 
-                let u = _mm_srli_epi16::<6>(wu);
-                let v = _mm_srli_epi16::<6>(wv);
+                let u = _mm_slli_epi16::<2>(wu);
+                let v = _mm_slli_epi16::<2>(wv);
 
                 match order {
                     YuvNVOrder::UV => {
@@ -361,14 +361,14 @@ unsafe fn sse_yuv_nv_to_rgba_impl<
             YuvChromaSubsampling::Yuv444 => {
                 let row0 = _mm_loadu_si128(uv_buffer.as_ptr() as *const __m128i);
 
-                let sh_e = _mm_setr_epi8(0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
-                let sh_o = _mm_setr_epi8(1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15);
+                let sh_e = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
+                let sh_o = _mm_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1);
 
                 let wu = _mm_shuffle_epi8(row0, sh_e);
                 let wv = _mm_shuffle_epi8(row0, sh_o);
 
-                let u = _mm_srli_epi16::<6>(wu);
-                let v = _mm_srli_epi16::<6>(wv);
+                let u = _mm_slli_epi16::<2>(wu);
+                let v = _mm_slli_epi16::<2>(wv);
 
                 match order {
                     YuvNVOrder::UV => {

@@ -75,7 +75,7 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl422<const UV_ORDER: u8, const DESTINATION_
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm256_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm256_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm256_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm256_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm256_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm256_set1_epi16(transform.cb_coef as i16);
@@ -89,20 +89,20 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl422<const UV_ORDER: u8, const DESTINATION_
         let y_values = _mm256_subs_epu8(yvl0, y_corr);
 
         let sh_e = _mm256_setr_epi8(
-            0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10,
-            10, 12, 12, 14, 14,
+            0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1, 0, -1, 2, -1, 4, -1, 6, -1,
+            8, -1, 10, -1, 12, -1, 14, -1,
         );
         let sh_o = _mm256_setr_epi8(
-            1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11,
-            11, 13, 13, 15, 15,
+            1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1, 1, -1, 3, -1, 5, -1, 7, -1,
+            9, -1, 11, -1, 13, -1, 15, -1,
         );
 
         let mut u_values = _mm256_sub_epi16(
-            _mm256_srli_epi16::<6>(_mm256_shuffle_epi8(uv_values, sh_e)),
+            _mm256_slli_epi16::<2>(_mm256_shuffle_epi8(uv_values, sh_e)),
             uv_corr,
         );
         let mut v_values = _mm256_sub_epi16(
-            _mm256_srli_epi16::<6>(_mm256_shuffle_epi8(uv_values, sh_o)),
+            _mm256_slli_epi16::<2>(_mm256_shuffle_epi8(uv_values, sh_o)),
             uv_corr,
         );
 
@@ -195,20 +195,20 @@ unsafe fn avx2_yuv_nv_to_rgba_row_impl422<const UV_ORDER: u8, const DESTINATION_
         let y_values = _mm256_subs_epu8(yvl0, y_corr);
 
         let sh_e = _mm256_setr_epi8(
-            0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10,
-            10, 12, 12, 14, 14,
+            0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1, 0, -1, 2, -1, 4, -1, 6, -1,
+            8, -1, 10, -1, 12, -1, 14, -1,
         );
         let sh_o = _mm256_setr_epi8(
-            1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11,
-            11, 13, 13, 15, 15,
+            1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1, 1, -1, 3, -1, 5, -1, 7, -1,
+            9, -1, 11, -1, 13, -1, 15, -1,
         );
 
         let mut u_values = _mm256_sub_epi16(
-            _mm256_srli_epi16::<6>(_mm256_shuffle_epi8(uv_values, sh_e)),
+            _mm256_slli_epi16::<2>(_mm256_shuffle_epi8(uv_values, sh_e)),
             uv_corr,
         );
         let mut v_values = _mm256_sub_epi16(
-            _mm256_srli_epi16::<6>(_mm256_shuffle_epi8(uv_values, sh_o)),
+            _mm256_slli_epi16::<2>(_mm256_shuffle_epi8(uv_values, sh_o)),
             uv_corr,
         );
 

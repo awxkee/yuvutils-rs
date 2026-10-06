@@ -82,7 +82,7 @@ unsafe fn sse_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
@@ -98,11 +98,11 @@ unsafe fn sse_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
         let mut v_values = _xx_load_si64(v_ptr.add(uv_x));
 
         u_values = _mm_sub_epi16(
-            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u_values, u_values)),
+            _mm_slli_epi16::<2>(_mm_unpacklo_epi8(u_values, _mm_setzero_si128())),
             uv_corr,
         );
         v_values = _mm_sub_epi16(
-            _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v_values, v_values)),
+            _mm_slli_epi16::<2>(_mm_unpacklo_epi8(v_values, _mm_setzero_si128())),
             uv_corr,
         );
 
@@ -159,12 +159,12 @@ unsafe fn sse_yuv_to_rgba_row_impl422<const DESTINATION_CHANNELS: u8>(
     while cx + 8 < width {
         let y_values = _mm_subs_epu8(_xx_load_si64(y_ptr.add(cx)), y_corr);
 
-        let reshuffle = _mm_setr_epi8(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
+        let reshuffle = _mm_setr_epi8(0, -1, 0, -1, 1, -1, 1, -1, 2, -1, 2, -1, 3, -1, 3, -1);
 
         let mut u_values =
-            _mm_srli_epi16::<6>(_mm_shuffle_epi8(_mm_loadu_si32(u_ptr.add(uv_x)), reshuffle));
+            _mm_slli_epi16::<2>(_mm_shuffle_epi8(_mm_loadu_si32(u_ptr.add(uv_x)), reshuffle));
         let mut v_values =
-            _mm_srli_epi16::<6>(_mm_shuffle_epi8(_mm_loadu_si32(v_ptr.add(uv_x)), reshuffle));
+            _mm_slli_epi16::<2>(_mm_shuffle_epi8(_mm_loadu_si32(v_ptr.add(uv_x)), reshuffle));
 
         u_values = _mm_sub_epi16(u_values, uv_corr);
         v_values = _mm_sub_epi16(v_values, uv_corr);

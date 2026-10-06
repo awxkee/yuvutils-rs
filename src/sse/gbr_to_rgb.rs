@@ -181,21 +181,21 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         let b_values0 = _mm_subs_epu8(b_vl0, vy_bias);
         let r_values0 = _mm_subs_epu8(r_vl0, vy_bias);
 
-        let rlhs = _mm_unpackhi_epi8(r_values0, r_values0);
-        let glhs = _mm_unpackhi_epi8(g_values0, g_values0);
-        let blhs = _mm_unpackhi_epi8(b_values0, b_values0);
+        let rlhs = _mm_unpackhi_epi8(r_values0, _mm_setzero_si128());
+        let glhs = _mm_unpackhi_epi8(g_values0, _mm_setzero_si128());
+        let blhs = _mm_unpackhi_epi8(b_values0, _mm_setzero_si128());
 
-        let rlls = _mm_unpacklo_epi8(r_values0, r_values0);
-        let glls = _mm_unpacklo_epi8(g_values0, g_values0);
-        let blls = _mm_unpacklo_epi8(b_values0, b_values0);
+        let rlls = _mm_unpacklo_epi8(r_values0, _mm_setzero_si128());
+        let glls = _mm_unpacklo_epi8(g_values0, _mm_setzero_si128());
+        let blls = _mm_unpacklo_epi8(b_values0, _mm_setzero_si128());
 
-        let rl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlhs), vy_coeff);
-        let gl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glhs), vy_coeff);
-        let bl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blhs), vy_coeff);
+        let rl_hi = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(rlhs), vy_coeff);
+        let gl_hi = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(glhs), vy_coeff);
+        let bl_hi = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(blhs), vy_coeff);
 
-        let rl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlls), vy_coeff);
-        let gl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glls), vy_coeff);
-        let bl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blls), vy_coeff);
+        let rl_lo = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(rlls), vy_coeff);
+        let gl_lo = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(glls), vy_coeff);
+        let bl_lo = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(blls), vy_coeff);
 
         let r_values = _mm_packus_epi16(rl_lo, rl_hi);
         let g_values = _mm_packus_epi16(gl_lo, gl_hi);
@@ -250,21 +250,21 @@ unsafe fn sse_yuv_to_rgba_row_limited_impl<const DESTINATION_CHANNELS: u8>(
         let b_values0 = _mm_subs_epu8(b_vl0, vy_bias);
         let r_values0 = _mm_subs_epu8(r_vl0, vy_bias);
 
-        let rlhs = _mm_unpackhi_epi8(r_values0, r_values0);
-        let glhs = _mm_unpackhi_epi8(g_values0, g_values0);
-        let blhs = _mm_unpackhi_epi8(b_values0, b_values0);
+        let rlhs = _mm_unpackhi_epi8(r_values0, _mm_setzero_si128());
+        let glhs = _mm_unpackhi_epi8(g_values0, _mm_setzero_si128());
+        let blhs = _mm_unpackhi_epi8(b_values0, _mm_setzero_si128());
 
-        let rlls = _mm_unpacklo_epi8(r_values0, r_values0);
-        let glls = _mm_unpacklo_epi8(g_values0, g_values0);
-        let blls = _mm_unpacklo_epi8(b_values0, b_values0);
+        let rlls = _mm_unpacklo_epi8(r_values0, _mm_setzero_si128());
+        let glls = _mm_unpacklo_epi8(g_values0, _mm_setzero_si128());
+        let blls = _mm_unpacklo_epi8(b_values0, _mm_setzero_si128());
 
-        let rl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlhs), vy_coeff);
-        let gl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glhs), vy_coeff);
-        let bl_hi = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blhs), vy_coeff);
+        let rl_hi = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(rlhs), vy_coeff);
+        let gl_hi = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(glhs), vy_coeff);
+        let bl_hi = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(blhs), vy_coeff);
 
-        let rl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(rlls), vy_coeff);
-        let gl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(glls), vy_coeff);
-        let bl_lo = _mm_mulhrs_epi16(_mm_srli_epi16::<6>(blls), vy_coeff);
+        let rl_lo = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(rlls), vy_coeff);
+        let gl_lo = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(glls), vy_coeff);
+        let bl_lo = _mm_mulhrs_epi16(_mm_slli_epi16::<2>(blls), vy_coeff);
 
         let r_values = _mm_packus_epi16(rl_lo, rl_hi);
         let g_values = _mm_packus_epi16(gl_lo, gl_hi);

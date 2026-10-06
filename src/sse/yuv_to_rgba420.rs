@@ -83,7 +83,7 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
     let v_ptr = v_plane.as_ptr();
 
     let y_corr = _mm_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm_set1_epi16(transform.cb_coef as i16);
@@ -105,10 +105,10 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
         let u_values = _mm_shuffle_epi8(uvl0, reshuffle);
         let v_values = _mm_shuffle_epi8(uvl1, reshuffle);
 
-        let u_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(u_values, u_values));
-        let v_high_u16 = _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v_values, v_values));
-        let u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u_values, u_values));
-        let v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v_values, v_values));
+        let u_high_u16 = _mm_slli_epi16::<2>(_mm_unpackhi_epi8(u_values, _mm_setzero_si128()));
+        let v_high_u16 = _mm_slli_epi16::<2>(_mm_unpackhi_epi8(v_values, _mm_setzero_si128()));
+        let u_low_u16 = _mm_slli_epi16::<2>(_mm_unpacklo_epi8(u_values, _mm_setzero_si128()));
+        let v_low_u16 = _mm_slli_epi16::<2>(_mm_unpacklo_epi8(v_values, _mm_setzero_si128()));
 
         let u_high = _mm_sub_epi16(u_high_u16, uv_corr);
         let v_high = _mm_sub_epi16(v_high_u16, uv_corr);
@@ -190,8 +190,8 @@ unsafe fn sse_yuv_to_rgba_row_impl420<const DESTINATION_CHANNELS: u8>(
         let u_values = _mm_shuffle_epi8(_mm_loadu_si32(u_ptr.add(uv_x)), reshuffle);
         let v_values = _mm_shuffle_epi8(_mm_loadu_si32(v_ptr.add(uv_x)), reshuffle);
 
-        let u_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(u_values, u_values));
-        let v_low_u16 = _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v_values, v_values));
+        let u_low_u16 = _mm_slli_epi16::<2>(_mm_unpacklo_epi8(u_values, _mm_setzero_si128()));
+        let v_low_u16 = _mm_slli_epi16::<2>(_mm_unpacklo_epi8(v_values, _mm_setzero_si128()));
 
         let u_low = _mm_sub_epi16(u_low_u16, uv_corr);
         let v_low = _mm_sub_epi16(v_low_u16, uv_corr);

@@ -876,12 +876,12 @@ pub(crate) unsafe fn _mm_affine_transform<const PRECISION: i32>(
 
 #[inline(always)]
 pub(crate) unsafe fn _mm_expand8_hi_to_10(v: __m128i) -> __m128i {
-    _mm_srli_epi16::<6>(_mm_unpackhi_epi8(v, v))
+    _mm_slli_epi16::<2>(_mm_unpackhi_epi8(v, _mm_setzero_si128()))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn _mm_expand8_lo_to_10(v: __m128i) -> __m128i {
-    _mm_srli_epi16::<6>(_mm_unpacklo_epi8(v, v))
+    _mm_slli_epi16::<2>(_mm_unpacklo_epi8(v, _mm_setzero_si128()))
 }
 
 #[inline(always)]
