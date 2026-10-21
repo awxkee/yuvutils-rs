@@ -740,6 +740,21 @@ pub(crate) unsafe fn vexpand_high_bp_by_2<const BIT_DEPTH: usize>(v: int16x8_t) 
     vreinterpretq_s16_u16(vexpandu_high_bp_by_2::<BIT_DEPTH>(vreinterpretq_u16_s16(v)))
 }
 
+/// As [`vexpand_high_bp_by_2`] for a signed luma difference (a luma below
+/// the range's bias is negative): adding the high bits equals or-ing them
+/// in for values in `0..2^BIT_DEPTH`, and keeps the sign below zero.
+#[cfg(feature = "rdm")]
+#[inline(always)]
+pub(crate) unsafe fn vexpand_signed_bp_by_2<const BIT_DEPTH: usize>(v: int16x8_t) -> int16x8_t {
+    if BIT_DEPTH == 10 {
+        vaddq_s16(vshlq_n_s16::<2>(v), vshrq_n_s16::<8>(v))
+    } else if BIT_DEPTH == 12 {
+        vaddq_s16(vshlq_n_s16::<2>(v), vshrq_n_s16::<10>(v))
+    } else {
+        v
+    }
+}
+
 #[cfg(feature = "rdm")]
 #[inline(always)]
 pub(crate) unsafe fn vexpandu_high_bp_by_2<const BIT_DEPTH: usize>(v: uint16x8_t) -> uint16x8_t {
