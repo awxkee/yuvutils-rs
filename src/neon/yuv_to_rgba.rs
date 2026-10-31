@@ -535,32 +535,20 @@ mod tests {
 
         let matrix = YuvStandardMatrix::Bt601;
         let range = get_yuv_range(8, YuvRange::Limited);
-        let transform = search_inverse_transform(
-            13,
-            8,
-            YuvRange::Limited,
-            matrix,
-            range,
-            matrix.get_kr_kb(),
-        );
+        let transform =
+            search_inverse_transform(13, 8, YuvRange::Limited, matrix, range, matrix.get_kr_kb());
 
         let mut rdm = vec![0u8; width * 3];
         let mut baseline = vec![0u8; width * 3];
         unsafe {
-            neon_yuv_to_rgba_row_rdm::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
-                &range, &transform, &y, &u, &v, &mut rdm, 0, 0, width,
-            );
-            neon_yuv_to_rgba_row::<{ YuvSourceChannels::Rgb as u8 }, { YuvChromaSubsampling::Yuv444 as u8 }>(
-                &range,
-                &transform,
-                &y,
-                &u,
-                &v,
-                &mut baseline,
-                0,
-                0,
-                width,
-            );
+            neon_yuv_to_rgba_row_rdm::<
+                { YuvSourceChannels::Rgb as u8 },
+                { YuvChromaSubsampling::Yuv444 as u8 },
+            >(&range, &transform, &y, &u, &v, &mut rdm, 0, 0, width);
+            neon_yuv_to_rgba_row::<
+                { YuvSourceChannels::Rgb as u8 },
+                { YuvChromaSubsampling::Yuv444 as u8 },
+            >(&range, &transform, &y, &u, &v, &mut baseline, 0, 0, width);
         }
         assert!(
             rdm.iter().any(|&p| p != 0),

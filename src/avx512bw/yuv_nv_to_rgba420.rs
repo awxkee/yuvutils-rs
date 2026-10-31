@@ -132,7 +132,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
     let uv_ptr = uv_plane.as_ptr();
 
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm512_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
@@ -157,15 +157,15 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
         if order == YuvNVOrder::VU {
             std::mem::swap(&mut u_values, &mut v_values);
         }
-        let uh = _mm512_unpackhi_epi8(u_values, u_values);
-        let vh = _mm512_unpackhi_epi8(v_values, v_values);
-        let ul = _mm512_unpacklo_epi8(u_values, u_values);
-        let vl = _mm512_unpacklo_epi8(v_values, v_values);
+        let uh = _mm512_unpackhi_epi8(u_values, _mm512_setzero_si512());
+        let vh = _mm512_unpackhi_epi8(v_values, _mm512_setzero_si512());
+        let ul = _mm512_unpacklo_epi8(u_values, _mm512_setzero_si512());
+        let vl = _mm512_unpacklo_epi8(v_values, _mm512_setzero_si512());
 
-        let u_high = _mm512_srli_epi16::<6>(uh);
-        let v_high0 = _mm512_srli_epi16::<6>(vh);
-        let u_low0 = _mm512_srli_epi16::<6>(ul);
-        let v_low0 = _mm512_srli_epi16::<6>(vl);
+        let u_high = _mm512_slli_epi16::<2>(uh);
+        let v_high0 = _mm512_slli_epi16::<2>(vh);
+        let u_low0 = _mm512_slli_epi16::<2>(ul);
+        let v_low0 = _mm512_slli_epi16::<2>(vl);
 
         let y0_10 = _mm512_expand8_unordered_to_10(y_values0);
         let y1_10 = _mm512_expand8_unordered_to_10(y_values1);
@@ -287,15 +287,15 @@ unsafe fn avx512_yuv_nv_to_rgba_impl420<
         if order == YuvNVOrder::VU {
             std::mem::swap(&mut u_values, &mut v_values);
         }
-        let uh = _mm512_unpackhi_epi8(u_values, u_values);
-        let vh = _mm512_unpackhi_epi8(v_values, v_values);
-        let ul = _mm512_unpacklo_epi8(u_values, u_values);
-        let vl = _mm512_unpacklo_epi8(v_values, v_values);
+        let uh = _mm512_unpackhi_epi8(u_values, _mm512_setzero_si512());
+        let vh = _mm512_unpackhi_epi8(v_values, _mm512_setzero_si512());
+        let ul = _mm512_unpacklo_epi8(u_values, _mm512_setzero_si512());
+        let vl = _mm512_unpacklo_epi8(v_values, _mm512_setzero_si512());
 
-        let u_high = _mm512_srli_epi16::<6>(uh);
-        let v_high0 = _mm512_srli_epi16::<6>(vh);
-        let u_low0 = _mm512_srli_epi16::<6>(ul);
-        let v_low0 = _mm512_srli_epi16::<6>(vl);
+        let u_high = _mm512_slli_epi16::<2>(uh);
+        let v_high0 = _mm512_slli_epi16::<2>(vh);
+        let u_low0 = _mm512_slli_epi16::<2>(ul);
+        let v_low0 = _mm512_slli_epi16::<2>(vl);
 
         let y0_10 = _mm512_expand8_unordered_to_10(y_values0);
         let y1_10 = _mm512_expand8_unordered_to_10(y_values1);
