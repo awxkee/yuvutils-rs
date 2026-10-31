@@ -122,7 +122,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm512_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
@@ -130,14 +130,16 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
     let v_g_coeff_2 = _mm512_set1_epi16(transform.g_coeff_2 as i16);
 
     let sh_e = _v512_setr_epu8(
-        0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 16, 16, 18, 18, 20, 20, 22, 22, 24,
-        24, 26, 26, 28, 28, 30, 30, 32, 32, 34, 34, 36, 36, 38, 38, 40, 40, 42, 42, 44, 44, 46, 46,
-        48, 48, 50, 50, 52, 52, 54, 54, 56, 56, 58, 58, 60, 60, 62, 62,
+        0, 0x80, 2, 0x80, 4, 0x80, 6, 0x80, 8, 0x80, 10, 0x80, 12, 0x80, 14, 0x80, 16, 0x80, 18,
+        0x80, 20, 0x80, 22, 0x80, 24, 0x80, 26, 0x80, 28, 0x80, 30, 0x80, 32, 0x80, 34, 0x80, 36,
+        0x80, 38, 0x80, 40, 0x80, 42, 0x80, 44, 0x80, 46, 0x80, 48, 0x80, 50, 0x80, 52, 0x80, 54,
+        0x80, 56, 0x80, 58, 0x80, 60, 0x80, 62, 0x80,
     );
     let sh_o = _v512_setr_epu8(
-        1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15, 17, 17, 19, 19, 21, 21, 23, 23, 25,
-        25, 27, 27, 29, 29, 31, 31, 33, 33, 35, 35, 37, 37, 39, 39, 41, 41, 43, 43, 45, 45, 47, 47,
-        49, 49, 51, 51, 53, 53, 55, 55, 57, 57, 59, 59, 61, 61, 63, 63,
+        1, 0x80, 3, 0x80, 5, 0x80, 7, 0x80, 9, 0x80, 11, 0x80, 13, 0x80, 15, 0x80, 17, 0x80, 19,
+        0x80, 21, 0x80, 23, 0x80, 25, 0x80, 27, 0x80, 29, 0x80, 31, 0x80, 33, 0x80, 35, 0x80, 37,
+        0x80, 39, 0x80, 41, 0x80, 43, 0x80, 45, 0x80, 47, 0x80, 49, 0x80, 51, 0x80, 53, 0x80, 55,
+        0x80, 57, 0x80, 59, 0x80, 61, 0x80, 63, 0x80,
     );
 
     while cx + 64 < width {
@@ -149,8 +151,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
         let sh_uu = _mm512_shuffle_epi8(uv_values, sh_e);
         let sh_vv = _mm512_shuffle_epi8(uv_values, sh_o);
 
-        let ss_uu = _mm512_srli_epi16::<6>(sh_uu);
-        let ss_vv = _mm512_srli_epi16::<6>(sh_vv);
+        let ss_uu = _mm512_slli_epi16::<2>(sh_uu);
+        let ss_vv = _mm512_slli_epi16::<2>(sh_vv);
 
         let mut u_values = _mm512_sub_epi16(ss_uu, uv_corr);
         let mut v_values = _mm512_sub_epi16(ss_vv, uv_corr);
@@ -245,8 +247,8 @@ unsafe fn avx512_yuv_nv_to_rgba_impl422<
         let sh_uu = _mm512_shuffle_epi8(uv_values, sh_e);
         let sh_vv = _mm512_shuffle_epi8(uv_values, sh_o);
 
-        let ss_uu = _mm512_srli_epi16::<6>(sh_uu);
-        let ss_vv = _mm512_srli_epi16::<6>(sh_vv);
+        let ss_uu = _mm512_slli_epi16::<2>(sh_uu);
+        let ss_vv = _mm512_slli_epi16::<2>(sh_vv);
 
         let mut u_values = _mm512_sub_epi16(ss_uu, uv_corr);
         let mut v_values = _mm512_sub_epi16(ss_vv, uv_corr);

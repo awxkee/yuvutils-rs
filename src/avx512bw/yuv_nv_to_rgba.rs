@@ -136,7 +136,7 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm512_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
@@ -162,15 +162,15 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
                     std::mem::swap(&mut u_values, &mut v_values);
                 }
 
-                let uh = _mm512_unpackhi_epi8(u_values, u_values);
-                let vh = _mm512_unpackhi_epi8(v_values, v_values);
-                let ul = _mm512_unpacklo_epi8(u_values, u_values);
-                let vl = _mm512_unpacklo_epi8(v_values, v_values);
+                let uh = _mm512_unpackhi_epi8(u_values, _mm512_setzero_si512());
+                let vh = _mm512_unpackhi_epi8(v_values, _mm512_setzero_si512());
+                let ul = _mm512_unpacklo_epi8(u_values, _mm512_setzero_si512());
+                let vl = _mm512_unpacklo_epi8(v_values, _mm512_setzero_si512());
 
-                u_high_u8 = _mm512_srli_epi16::<6>(uh);
-                v_high_u8 = _mm512_srli_epi16::<6>(vh);
-                u_low_u8 = _mm512_srli_epi16::<6>(ul);
-                v_low_u8 = _mm512_srli_epi16::<6>(vl);
+                u_high_u8 = _mm512_slli_epi16::<2>(uh);
+                v_high_u8 = _mm512_slli_epi16::<2>(vh);
+                u_low_u8 = _mm512_slli_epi16::<2>(ul);
+                v_low_u8 = _mm512_slli_epi16::<2>(vl);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let offset = uv_x;
@@ -184,15 +184,15 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
                     std::mem::swap(&mut u_values, &mut v_values);
                 }
 
-                let uh = _mm512_unpackhi_epi8(u_values, u_values);
-                let vh = _mm512_unpackhi_epi8(v_values, v_values);
-                let ul = _mm512_unpacklo_epi8(u_values, u_values);
-                let vl = _mm512_unpacklo_epi8(v_values, v_values);
+                let uh = _mm512_unpackhi_epi8(u_values, _mm512_setzero_si512());
+                let vh = _mm512_unpackhi_epi8(v_values, _mm512_setzero_si512());
+                let ul = _mm512_unpacklo_epi8(u_values, _mm512_setzero_si512());
+                let vl = _mm512_unpacklo_epi8(v_values, _mm512_setzero_si512());
 
-                u_high_u8 = _mm512_srli_epi16::<6>(uh);
-                v_high_u8 = _mm512_srli_epi16::<6>(vh);
-                u_low_u8 = _mm512_srli_epi16::<6>(ul);
-                v_low_u8 = _mm512_srli_epi16::<6>(vl);
+                u_high_u8 = _mm512_slli_epi16::<2>(uh);
+                v_high_u8 = _mm512_slli_epi16::<2>(vh);
+                u_low_u8 = _mm512_slli_epi16::<2>(ul);
+                v_low_u8 = _mm512_slli_epi16::<2>(vl);
             }
         }
 
@@ -297,15 +297,15 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
                     std::mem::swap(&mut u_values, &mut v_values);
                 }
 
-                let uh = _mm512_unpackhi_epi8(u_values, u_values);
-                let vh = _mm512_unpackhi_epi8(v_values, v_values);
-                let ul = _mm512_unpacklo_epi8(u_values, u_values);
-                let vl = _mm512_unpacklo_epi8(v_values, v_values);
+                let uh = _mm512_unpackhi_epi8(u_values, _mm512_setzero_si512());
+                let vh = _mm512_unpackhi_epi8(v_values, _mm512_setzero_si512());
+                let ul = _mm512_unpacklo_epi8(u_values, _mm512_setzero_si512());
+                let vl = _mm512_unpacklo_epi8(v_values, _mm512_setzero_si512());
 
-                u_high_u8 = _mm512_srli_epi16::<6>(uh);
-                v_high_u8 = _mm512_srli_epi16::<6>(vh);
-                u_low_u8 = _mm512_srli_epi16::<6>(ul);
-                v_low_u8 = _mm512_srli_epi16::<6>(vl);
+                u_high_u8 = _mm512_slli_epi16::<2>(uh);
+                v_high_u8 = _mm512_slli_epi16::<2>(vh);
+                u_low_u8 = _mm512_slli_epi16::<2>(ul);
+                v_low_u8 = _mm512_slli_epi16::<2>(vl);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let uv_values_l = _mm512_loadu_si512(uv_buffer.as_ptr() as *const _);
@@ -317,15 +317,15 @@ unsafe fn avx512_yuv_nv_to_rgba_impl<
                     std::mem::swap(&mut u_values, &mut v_values);
                 }
 
-                let uh = _mm512_unpackhi_epi8(u_values, u_values);
-                let vh = _mm512_unpackhi_epi8(v_values, v_values);
-                let ul = _mm512_unpacklo_epi8(u_values, u_values);
-                let vl = _mm512_unpacklo_epi8(v_values, v_values);
+                let uh = _mm512_unpackhi_epi8(u_values, _mm512_setzero_si512());
+                let vh = _mm512_unpackhi_epi8(v_values, _mm512_setzero_si512());
+                let ul = _mm512_unpacklo_epi8(u_values, _mm512_setzero_si512());
+                let vl = _mm512_unpacklo_epi8(v_values, _mm512_setzero_si512());
 
-                u_high_u8 = _mm512_srli_epi16::<6>(uh);
-                v_high_u8 = _mm512_srli_epi16::<6>(vh);
-                u_low_u8 = _mm512_srli_epi16::<6>(ul);
-                v_low_u8 = _mm512_srli_epi16::<6>(vl);
+                u_high_u8 = _mm512_slli_epi16::<2>(uh);
+                v_high_u8 = _mm512_slli_epi16::<2>(vh);
+                u_low_u8 = _mm512_slli_epi16::<2>(ul);
+                v_low_u8 = _mm512_slli_epi16::<2>(vl);
             }
         }
 

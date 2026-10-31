@@ -130,7 +130,7 @@ unsafe fn avx512_yuv_to_rgba_impl<
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm512_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
@@ -153,25 +153,25 @@ unsafe fn avx512_yuv_to_rgba_impl<
                 let (v_values0, v_values1) =
                     avx512_zip_epi8::<HAS_VBMI>(v_values_full, v_values_full);
 
-                let uhw0 = _mm512_unpackhi_epi8(u_values0, u_values0);
-                let vhw0 = _mm512_unpackhi_epi8(v_values0, v_values0);
-                let ulw0 = _mm512_unpacklo_epi8(u_values0, u_values0);
-                let vlw0 = _mm512_unpacklo_epi8(v_values0, v_values0);
+                let uhw0 = _mm512_unpackhi_epi8(u_values0, _mm512_setzero_si512());
+                let vhw0 = _mm512_unpackhi_epi8(v_values0, _mm512_setzero_si512());
+                let ulw0 = _mm512_unpacklo_epi8(u_values0, _mm512_setzero_si512());
+                let vlw0 = _mm512_unpacklo_epi8(v_values0, _mm512_setzero_si512());
 
-                u_high00 = _mm512_srli_epi16::<6>(uhw0);
-                v_high00 = _mm512_srli_epi16::<6>(vhw0);
-                u_low00 = _mm512_srli_epi16::<6>(ulw0);
-                v_low00 = _mm512_srli_epi16::<6>(vlw0);
+                u_high00 = _mm512_slli_epi16::<2>(uhw0);
+                v_high00 = _mm512_slli_epi16::<2>(vhw0);
+                u_low00 = _mm512_slli_epi16::<2>(ulw0);
+                v_low00 = _mm512_slli_epi16::<2>(vlw0);
 
-                let uhw1 = _mm512_unpackhi_epi8(u_values1, u_values1);
-                let vhw1 = _mm512_unpackhi_epi8(v_values1, v_values1);
-                let ulw1 = _mm512_unpacklo_epi8(u_values1, u_values1);
-                let vlw1 = _mm512_unpacklo_epi8(v_values1, v_values1);
+                let uhw1 = _mm512_unpackhi_epi8(u_values1, _mm512_setzero_si512());
+                let vhw1 = _mm512_unpackhi_epi8(v_values1, _mm512_setzero_si512());
+                let ulw1 = _mm512_unpacklo_epi8(u_values1, _mm512_setzero_si512());
+                let vlw1 = _mm512_unpacklo_epi8(v_values1, _mm512_setzero_si512());
 
-                u_high10 = _mm512_srli_epi16::<6>(uhw1);
-                v_high10 = _mm512_srli_epi16::<6>(vhw1);
-                u_low10 = _mm512_srli_epi16::<6>(ulw1);
-                v_low10 = _mm512_srli_epi16::<6>(vlw1);
+                u_high10 = _mm512_slli_epi16::<2>(uhw1);
+                v_high10 = _mm512_slli_epi16::<2>(vhw1);
+                u_low10 = _mm512_slli_epi16::<2>(ulw1);
+                v_low10 = _mm512_slli_epi16::<2>(vlw1);
             }
             YuvChromaSubsampling::Yuv444 => {
                 let u_values0 = _mm512_loadu_si512(u_ptr.add(uv_x) as *const _);
@@ -179,25 +179,25 @@ unsafe fn avx512_yuv_to_rgba_impl<
                 let v_values0 = _mm512_loadu_si512(v_ptr.add(uv_x) as *const _);
                 let v_values1 = _mm512_loadu_si512(v_ptr.add(uv_x + 64) as *const _);
 
-                let uhw0 = _mm512_unpackhi_epi8(u_values0, u_values0);
-                let vhw0 = _mm512_unpackhi_epi8(v_values0, v_values0);
-                let ulw0 = _mm512_unpacklo_epi8(u_values0, u_values0);
-                let vlw0 = _mm512_unpacklo_epi8(v_values0, v_values0);
+                let uhw0 = _mm512_unpackhi_epi8(u_values0, _mm512_setzero_si512());
+                let vhw0 = _mm512_unpackhi_epi8(v_values0, _mm512_setzero_si512());
+                let ulw0 = _mm512_unpacklo_epi8(u_values0, _mm512_setzero_si512());
+                let vlw0 = _mm512_unpacklo_epi8(v_values0, _mm512_setzero_si512());
 
-                u_high00 = _mm512_srli_epi16::<6>(uhw0);
-                v_high00 = _mm512_srli_epi16::<6>(vhw0);
-                u_low00 = _mm512_srli_epi16::<6>(ulw0);
-                v_low00 = _mm512_srli_epi16::<6>(vlw0);
+                u_high00 = _mm512_slli_epi16::<2>(uhw0);
+                v_high00 = _mm512_slli_epi16::<2>(vhw0);
+                u_low00 = _mm512_slli_epi16::<2>(ulw0);
+                v_low00 = _mm512_slli_epi16::<2>(vlw0);
 
-                let uhw1 = _mm512_unpackhi_epi8(u_values1, u_values1);
-                let vhw1 = _mm512_unpackhi_epi8(v_values1, v_values1);
-                let ulw1 = _mm512_unpacklo_epi8(u_values1, u_values1);
-                let vlw1 = _mm512_unpacklo_epi8(v_values1, v_values1);
+                let uhw1 = _mm512_unpackhi_epi8(u_values1, _mm512_setzero_si512());
+                let vhw1 = _mm512_unpackhi_epi8(v_values1, _mm512_setzero_si512());
+                let ulw1 = _mm512_unpacklo_epi8(u_values1, _mm512_setzero_si512());
+                let vlw1 = _mm512_unpacklo_epi8(v_values1, _mm512_setzero_si512());
 
-                u_high10 = _mm512_srli_epi16::<6>(uhw1);
-                v_high10 = _mm512_srli_epi16::<6>(vhw1);
-                u_low10 = _mm512_srli_epi16::<6>(ulw1);
-                v_low10 = _mm512_srli_epi16::<6>(vlw1);
+                u_high10 = _mm512_slli_epi16::<2>(uhw1);
+                v_high10 = _mm512_slli_epi16::<2>(vhw1);
+                u_low10 = _mm512_slli_epi16::<2>(ulw1);
+                v_low10 = _mm512_slli_epi16::<2>(vlw1);
             }
         }
 
@@ -318,19 +318,27 @@ unsafe fn avx512_yuv_to_rgba_impl<
                 let u_values = avx512_create(lu_low0, lu_high0);
                 let v_values = avx512_create(lv_low0, lv_high0);
 
-                u_high0 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(u_values, u_values));
-                v_high0 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(v_values, v_values));
-                u_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(u_values, u_values));
-                v_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(v_values, v_values));
+                u_high0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpackhi_epi8(u_values, _mm512_setzero_si512()));
+                v_high0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpackhi_epi8(v_values, _mm512_setzero_si512()));
+                u_low0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpacklo_epi8(u_values, _mm512_setzero_si512()));
+                v_low0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpacklo_epi8(v_values, _mm512_setzero_si512()));
             }
             YuvChromaSubsampling::Yuv444 => {
                 let u_values = _mm512_loadu_si512(u_ptr.add(uv_x) as *const _);
                 let v_values = _mm512_loadu_si512(v_ptr.add(uv_x) as *const _);
 
-                u_high0 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(u_values, u_values));
-                v_high0 = _mm512_srli_epi16::<6>(_mm512_unpackhi_epi8(v_values, v_values));
-                u_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(u_values, u_values));
-                v_low0 = _mm512_srli_epi16::<6>(_mm512_unpacklo_epi8(v_values, v_values));
+                u_high0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpackhi_epi8(u_values, _mm512_setzero_si512()));
+                v_high0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpackhi_epi8(v_values, _mm512_setzero_si512()));
+                u_low0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpacklo_epi8(u_values, _mm512_setzero_si512()));
+                v_low0 =
+                    _mm512_slli_epi16::<2>(_mm512_unpacklo_epi8(v_values, _mm512_setzero_si512()));
             }
         }
 

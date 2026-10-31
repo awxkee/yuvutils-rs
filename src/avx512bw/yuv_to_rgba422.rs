@@ -119,7 +119,7 @@ unsafe fn avx512_yuv_to_rgba_impl422<const DESTINATION_CHANNELS: u8, const HAS_V
     let rgba_ptr = rgba.as_mut_ptr();
 
     let y_corr = _mm512_set1_epi8(range.bias_y as i8);
-    let uv_corr = _mm512_set1_epi16(((range.bias_uv as i16) << 2) | ((range.bias_uv as i16) >> 6));
+    let uv_corr = _mm512_set1_epi16((range.bias_uv as i16) << 2);
     let v_luma_coeff = _mm512_set1_epi16(transform.y_coef as i16);
     let v_cr_coeff = _mm512_set1_epi16(transform.cr_coef as i16);
     let v_cb_coeff = _mm512_set1_epi16(transform.cb_coef as i16);
@@ -139,11 +139,11 @@ unsafe fn avx512_yuv_to_rgba_impl422<const DESTINATION_CHANNELS: u8, const HAS_V
         let mut lu = _mm512_permutexvar_epi64(uv_mask, _mm512_castsi256_si512(u_values));
         let mut lv = _mm512_permutexvar_epi64(uv_mask, _mm512_castsi256_si512(v_values));
 
-        lu = _mm512_unpacklo_epi8(lu, lu);
-        lv = _mm512_unpacklo_epi8(lv, lv);
+        lu = _mm512_unpacklo_epi8(lu, _mm512_setzero_si512());
+        lv = _mm512_unpacklo_epi8(lv, _mm512_setzero_si512());
 
-        lu = _mm512_srli_epi16::<6>(lu);
-        lv = _mm512_srli_epi16::<6>(lv);
+        lu = _mm512_slli_epi16::<2>(lu);
+        lv = _mm512_slli_epi16::<2>(lv);
 
         lu = _mm512_sub_epi16(lu, uv_corr);
         lv = _mm512_sub_epi16(lv, uv_corr);
