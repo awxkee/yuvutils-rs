@@ -851,3 +851,88 @@ build_cnv!(
     "rgba",
     YuvEndianness::BigEndian
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type Converter = fn(
+        &YuvPlanarImage<u16>,
+        &mut [u8],
+        u32,
+        YuvRange,
+        YuvStandardMatrix,
+    ) -> Result<(), YuvError>;
+
+    #[test]
+    fn p16_to_rgb8_any_width_matches_wider_image() {
+        // More than twice the widest SIMD row chunk (64 pixels with AVX-512), so every tail
+        // length is converted both with and without full chunks in front of it.
+        const WIDE: usize = 160;
+        const HEIGHT: usize = 3;
+
+        let cases: [(Converter, YuvChromaSubsampling, usize, u32); 5] = [
+            (i010_to_rgb, YuvChromaSubsampling::Yuv420, 3, 10),
+            (i012_to_bgra, YuvChromaSubsampling::Yuv420, 4, 12),
+            (i210_to_rgba, YuvChromaSubsampling::Yuv422, 4, 10),
+            (i212_to_bgr, YuvChromaSubsampling::Yuv422, 3, 12),
+            (i410_to_rgba, YuvChromaSubsampling::Yuv444, 4, 10),
+        ];
+
+        for (convert, subsampling, channels, bit_depth) in cases {
+            let (chroma_width, chroma_height) = match subsampling {
+                YuvChromaSubsampling::Yuv420 => (WIDE / 2, HEIGHT.div_ceil(2)),
+                YuvChromaSubsampling::Yuv422 => (WIDE / 2, HEIGHT),
+                YuvChromaSubsampling::Yuv444 => (WIDE, HEIGHT),
+            };
+            let max = (1u32 << bit_depth) - 1;
+            let plane = |len: usize, seed: u32| -> Vec<u16> {
+                (0..len as u32)
+                    .map(|i| ((i.wrapping_mul(2654435761).wrapping_add(seed) >> 13) & max) as u16)
+                    .collect()
+            };
+            let y = plane(WIDE * HEIGHT, 1);
+            let u = plane(chroma_width * chroma_height, 2);
+            let v = plane(chroma_width * chroma_height, 3);
+
+            // A narrower image is the left part of the wide one: same planes and strides.
+            let image = |width: usize| YuvPlanarImage {
+                y_plane: &y,
+                y_stride: WIDE as u32,
+                u_plane: &u,
+                u_stride: chroma_width as u32,
+                v_plane: &v,
+                v_stride: chroma_width as u32,
+                width: width as u32,
+                height: HEIGHT as u32,
+            };
+
+            for range in [YuvRange::Limited, YuvRange::Full] {
+                let matrix = YuvStandardMatrix::Bt709;
+                let wide_stride = WIDE * channels;
+                let mut wide_rgb = vec![0u8; wide_stride * HEIGHT];
+                convert(
+                    &image(WIDE),
+                    &mut wide_rgb,
+                    wide_stride as u32,
+                    range,
+                    matrix,
+                )
+                .unwrap();
+
+                for width in 1..WIDE {
+                    let stride = width * channels;
+                    let mut rgb = vec![0u8; stride * HEIGHT];
+                    convert(&image(width), &mut rgb, stride as u32, range, matrix).unwrap();
+                    for row in 0..HEIGHT {
+                        assert_eq!(
+                            rgb[row * stride..(row + 1) * stride],
+                            wide_rgb[row * wide_stride..row * wide_stride + stride],
+                            "{subsampling:?} {bit_depth}-bit, width {width}, row {row}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

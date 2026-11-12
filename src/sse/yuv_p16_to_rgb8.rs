@@ -127,8 +127,12 @@ unsafe fn sse_yuv_p16_to_rgba8_row_impl<
     let dst_chunks = bgra.chunks_exact_mut(8 * channels);
 
     let remainder_y = y_chunks.remainder();
-    let remainder_u = u_chunks.remainder();
-    let remainder_v = v_chunks.remainder();
+    // The tail's chroma starts where the luma chunks stop. With 4:2:0 and 4:2:2, an odd
+    // width one short of a full luma chunk leaves a full chroma chunk that the loop below
+    // never reaches, so the chroma chunks' own remainder is empty.
+    let uv_tail_start = y_chunks.len() * uv_chunk_size;
+    let remainder_u = &u_plane[uv_tail_start..];
+    let remainder_v = &v_plane[uv_tail_start..];
 
     for (((y_chunk, u_chunk), v_chunk), dst_chunk) in
         y_chunks.zip(u_chunks).zip(v_chunks).zip(dst_chunks)
@@ -237,8 +241,8 @@ unsafe fn sse_yuv_p16_to_rgba8_row_impl<
         match chroma_subsampling {
             YuvChromaSubsampling::Yuv420 | YuvChromaSubsampling::Yuv422 => {
                 let uv_size = diff.div_ceil(2);
-                u_buffer[..uv_size].copy_from_slice(remainder_u);
-                v_buffer[..uv_size].copy_from_slice(remainder_v);
+                u_buffer[..uv_size].copy_from_slice(&remainder_u[..uv_size]);
+                v_buffer[..uv_size].copy_from_slice(&remainder_v[..uv_size]);
             }
             YuvChromaSubsampling::Yuv444 => {
                 u_buffer[..diff].copy_from_slice(remainder_u);
