@@ -152,3 +152,10 @@ path = "rgb_to_f16/rgb_to_f16.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "yuv16_to_rgb8"
+path = "yuv16_to_rgb8/yuv16_to_rgb8.rs"
+test = false
+doc = false
+bench = false

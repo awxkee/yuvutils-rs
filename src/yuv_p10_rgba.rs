@@ -300,6 +300,8 @@ fn yuv_p16_to_image_ant<
             let y_plane = &y_plane[..image.width as usize];
             let u_plane = &u_plane[..image.width as usize];
             let v_plane = &v_plane[..image.width as usize];
+            // Row handlers size their tail from `rgba.len()`, so drop the stride padding.
+            let rgba = &mut rgba[..image.width as usize * channels];
             if let Some(handler) = wide_row_handler {
                 return handler(y_plane, u_plane, v_plane, rgba, &chroma_range, &i_transform);
             }
@@ -929,6 +931,58 @@ mod tests {
                             rgb[row * stride..(row + 1) * stride],
                             wide_rgb[row * wide_stride..row * wide_stride + stride],
                             "{subsampling:?} {bit_depth}-bit, width {width}, row {row}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn p16_to_rgb8_keeps_row_padding() {
+        let cases: [(Converter, YuvChromaSubsampling, usize); 6] = [
+            (i010_to_rgba, YuvChromaSubsampling::Yuv420, 4),
+            (i210_to_rgb, YuvChromaSubsampling::Yuv422, 3),
+            (i410_to_rgba, YuvChromaSubsampling::Yuv444, 4),
+            (i412_to_rgb, YuvChromaSubsampling::Yuv444, 3),
+            (i412_to_rgba, YuvChromaSubsampling::Yuv444, 4),
+            (i212_to_bgra, YuvChromaSubsampling::Yuv422, 4),
+        ];
+        for (convert, subsampling, channels) in cases {
+            for width in [1usize, 3, 7, 8, 9, 15, 17, 33, 65] {
+                let height = 3;
+                let chroma_width = match subsampling {
+                    YuvChromaSubsampling::Yuv444 => width,
+                    _ => width.div_ceil(2),
+                };
+                let y = vec![256u16; width * height];
+                let uv = vec![512u16; chroma_width * height];
+                let image = YuvPlanarImage {
+                    y_plane: &y,
+                    y_stride: width as u32,
+                    u_plane: &uv,
+                    u_stride: chroma_width as u32,
+                    v_plane: &uv,
+                    v_stride: chroma_width as u32,
+                    width: width as u32,
+                    height: height as u32,
+                };
+                let row = width * channels;
+                for padding in [1, 3, 5, 64] {
+                    let stride = row + padding;
+                    let mut dst = vec![0xA5u8; stride * (height - 1) + row];
+                    convert(
+                        &image,
+                        &mut dst,
+                        stride as u32,
+                        YuvRange::Full,
+                        YuvStandardMatrix::Bt709,
+                    )
+                    .unwrap();
+                    for (r, line) in dst.chunks(stride).enumerate() {
+                        assert!(
+                            line[row..].iter().all(|&x| x == 0xA5),
+                            "{subsampling:?}, {channels} channels, width {width}, padding {padding}: row {r} padding overwritten"
                         );
                     }
                 }

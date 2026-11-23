@@ -90,6 +90,25 @@ jobs:
       - run: cargo test --no-default-features --features fast_mode,professional_mode,avx,nightly_f16,rdp
       - run: cargo test --no-default-features --features fast_mode,professional_mode,nightly_f16,rdp
 
+  tests_x86_asan:
+    name: Testing x86 AddressSanitizer
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each SIMD tier is tested on its own: with several enabled, the wider rows run first
+        # and the narrower ones only see the tail of a row, which hides their overruns.
+        feature: [ "", sse, avx, "sse,avx", "sse,avx,nightly_avx512" ]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@nightly
+      # Out-of-bounds writes into the destination usually land in valid heap memory and do
+      # not fail a plain test run, so the unit tests also run under AddressSanitizer.
+      - name: cargo test (ASan, features "${{ matrix.feature }}")
+        env:
+          RUSTFLAGS: -Zsanitizer=address
+        run: cargo test --release --lib --target x86_64-unknown-linux-gnu --no-default-features --features "fast_mode,professional_mode,nightly_f16,rdp,${{ matrix.feature }}"
+
   tests_x86_sse_isolated:
     name: Testing x86 SSE isolated
     runs-on: ubuntu-latest
@@ -164,6 +183,7 @@ jobs:
       - run: cargo fuzz run yuv_nv_to_rgb --no-default-features -- -max_total_time=6
       - run: cargo fuzz run y_to_rgb --no-default-features -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_rgb16 --no-default-features -- -max_total_time=6
+      - run: cargo fuzz run yuv16_to_rgb8 --no-default-features -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_rgb_f16 --no-default-features -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_ar30 --no-default-features -- -max_total_time=6
       - run: cargo fuzz run y16_to_rgb16 --no-default-features -- -max_total_time=6
@@ -199,6 +219,7 @@ jobs:
       - run: cargo fuzz run yuv_nv_to_rgb --no-default-features --features rdm -- -max_total_time=6
       - run: cargo fuzz run y_to_rgb --no-default-features --features rdm -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_rgb16 --no-default-features --features rdm -- -max_total_time=6
+      - run: cargo fuzz run yuv16_to_rgb8 --no-default-features --features rdm -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_rgb_f16 --no-default-features --features rdm -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_ar30 --no-default-features --features rdm -- -max_total_time=6
       - run: cargo fuzz run y16_to_rgb16 --no-default-features --features rdm -- -max_total_time=6
@@ -228,6 +249,7 @@ jobs:
       - run: cargo fuzz run yuv_nv_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run y_to_rgb --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
+      - run: cargo fuzz run yuv16_to_rgb8 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_rgb_f16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run yuv16_to_ar30 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
       - run: cargo fuzz run y16_to_rgb16 --no-default-features --features ${{ matrix.feature }} -- -max_total_time=6
