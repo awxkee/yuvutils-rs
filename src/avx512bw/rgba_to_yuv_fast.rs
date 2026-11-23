@@ -29,7 +29,7 @@
 
 use crate::avx512bw::avx512_utils::{
     _mm512_deinterleave_epi16, _mm512_deinterleave_epi32, _mm512_expand_rgb_to_rgba,
-    _mm512_set4r_epi8, avx512_pack_u16,
+    _mm512_set4r_epi8, avx512_pack_u16, avx512_pack_u32,
 };
 use crate::internals::ProcessedOffset;
 use crate::yuv_support::{
@@ -593,8 +593,9 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot_impl<
         source_channels == YuvSourceChannels::Rgb || source_channels == YuvSourceChannels::Bgr;
 
     const A_E: u32 = 7;
-    let y_bias = _mm512_set1_epi16(range.bias_y as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
-    let uv_bias = _mm512_set1_epi16(range.bias_uv as i16 * (1 << A_E) + (1 << (A_E - 1)) - 1);
+    // `dpbusd` accumulates a whole pixel into one i32 lane, so the bias must be an i32 too.
+    let y_bias = _mm512_set1_epi32(range.bias_y as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
+    let uv_bias = _mm512_set1_epi32(range.bias_uv as i32 * (1 << A_E) + (1 << (A_E - 1)) - 1);
 
     let y_weights = if is_rgbx {
         _mm512_set4r_epi8(
@@ -678,11 +679,8 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot_impl<
             (_mm512_setzero_si512(), _mm512_setzero_si512())
         };
 
-        let (y0p, y1p) = _mm512_deinterleave_epi16(y0s, y1s);
-        let (y2p, y3p) = _mm512_deinterleave_epi16(y2s, y3s);
-
-        let mut y0m = _mm512_add_epi16(y0p, y1p);
-        let mut y1m = _mm512_add_epi16(y2p, y3p);
+        let mut y0m = avx512_pack_u32(y0s, y1s);
+        let mut y1m = avx512_pack_u32(y2s, y3s);
 
         y0m = _mm512_srai_epi16::<A_E>(y0m);
         y1m = _mm512_srai_epi16::<A_E>(y1m);
@@ -702,16 +700,11 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot_impl<
             let cr2 = _mm512_dpbusd_epi32(uv_bias, v2, cr_weights);
             let cr3 = _mm512_dpbusd_epi32(uv_bias, v3, cr_weights);
 
-            let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
-            let (cb2, cb3) = _mm512_deinterleave_epi16(cb2, cb3);
-            let (cr0, cr1) = _mm512_deinterleave_epi16(cr0, cr1);
-            let (cr2, cr3) = _mm512_deinterleave_epi16(cr2, cr3);
+            let mut cb00 = avx512_pack_u32(cb0, cb1);
+            let mut cb01 = avx512_pack_u32(cb2, cb3);
 
-            let mut cb00 = _mm512_add_epi16(cb0, cb1);
-            let mut cb01 = _mm512_add_epi16(cb2, cb3);
-
-            let mut cr00 = _mm512_add_epi16(cr0, cr1);
-            let mut cr01 = _mm512_add_epi16(cr2, cr3);
+            let mut cr00 = avx512_pack_u32(cr0, cr1);
+            let mut cr01 = avx512_pack_u32(cr2, cr3);
 
             cb00 = _mm512_srai_epi16::<A_E>(cb00);
             cb01 = _mm512_srai_epi16::<A_E>(cb01);
@@ -737,11 +730,8 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot_impl<
             let cr0 = _mm512_dpbusd_epi32(uv_bias, v0_f, cr_weights);
             let cr1 = _mm512_dpbusd_epi32(uv_bias, v1_f, cr_weights);
 
-            let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
-            let (cr0, cr1) = _mm512_deinterleave_epi16(cr0, cr1);
-
-            let mut cb00 = _mm512_add_epi16(cb0, cb1);
-            let mut cr00 = _mm512_add_epi16(cr0, cr1);
+            let mut cb00 = avx512_pack_u32(cb0, cb1);
+            let mut cr00 = avx512_pack_u32(cr0, cr1);
 
             cb00 = _mm512_srai_epi16::<A_E>(cb00);
             cr00 = _mm512_srai_epi16::<A_E>(cr00);
@@ -820,11 +810,8 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot_impl<
             (_mm512_setzero_si512(), _mm512_setzero_si512())
         };
 
-        let (y0p, y1p) = _mm512_deinterleave_epi16(y0s, y1s);
-        let (y2p, y3p) = _mm512_deinterleave_epi16(y2s, y3s);
-
-        let mut y0m = _mm512_add_epi16(y0p, y1p);
-        let mut y1m = _mm512_add_epi16(y2p, y3p);
+        let mut y0m = avx512_pack_u32(y0s, y1s);
+        let mut y1m = avx512_pack_u32(y2s, y3s);
 
         y0m = _mm512_srai_epi16::<A_E>(y0m);
         y1m = _mm512_srai_epi16::<A_E>(y1m);
@@ -844,16 +831,11 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot_impl<
             let cr2 = _mm512_dpbusd_epi32(uv_bias, v2, cr_weights);
             let cr3 = _mm512_dpbusd_epi32(uv_bias, v3, cr_weights);
 
-            let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
-            let (cb2, cb3) = _mm512_deinterleave_epi16(cb2, cb3);
-            let (cr0, cr1) = _mm512_deinterleave_epi16(cr0, cr1);
-            let (cr2, cr3) = _mm512_deinterleave_epi16(cr2, cr3);
+            let mut cb00 = avx512_pack_u32(cb0, cb1);
+            let mut cb01 = avx512_pack_u32(cb2, cb3);
 
-            let mut cb00 = _mm512_add_epi16(cb0, cb1);
-            let mut cb01 = _mm512_add_epi16(cb2, cb3);
-
-            let mut cr00 = _mm512_add_epi16(cr0, cr1);
-            let mut cr01 = _mm512_add_epi16(cr2, cr3);
+            let mut cr00 = avx512_pack_u32(cr0, cr1);
+            let mut cr01 = avx512_pack_u32(cr2, cr3);
 
             cb00 = _mm512_srai_epi16::<A_E>(cb00);
             cb01 = _mm512_srai_epi16::<A_E>(cb01);
@@ -877,11 +859,8 @@ unsafe fn avx512_rgba_to_yuv_dot_rgba_impl_dot_impl<
             let cr0 = _mm512_dpbusd_epi32(uv_bias, v0_f, cr_weights);
             let cr1 = _mm512_dpbusd_epi32(uv_bias, v1_f, cr_weights);
 
-            let (cb0, cb1) = _mm512_deinterleave_epi16(cb0, cb1);
-            let (cr0, cr1) = _mm512_deinterleave_epi16(cr0, cr1);
-
-            let mut cb00 = _mm512_add_epi16(cb0, cb1);
-            let mut cr00 = _mm512_add_epi16(cr0, cr1);
+            let mut cb00 = avx512_pack_u32(cb0, cb1);
+            let mut cr00 = avx512_pack_u32(cr0, cr1);
 
             cb00 = _mm512_srai_epi16::<A_E>(cb00);
             cr00 = _mm512_srai_epi16::<A_E>(cr00);
