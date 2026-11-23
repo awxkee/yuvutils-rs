@@ -111,7 +111,9 @@ jobs:
 
   tests_x86_sse_isolated:
     name: Testing x86 SSE isolated
-    runs-on: ubuntu-latest
+    # ubuntu-26.04 ships an amd64v3 (AVX2/FMA) userland, so the dynamically linked test
+    # binary would hit SIGILL inside glibc under the older CPU models emulated here.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
@@ -127,20 +129,22 @@ jobs:
               output=$(RUSTFLAGS="-C target-feature=+sse4.1,-avx,-avx2,-fma" \
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="qemu-x86_64 -cpu Nehalem" \
               cargo +nightly test --lib -- "$test" --exact 2>&1) || rc=$?
-              echo "$output" | grep -E "FAILED|ok|signal 4"
+              echo "$output" | grep -E "FAILED|ok|signal 4" || true
               if [ "${rc:-0}" -ne 0 ]; then
                 echo "❌ Test failed: $test"
                 echo "$output"
                 failed=1
               else
-                echo "$output" | grep -E "ok|signal 4"
+                echo "$output" | grep -E "ok|signal 4" || true
               fi
           done <<< "$tests"
           exit $failed
 
   tests_x86_avx2_isolated:
     name: Testing x86 AVX2 isolated (no FMA)
-    runs-on: ubuntu-latest
+    # ubuntu-26.04 ships an amd64v3 (AVX2/FMA) userland, so the dynamically linked test
+    # binary would hit SIGILL inside glibc under the older CPU models emulated here.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
@@ -156,13 +160,13 @@ jobs:
               output=$(RUSTFLAGS="-C target-feature=+avx2,-fma" \
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="qemu-x86_64 -cpu Haswell-noTSX,avx2=on,fma=off" \
               cargo +nightly test --lib --target x86_64-unknown-linux-gnu -- "$test" --exact 2>&1) || rc=$?
-              echo "$output" | grep -E "FAILED|ok|signal 4"
+              echo "$output" | grep -E "FAILED|ok|signal 4" || true
               if [ "${rc:-0}" -ne 0 ]; then
                 echo "❌ Test failed: $test"
                 echo "$output"
                 failed=1
               else
-                echo "$output" | grep -E "ok|signal 4"
+                echo "$output" | grep -E "ok|signal 4" || true
               fi
           done <<< "$tests"
           exit $failed
