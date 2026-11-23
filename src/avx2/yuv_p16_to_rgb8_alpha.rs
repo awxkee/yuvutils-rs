@@ -258,7 +258,7 @@ unsafe fn avx_yuv_p16_to_rgba8_row_alpha_impl<
                 a_plane.get_unchecked(cx..).as_ptr() as *const __m256i,
             )),
             _mm256_store_shr_epi16_epi8::<BIT_DEPTH>(_mm256_loadu_si256(
-                a_plane.get_unchecked(cx..).as_ptr() as *const __m256i,
+                a_plane.get_unchecked((cx + 16)..).as_ptr() as *const __m256i,
             )),
         );
 
