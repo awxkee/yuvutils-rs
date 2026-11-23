@@ -102,6 +102,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
+      # Runner CPUs vary: AVX-512 code paths only run when the assigned machine has them.
+      - name: CPU SIMD features
+        run: grep -m1 -o -w -E 'avx2|fma|avx512[a-z0-9_]*' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
       # Out-of-bounds writes into the destination usually land in valid heap memory and do
       # not fail a plain test run, so the unit tests also run under AddressSanitizer.
       - name: cargo test (ASan, features "${{ matrix.feature }}")

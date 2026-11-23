@@ -307,8 +307,6 @@ unsafe fn avx_rgba_to_yuv_impl<
         let diff = width - cx;
         assert!(diff <= 32);
         let mut src_buffer: [u16; 32 * 4] = [0; 32 * 4];
-        let mut u_buffer: [u16; 32] = [0; 32];
-        let mut v_buffer: [u16; 32] = [0; 32];
 
         // Replicate last item to one more position for subsampling
         if chroma_subsampling != YuvChromaSubsampling::Yuv444 && diff % 2 != 0 {
@@ -378,8 +376,16 @@ unsafe fn avx_rgba_to_yuv_impl<
                 cr_vl = _mm512_shuffle_epi8(cr_vl, big_endian_shuffle_flag);
             }
 
-            _mm512_mask_storeu_epi16(u_buffer.as_mut_ptr() as *mut _, mask, cb_vl);
-            _mm512_mask_storeu_epi16(v_buffer.as_mut_ptr() as *mut _, mask, cr_vl);
+            _mm512_mask_storeu_epi16(
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+                mask,
+                cb_vl,
+            );
+            _mm512_mask_storeu_epi16(
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+                mask,
+                cr_vl,
+            );
         } else {
             let r_values = _mm512_havg_epi16_epi32(r_values);
             let g_values = _mm512_havg_epi16_epi32(g_values);
@@ -408,8 +414,16 @@ unsafe fn avx_rgba_to_yuv_impl<
 
             let halved_mask = 0xffff_ffffu32 >> (32 - diff.div_ceil(2) as u32);
 
-            _mm512_mask_storeu_epi16(u_buffer.as_mut_ptr() as *mut _, halved_mask, cb_s);
-            _mm512_mask_storeu_epi16(v_buffer.as_mut_ptr() as *mut _, halved_mask, cr_s);
+            _mm512_mask_storeu_epi16(
+                u_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+                halved_mask,
+                cb_s,
+            );
+            _mm512_mask_storeu_epi16(
+                v_plane.get_unchecked_mut(ux..).as_mut_ptr() as *mut _,
+                halved_mask,
+                cr_s,
+            );
         }
 
         cx += diff;
