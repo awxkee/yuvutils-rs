@@ -82,7 +82,6 @@ unsafe fn neon_yuv_p16_to_rgba16_row_impl<
     let channels = destination_channels.get_channels_count();
     let chroma_subsampling: YuvChromaSubsampling = SAMPLING.into();
 
-    let y_corr = vdupq_n_u16(range.bias_y as u16);
     let uv_corr = vdupq_n_u16(range.bias_uv as u16);
 
     let weights_arr: [i16; 8] = [
@@ -100,24 +99,25 @@ unsafe fn neon_yuv_p16_to_rgba16_row_impl<
 
     let v_alpha = vdupq_n_u16(((1u32 << BIT_DEPTH) - 1u32) as u16);
 
-    let base_val = vdupq_n_u32(1 << (PRECISION - 1));
+    // Luma below the range's bias stays negative until the final clamp,
+    // as in the scalar path: the bias is folded into the rounding
+    // constant (u32 arithmetic wraps; the sums are read as i32).
+    let base_val = vdupq_n_u32(
+        (1u32 << (PRECISION - 1)).wrapping_sub(range.bias_y.wrapping_mul(transform.y_coef as u32)),
+    );
 
     let mut cx = 0usize;
     let mut ux = 0usize;
 
     while cx + 16 <= width as usize {
-        let y_values0 = vqsubq_u16(
+        let y_values0 =
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
-            )),
-            y_corr,
-        );
-        let y_values1 = vqsubq_u16(
+            ));
+        let y_values1 =
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked((cx + 8)..).as_ptr(),
-            )),
-            y_corr,
-        );
+            ));
 
         let u_values0: int16x8_t;
         let v_values0: int16x8_t;
@@ -300,12 +300,10 @@ unsafe fn neon_yuv_p16_to_rgba16_row_impl<
     }
 
     while cx + 8 <= width as usize {
-        let y_values = vqsubq_u16(
+        let y_values =
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
-            )),
-            y_corr,
-        );
+            ));
 
         let u_high: int16x4_t;
         let v_high: int16x4_t;
@@ -530,13 +528,13 @@ unsafe fn neon_yuv_p16_to_rgba16_row_rdm_impl<
     let mut ux = 0usize;
 
     while cx + 16 <= width as usize {
-        let y_values0: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+        let y_values0: int16x8_t = vreinterpretq_s16_u16(vsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
             )),
             y_corr,
         ));
-        let y_values1: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+        let y_values1: int16x8_t = vreinterpretq_s16_u16(vsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked((cx + 8)..).as_ptr(),
             )),
@@ -595,9 +593,9 @@ unsafe fn neon_yuv_p16_to_rgba16_row_rdm_impl<
         }
 
         let y_high0 =
-            vqrdmulhq_laneq_s16::<0>(vexpand_high_bp_by_2::<BIT_DEPTH>(y_values0), v_weights);
+            vqrdmulhq_laneq_s16::<0>(vexpand_signed_bp_by_2::<BIT_DEPTH>(y_values0), v_weights);
         let y_high1 =
-            vqrdmulhq_laneq_s16::<0>(vexpand_high_bp_by_2::<BIT_DEPTH>(y_values1), v_weights);
+            vqrdmulhq_laneq_s16::<0>(vexpand_signed_bp_by_2::<BIT_DEPTH>(y_values1), v_weights);
 
         let r_vals0 = vqrdmlahq_laneq_s16::<1>(y_high0, v_values0, v_weights);
         let b_vals0 = vqrdmlahq_laneq_s16::<2>(y_high0, u_values0, v_weights);
@@ -647,7 +645,7 @@ unsafe fn neon_yuv_p16_to_rgba16_row_rdm_impl<
     }
 
     while cx + 8 <= width as usize {
-        let y_values: int16x8_t = vreinterpretq_s16_u16(vqsubq_u16(
+        let y_values: int16x8_t = vreinterpretq_s16_u16(vsubq_u16(
             vreinterpretq_u16_s16(vldq_s16_endian::<ENDIANNESS, BYTES_POSITION, BIT_DEPTH>(
                 y_ld_ptr.get_unchecked(cx..).as_ptr(),
             )),
@@ -691,7 +689,7 @@ unsafe fn neon_yuv_p16_to_rgba16_row_rdm_impl<
         }
 
         let y_high =
-            vqrdmulhq_laneq_s16::<0>(vexpand_high_bp_by_2::<BIT_DEPTH>(y_values), v_weights);
+            vqrdmulhq_laneq_s16::<0>(vexpand_signed_bp_by_2::<BIT_DEPTH>(y_values), v_weights);
 
         let r_vals = vqrdmlahq_laneq_s16::<1>(y_high, v_values, v_weights);
         let b_vals = vqrdmlahq_laneq_s16::<2>(y_high, u_values, v_weights);

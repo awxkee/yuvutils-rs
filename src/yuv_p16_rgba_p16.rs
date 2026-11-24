@@ -1924,4 +1924,72 @@ mod tests {
             );
         }
     }
+
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    type Convert = fn(
+        &YuvPlanarImage<u16>,
+        &mut [u16],
+        u32,
+        YuvRange,
+        YuvStandardMatrix,
+    ) -> Result<(), YuvError>;
+
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    fn footroom_red(convert: Convert, bits: u32, width: u32, luma: u16) -> Vec<u16> {
+        let n = width as usize;
+        let mid = 1u16 << (bits - 1);
+        let y = vec![luma; n];
+        let u = vec![mid; n];
+        let v = vec![mid + (mid / 8) * 7; n];
+        let image = YuvPlanarImage {
+            y_plane: &y,
+            y_stride: width,
+            u_plane: &u,
+            u_stride: width,
+            v_plane: &v,
+            v_stride: width,
+            width,
+            height: 1,
+        };
+        let mut rgba = vec![0u16; n * 4];
+        convert(
+            &image,
+            &mut rgba,
+            width * 4,
+            YuvRange::Limited,
+            YuvStandardMatrix::Bt601,
+        )
+        .unwrap();
+        rgba.chunks(4).map(|p| p[0]).collect()
+    }
+
+    /// Limited-range luma below the footroom (under the range's bias) is
+    /// negative once the bias is removed, and stays negative until the
+    /// final RGB clamp on the NEON paths, as the scalar path computes it:
+    /// with a strong red chroma, R at Y = 0 is below R at Y = bias. (The
+    /// x86 kernels still saturate the luma difference at zero.)
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    #[test]
+    fn test_limited_range_luma_below_footroom_stays_below_black() {
+        let cases: [(&str, u32, Convert); 3] = [
+            ("10", 10, crate::i410_to_rgba10),
+            ("12", 12, crate::i412_to_rgba12),
+            ("16", 16, crate::i416_to_rgba16),
+        ];
+        for (name, bits, convert) in cases {
+            let bias = 16u16 << (bits - 8);
+            for width in [1u32, 7, 8, 15, 16, 33, 64] {
+                let at_zero = footroom_red(convert, bits, width, 0);
+                let at_bias = footroom_red(convert, bits, width, bias);
+                for x in 0..width as usize {
+                    assert!(
+                        at_zero[x] < at_bias[x],
+                        "{name}-bit width {width} x {x}: R {} at Y=0, {} at Y={bias}",
+                        at_zero[x],
+                        at_bias[x]
+                    );
+                }
+            }
+        }
+    }
 }
